@@ -13,6 +13,11 @@ var rootCmd = &cobra.Command{
 	Long:  "AnyCLI wraps existing CLIs into agent-friendly interfaces via PATH shims with a declarative JSON-based middleware pipeline.",
 }
 
+// SetVersion sets the version shown by --version.
+func SetVersion(v string) {
+	rootCmd.Version = v
+}
+
 // Execute runs the root command.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
