@@ -49,12 +49,8 @@ jobs:
           done
           # Then delete old assets (keep only current version)
           CURRENT_VERSION="${{ steps.version.outputs.version }}"
-          for asset in $(gh api repos/${{ github.repository }}/releases/tags/latest --jq '.assets[] | "\(.id) \(.name)"' 2>/dev/null); do
-            echo "$asset"
-          done | while read -r asset_id asset_name; do
-            if ! echo "$asset_name" | grep -q "$CURRENT_VERSION"; then
-              gh api -X DELETE repos/${{ github.repository }}/releases/assets/$asset_id 2>/dev/null || true
-            fi
+          gh api repos/${{ github.repository }}/releases/tags/latest --jq '.assets[] | select(.name | contains("'"$CURRENT_VERSION"'") | not) | .id' 2>/dev/null | while read -r asset_id; do
+            gh api -X DELETE repos/${{ github.repository }}/releases/assets/$asset_id 2>/dev/null || true
           done
           # Update release metadata
           gh release edit latest \

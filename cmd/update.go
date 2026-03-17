@@ -38,7 +38,7 @@ var updateCmd = &cobra.Command{
 
 		// Extract remote version from asset name: any_<version>_<os>_<arch>.tar.gz
 		remoteVersion := extractVersionFromAssets(release)
-		currentVersion := rootCmd.Version
+		currentVersion := version
 
 		if remoteVersion != "" && remoteVersion == currentVersion {
 			fmt.Printf("already up to date (%s)\n", currentVersion)

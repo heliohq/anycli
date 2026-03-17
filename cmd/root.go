@@ -7,15 +7,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var version = "dev"
+
 var rootCmd = &cobra.Command{
 	Use:   "any",
 	Short: "Make every tool agent-native",
 	Long:  "AnyCLI wraps existing CLIs into agent-friendly interfaces via PATH shims with a declarative JSON-based middleware pipeline.",
 }
 
-// SetVersion sets the version shown by --version.
+// SetVersion sets the version string.
 func SetVersion(v string) {
-	rootCmd.Version = v
+	version = v
 }
 
 // Execute runs the root command.
