@@ -33,11 +33,5 @@
       }
     }
   ],
-  "after": [
-    {
-      "name": "ensure-json-output",
-      "rule": "ensure_json",
-      "when": { "not_has_flag": "--jq" }
-    }
-  ]
+  "after": []
 }
