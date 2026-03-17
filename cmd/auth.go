@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -51,18 +50,7 @@ var authCmd = &cobra.Command{
 		// Managed auth: anycli stores the credential
 		token, _ := cmd.Flags().GetString("token")
 		if token == "" {
-			prompt := def.Auth.Prompt
-			if prompt == "" {
-				prompt = fmt.Sprintf("Enter %s", def.Auth.EnvVar)
-			}
-			fmt.Printf("%s: ", prompt)
-			reader := bufio.NewReader(os.Stdin)
-			token, _ = reader.ReadString('\n')
-			token = strings.TrimSpace(token)
-		}
-
-		if token == "" {
-			return fmt.Errorf("no credential provided")
+			return fmt.Errorf("no credential provided; use --token <value>")
 		}
 
 		if err := config.EnsureDirs(); err != nil {

@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/shipbase/anycli/definitions"
 	"github.com/shipbase/anycli/internal/config"
@@ -51,17 +49,13 @@ var installCmd = &cobra.Command{
 		if mode == "" {
 			existingPath, err := findExistingBinary(name)
 			if err == nil && existingPath != "" {
-				m, err := promptConflict(name, existingPath)
-				if err != nil {
-					return err
-				}
-				mode = m
+				fmt.Fprintf(os.Stderr, "conflict: %s already exists at %s\n", name, existingPath)
+				fmt.Fprintf(os.Stderr, "\nrerun with --conflict-policy:\n")
+				fmt.Fprintf(os.Stderr, "  --conflict-policy override   download new binary, replace existing\n")
+				fmt.Fprintf(os.Stderr, "  --conflict-policy link       wrap existing binary with anycli middleware\n")
+				fmt.Fprintf(os.Stderr, "\nif you are an agent, ask the user which policy to use.\n")
+				return fmt.Errorf("installation aborted due to conflict")
 			}
-		}
-
-		if mode == "abort" {
-			fmt.Println("installation aborted")
-			return nil
 		}
 
 		if mode == "link" {
@@ -116,30 +110,6 @@ func findExistingBinary(name string) (string, error) {
 	return "", exec.ErrNotFound
 }
 
-// promptConflict asks the user how to handle an existing binary.
-func promptConflict(name, existingPath string) (string, error) {
-	fmt.Printf("found existing %s at %s\n", name, existingPath)
-	fmt.Println("  [o]verride  - download new binary, replace existing")
-	fmt.Println("  [l]ink      - wrap existing binary with anycli middleware")
-	fmt.Println("  [a]bort     - cancel installation")
-	fmt.Print("choose [o/l/a]: ")
-
-	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(strings.ToLower(input))
-
-	switch input {
-	case "o", "override":
-		return "override", nil
-	case "l", "link":
-		return "link", nil
-	case "a", "abort", "":
-		return "abort", nil
-	default:
-		return "abort", nil
-	}
-}
-
 func loadFromFile(path string) (*registry.Definition, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -179,6 +149,6 @@ func createShim(name string) error {
 
 func init() {
 	installCmd.Flags().String("from", "", "install from a local JSON definition file")
-	installCmd.Flags().String("conflict-policy", "", "conflict resolution when tool exists in PATH: override, link, or abort")
+	installCmd.Flags().String("conflict-policy", "", "conflict resolution when tool exists in PATH: override or link")
 	rootCmd.AddCommand(installCmd)
 }
