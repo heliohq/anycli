@@ -79,7 +79,7 @@ Drawing from Peter Steinberger and the broader community, AnyCLI follows these p
 
 ## The Vision
 
-AnyCLI makes every tool agent-native. Wrap any existing CLI, API, or service into a lightweight, agent-friendly command-line interface — no MCP server needed, no schema bloat, no protocol overhead. Just tools that agents already know how to use.
+AnyCLI wraps authenticated cloud service CLIs/APIs into agent-friendly interfaces — no MCP server needed, no schema bloat, no protocol overhead. Install, authenticate, and let agents use tools they already know.
 
 ## References
 

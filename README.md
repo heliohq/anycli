@@ -1,8 +1,8 @@
 # AnyCLI
 
-**Make every tool agent-native.**
+**One CLI to authenticate them all.**
 
-AnyCLI wraps any existing CLI, API, or service into a lightweight, agent-friendly command-line interface — no MCP server needed, no schema bloat, no protocol overhead.
+AnyCLI wraps authenticated cloud service CLIs/APIs (GitHub, Cloudflare, AWS, GCP, etc.) into agent-friendly interfaces with automatic credential injection and middleware hooks.
 
 ## Why?
 

@@ -11,8 +11,8 @@ var version = "dev"
 
 var rootCmd = &cobra.Command{
 	Use:   "any",
-	Short: "Make every tool agent-native",
-	Long:  "AnyCLI wraps existing CLIs into agent-friendly interfaces via PATH shims with a declarative JSON-based middleware pipeline.",
+	Short: "Wrap authenticated cloud service CLIs/APIs for agents",
+	Long:  "AnyCLI wraps authenticated cloud service CLIs/APIs (gh, wrangler, aws, gcloud, etc.) into agent-friendly interfaces with automatic credential injection and middleware hooks.",
 }
 
 // SetVersion sets the version string.

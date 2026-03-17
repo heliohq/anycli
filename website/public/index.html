@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AnyCLI - Make Every Tool Agent-Native</title>
-  <meta name="description" content="AnyCLI wraps any CLI into an agent-friendly interface. No MCP, no schema bloat. Just tools that agents already know.">
+  <meta name="description" content="AnyCLI wraps authenticated cloud service CLIs/APIs into agent-friendly interfaces. Install, authenticate, and let agents use tools they already know.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -495,10 +495,10 @@
     <div class="hero-grid"></div>
     <div class="hero-content">
       <div class="hero-badge">Agent-native package manager</div>
-      <h1>Make every tool<br><span class="accent">agent-native</span></h1>
+      <h1>One CLI to<br><span class="accent">authenticate them all</span></h1>
       <p class="hero-sub">
-        Wrap any CLI into an agent-friendly interface with middleware hooks.
-        No MCP server, no schema bloat, no protocol overhead.
+        Wrap authenticated cloud service CLIs/APIs into agent-friendly interfaces.
+        Automatic credential injection. No MCP, no schema bloat.
       </p>
       <div class="install-box">
         <div class="install-header">
@@ -534,7 +534,7 @@
   <section id="how" class="fade-in">
     <div class="section-label">How it works</div>
     <h2>Four commands. That's it.</h2>
-    <p class="section-desc">Install a tool, authenticate, and start using it. AnyCLI downloads the binary, wraps it with middleware hooks, and creates a PATH shim.</p>
+    <p class="section-desc">Install a cloud service CLI, authenticate once, and let agents use it. AnyCLI handles credential injection, binary downloads, and PATH shims.</p>
     <div class="flow">
       <div class="flow-step">
         <div class="flow-num">01</div>
@@ -575,7 +575,6 @@
         <span class="dim">load</span>  <span class="white">~/.anycli/registry/gh.json</span><br>
         <span class="dim">hook</span>  <span class="yellow">before</span> <span class="green">inject-auth</span> <span class="dim">set GH_TOKEN from credentials</span><br>
         <span class="dim">exec</span>  <span class="white">/usr/local/bin/gh pr list --state open</span><br>
-        <span class="dim">hook</span>  <span class="blue">after</span>  <span class="green">ensure-json</span> <span class="dim">wrap output as JSON</span><br>
         <span class="dim">exit</span>  <span class="green">0</span>
       </div>
     </div>
@@ -689,7 +688,7 @@
 
   <!-- CTA -->
   <div class="cta-section fade-in">
-    <h2>Ready to make your tools agent-native?</h2>
+    <h2>Ready to let agents use your cloud services?</h2>
     <p class="cta-desc">Install AnyCLI in 10 seconds. Open source, MIT licensed.</p>
     <div class="cta-install" onclick="copyInstall()">
       <span class="prompt">$</span>
@@ -700,7 +699,7 @@
   <!-- FOOTER -->
   <footer>
     <div class="footer-inner">
-      <div class="footer-text">AnyCLI &mdash; Make every tool agent-native</div>
+      <div class="footer-text">AnyCLI &mdash; One CLI to authenticate them all</div>
       <div class="footer-links">
         <a href="https://github.com/sheet0/anycli">GitHub</a>
         <a href="https://github.com/sheet0/anycli/blob/main/WHY_ANY_CLI.md">Why CLI?</a>

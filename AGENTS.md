@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-AnyCLI makes every tool agent-native by wrapping existing CLIs, APIs, or services into lightweight, agent-friendly command-line interfaces.
+AnyCLI wraps authenticated cloud service CLIs/APIs into agent-friendly interfaces with automatic credential injection and middleware hooks.
 
 ## Tech Stack
 
