@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"archive/tar"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,19 +17,45 @@ import (
 
 const releaseURL = "https://api.github.com/repos/sheet0/anycli/releases/tags/latest"
 
+type releaseInfo struct {
+	Body   string `json:"body"`
+	Assets []struct {
+		Name               string `json:"name"`
+		BrowserDownloadURL string `json:"browser_download_url"`
+	} `json:"assets"`
+}
+
 var updateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "Update anycli to the latest version",
+	Short: "Update any to the latest version",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("checking for updates...")
 
-		// Find the asset URL for current platform
-		assetURL, err := findAssetURL(runtime.GOOS, runtime.GOARCH)
+		release, err := fetchRelease()
 		if err != nil {
 			return err
 		}
 
-		fmt.Println("downloading latest version...")
+		// Extract remote version from asset name: any_<version>_<os>_<arch>.tar.gz
+		remoteVersion := extractVersionFromAssets(release)
+		currentVersion := rootCmd.Version
+
+		if remoteVersion != "" && remoteVersion == currentVersion {
+			fmt.Printf("already up to date (%s)\n", currentVersion)
+			return nil
+		}
+
+		// Find asset URL for current platform
+		assetURL, err := findAssetURLFromRelease(release, runtime.GOOS, runtime.GOARCH)
+		if err != nil {
+			return err
+		}
+
+		if remoteVersion != "" {
+			fmt.Printf("updating %s -> %s\n", currentVersion, remoteVersion)
+		} else {
+			fmt.Println("downloading latest version...")
+		}
 
 		// Download
 		resp, err := http.Get(assetURL)
@@ -73,27 +99,45 @@ var updateCmd = &cobra.Command{
 	},
 }
 
-func findAssetURL(goos, goarch string) (string, error) {
+func fetchRelease() (*releaseInfo, error) {
 	resp, err := http.Get(releaseURL)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("github api returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("github api returned %d", resp.StatusCode)
 	}
 
-	var release struct {
-		Assets []struct {
-			Name               string `json:"name"`
-			BrowserDownloadURL string `json:"browser_download_url"`
-		} `json:"assets"`
-	}
+	var release releaseInfo
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return "", err
+		return nil, err
 	}
+	return &release, nil
+}
 
+// extractVersionFromAssets extracts the version string from the first asset name.
+// Asset name format: any_<version>_<os>_<arch>.tar.gz
+func extractVersionFromAssets(release *releaseInfo) string {
+	for _, a := range release.Assets {
+		if !strings.HasPrefix(a.Name, "any_") {
+			continue
+		}
+		// any_v0.0.1-build.41.d998573_darwin_arm64.tar.gz
+		name := strings.TrimPrefix(a.Name, "any_")
+		// v0.0.1-build.41.d998573_darwin_arm64.tar.gz
+		// Find the version part: everything before _<os>_
+		for _, os := range []string{"_darwin_", "_linux_", "_windows_"} {
+			if idx := strings.Index(name, os); idx > 0 {
+				return name[:idx]
+			}
+		}
+	}
+	return ""
+}
+
+func findAssetURLFromRelease(release *releaseInfo, goos, goarch string) (string, error) {
 	platform := goos + "_" + goarch
 	for _, a := range release.Assets {
 		if strings.Contains(a.Name, platform) {
