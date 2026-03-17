@@ -21,7 +21,7 @@ CLI is the natural interface between agents and the world. [Read the full ration
 ## Getting Started
 
 ```bash
-curl -fsSL https://anycli.dev/install | sh
+curl -fsSL https://anycli.dev/install.sh | sh
 any install gh
 any auth gh --token ghp_xxx
 gh pr list

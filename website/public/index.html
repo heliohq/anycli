@@ -508,7 +508,7 @@
           <button class="install-copy" onclick="copyInstall()">copy</button>
         </div>
         <div class="install-body">
-          <span class="prompt">$</span> <span class="cmd" id="install-cmd">curl -fsSL https://anycli.dev/install | sh</span>
+          <span class="prompt">$</span> <span class="cmd" id="install-cmd">curl -fsSL https://anycli.dev/install.sh | sh</span>
         </div>
       </div>
     </div>
@@ -693,7 +693,7 @@
     <p class="cta-desc">Install AnyCLI in 10 seconds. Open source, MIT licensed.</p>
     <div class="cta-install" onclick="copyInstall()">
       <span class="prompt">$</span>
-      <span>curl -fsSL https://anycli.dev/install | sh</span>
+      <span>curl -fsSL https://anycli.dev/install.sh | sh</span>
     </div>
   </div>
 
@@ -712,7 +712,7 @@
   <script>
     // Copy install command
     function copyInstall() {
-      const cmd = 'curl -fsSL https://anycli.dev/install | sh';
+      const cmd = 'curl -fsSL https://anycli.dev/install.sh | sh';
       navigator.clipboard.writeText(cmd).then(() => {
         const btn = document.querySelector('.install-copy');
         btn.textContent = 'copied!';
