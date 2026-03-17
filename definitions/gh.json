@@ -1,0 +1,43 @@
+{
+  "name": "gh",
+  "description": "GitHub CLI with agent-friendly defaults",
+  "binary": "gh",
+  "source": {
+    "type": "github-release",
+    "repo": "cli/cli",
+    "asset_pattern": "gh_{version}_{os}_{arch}{ext}",
+    "binary_path": "gh_{version}_{os}_{arch}/bin/gh",
+    "os_map": {
+      "darwin": "macOS",
+      "linux": "linux",
+      "windows": "windows"
+    },
+    "ext_map": {
+      "darwin": ".zip",
+      "linux": ".tar.gz",
+      "windows": ".zip"
+    }
+  },
+  "auth": {
+    "type": "env",
+    "env_var": "GH_TOKEN",
+    "prompt": "Enter your GitHub personal access token"
+  },
+  "before": [
+    {
+      "name": "inject-auth",
+      "rule": "set_env",
+      "config": {
+        "env_var": "GH_TOKEN",
+        "from": "credentials"
+      }
+    }
+  ],
+  "after": [
+    {
+      "name": "ensure-json-output",
+      "rule": "ensure_json",
+      "when": { "not_has_flag": "--jq" }
+    }
+  ]
+}
