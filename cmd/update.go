@@ -53,14 +53,19 @@ var updateCmd = &cobra.Command{
 			return fmt.Errorf("extraction failed: %w", err)
 		}
 
-		// Replace self
+		// Replace self: write to temp file then rename (avoids "text file busy" on Linux)
 		execPath, err := os.Executable()
 		if err != nil {
 			return fmt.Errorf("cannot determine binary path: %w", err)
 		}
 
-		if err := os.WriteFile(execPath, binary, 0755); err != nil {
+		tmpPath := execPath + ".tmp"
+		if err := os.WriteFile(tmpPath, binary, 0755); err != nil {
 			return fmt.Errorf("cannot write binary: %w", err)
+		}
+		if err := os.Rename(tmpPath, execPath); err != nil {
+			os.Remove(tmpPath)
+			return fmt.Errorf("cannot replace binary: %w", err)
 		}
 
 		fmt.Println("updated successfully!")
