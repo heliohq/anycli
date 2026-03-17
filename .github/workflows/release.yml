@@ -2,8 +2,8 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
@@ -21,13 +23,26 @@ jobs:
       - name: Run tests
         run: go test ./...
 
-      - name: Build all platforms
-        run: make dist VERSION=${{ github.ref_name }}
-        env:
-          VERSION: ${{ github.ref_name }}
+      - name: Determine version
+        id: version
+        run: |
+          VERSION="v0.0.1-build.$(git rev-list --count HEAD).$(git rev-parse --short HEAD)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create release
+      - name: Build all platforms
+        run: make dist VERSION=${{ steps.version.outputs.version }}
+
+      - name: Update latest release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: latest
+          name: "Latest (${{ steps.version.outputs.version }})"
           files: dist/*.tar.gz
-          generate_release_notes: true
+          prerelease: true
+          make_latest: true
+          generate_release_notes: false
+          body: |
+            Rolling release from `main` branch.
+
+            **Version:** `${{ steps.version.outputs.version }}`
+            **Commit:** ${{ github.sha }}

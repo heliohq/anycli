@@ -28,39 +28,48 @@ detect_platform() {
   echo "${OS}_${ARCH}"
 }
 
-# Get latest release version from GitHub
-get_latest_version() {
+# Resolve the download URL for the latest release asset matching the platform
+resolve_asset_url() {
+  local platform="$1"
+  local api_url="https://api.github.com/repos/${REPO}/releases/tags/latest"
+  local json
+
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed 's/.*"v\(.*\)".*/\1/'
+    json=$(curl -fsSL "$api_url")
   elif command -v wget >/dev/null 2>&1; then
-    wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed 's/.*"v\(.*\)".*/\1/'
+    json=$(wget -qO- "$api_url")
   else
     echo "error: curl or wget required" >&2
     exit 1
   fi
+
+  # Find the asset URL matching our platform
+  echo "$json" | grep "browser_download_url" | grep "$platform" | head -1 | sed 's/.*"\(https[^"]*\)".*/\1/'
 }
 
 # Download and install
 install() {
   PLATFORM=$(detect_platform)
-  VERSION=$(get_latest_version)
 
-  if [ -z "$VERSION" ]; then
-    echo "error: could not determine latest version"
+  echo "Installing anycli (${PLATFORM})..."
+
+  # Download from the rolling "latest" release tag
+  # Asset naming: anycli_<version>_<os>_<arch>.tar.gz — but version varies,
+  # so we resolve the actual asset URL from the release API.
+  ASSET_URL=$(resolve_asset_url "$PLATFORM")
+
+  if [ -z "$ASSET_URL" ]; then
+    echo "error: could not find release asset for ${PLATFORM}"
     exit 1
   fi
-
-  echo "Installing anycli v${VERSION} (${PLATFORM})..."
-
-  URL="https://github.com/${REPO}/releases/download/v${VERSION}/anycli_${VERSION}_${PLATFORM}.tar.gz"
   TMP_DIR=$(mktemp -d)
   trap 'rm -rf "$TMP_DIR"' EXIT
 
   # Download
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$URL" -o "$TMP_DIR/anycli.tar.gz"
+    curl -fsSL -L "$ASSET_URL" -o "$TMP_DIR/anycli.tar.gz"
   else
-    wget -q "$URL" -O "$TMP_DIR/anycli.tar.gz"
+    wget -q "$ASSET_URL" -O "$TMP_DIR/anycli.tar.gz"
   fi
 
   # Extract
@@ -113,7 +122,7 @@ install() {
   esac
 
   echo ""
-  echo "  anycli v${VERSION} installed successfully!"
+  echo "  anycli installed successfully!"
   echo ""
   echo "  Run 'anycli install gh' to get started."
   echo ""
