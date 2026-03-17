@@ -29,4 +29,4 @@ gh pr list
 
 ## License
 
-Apache License 2.0 - Copyright 2025-2026 Lifecycle AI, LLC
+Apache License 2.0
