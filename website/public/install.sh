@@ -1,10 +1,10 @@
 #!/bin/sh
 # AnyCLI installer - https://anycli.dev
-# Usage: curl -fsSL https://anycli.dev/install.sh | sh
+# Usage: curl -fsSL https://anycli.dev/install | sh
 
 set -e
 
-REPO="shipbase/anycli"
+REPO="sheet0/anycli"
 INSTALL_DIR="${ANYCLI_INSTALL_DIR:-/usr/local/bin}"
 ANYCLI_HOME="${ANYCLI_HOME:-$HOME/.anycli}"
 
@@ -122,4 +122,55 @@ install() {
   echo ""
 }
 
-install
+# Uninstall
+uninstall() {
+  echo "Uninstalling anycli..."
+
+  # Remove binary
+  if [ -f "$INSTALL_DIR/anycli" ]; then
+    if [ -w "$INSTALL_DIR" ]; then
+      rm -f "$INSTALL_DIR/anycli"
+    else
+      sudo rm -f "$INSTALL_DIR/anycli"
+    fi
+  fi
+
+  # Remove anycli home directory
+  if [ -d "$ANYCLI_HOME" ]; then
+    rm -rf "$ANYCLI_HOME"
+  fi
+
+  # Remove PATH entries from shell configs
+  remove_from_rc() {
+    local rc_file="$1"
+    if [ -f "$rc_file" ]; then
+      # Remove AnyCLI comment and PATH line
+      sed -i.bak '/# AnyCLI/d' "$rc_file"
+      sed -i.bak '/anycli\/bin/d' "$rc_file"
+      rm -f "${rc_file}.bak"
+    fi
+  }
+
+  remove_from_rc "$HOME/.zshrc"
+  remove_from_rc "$HOME/.bashrc"
+  remove_from_rc "$HOME/.bash_profile"
+  remove_from_rc "$HOME/.profile"
+  if [ -f "$HOME/.config/fish/config.fish" ]; then
+    remove_from_rc "$HOME/.config/fish/config.fish"
+  fi
+
+  echo ""
+  echo "  anycli uninstalled successfully."
+  echo "  Restart your shell to apply PATH changes."
+  echo ""
+}
+
+# Parse command
+case "${1:-install}" in
+  install)   install ;;
+  uninstall) uninstall ;;
+  *)
+    echo "Usage: install.sh [install|uninstall]"
+    exit 1
+    ;;
+esac
