@@ -42,18 +42,21 @@ func Run(name string, args []string) (int, error) {
 		return 1, err
 	}
 
-	// Execute the real binary
-	ctx.ExitCode, ctx.Stdout, ctx.Stderr, err = execute(binaryPath, ctx.Args, ctx.Env)
+	// If no after hooks, passthrough stdin/stdout/stderr directly (streaming)
+	if len(def.After) == 0 {
+		return executePassthrough(binaryPath, ctx.Args, ctx.Env)
+	}
+
+	// With after hooks, capture output for processing
+	ctx.ExitCode, ctx.Stdout, ctx.Stderr, err = executeBuffered(binaryPath, ctx.Args, ctx.Env)
 	if err != nil && ctx.ExitCode == 0 {
 		return 1, err
 	}
 
-	// Run after hooks
 	if err := middleware.RunAfter(def.After, ctx); err != nil {
 		return ctx.ExitCode, err
 	}
 
-	// Write output
 	os.Stdout.Write(ctx.Stdout)
 	os.Stderr.Write(ctx.Stderr)
 
@@ -85,25 +88,38 @@ func resolveBinary(def *registry.Definition) (string, error) {
 	return "", fmt.Errorf("%s not found in PATH", def.Binary)
 }
 
-// execute runs the real binary and captures output.
-func execute(binary string, args []string, env map[string]string) (int, []byte, []byte, error) {
+// executePassthrough runs the binary with stdin/stdout/stderr connected directly.
+func executePassthrough(binary string, args []string, env map[string]string) (int, error) {
+	cmd := exec.Command(binary, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = buildEnv(env)
+
+	err := cmd.Run()
+	return cmd.ProcessState.ExitCode(), err
+}
+
+// executeBuffered runs the binary and captures output for after hooks.
+func executeBuffered(binary string, args []string, env map[string]string) (int, []byte, []byte, error) {
 	cmd := exec.Command(binary, args...)
 	cmd.Stdin = os.Stdin
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-
-	// Inherit current env and add custom env vars
-	cmd.Env = os.Environ()
-	for k, v := range env {
-		cmd.Env = append(cmd.Env, k+"="+v)
-	}
+	cmd.Env = buildEnv(env)
 
 	err := cmd.Run()
-	exitCode := cmd.ProcessState.ExitCode()
+	return cmd.ProcessState.ExitCode(), stdout.Bytes(), stderr.Bytes(), err
+}
 
-	return exitCode, stdout.Bytes(), stderr.Bytes(), err
+func buildEnv(env map[string]string) []string {
+	result := os.Environ()
+	for k, v := range env {
+		result = append(result, k+"="+v)
+	}
+	return result
 }
 
 // loadCredential reads a stored credential value for a tool.
