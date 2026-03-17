@@ -1,0 +1,12 @@
+{
+  "name": "wrangler",
+  "description": "Cloudflare CLI for Workers and Pages",
+  "binary": "wrangler",
+  "source": {
+    "type": "npm",
+    "repo": "wrangler",
+    "binary_path": "wrangler"
+  },
+  "before": [],
+  "after": []
+}
