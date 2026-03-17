@@ -34,9 +34,10 @@ type SourceConfig struct {
 
 // AuthConfig defines how to authenticate for a tool.
 type AuthConfig struct {
-	Type   string `json:"type"`    // "env", "token"
-	EnvVar string `json:"env_var"` // environment variable name
-	Prompt string `json:"prompt"`  // prompt text for anycli auth
+	Type    string `json:"type"`              // "managed" (anycli manages credentials) or "self" (tool manages its own auth)
+	EnvVar  string `json:"env_var,omitempty"` // environment variable name (managed only)
+	Prompt  string `json:"prompt,omitempty"`  // prompt text for anycli auth (managed only)
+	Command string `json:"command,omitempty"` // auth command hint for self-managed, e.g. "wrangler login"
 }
 
 // Rule represents a single before/after middleware rule.

@@ -19,7 +19,7 @@
     }
   },
   "auth": {
-    "type": "env",
+    "type": "managed",
     "env_var": "GH_TOKEN",
     "prompt": "Enter your GitHub personal access token"
   },

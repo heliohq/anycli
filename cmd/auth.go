@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/shipbase/anycli/internal/config"
+	internalExec "github.com/shipbase/anycli/internal/exec"
 	"github.com/shipbase/anycli/internal/registry"
 	"github.com/spf13/cobra"
 )
@@ -30,10 +31,26 @@ var authCmd = &cobra.Command{
 			return nil
 		}
 
-		// Check if token is provided via flag
+		// Self-managed auth: delegate to the tool's own auth command
+		if def.Auth.Type == "self" {
+			authCmd := def.Auth.Command
+			if authCmd == "" {
+				authCmd = "login"
+			}
+			fmt.Printf("delegating to %s %s...\n", name, authCmd)
+			exitCode, err := internalExec.Run(name, strings.Fields(authCmd))
+			if err != nil {
+				return err
+			}
+			if exitCode != 0 {
+				return fmt.Errorf("%s auth exited with code %d", name, exitCode)
+			}
+			return nil
+		}
+
+		// Managed auth: anycli stores the credential
 		token, _ := cmd.Flags().GetString("token")
 		if token == "" {
-			// Interactive prompt
 			prompt := def.Auth.Prompt
 			if prompt == "" {
 				prompt = fmt.Sprintf("Enter %s", def.Auth.EnvVar)
@@ -48,7 +65,6 @@ var authCmd = &cobra.Command{
 			return fmt.Errorf("no credential provided")
 		}
 
-		// Save credential
 		if err := config.EnsureDirs(); err != nil {
 			return err
 		}
