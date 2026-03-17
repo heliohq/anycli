@@ -13,10 +13,10 @@ var version = "dev"
 
 func main() {
 	cmd.SetVersion(version)
-	// Busybox-style detection: if invoked via a symlink name other than "anycli",
+	// Busybox-style detection: if invoked via a symlink name other than "any",
 	// treat it as a shim call and delegate to exec.
 	name := filepath.Base(os.Args[0])
-	if name != "anycli" {
+	if name != "any" {
 		shim.Run(name, os.Args[1:])
 		return
 	}

@@ -48,7 +48,7 @@ var updateCmd = &cobra.Command{
 		}
 
 		// Extract binary from tar.gz
-		binary, err := extractBinaryFromTarGz(&buf, "anycli")
+		binary, err := extractBinaryFromTarGz(&buf, "any")
 		if err != nil {
 			return fmt.Errorf("extraction failed: %w", err)
 		}

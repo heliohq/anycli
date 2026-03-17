@@ -67,23 +67,23 @@ install() {
 
   # Download
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL -L "$ASSET_URL" -o "$TMP_DIR/anycli.tar.gz"
+    curl -fsSL -L "$ASSET_URL" -o "$TMP_DIR/any.tar.gz"
   else
-    wget -q "$ASSET_URL" -O "$TMP_DIR/anycli.tar.gz"
+    wget -q "$ASSET_URL" -O "$TMP_DIR/any.tar.gz"
   fi
 
   # Extract
-  tar -xzf "$TMP_DIR/anycli.tar.gz" -C "$TMP_DIR"
+  tar -xzf "$TMP_DIR/any.tar.gz" -C "$TMP_DIR"
 
   # Install binary
   if [ -w "$INSTALL_DIR" ]; then
-    mv "$TMP_DIR/anycli" "$INSTALL_DIR/anycli"
+    mv "$TMP_DIR/any" "$INSTALL_DIR/any"
   else
     echo "Installing to ${INSTALL_DIR} (requires sudo)..."
-    sudo mv "$TMP_DIR/anycli" "$INSTALL_DIR/anycli"
+    sudo mv "$TMP_DIR/any" "$INSTALL_DIR/any"
   fi
 
-  chmod +x "$INSTALL_DIR/anycli"
+  chmod +x "$INSTALL_DIR/any"
 
   # Create anycli directories
   mkdir -p "$ANYCLI_HOME/bin"
@@ -122,9 +122,9 @@ install() {
   esac
 
   echo ""
-  echo "  anycli installed successfully!"
+  echo "  any installed successfully!"
   echo ""
-  echo "  Run 'anycli install gh' to get started."
+  echo "  Run 'any install gh' to get started."
   echo ""
   echo "  Restart your shell or run:"
   echo "    $PATH_LINE"
@@ -133,14 +133,14 @@ install() {
 
 # Uninstall
 uninstall() {
-  echo "Uninstalling anycli..."
+  echo "Uninstalling any..."
 
   # Remove binary
-  if [ -f "$INSTALL_DIR/anycli" ]; then
+  if [ -f "$INSTALL_DIR/any" ]; then
     if [ -w "$INSTALL_DIR" ]; then
-      rm -f "$INSTALL_DIR/anycli"
+      rm -f "$INSTALL_DIR/any"
     else
-      sudo rm -f "$INSTALL_DIR/anycli"
+      sudo rm -f "$INSTALL_DIR/any"
     fi
   fi
 
@@ -169,7 +169,7 @@ uninstall() {
   fi
 
   echo ""
-  echo "  anycli uninstalled successfully."
+  echo "  any uninstalled successfully."
   echo "  Restart your shell to apply PATH changes."
   echo ""
 }

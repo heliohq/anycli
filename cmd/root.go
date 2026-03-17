@@ -8,7 +8,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "anycli",
+	Use:   "any",
 	Short: "Make every tool agent-native",
 	Long:  "AnyCLI wraps existing CLIs into agent-friendly interfaces via PATH shims with a declarative JSON-based middleware pipeline.",
 }
