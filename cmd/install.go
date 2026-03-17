@@ -22,8 +22,7 @@ var installCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
-		yes, _ := cmd.Flags().GetBool("yes")
-		mode, _ := cmd.Flags().GetString("mode")
+		mode, _ := cmd.Flags().GetString("conflict-policy")
 
 		// Check if already installed in anycli
 		if _, err := registry.Load(name); err == nil {
@@ -52,17 +51,11 @@ var installCmd = &cobra.Command{
 		if mode == "" {
 			existingPath, err := findExistingBinary(name)
 			if err == nil && existingPath != "" {
-				if yes {
-					// Non-interactive: default to link
-					mode = "link"
-					fmt.Printf("found existing %s at %s, linking\n", name, existingPath)
-				} else {
-					m, err := promptConflict(name, existingPath)
-					if err != nil {
-						return err
-					}
-					mode = m
+				m, err := promptConflict(name, existingPath)
+				if err != nil {
+					return err
 				}
+				mode = m
 			}
 		}
 
@@ -186,7 +179,6 @@ func createShim(name string) error {
 
 func init() {
 	installCmd.Flags().String("from", "", "install from a local JSON definition file")
-	installCmd.Flags().StringP("mode", "m", "", "conflict resolution: override, link, or abort")
-	installCmd.Flags().BoolP("yes", "y", false, "non-interactive mode (defaults to link on conflict)")
+	installCmd.Flags().String("conflict-policy", "", "conflict resolution when tool exists in PATH: override, link, or abort")
 	rootCmd.AddCommand(installCmd)
 }
