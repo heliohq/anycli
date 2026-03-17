@@ -31,6 +31,8 @@ func Install(def *registry.Definition) (*Result, error) {
 	switch def.Source.Type {
 	case "github-release":
 		return installFromGitHub(def)
+	case "npm":
+		return installFromNpm(def)
 	default:
 		return nil, fmt.Errorf("unknown source type: %s", def.Source.Type)
 	}
