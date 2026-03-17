@@ -14,7 +14,7 @@ CLI is the natural interface between agents and the world. [Read the full ration
 
 - **`--help` is the schema** — Agents read help text, not protocol definitions
 - **Structured output** — `--json` by default for machine-readable results
-- **No interaction** — `-y` flags everywhere; agents can't type into prompts
+- **No interaction** — All input via flags; agents can't type into prompts
 - **Composable** — Pipes and stdin/stdout; every tool is a building block
 - **Predictable** — Clear exit codes and error messages
 
@@ -22,9 +22,21 @@ CLI is the natural interface between agents and the world. [Read the full ration
 
 ```bash
 curl -fsSL https://anycli.dev/install | sh
-anycli install gh
-anycli auth gh
+any install gh
+any auth gh --token ghp_xxx
 gh pr list
+```
+
+## Commands
+
+```
+any install <tool>       Install a CLI wrapper (downloads binary + creates shim)
+any install <tool> --conflict-policy link   Wrap existing binary without downloading
+any uninstall <tool>     Remove a wrapper
+any list                 List available and installed wrappers
+any exec <tool> [args]   Run a tool through the middleware pipeline
+any auth <tool>          Configure authentication
+any update               Update any to the latest version
 ```
 
 ## License
