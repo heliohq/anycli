@@ -20,8 +20,13 @@ CLI is the natural interface between agents and the world. [Read the full ration
 
 ## Getting Started
 
-> Coming soon.
+```bash
+curl -fsSL https://anycli.dev/install | sh
+anycli install gh
+anycli auth gh
+gh pr list
+```
 
 ## License
 
-MIT
+Apache License 2.0 - Copyright 2025-2026 Lifecycle AI, LLC
