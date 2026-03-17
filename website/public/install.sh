@@ -5,8 +5,8 @@
 set -e
 
 REPO="sheet0/anycli"
-INSTALL_DIR="${ANYCLI_INSTALL_DIR:-/usr/local/bin}"
 ANYCLI_HOME="${ANYCLI_HOME:-$HOME/.anycli}"
+INSTALL_DIR="${ANYCLI_INSTALL_DIR:-$ANYCLI_HOME/bin}"
 
 # Detect OS and architecture
 detect_platform() {
