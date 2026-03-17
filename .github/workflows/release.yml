@@ -43,13 +43,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Delete old assets one by one (release stays intact)
-          for asset_id in $(gh api repos/${{ github.repository }}/releases/tags/latest --jq '.assets[].id' 2>/dev/null); do
-            gh api -X DELETE repos/${{ github.repository }}/releases/assets/$asset_id 2>/dev/null || true
-          done
-          # Upload new assets
+          # Upload new assets first (different filenames, no conflict)
           for file in dist/*.tar.gz; do
             gh release upload latest "$file" --clobber
+          done
+          # Then delete old assets (keep only current version)
+          CURRENT_VERSION="${{ steps.version.outputs.version }}"
+          for asset in $(gh api repos/${{ github.repository }}/releases/tags/latest --jq '.assets[] | "\(.id) \(.name)"' 2>/dev/null); do
+            echo "$asset"
+          done | while read -r asset_id asset_name; do
+            if ! echo "$asset_name" | grep -q "$CURRENT_VERSION"; then
+              gh api -X DELETE repos/${{ github.repository }}/releases/assets/$asset_id 2>/dev/null || true
+            fi
           done
           # Update release metadata
           gh release edit latest \

@@ -44,7 +44,7 @@ resolve_asset_url() {
   fi
 
   # Find the asset URL matching our platform
-  echo "$json" | grep "browser_download_url" | grep "$platform" | head -1 | sed 's/.*"\(https[^"]*\)".*/\1/'
+  echo "$json" | grep "browser_download_url" | grep "$platform" | tail -1 | sed 's/.*"\(https[^"]*\)".*/\1/'
 }
 
 # Download and install
