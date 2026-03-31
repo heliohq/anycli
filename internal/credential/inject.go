@@ -11,12 +11,13 @@ import (
 	"github.com/shipbase/anycli/internal/config"
 	"github.com/shipbase/anycli/internal/credential/format"
 	"github.com/shipbase/anycli/internal/registry"
+	"github.com/shipbase/anycli/internal/tools"
 )
 
 // InjectionResult holds the results of applying credential bindings.
 type InjectionResult struct {
 	Env     map[string]string // Environment variables to set
-	Args    []string          // Arguments to prepend
+	Args    []string          // Arguments to append
 	Cleanup func()            // Cleanup function for temp files (vault mode file inject)
 }
 
@@ -216,8 +217,22 @@ func patchFile(filePath string, inject registry.CredentialInject, value string) 
 	}
 
 	if fileFormat == "custom" {
-		// Custom patchers are handled separately by the caller
-		return fmt.Errorf("custom format requires a registered patcher")
+		if inject.Patcher == "" {
+			return fmt.Errorf("custom format requires patcher name in definition")
+		}
+		patcher, err := tools.GetPatcher(inject.Patcher)
+		if err != nil {
+			return err
+		}
+		cleanup, err := patcher.Patch(filePath, resolvedFields, mode)
+		if err != nil {
+			return err
+		}
+		// Note: cleanup from custom patcher is not propagated here because
+		// patchFile doesn't return a cleanup func. For vault mode, the temp
+		// file cleanup in applyFileBindingGroup handles this.
+		_ = cleanup
+		return nil
 	}
 
 	return format.PatchFile(filePath, fileFormat, resolvedFields, mode)

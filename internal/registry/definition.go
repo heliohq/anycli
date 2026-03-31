@@ -92,6 +92,24 @@ func Load(name string) (*Definition, error) {
 	if err := json.Unmarshal(data, &def); err != nil {
 		return nil, fmt.Errorf("invalid wrapper definition for %q: %w", name, err)
 	}
+
+	// Migrate legacy auth schema if present
+	var legacy legacyAuthDetector
+	if err := json.Unmarshal(data, &legacy); err == nil && legacy.Auth != nil {
+		if def.Auth != nil && len(def.Auth.Credentials) == 0 && legacy.Auth.Type != "" {
+			// Legacy definition detected — migrate in memory
+			switch legacy.Auth.Type {
+			case "managed":
+				if legacy.Auth.EnvVar != "" {
+					def.Auth.Credentials = []CredentialBinding{{
+						Source: CredentialSource{LocalKey: legacy.Auth.EnvVar},
+						Inject: CredentialInject{Type: "env", EnvVar: legacy.Auth.EnvVar},
+					}}
+				}
+			}
+		}
+	}
+
 	return &def, nil
 }
 
@@ -132,6 +150,15 @@ func List() ([]string, error) {
 		}
 	}
 	return names, nil
+}
+
+// legacyAuthDetector is used to detect and migrate legacy auth schema fields.
+type legacyAuthDetector struct {
+	Auth *struct {
+		Type    string `json:"type"`
+		EnvVar  string `json:"env_var"`
+		Command string `json:"command"`
+	} `json:"auth"`
 }
 
 // Remove deletes a wrapper definition from the local registry.

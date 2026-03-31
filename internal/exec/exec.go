@@ -55,9 +55,9 @@ func Run(name string, args []string) (int, error) {
 			ctx.Env[k] = v
 		}
 
-		// Prepend injected args
+		// Append injected args (after user args, for subcommand-scoped flags)
 		if len(injResult.Args) > 0 {
-			ctx.Args = append(injResult.Args, ctx.Args...)
+			ctx.Args = append(ctx.Args, injResult.Args...)
 		}
 
 		// Collect unique vault_tool values for stale marking on failure
