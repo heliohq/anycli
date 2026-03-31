@@ -142,10 +142,22 @@ func ApplyBindings(toolName string, bindings []registry.CredentialBinding, value
 func applyFileBindingGroup(tmpDir, targetPath string, entries []fileBindingEntry, isVaultMode bool, result *InjectionResult) (func(), error) {
 	if !isVaultMode {
 		// Standalone mode: patch the file at path directly for each binding
+		var patchCleanups []func() error
 		for _, e := range entries {
-			if err := patchFile(targetPath, e.binding.Inject, e.value); err != nil {
+			patchCleanup, err := patchFile(targetPath, e.binding.Inject, e.value)
+			if err != nil {
 				return nil, fmt.Errorf("binding %d: failed to patch file %q: %w", e.index, targetPath, err)
 			}
+			if patchCleanup != nil {
+				patchCleanups = append(patchCleanups, patchCleanup)
+			}
+		}
+		if len(patchCleanups) > 0 {
+			return func() {
+				for _, c := range patchCleanups {
+					_ = c()
+				}
+			}, nil
 		}
 		return nil, nil
 	}
@@ -168,8 +180,14 @@ func applyFileBindingGroup(tmpDir, targetPath string, entries []fileBindingEntry
 		}
 	}
 
-	// Create a temp file named after the original basename
-	tmpPath := filepath.Join(tmpDir, filepath.Base(targetPath))
+	// Create a uniquely-named temp file to avoid basename collisions
+	// (e.g., /a/config.json and /b/config.json both have base "config.json")
+	tmpFile, err := os.CreateTemp(tmpDir, filepath.Base(targetPath)+"-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file for %q: %w", targetPath, err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
 
 	// Copy original file if it exists
 	if err := copyFileIfExists(targetPath, tmpPath); err != nil {
@@ -177,10 +195,15 @@ func applyFileBindingGroup(tmpDir, targetPath string, entries []fileBindingEntry
 	}
 
 	// Patch the temp file with ALL fields from all bindings in this group
+	var patchCleanups []func() error
 	for _, e := range entries {
-		if err := patchFile(tmpPath, e.binding.Inject, e.value); err != nil {
+		patchCleanup, err := patchFile(tmpPath, e.binding.Inject, e.value)
+		if err != nil {
 			_ = os.Remove(tmpPath)
 			return nil, fmt.Errorf("binding %d: failed to patch temp file: %w", e.index, err)
+		}
+		if patchCleanup != nil {
+			patchCleanups = append(patchCleanups, patchCleanup)
 		}
 	}
 
@@ -192,11 +215,20 @@ func applyFileBindingGroup(tmpDir, targetPath string, entries []fileBindingEntry
 		result.Args = append(result.Args, configFlag, tmpPath)
 	}
 
+	if len(patchCleanups) > 0 {
+		return func() {
+			for _, c := range patchCleanups {
+				_ = c()
+			}
+		}, nil
+	}
+
 	return nil, nil
 }
 
 // patchFile writes a credential value to a file using the configured format.
-func patchFile(filePath string, inject registry.CredentialInject, value string) error {
+// Returns an optional cleanup function (non-nil only for custom patchers).
+func patchFile(filePath string, inject registry.CredentialInject, value string) (func() error, error) {
 	mode := os.FileMode(0600)
 	if inject.Mode != "" {
 		parsed, err := strconv.ParseUint(inject.Mode, 8, 32)
@@ -218,24 +250,20 @@ func patchFile(filePath string, inject registry.CredentialInject, value string) 
 
 	if fileFormat == "custom" {
 		if inject.Patcher == "" {
-			return fmt.Errorf("custom format requires patcher name in definition")
+			return nil, fmt.Errorf("custom format requires patcher name in definition")
 		}
 		patcher, err := tools.GetPatcher(inject.Patcher)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		cleanup, err := patcher.Patch(filePath, resolvedFields, mode)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		// Note: cleanup from custom patcher is not propagated here because
-		// patchFile doesn't return a cleanup func. For vault mode, the temp
-		// file cleanup in applyFileBindingGroup handles this.
-		_ = cleanup
-		return nil
+		return cleanup, nil
 	}
 
-	return format.PatchFile(filePath, fileFormat, resolvedFields, mode)
+	return nil, format.PatchFile(filePath, fileFormat, resolvedFields, mode)
 }
 
 // resolveTemplate replaces {{.Value}} or {{value}} in a template string with the actual value.

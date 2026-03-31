@@ -106,6 +106,13 @@ func Load(name string) (*Definition, error) {
 						Inject: CredentialInject{Type: "env", EnvVar: legacy.Auth.EnvVar},
 					}}
 				}
+			case "self":
+				// Legacy self-managed auth is no longer supported.
+				// The tool's own auth mechanism still works (e.g., wrangler stores its own tokens),
+				// but AnyCLI no longer delegates to the tool's login command.
+				// Clear auth so AnyCLI doesn't interfere.
+				fmt.Fprintf(os.Stderr, "[anycli] warning: tool %q uses legacy 'self' auth type which is no longer supported; auth cleared\n", name)
+				def.Auth = nil
 			}
 		}
 	}
