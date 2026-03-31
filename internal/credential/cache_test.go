@@ -18,11 +18,13 @@ func TestWriteCache_ReadCache_RoundTrip(t *testing.T) {
 		},
 	}
 
-	if err := WriteCache("ws-123", "github", entry); err != nil {
+	tokenHash := TokenFingerprint("test-token")
+
+	if err := WriteCache("ws-123", tokenHash, "github", entry); err != nil {
 		t.Fatalf("WriteCache failed: %v", err)
 	}
 
-	got, err := ReadCache("ws-123", "github")
+	got, err := ReadCache("ws-123", tokenHash, "github")
 	if err != nil {
 		t.Fatalf("ReadCache failed: %v", err)
 	}
@@ -51,7 +53,7 @@ func TestWriteCache_ReadCache_RoundTrip(t *testing.T) {
 func TestReadCache_MissingFile(t *testing.T) {
 	setupHome(t)
 
-	got, err := ReadCache("ws-nonexistent", "no-tool")
+	got, err := ReadCache("ws-nonexistent", "abcd1234", "no-tool")
 	if err != nil {
 		t.Fatalf("ReadCache returned error for missing file: %v", err)
 	}
@@ -102,21 +104,23 @@ func TestIsValid_StaleCache(t *testing.T) {
 func TestMarkStale(t *testing.T) {
 	setupHome(t)
 
+	tokenHash := TokenFingerprint("test-token")
+
 	entry := &CacheEntry{
 		FetchedAt:  time.Now(),
 		CacheUntil: time.Now().Add(10 * time.Minute),
 		Stale:      false,
 		Fields:     map[string]string{"token": "secret"},
 	}
-	if err := WriteCache("ws-mark", "tool-a", entry); err != nil {
+	if err := WriteCache("ws-mark", tokenHash, "tool-a", entry); err != nil {
 		t.Fatalf("WriteCache failed: %v", err)
 	}
 
-	if err := MarkStale("ws-mark", "tool-a"); err != nil {
+	if err := MarkStale("ws-mark", tokenHash, "tool-a"); err != nil {
 		t.Fatalf("MarkStale failed: %v", err)
 	}
 
-	got, err := ReadCache("ws-mark", "tool-a")
+	got, err := ReadCache("ws-mark", tokenHash, "tool-a")
 	if err != nil {
 		t.Fatalf("ReadCache after MarkStale failed: %v", err)
 	}
@@ -140,7 +144,7 @@ func TestMarkStale_NonexistentCache(t *testing.T) {
 	setupHome(t)
 
 	// MarkStale on a non-existent cache should not error
-	if err := MarkStale("ws-nope", "no-tool"); err != nil {
+	if err := MarkStale("ws-nope", "abcd1234", "no-tool"); err != nil {
 		t.Fatalf("MarkStale on nonexistent cache should not error, got: %v", err)
 	}
 }

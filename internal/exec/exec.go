@@ -144,8 +144,13 @@ func markCredentialsStale(toolName string, vaultTools []string) {
 	if workspaceID == "" {
 		return
 	}
+	vaultToken := os.Getenv("ANYCLI_VAULT_TOKEN")
+	if vaultToken == "" {
+		return
+	}
+	tokenHash := credential.TokenFingerprint(vaultToken)
 	for _, vt := range vaultTools {
-		_ = credential.MarkStale(workspaceID, vt)
+		_ = credential.MarkStale(workspaceID, tokenHash, vt)
 	}
 	fmt.Fprintf(os.Stderr, "[anycli] credentials for %q may be stale. retry the same command to fetch fresh credentials.\n", toolName)
 }

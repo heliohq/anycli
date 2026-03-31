@@ -165,8 +165,10 @@ func resolveVault(cfg *VaultConfig, bindings []registry.CredentialBinding) ([]st
 // Only the fields listed in requiredFields are cached and returned.
 // Implements: check cache -> fetch from vault -> on transient error, fall back to stale cache.
 func fetchVaultToolFields(cfg *VaultConfig, vaultTool string, requiredFields []string) (map[string]string, error) {
+	tokenHash := TokenFingerprint(cfg.Token)
+
 	// 1. Check cache first
-	cached, err := ReadCache(cfg.WorkspaceID, vaultTool)
+	cached, err := ReadCache(cfg.WorkspaceID, tokenHash, vaultTool)
 	if err != nil {
 		// Cache read error is non-fatal; proceed to fetch
 		cached = nil
@@ -182,7 +184,7 @@ func fetchVaultToolFields(cfg *VaultConfig, vaultTool string, requiredFields []s
 		var vfe *VaultFetchError
 		if errors.As(fetchErr, &vfe) {
 			// Transient error: mark cache as stale and use it if available
-			_ = MarkStale(cfg.WorkspaceID, vaultTool)
+			_ = MarkStale(cfg.WorkspaceID, tokenHash, vaultTool)
 			if cached != nil && cached.Fields != nil {
 				return cached.Fields, nil
 			}
@@ -220,7 +222,7 @@ func fetchVaultToolFields(cfg *VaultConfig, vaultTool string, requiredFields []s
 		Fields:     fields,
 	}
 	// Cache write error is non-fatal
-	_ = WriteCache(cfg.WorkspaceID, vaultTool, entry)
+	_ = WriteCache(cfg.WorkspaceID, tokenHash, vaultTool, entry)
 
 	return fields, nil
 }

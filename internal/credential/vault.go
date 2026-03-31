@@ -96,5 +96,20 @@ func FetchFromVault(cfg *VaultConfig, vaultTool string) (*VaultCredential, error
 		return nil, nil // no credential found, not an error
 	}
 
-	return &vaultResp.Credentials[0], nil
+	// Filter to matching tool and active status
+	var match *VaultCredential
+	for i := range vaultResp.Credentials {
+		c := &vaultResp.Credentials[i]
+		if c.Tool == vaultTool && c.Status == "active" {
+			if match != nil {
+				// Multiple active matches — ambiguous, fail closed
+				return nil, fmt.Errorf("vault returned multiple active credentials for tool %q", vaultTool)
+			}
+			match = c
+		}
+	}
+	if match == nil {
+		return nil, nil // no matching active credential found
+	}
+	return match, nil
 }
