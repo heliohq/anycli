@@ -12,7 +12,7 @@ import (
 const (
 	envVaultURL         = "ANYCLI_VAULT_URL"
 	envVaultToken       = "ANYCLI_VAULT_TOKEN"
-	envVaultWorkspaceID = "ANYCLI_VAULT_WORKSPACE_ID"
+	envVaultWorkspaceID = "ANYCLI_WORKSPACE_ID"
 )
 
 // VaultConfig holds vault mode configuration from environment variables.

@@ -20,6 +20,13 @@ type InjectionResult struct {
 	Cleanup func()            // Cleanup function for temp files (vault mode file inject)
 }
 
+// fileBindingEntry holds a file binding together with its resolved value and original index.
+type fileBindingEntry struct {
+	index   int
+	binding registry.CredentialBinding
+	value   string
+}
+
 // ApplyBindings applies resolved credentials according to their injection config.
 // bindings and values must be parallel slices.
 // isVaultMode indicates whether to use vault-mode file isolation.
@@ -34,6 +41,11 @@ func ApplyBindings(toolName string, bindings []registry.CredentialBinding, value
 	}
 
 	var cleanups []func()
+
+	// First pass: collect file bindings grouped by target path; handle env/arg immediately.
+	// Use a slice to maintain insertion order of groups.
+	var fileGroupOrder []string
+	fileGroups := make(map[string][]fileBindingEntry)
 
 	for i, b := range bindings {
 		val := values[i]
@@ -60,20 +72,54 @@ func ApplyBindings(toolName string, bindings []registry.CredentialBinding, value
 			}
 
 		case "file":
-			cleanup, err := applyFileBinding(toolName, i, b, val, isVaultMode, result)
-			if err != nil {
-				// Clean up anything we already created before returning
-				for _, c := range cleanups {
-					c()
-				}
-				return nil, err
+			targetPath := expandPath(b.Inject.Path)
+			if targetPath == "" {
+				return nil, fmt.Errorf("binding %d: inject type 'file' requires path", i)
 			}
-			if cleanup != nil {
-				cleanups = append(cleanups, cleanup)
+			if _, exists := fileGroups[targetPath]; !exists {
+				fileGroupOrder = append(fileGroupOrder, targetPath)
 			}
+			fileGroups[targetPath] = append(fileGroups[targetPath], fileBindingEntry{
+				index:   i,
+				binding: b,
+				value:   val,
+			})
 
 		default:
 			return nil, fmt.Errorf("binding %d: unknown inject type %q", i, b.Inject.Type)
+		}
+	}
+
+	// Second pass: process file binding groups.
+	// In vault mode, create one unique temp directory per ApplyBindings call.
+	var tmpDir string
+	if isVaultMode && len(fileGroups) > 0 {
+		parentDir := config.TmpDir()
+		if err := os.MkdirAll(parentDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create temp parent dir: %w", err)
+		}
+		var err error
+		tmpDir, err = os.MkdirTemp(parentDir, toolName+"-*")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temp dir: %w", err)
+		}
+		cleanups = append(cleanups, func() {
+			_ = os.RemoveAll(tmpDir)
+		})
+	}
+
+	for _, targetPath := range fileGroupOrder {
+		entries := fileGroups[targetPath]
+		cleanup, err := applyFileBindingGroup(tmpDir, targetPath, entries, isVaultMode, result)
+		if err != nil {
+			// Clean up anything we already created before returning
+			for _, c := range cleanups {
+				c()
+			}
+			return nil, err
+		}
+		if cleanup != nil {
+			cleanups = append(cleanups, cleanup)
 		}
 	}
 
@@ -88,64 +134,64 @@ func ApplyBindings(toolName string, bindings []registry.CredentialBinding, value
 	return result, nil
 }
 
-// applyFileBinding handles inject type "file".
-// In standalone mode: patches the file at the configured path directly.
-// In vault mode: creates a temp file, patches it, and redirects via config_env/config_flag.
-func applyFileBinding(toolName string, index int, b registry.CredentialBinding, value string, isVaultMode bool, result *InjectionResult) (func(), error) {
-	targetPath := expandPath(b.Inject.Path)
-	if targetPath == "" {
-		return nil, fmt.Errorf("binding %d: inject type 'file' requires path", index)
-	}
-
+// applyFileBindingGroup handles a group of file bindings that all target the same path.
+// In standalone mode: patches the file at the configured path directly with all fields.
+// In vault mode: creates ONE temp file per unique target path (inside tmpDir),
+// copies the original, patches ALL fields from the group, and sets config_env/config_flag once.
+func applyFileBindingGroup(tmpDir, targetPath string, entries []fileBindingEntry, isVaultMode bool, result *InjectionResult) (func(), error) {
 	if !isVaultMode {
-		// Standalone mode: patch the file at path directly
-		if err := patchFile(targetPath, b.Inject, value); err != nil {
-			return nil, fmt.Errorf("binding %d: failed to patch file %q: %w", index, targetPath, err)
+		// Standalone mode: patch the file at path directly for each binding
+		for _, e := range entries {
+			if err := patchFile(targetPath, e.binding.Inject, e.value); err != nil {
+				return nil, fmt.Errorf("binding %d: failed to patch file %q: %w", e.index, targetPath, err)
+			}
 		}
 		return nil, nil
 	}
 
-	// Vault mode: create temp file for isolation
-	if b.Inject.ConfigEnv == "" && b.Inject.ConfigFlag == "" {
-		return nil, fmt.Errorf(
-			"binding %d: vault mode file inject requires config_env or config_flag to redirect config path",
-			index,
-		)
+	// Vault mode: validate that at least one binding provides config_env or config_flag
+	var configEnv, configFlag string
+	for _, e := range entries {
+		if e.binding.Inject.ConfigEnv == "" && e.binding.Inject.ConfigFlag == "" {
+			return nil, fmt.Errorf(
+				"binding %d: vault mode file inject requires config_env or config_flag to redirect config path",
+				e.index,
+			)
+		}
+		// Use the first non-empty config_env/config_flag from the group
+		if configEnv == "" && e.binding.Inject.ConfigEnv != "" {
+			configEnv = e.binding.Inject.ConfigEnv
+		}
+		if configFlag == "" && e.binding.Inject.ConfigFlag != "" {
+			configFlag = e.binding.Inject.ConfigFlag
+		}
 	}
 
-	// Create temp directory for this tool
-	tmpDir := filepath.Join(config.TmpDir(), toolName)
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
-		return nil, fmt.Errorf("binding %d: failed to create temp dir: %w", index, err)
-	}
-
-	// Create a temp file with a predictable name based on binding index
-	tmpPath := filepath.Join(tmpDir, fmt.Sprintf("cred_%d_%s", index, filepath.Base(b.Inject.Path)))
+	// Create a temp file named after the original basename
+	tmpPath := filepath.Join(tmpDir, filepath.Base(targetPath))
 
 	// Copy original file if it exists
 	if err := copyFileIfExists(targetPath, tmpPath); err != nil {
-		return nil, fmt.Errorf("binding %d: failed to copy original file: %w", index, err)
+		return nil, fmt.Errorf("failed to copy original file %q: %w", targetPath, err)
 	}
 
-	// Patch the temp file
-	if err := patchFile(tmpPath, b.Inject, value); err != nil {
-		_ = os.Remove(tmpPath)
-		return nil, fmt.Errorf("binding %d: failed to patch temp file: %w", index, err)
+	// Patch the temp file with ALL fields from all bindings in this group
+	for _, e := range entries {
+		if err := patchFile(tmpPath, e.binding.Inject, e.value); err != nil {
+			_ = os.Remove(tmpPath)
+			return nil, fmt.Errorf("binding %d: failed to patch temp file: %w", e.index, err)
+		}
 	}
 
-	// Redirect via config_env or config_flag
-	if b.Inject.ConfigEnv != "" {
-		result.Env[b.Inject.ConfigEnv] = tmpPath
+	// Redirect via config_env or config_flag (once per unique target path)
+	if configEnv != "" {
+		result.Env[configEnv] = tmpPath
 	}
-	if b.Inject.ConfigFlag != "" {
-		result.Args = append(result.Args, b.Inject.ConfigFlag, tmpPath)
+	if configFlag != "" {
+		result.Args = append(result.Args, configFlag, tmpPath)
 	}
 
-	// Return cleanup function
-	cleanup := func() {
-		_ = os.Remove(tmpPath)
-	}
-	return cleanup, nil
+	return nil, nil
 }
 
 // patchFile writes a credential value to a file using the configured format.

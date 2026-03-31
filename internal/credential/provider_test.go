@@ -15,7 +15,7 @@ func TestResolve_StandaloneMode(t *testing.T) {
 	// Clear vault env vars to ensure standalone mode
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	// Create local credential file
 	credDir := filepath.Join(home, "credentials")
@@ -62,7 +62,7 @@ func TestResolve_MissingCredentials(t *testing.T) {
 	// Clear vault env vars
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	bindings := []registry.CredentialBinding{
 		{
@@ -88,7 +88,7 @@ func TestResolve_EmptyBindings(t *testing.T) {
 	setupHome(t)
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	values, err := Resolve("tool", nil)
 	if err != nil {
@@ -102,7 +102,7 @@ func TestResolve_EmptyBindings(t *testing.T) {
 func TestGetVaultConfig_NoEnvVars(t *testing.T) {
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	cfg, err := GetVaultConfig()
 	if err != nil {
@@ -116,7 +116,7 @@ func TestGetVaultConfig_NoEnvVars(t *testing.T) {
 func TestGetVaultConfig_AllEnvVars(t *testing.T) {
 	t.Setenv("ANYCLI_VAULT_URL", "https://vault.example.com")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "vault-tok-abc")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "ws-456")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "ws-456")
 
 	cfg, err := GetVaultConfig()
 	if err != nil {
@@ -163,7 +163,7 @@ func TestGetVaultConfig_PartialEnvVars(t *testing.T) {
 			url:         "https://vault.example.com",
 			token:       "tok",
 			workspaceID: "",
-			wantMissing: "ANYCLI_VAULT_WORKSPACE_ID",
+			wantMissing: "ANYCLI_WORKSPACE_ID",
 		},
 	}
 
@@ -171,7 +171,7 @@ func TestGetVaultConfig_PartialEnvVars(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("ANYCLI_VAULT_URL", tt.url)
 			t.Setenv("ANYCLI_VAULT_TOKEN", tt.token)
-			t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", tt.workspaceID)
+			t.Setenv("ANYCLI_WORKSPACE_ID", tt.workspaceID)
 
 			cfg, err := GetVaultConfig()
 			if err == nil {
@@ -254,7 +254,7 @@ func TestIsVaultMode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("ANYCLI_VAULT_URL", tt.url)
 			t.Setenv("ANYCLI_VAULT_TOKEN", tt.token)
-			t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", tt.workspaceID)
+			t.Setenv("ANYCLI_WORKSPACE_ID", tt.workspaceID)
 
 			got := IsVaultMode()
 			if got != tt.want {

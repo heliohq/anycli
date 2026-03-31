@@ -114,7 +114,7 @@ func TestRun_WithEnvCredential(t *testing.T) {
 	// Ensure vault mode is NOT active so we use local credentials
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	echoPath := echoBinary(t)
 
@@ -162,7 +162,7 @@ func TestRun_NoAuth(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	truePath := trueBinary(t)
 
@@ -189,7 +189,7 @@ func TestRun_ServiceType(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	def := &registry.Definition{
 		Name:        "test-service",
@@ -221,7 +221,7 @@ func TestRun_ResolveBinary_AbsolutePath(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	truePath := trueBinary(t)
 
@@ -248,7 +248,7 @@ func TestRun_ResolveBinary_AbsolutePath_NotFound(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	def := &registry.Definition{
 		Name:        "test-abs-missing",
@@ -277,7 +277,7 @@ func TestRun_ResolveBinary_Which(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	// Create a temporary directory with a fake binary and put it on PATH
 	binDir := filepath.Join(t.TempDir(), "testbin")
@@ -319,7 +319,7 @@ func TestRun_ResolveBinary_Which_NotFound(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	// Set PATH to empty so nothing is found, except the shim dir
 	t.Setenv("PATH", filepath.Join(home, "bin"))
@@ -351,7 +351,7 @@ func TestRun_NonZeroExitCode(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	falsePath := falseBinary(t)
 
@@ -382,7 +382,7 @@ func TestRun_WithBeforeHook(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	echoPath := echoBinary(t)
 
@@ -422,7 +422,7 @@ func TestRun_WithAfterHook(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	echoPath := echoBinary(t)
 
@@ -679,7 +679,7 @@ func TestRun_AuthWithCredentials_ResolvesCredentials(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	truePath := trueBinary(t)
 
@@ -722,7 +722,7 @@ func TestRun_EmptyCredentials_NoError(t *testing.T) {
 	// Ensure vault mode is NOT active
 	t.Setenv("ANYCLI_VAULT_URL", "")
 	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_VAULT_WORKSPACE_ID", "")
+	t.Setenv("ANYCLI_WORKSPACE_ID", "")
 
 	truePath := trueBinary(t)
 

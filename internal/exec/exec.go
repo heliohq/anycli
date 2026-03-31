@@ -101,6 +101,7 @@ func Run(name string, args []string) (int, error) {
 
 	// With after hooks, capture output for processing
 	ctx.ExitCode, ctx.Stdout, ctx.Stderr, err = executeBuffered(binaryPath, ctx.Args, ctx.Env)
+	rawExitCode := ctx.ExitCode // save before after-hooks can remap
 	if err != nil && ctx.ExitCode == 0 {
 		return 1, err
 	}
@@ -114,7 +115,8 @@ func Run(name string, args []string) (int, error) {
 	os.Stderr.Write(ctx.Stderr)
 
 	// 9. On non-zero exit in vault mode, mark credentials stale
-	if ctx.ExitCode != 0 && credential.IsVaultMode() && len(vaultTools) > 0 {
+	// Use rawExitCode (before after-hooks can remap via map_exit_code)
+	if rawExitCode != 0 && credential.IsVaultMode() && len(vaultTools) > 0 {
 		markCredentialsStale(name, vaultTools)
 	}
 
@@ -138,7 +140,7 @@ func uniqueVaultTools(bindings []registry.CredentialBinding) []string {
 
 // markCredentialsStale marks cached vault credentials as stale and prints a hint to stderr.
 func markCredentialsStale(toolName string, vaultTools []string) {
-	workspaceID := os.Getenv("ANYCLI_VAULT_WORKSPACE_ID")
+	workspaceID := os.Getenv("ANYCLI_WORKSPACE_ID")
 	if workspaceID == "" {
 		return
 	}
