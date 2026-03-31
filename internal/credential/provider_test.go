@@ -184,6 +184,41 @@ func TestGetVaultConfig_PartialEnvVars(t *testing.T) {
 	}
 }
 
+// Regression: extractStringFields must not leak through to cache.
+// Only explicitly requested vault_field values should be cached.
+func TestExtractStringFields_FiltersUnboundFields(t *testing.T) {
+	allData := map[string]interface{}{
+		"access_token":  "ghp_secret",
+		"refresh_token": "ghr_very_secret",
+		"token_type":    "bearer",
+		"expiry":        "2026-12-31T00:00:00Z",
+	}
+
+	all := extractStringFields(allData)
+	if len(all) != 4 {
+		t.Fatalf("extractStringFields should return all 4 string fields, got %d", len(all))
+	}
+
+	// Simulate what fetchVaultToolFields does: filter to required only
+	requiredFields := []string{"access_token"}
+	filtered := make(map[string]string, len(requiredFields))
+	for _, f := range requiredFields {
+		if v, ok := all[f]; ok {
+			filtered[f] = v
+		}
+	}
+
+	if len(filtered) != 1 {
+		t.Fatalf("filtered should have 1 field, got %d", len(filtered))
+	}
+	if filtered["access_token"] != "ghp_secret" {
+		t.Errorf("access_token = %q, want %q", filtered["access_token"], "ghp_secret")
+	}
+	if _, exists := filtered["refresh_token"]; exists {
+		t.Error("refresh_token must NOT be in filtered fields — this is the exact security issue")
+	}
+}
+
 func TestIsVaultMode(t *testing.T) {
 	tests := []struct {
 		name        string

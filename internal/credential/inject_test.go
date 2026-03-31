@@ -310,6 +310,73 @@ func TestApplyBindings_Cleanup_RemovesTempFiles(t *testing.T) {
 	}
 }
 
+// Regression: yaml file injection must use the format handler (not raw overwrite)
+func TestApplyBindings_FileInjection_Standalone_YAML(t *testing.T) {
+	home := setupHome(t)
+
+	targetPath := filepath.Join(home, "config", "creds.yaml")
+
+	// Create an existing YAML file with non-credential config
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		t.Fatalf("failed to create config dir: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("region: us-west-2\nformat: json\n"), 0600); err != nil {
+		t.Fatalf("failed to write existing yaml: %v", err)
+	}
+
+	bindings := []registry.CredentialBinding{
+		{
+			Source: registry.CredentialSource{LocalKey: "token"},
+			Inject: registry.CredentialInject{
+				Type:       "file",
+				Path:       targetPath,
+				FileFormat: "yaml",
+				Fields: map[string]string{
+					"api_key": "{{.Value}}",
+				},
+			},
+		},
+	}
+	values := []string{"my_secret_key"}
+
+	result, err := ApplyBindings("test-tool", bindings, values, false)
+	if err != nil {
+		t.Fatalf("ApplyBindings returned error: %v", err)
+	}
+	if result.Cleanup != nil {
+		t.Error("Cleanup should be nil for standalone file injection")
+	}
+
+	// Verify the file was patched (not overwritten)
+	data, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("failed to read target file: %v", err)
+	}
+	content := string(data)
+
+	// Must contain the new credential
+	if !strings.Contains(content, "my_secret_key") {
+		t.Error("patched file should contain the injected credential")
+	}
+	// Must still contain the original non-credential config
+	if !strings.Contains(content, "region") {
+		t.Error("patched file must preserve existing 'region' field — raw overwrite would destroy it")
+	}
+}
+
+// Regression: {{.Value}} template syntax must work (not just {{value}})
+func TestResolveTemplate_DotValueSyntax(t *testing.T) {
+	got := resolveTemplate("prefix_{{.Value}}_suffix", "SECRET")
+	if got != "prefix_SECRET_suffix" {
+		t.Errorf("resolveTemplate with {{.Value}} = %q, want %q", got, "prefix_SECRET_suffix")
+	}
+	// Legacy syntax should also work
+	got2 := resolveTemplate("prefix_{{value}}_suffix", "SECRET")
+	if got2 != "prefix_SECRET_suffix" {
+		t.Errorf("resolveTemplate with {{value}} = %q, want %q", got2, "prefix_SECRET_suffix")
+	}
+}
+
 func TestApplyBindings_SkipsEmptyValues(t *testing.T) {
 	bindings := []registry.CredentialBinding{
 		{

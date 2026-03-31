@@ -119,6 +119,14 @@ func resolveLocal(toolName string, bindings []registry.CredentialBinding) ([]str
 func resolveVault(cfg *VaultConfig, bindings []registry.CredentialBinding) ([]string, error) {
 	values := make([]string, len(bindings))
 
+	// Collect required fields per vault_tool before fetching.
+	requiredByTool := make(map[string][]string)
+	for _, b := range bindings {
+		if b.Source.VaultTool != "" && b.Source.VaultField != "" {
+			requiredByTool[b.Source.VaultTool] = append(requiredByTool[b.Source.VaultTool], b.Source.VaultField)
+		}
+	}
+
 	// Group bindings by vault_tool to avoid duplicate fetches.
 	// For each unique vault_tool, we resolve once and extract fields.
 	type resolvedTool struct {
@@ -135,7 +143,7 @@ func resolveVault(cfg *VaultConfig, bindings []registry.CredentialBinding) ([]st
 
 		rt, ok := cache[vaultTool]
 		if !ok {
-			fields, err := fetchVaultToolFields(cfg, vaultTool)
+			fields, err := fetchVaultToolFields(cfg, vaultTool, requiredByTool[vaultTool])
 			rt = &resolvedTool{fields: fields, err: err}
 			cache[vaultTool] = rt
 		}
@@ -154,8 +162,9 @@ func resolveVault(cfg *VaultConfig, bindings []registry.CredentialBinding) ([]st
 }
 
 // fetchVaultToolFields fetches credential fields for a vault_tool.
+// Only the fields listed in requiredFields are cached and returned.
 // Implements: check cache -> fetch from vault -> on transient error, fall back to stale cache.
-func fetchVaultToolFields(cfg *VaultConfig, vaultTool string) (map[string]string, error) {
+func fetchVaultToolFields(cfg *VaultConfig, vaultTool string, requiredFields []string) (map[string]string, error) {
 	// 1. Check cache first
 	cached, err := ReadCache(cfg.WorkspaceID, vaultTool)
 	if err != nil {
@@ -181,8 +190,19 @@ func fetchVaultToolFields(cfg *VaultConfig, vaultTool string) (map[string]string
 		return nil, fetchErr
 	}
 
-	// 3. Extract string fields from credential data
-	fields := extractStringFields(cred.Data)
+	if cred == nil {
+		// Tool not in vault — return empty fields (tool may work without auth)
+		return nil, nil
+	}
+
+	// 3. Extract string fields from credential data, filtered to required fields only
+	allFields := extractStringFields(cred.Data)
+	fields := make(map[string]string, len(requiredFields))
+	for _, f := range requiredFields {
+		if v, ok := allFields[f]; ok {
+			fields[f] = v
+		}
+	}
 
 	// 4. Determine cache expiration
 	cacheUntil := time.Now().Add(5 * time.Minute) // default 5 minute cache

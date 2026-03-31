@@ -93,7 +93,7 @@ func FetchFromVault(cfg *VaultConfig, vaultTool string) (*VaultCredential, error
 	}
 
 	if len(vaultResp.Credentials) == 0 {
-		return nil, fmt.Errorf("vault returned no credentials for tool %q", vaultTool)
+		return nil, nil // no credential found, not an error
 	}
 
 	return &vaultResp.Credentials[0], nil

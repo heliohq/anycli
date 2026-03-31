@@ -50,7 +50,12 @@ func runAuth(cmd *cobra.Command, args []string) error {
 	}
 
 	// Vault mode: reject local credential writes
-	if credential.IsVaultMode() {
+	vaultCfg, vaultErr := credential.GetVaultConfig()
+	if vaultErr != nil {
+		// Partial vault configuration — this is an error
+		return authError(jsonOutput, name, fmt.Sprintf("vault configuration error: %v", vaultErr))
+	}
+	if vaultCfg != nil {
 		msg := fmt.Sprintf("credentials for %q are managed by vault service", name)
 		if jsonOutput {
 			writeJSONError(name, msg)
@@ -80,8 +85,14 @@ func runAuth(cmd *cobra.Command, args []string) error {
 		return authError(jsonOutput, name, msg)
 	}
 
-	// Parse and validate --set values
+	// Load existing credentials to merge with
 	credMap := make(map[string]string)
+	existingPath := filepath.Join(config.CredentialsDir(), name+".json")
+	if existingData, err := os.ReadFile(existingPath); err == nil {
+		_ = json.Unmarshal(existingData, &credMap) // ignore errors, start fresh if invalid
+	}
+
+	// Apply --set values (overwriting existing keys)
 	for _, kv := range setValues {
 		parts := strings.SplitN(kv, "=", 2)
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
