@@ -23,7 +23,7 @@ CLI is the natural interface between agents and the world. [Read the full ration
 ```bash
 curl -fsSL https://anycli.dev/install.sh | sh
 any install gh
-any auth gh --token ghp_xxx
+any auth gh --set token=ghp_xxx
 gh pr list
 ```
 
@@ -38,6 +38,11 @@ any exec <tool> [args]   Run a tool through the middleware pipeline
 any auth <tool>          Configure authentication
 any update               Update any to the latest version
 ```
+
+## Documentation
+
+- [Tool Definition Schema](docs/definition-schema.md) — field reference for writing tool definitions
+- [Design: Vault Credential Integration](docs/design/001-vault-credential-integration.md) — architecture for vault-backed credential injection
 
 ## License
 

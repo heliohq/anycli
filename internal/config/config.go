@@ -37,9 +37,19 @@ func ToolsDir() string {
 	return filepath.Join(Dir(), "tools")
 }
 
+// CacheDir returns the credential cache directory.
+func CacheDir() string {
+	return filepath.Join(Dir(), "cache")
+}
+
+// TmpDir returns the temporary files directory.
+func TmpDir() string {
+	return filepath.Join(Dir(), "tmp")
+}
+
 // EnsureDirs creates all required directories.
 func EnsureDirs() error {
-	dirs := []string{BinDir(), RegistryDir(), CredentialsDir(), ToolsDir()}
+	dirs := []string{BinDir(), RegistryDir(), CredentialsDir(), ToolsDir(), CacheDir(), TmpDir()}
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return err

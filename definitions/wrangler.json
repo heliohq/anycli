@@ -8,8 +8,20 @@
     "binary_path": "wrangler"
   },
   "auth": {
-    "type": "self",
-    "command": "login"
+    "credentials": [
+      {
+        "source": {
+          "vault_tool": "cloudflare",
+          "vault_field": "access_token",
+          "local_key": "CLOUDFLARE_API_TOKEN",
+          "auth_flag": "token"
+        },
+        "inject": {
+          "type": "env",
+          "env_var": "CLOUDFLARE_API_TOKEN"
+        }
+      }
+    ]
   },
   "before": [],
   "after": []

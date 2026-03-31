@@ -19,19 +19,21 @@
     }
   },
   "auth": {
-    "type": "managed",
-    "env_var": "GH_TOKEN",
-    "prompt": "Enter your GitHub personal access token"
-  },
-  "before": [
-    {
-      "name": "inject-auth",
-      "rule": "set_env",
-      "config": {
-        "env_var": "GH_TOKEN",
-        "from": "credentials"
+    "credentials": [
+      {
+        "source": {
+          "vault_tool": "github",
+          "vault_field": "access_token",
+          "local_key": "GH_TOKEN",
+          "auth_flag": "token"
+        },
+        "inject": {
+          "type": "env",
+          "env_var": "GH_TOKEN"
+        }
       }
-    }
-  ],
+    ]
+  },
+  "before": [],
   "after": []
 }
