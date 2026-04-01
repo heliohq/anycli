@@ -41,6 +41,7 @@ any update               Update any to the latest version
 
 ## Documentation
 
+- [Credential Lifecycle](docs/credential-lifecycle.md) — how credentials are resolved, cached, and injected at runtime
 - [Tool Definition Schema](docs/definition-schema.md) — field reference for writing tool definitions
 - [Design: Vault Credential Integration](docs/design/001-vault-credential-integration.md) — architecture for vault-backed credential injection
 
