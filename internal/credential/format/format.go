@@ -38,8 +38,9 @@ func PatchFile(path, fileFormat string, fields map[string]string, mode os.FileMo
 	return os.WriteFile(path, out, mode)
 }
 
-// CleanupFields removes credential fields from a file.
-// For vault mode cleanup: removes only the specific dot-path fields that were injected.
+// CleanupFields removes specific dot-path credential fields from a file,
+// preserving everything else. It is part of the format module's API for
+// reverting injected credentials.
 func CleanupFields(path, fileFormat string, fields map[string]string) error {
 	h, err := getHandler(fileFormat)
 	if err != nil {

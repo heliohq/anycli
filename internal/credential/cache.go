@@ -1,8 +1,6 @@
 package credential
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,13 +9,8 @@ import (
 	"github.com/shipbase/anycli/internal/config"
 )
 
-// TokenFingerprint returns the first 8 characters of the SHA-256 hex digest of the token.
-func TokenFingerprint(token string) string {
-	h := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(h[:])[:8]
-}
-
-// CacheEntry represents a cached credential.
+// CacheEntry represents a cached credential. It stores only the extracted
+// string fields needed for injection, never the full resolver Data blob.
 type CacheEntry struct {
 	FetchedAt  time.Time         `json:"fetched_at"`
 	CacheUntil time.Time         `json:"cache_until"`
@@ -34,15 +27,15 @@ func (e *CacheEntry) IsValid() bool {
 }
 
 // cachePath returns the file path for a cached credential entry.
-func cachePath(workspaceID, tokenHash, vaultTool string) string {
-	return filepath.Join(config.CacheDir(), workspaceID, tokenHash, vaultTool+".json")
+// The cache is keyed by tool name: ~/.anycli/cache/<tool>.json
+func cachePath(tool string) string {
+	return filepath.Join(config.CacheDir(), tool+".json")
 }
 
-// ReadCache reads the cache file for a tool in a workspace.
-// Path: ~/.anycli/cache/<workspace_id>/<token_hash>/<vault_tool>.json
-// Returns nil, nil if cache doesn't exist.
-func ReadCache(workspaceID, tokenHash, vaultTool string) (*CacheEntry, error) {
-	data, err := os.ReadFile(cachePath(workspaceID, tokenHash, vaultTool))
+// ReadCache reads the cache file for a tool.
+// Returns nil, nil if the cache doesn't exist.
+func ReadCache(tool string) (*CacheEntry, error) {
+	data, err := os.ReadFile(cachePath(tool))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -57,9 +50,9 @@ func ReadCache(workspaceID, tokenHash, vaultTool string) (*CacheEntry, error) {
 	return &entry, nil
 }
 
-// WriteCache writes a cache entry.
-func WriteCache(workspaceID, tokenHash, vaultTool string, entry *CacheEntry) error {
-	p := cachePath(workspaceID, tokenHash, vaultTool)
+// WriteCache writes a cache entry for a tool.
+func WriteCache(tool string, entry *CacheEntry) error {
+	p := cachePath(tool)
 	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
 		return err
 	}
@@ -71,10 +64,10 @@ func WriteCache(workspaceID, tokenHash, vaultTool string, entry *CacheEntry) err
 	return os.WriteFile(p, data, 0600)
 }
 
-// MarkStale marks an existing cache entry as stale.
-// Reads the current entry, sets Stale=true, writes back.
-func MarkStale(workspaceID, tokenHash, vaultTool string) error {
-	entry, err := ReadCache(workspaceID, tokenHash, vaultTool)
+// MarkStale marks an existing cache entry as stale so the next invocation
+// re-resolves. Reads the current entry, sets Stale=true, writes back.
+func MarkStale(tool string) error {
+	entry, err := ReadCache(tool)
 	if err != nil {
 		return err
 	}
@@ -83,5 +76,5 @@ func MarkStale(workspaceID, tokenHash, vaultTool string) error {
 		return nil
 	}
 	entry.Stale = true
-	return WriteCache(workspaceID, tokenHash, vaultTool, entry)
+	return WriteCache(tool, entry)
 }

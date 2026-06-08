@@ -1,30 +1,17 @@
-BINARY := any
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-LDFLAGS := -s -w -X main.version=$(VERSION)
-PLATFORMS := darwin/amd64 darwin/arm64 linux/amd64 linux/arm64
-DIST := dist
+.PHONY: build vet test lint all
 
-.PHONY: build clean test dist all
+# AnyCLI is an embeddable library (design 002): there is no main package and no
+# standalone binary to produce. These targets compile and check the packages.
 
 build:
-	go build -ldflags "$(LDFLAGS)" -o $(BINARY) .
+	go build ./...
+
+vet:
+	go vet ./...
 
 test:
 	go test ./...
 
-clean:
-	rm -rf $(BINARY) $(DIST)
+lint: vet
 
-dist: clean
-	@mkdir -p $(DIST)
-	@for platform in $(PLATFORMS); do \
-		os=$${platform%/*}; \
-		arch=$${platform#*/}; \
-		name=$(BINARY)_$(VERSION)_$${os}_$${arch}; \
-		echo "building $${name}..."; \
-		GOOS=$${os} GOARCH=$${arch} go build -ldflags "$(LDFLAGS)" -o $(DIST)/$${name}/$(BINARY) . ; \
-		tar -czf $(DIST)/$${name}.tar.gz -C $(DIST)/$${name} $(BINARY); \
-		rm -rf $(DIST)/$${name}; \
-	done
-
-all: test dist
+all: build vet test
