@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-AnyCLI wraps authenticated cloud service CLIs/APIs into agent-friendly interfaces with automatic credential injection and middleware hooks.
+AnyCLI is an embeddable Go library (design 002): the engine plus the embedded definitions for the tools it supports. A host (e.g. Helio's `heliox`) embeds it in-process, supplies a `CredentialResolver` (and optionally a `Cache`), and calls `Engine.Execute`. AnyCLI loads the matching embedded tool definition, injects credentials (env / arg / ephemeral file), runs middleware, and execs the underlying binary or built-in service. It is **not** a standalone CLI, and tool definitions are **not** consumer-supplied — they live embedded inside AnyCLI.
 
 ## Tech Stack
 
@@ -25,10 +25,8 @@ AnyCLI wraps authenticated cloud service CLIs/APIs into agent-friendly interface
 ## Code Style
 
 - Prefer simple, readable code over clever abstractions
-- Every CLI tool must support `--help` and `--json` flags
-- No short flags (e.g. no `-y`, `-m`). Use full names like `--conflict-policy`
 - Use predictable exit codes: 0 for success, non-zero for failure
-- All output should be composable via stdin/stdout pipes
+- Embedded tool definitions should target `--json` output and non-interactive flags so agents can consume results
 
 ## Git Conventions
 
@@ -45,18 +43,16 @@ anycli/
 ├── AGENTS.md          # Agent guidelines (this file)
 ├── CLAUDE.md          # Symlink -> AGENTS.md
 ├── WHY_ANY_CLI.md     # Rationale: why CLI over MCP
-├── README.md          # Project overview
-├── main.go            # Entry point (busybox-style shim detection)
-├── cmd/               # CLI commands (install, exec, auth, list, uninstall, update)
-├── definitions/       # Bundled tool definitions (go:embed)
+├── README.md          # Embeddable API overview
+├── anycli.go          # Public library API: Config, New, Engine.Execute, Cache, CredentialResolver
+├── definitions/       # Embedded tool definitions (go:embed) — internal to AnyCLI, not consumer-supplied
 ├── internal/
-│   ├── config/        # Directory management (~/.anycli/)
-│   ├── exec/          # Execution pipeline
-│   ├── installer/     # Binary downloader (GitHub Releases, npm)
-│   ├── middleware/     # Before/after hook engine
-│   ├── registry/      # Wrapper definition CRUD
-│   └── shim/          # Busybox-style delegation
-├── website/public/    # Landing page (Cloudflare Pages)
-├── Makefile           # Cross-platform builds
-└── .github/workflows/ # CI/CD
+│   ├── config/        # Directory helpers (binary PATH resolution)
+│   ├── credential/    # Credential resolver seam, binding/injection, cache interface + in-memory default
+│   ├── exec/          # Execution pipeline (Engine)
+│   ├── middleware/    # Before/after hook engine
+│   ├── registry/      # Tool-definition schema
+│   └── tools/         # Built-in service-type tools + custom patchers
+├── Makefile           # Library build/vet/test targets
+└── .github/workflows/ # Go-library CI (build + vet + test)
 ```

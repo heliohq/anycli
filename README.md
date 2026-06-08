@@ -1,49 +1,86 @@
 # AnyCLI
 
-**One CLI to authenticate them all.**
+**An embeddable Go core for running authenticated CLI/API tools with injected credentials.**
 
-AnyCLI wraps authenticated cloud service CLIs/APIs (GitHub, Cloudflare, AWS, GCP, etc.) into agent-friendly interfaces with automatic credential injection and middleware hooks.
+AnyCLI is a library, not a standalone CLI. A host program (e.g. Helio's `heliox`) embeds it in-process, supplies a `CredentialResolver` for its own credential sources, and calls `Execute`. AnyCLI loads the matching embedded tool definition, resolves and injects credentials (env var / CLI flag / ephemeral config file), runs before/after middleware, and execs the underlying binary or built-in service.
+
+The supported tools and their definitions live **inside** AnyCLI (embedded JSON). The embedder never supplies tool definitions — only a credential resolver and an optional cache.
 
 ## Why?
 
-LLMs are trained on billions of CLI examples. They already know `git`, `curl`, `jq`, `docker`, and thousands of other tools. MCP forces agents to learn new schemas from scratch, consuming 10-32x more tokens and costing 17x more per operation — with lower reliability.
+LLMs are trained on billions of CLI examples. They already know `git`, `gh`, `curl`, `jq`, and thousands of other tools. MCP forces agents to learn new schemas from scratch, consuming far more tokens per operation with lower reliability. CLI is the natural interface between agents and the world. [Read the full rationale.](./WHY_ANY_CLI.md)
 
-CLI is the natural interface between agents and the world. [Read the full rationale.](./WHY_ANY_CLI.md)
+AnyCLI's job is the missing piece: let an agent run those tools **authenticated**, without the host shipping long-lived secrets to disk. The host owns where credentials come from; AnyCLI owns how they are injected and how long they live.
 
-## Principles
+## Embeddable API
 
-- **`--help` is the schema** — Agents read help text, not protocol definitions
-- **Structured output** — `--json` by default for machine-readable results
-- **No interaction** — All input via flags; agents can't type into prompts
-- **Composable** — Pipes and stdin/stdout; every tool is a building block
-- **Predictable** — Clear exit codes and error messages
+```go
+import "github.com/shipbase/anycli"
 
-## Getting Started
+// 1. Construct an engine. Cache is optional; nil uses an in-memory default.
+engine, err := anycli.New(anycli.Config{
+    Cache: myCache, // optional: implements anycli.Cache
+})
+if err != nil {
+    return err
+}
 
-```bash
-curl -fsSL https://anycli.dev/install.sh | sh
-any install gh
-any auth gh --set token=ghp_xxx
-gh pr list
+// 2. Run a tool. The resolver supplies credentials for this tool; AnyCLI
+//    loads the embedded definition, injects, and execs.
+exitCode, err := engine.Execute(ctx, anycli.Tool("gh"), []string{"pr", "list"}, resolver)
 ```
 
-## Commands
+### Config
 
+```go
+type Config struct {
+    // Cache is the credential cache the engine uses to avoid re-resolving on
+    // every call. Optional — nil installs an in-memory cache. The on-disk
+    // cache that the old standalone CLI used is gone; the host decides the
+    // storage (per-process, per-assistant, shared, …) by supplying a Cache.
+    Cache Cache
+}
 ```
-any install <tool>       Install a CLI wrapper (downloads binary + creates shim)
-any install <tool> --conflict-policy link   Wrap existing binary without downloading
-any uninstall <tool>     Remove a wrapper
-any list                 List available and installed wrappers
-any exec <tool> [args]   Run a tool through the middleware pipeline
-any auth <tool>          Configure authentication
-any update               Update any to the latest version
+
+### CredentialResolver (host-supplied)
+
+The resolver is the **only** thing that crosses the boundary into AnyCLI. It returns in-memory data; AnyCLI owns injection, caching, and lifecycle. Where the data comes from (stored OAuth, an on-demand minted token, anything) is entirely the host's business — the resolver never learns how the data is injected.
+
+```go
+type CredentialResolver interface {
+    // Resolve returns the credential fields for one tool, plus when they go stale.
+    Resolve(ctx context.Context, tool Tool) (*Credential, error)
+}
+
+type Credential struct {
+    Data       map[string]any // credential fields; bindings index into it by field name
+    CacheUntil time.Time      // when this credential goes stale (drives the cache)
+}
 ```
+
+### Cache (host-supplied, optional)
+
+```go
+type Cache interface {
+    Get(tool string) (*CacheEntry, bool)
+    Set(tool string, entry *CacheEntry)
+    MarkStale(tool string)
+}
+```
+
+`CacheEntry` stores only the extracted credential fields plus `CacheUntil`/`Stale`. Supply your own (e.g. an in-memory map keyed per assistant) or pass `nil` to use the built-in in-memory cache.
+
+### Tools
+
+`Tool` is `type Tool string`. AnyCLI ships **no** tool-name constants yet — the supported-tool definitions are added internally to AnyCLI in a later round. Pass a raw `anycli.Tool("…")` whose name matches an embedded definition; an unknown tool is an error from `Execute`, not a compile error.
 
 ## Documentation
 
+- [Why AnyCLI](WHY_ANY_CLI.md) — CLI vs MCP for agents
 - [Credential Lifecycle](docs/credential-lifecycle.md) — how credentials are resolved, cached, and injected at runtime
-- [Tool Definition Schema](docs/definition-schema.md) — field reference for writing tool definitions
-- [Design: Vault Credential Integration](docs/design/001-vault-credential-integration.md) — architecture for vault-backed credential injection
+- [Tool Definition Schema](docs/definition-schema.md) — field reference for the embedded tool definitions
+- [Design 001: Vault Credential Integration](docs/design/001-vault-credential-integration.md) — credential schema and injection modes
+- [Design 002: Embeddable Core + Credential Resolver](docs/design/002-embeddable-core-and-credential-resolver.md) — the library architecture
 
 ## License
 
