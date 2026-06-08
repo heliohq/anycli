@@ -1,12 +1,8 @@
 package credential
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
+	"sync"
 	"time"
-
-	"github.com/shipbase/anycli/internal/config"
 )
 
 // CacheEntry represents a cached credential. It stores only the extracted
@@ -26,55 +22,52 @@ func (e *CacheEntry) IsValid() bool {
 	return time.Now().Before(e.CacheUntil)
 }
 
-// cachePath returns the file path for a cached credential entry.
-// The cache is keyed by tool name: ~/.anycli/cache/<tool>.json
-func cachePath(tool string) string {
-	return filepath.Join(config.CacheDir(), tool+".json")
+// Cache is the credential cache the engine uses to avoid re-resolving on every
+// call. It is a consumer-supplied interface: a host can back it with a
+// per-process / per-assistant in-memory map, a shared store, or anything else.
+// The engine never assumes on-disk storage. The cache stores entries keyed by
+// tool name; freshness (CacheUntil / Stale) is interpreted by the engine, not
+// by the Cache implementation — the implementation only stores and retrieves.
+type Cache interface {
+	// Get returns the cached entry for a tool and whether one exists.
+	Get(tool string) (*CacheEntry, bool)
+	// Set stores (or replaces) the cached entry for a tool.
+	Set(tool string, entry *CacheEntry)
+	// MarkStale marks an existing entry stale so the next resolve refetches.
+	// A no-op if no entry exists for the tool.
+	MarkStale(tool string)
 }
 
-// ReadCache reads the cache file for a tool.
-// Returns nil, nil if the cache doesn't exist.
-func ReadCache(tool string) (*CacheEntry, error) {
-	data, err := os.ReadFile(cachePath(tool))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	var entry CacheEntry
-	if err := json.Unmarshal(data, &entry); err != nil {
-		return nil, err
-	}
-	return &entry, nil
+// memCache is the default in-memory Cache used when Config.Cache is nil. It is
+// safe for concurrent use.
+type memCache struct {
+	mu      sync.Mutex
+	entries map[string]*CacheEntry
 }
 
-// WriteCache writes a cache entry for a tool.
-func WriteCache(tool string, entry *CacheEntry) error {
-	p := cachePath(tool)
-	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
-		return err
-	}
-
-	data, err := json.MarshalIndent(entry, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(p, data, 0600)
+// NewMemoryCache returns an empty in-memory Cache. This is the default the
+// engine installs when the consumer does not supply one.
+func NewMemoryCache() Cache {
+	return &memCache{entries: make(map[string]*CacheEntry)}
 }
 
-// MarkStale marks an existing cache entry as stale so the next invocation
-// re-resolves. Reads the current entry, sets Stale=true, writes back.
-func MarkStale(tool string) error {
-	entry, err := ReadCache(tool)
-	if err != nil {
-		return err
+func (c *memCache) Get(tool string) (*CacheEntry, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.entries[tool]
+	return entry, ok
+}
+
+func (c *memCache) Set(tool string, entry *CacheEntry) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[tool] = entry
+}
+
+func (c *memCache) MarkStale(tool string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if entry, ok := c.entries[tool]; ok {
+		entry.Stale = true
 	}
-	if entry == nil {
-		// No cache to mark stale
-		return nil
-	}
-	entry.Stale = true
-	return WriteCache(tool, entry)
 }

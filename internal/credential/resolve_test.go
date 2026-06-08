@@ -45,17 +45,23 @@ func bindings(fields ...string) []registry.CredentialBinding {
 }
 
 func TestResolveBindings_NilResolver(t *testing.T) {
-	setupHome(t)
-	_, err := ResolveBindings(context.Background(), "gh", bindings("access_token"), nil)
+	_, err := ResolveBindings(context.Background(), NewMemoryCache(), "gh", bindings("access_token"), nil)
 	if err == nil {
 		t.Fatal("expected error for nil resolver")
 	}
 }
 
+func TestResolveBindings_NilCache(t *testing.T) {
+	r := &stubResolver{cred: &Credential{Data: map[string]any{"access_token": "x"}}}
+	_, err := ResolveBindings(context.Background(), nil, "gh", bindings("access_token"), r)
+	if err == nil {
+		t.Fatal("expected error for nil cache")
+	}
+}
+
 func TestResolveBindings_EmptyBindings(t *testing.T) {
-	setupHome(t)
 	r := &stubResolver{}
-	values, err := ResolveBindings(context.Background(), "gh", nil, r)
+	values, err := ResolveBindings(context.Background(), NewMemoryCache(), "gh", nil, r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -68,7 +74,7 @@ func TestResolveBindings_EmptyBindings(t *testing.T) {
 }
 
 func TestResolveBindings_ResolvesAndExtractsFields(t *testing.T) {
-	setupHome(t)
+	cache := NewMemoryCache()
 	r := &stubResolver{cred: &Credential{
 		Data: map[string]any{
 			"access_token":  "ghp_abc",
@@ -77,7 +83,7 @@ func TestResolveBindings_ResolvesAndExtractsFields(t *testing.T) {
 		CacheUntil: time.Now().Add(10 * time.Minute),
 	}}
 
-	values, err := ResolveBindings(context.Background(), "gh", bindings("access_token"), r)
+	values, err := ResolveBindings(context.Background(), cache, "gh", bindings("access_token"), r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -85,33 +91,30 @@ func TestResolveBindings_ResolvesAndExtractsFields(t *testing.T) {
 		t.Fatalf("values = %v, want [ghp_abc]", values)
 	}
 
-	// Only the required field should be cached; refresh_token must never hit disk.
-	cached, err := ReadCache("gh")
-	if err != nil {
-		t.Fatalf("ReadCache failed: %v", err)
-	}
-	if cached == nil {
+	// Only the required field should be cached; refresh_token must never be stored.
+	cached, ok := cache.Get("gh")
+	if !ok || cached == nil {
 		t.Fatal("expected cache entry to be written")
 	}
 	if cached.Fields["access_token"] != "ghp_abc" {
 		t.Errorf("cached access_token = %q, want ghp_abc", cached.Fields["access_token"])
 	}
 	if _, ok := cached.Fields["refresh_token"]; ok {
-		t.Error("refresh_token must NOT be cached — unbound fields must not leak to disk")
+		t.Error("refresh_token must NOT be cached — unbound fields must not leak into the cache")
 	}
 }
 
 func TestResolveBindings_UsesFreshCache(t *testing.T) {
-	setupHome(t)
+	cache := NewMemoryCache()
 	// Pre-seed a fresh cache with the required field.
-	_ = WriteCache("gh", &CacheEntry{
+	cache.Set("gh", &CacheEntry{
 		FetchedAt:  time.Now(),
 		CacheUntil: time.Now().Add(10 * time.Minute),
 		Fields:     map[string]string{"access_token": "cached_tok"},
 	})
 
 	r := &stubResolver{cred: &Credential{Data: map[string]any{"access_token": "fresh_tok"}}}
-	values, err := ResolveBindings(context.Background(), "gh", bindings("access_token"), r)
+	values, err := ResolveBindings(context.Background(), cache, "gh", bindings("access_token"), r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -124,9 +127,9 @@ func TestResolveBindings_UsesFreshCache(t *testing.T) {
 }
 
 func TestResolveBindings_ReResolvesWhenCacheMissingField(t *testing.T) {
-	setupHome(t)
+	cache := NewMemoryCache()
 	// Fresh cache that lacks one of the required fields.
-	_ = WriteCache("aws", &CacheEntry{
+	cache.Set("aws", &CacheEntry{
 		FetchedAt:  time.Now(),
 		CacheUntil: time.Now().Add(10 * time.Minute),
 		Fields:     map[string]string{"access_key_id": "AKIA"},
@@ -140,7 +143,7 @@ func TestResolveBindings_ReResolvesWhenCacheMissingField(t *testing.T) {
 		CacheUntil: time.Now().Add(10 * time.Minute),
 	}}
 
-	values, err := ResolveBindings(context.Background(), "aws", bindings("access_key_id", "secret_access_key"), r)
+	values, err := ResolveBindings(context.Background(), cache, "aws", bindings("access_key_id", "secret_access_key"), r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -153,8 +156,8 @@ func TestResolveBindings_ReResolvesWhenCacheMissingField(t *testing.T) {
 }
 
 func TestResolveBindings_ReResolvesWhenStale(t *testing.T) {
-	setupHome(t)
-	_ = WriteCache("gh", &CacheEntry{
+	cache := NewMemoryCache()
+	cache.Set("gh", &CacheEntry{
 		FetchedAt:  time.Now(),
 		CacheUntil: time.Now().Add(10 * time.Minute),
 		Stale:      true,
@@ -165,7 +168,7 @@ func TestResolveBindings_ReResolvesWhenStale(t *testing.T) {
 		Data:       map[string]any{"access_token": "fresh_tok"},
 		CacheUntil: time.Now().Add(10 * time.Minute),
 	}}
-	values, err := ResolveBindings(context.Background(), "gh", bindings("access_token"), r)
+	values, err := ResolveBindings(context.Background(), cache, "gh", bindings("access_token"), r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -178,9 +181,8 @@ func TestResolveBindings_ReResolvesWhenStale(t *testing.T) {
 }
 
 func TestResolveBindings_NilCredentialSkips(t *testing.T) {
-	setupHome(t)
 	r := &stubResolver{cred: nil}
-	values, err := ResolveBindings(context.Background(), "gh", bindings("access_token"), r)
+	values, err := ResolveBindings(context.Background(), NewMemoryCache(), "gh", bindings("access_token"), r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -190,26 +192,25 @@ func TestResolveBindings_NilCredentialSkips(t *testing.T) {
 }
 
 func TestResolveBindings_ResolverError(t *testing.T) {
-	setupHome(t)
 	r := &stubResolver{err: errors.New("mint failed")}
-	_, err := ResolveBindings(context.Background(), "gh", bindings("access_token"), r)
+	_, err := ResolveBindings(context.Background(), NewMemoryCache(), "gh", bindings("access_token"), r)
 	if err == nil {
 		t.Fatal("expected error from resolver to propagate")
 	}
 }
 
 func TestResolveBindings_ZeroCacheUntilNotReused(t *testing.T) {
-	setupHome(t)
+	cache := NewMemoryCache()
 	r := &stubResolver{cred: &Credential{
 		Data: map[string]any{"access_token": "tok"},
 		// CacheUntil zero => ephemeral, not reused on next call.
 	}}
 
-	if _, err := ResolveBindings(context.Background(), "gh", bindings("access_token"), r); err != nil {
+	if _, err := ResolveBindings(context.Background(), cache, "gh", bindings("access_token"), r); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Second call must re-resolve because the written entry is immediately expired.
-	if _, err := ResolveBindings(context.Background(), "gh", bindings("access_token"), r); err != nil {
+	if _, err := ResolveBindings(context.Background(), cache, "gh", bindings("access_token"), r); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if r.calls != 2 {

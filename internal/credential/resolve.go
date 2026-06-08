@@ -16,18 +16,24 @@ import (
 // contains all required fields is used without calling the resolver. Otherwise
 // the resolver is invoked, the extracted fields are written to the cache keyed
 // by the resolver-supplied CacheUntil, and the fresh values are returned.
-func ResolveBindings(ctx context.Context, tool string, bindings []registry.CredentialBinding, resolver CredentialResolver) ([]string, error) {
+//
+// cache must be non-nil; the engine always supplies one (the in-memory default
+// when the consumer provides none).
+func ResolveBindings(ctx context.Context, cache Cache, tool string, bindings []registry.CredentialBinding, resolver CredentialResolver) ([]string, error) {
 	if len(bindings) == 0 {
 		return nil, nil
 	}
 	if resolver == nil {
 		return nil, fmt.Errorf("credential resolver is nil")
 	}
+	if cache == nil {
+		return nil, fmt.Errorf("credential cache is nil")
+	}
 
 	required := requiredFields(bindings)
 
 	// 1. Try the cache.
-	if cached, err := ReadCache(tool); err == nil && cached != nil && cached.IsValid() && hasAllFields(cached.Fields, required) {
+	if cached, ok := cache.Get(tool); ok && cached != nil && cached.IsValid() && hasAllFields(cached.Fields, required) {
 		return valuesForBindings(bindings, cached.Fields), nil
 	}
 
@@ -62,8 +68,7 @@ func ResolveBindings(ctx context.Context, tool string, bindings []registry.Crede
 		Stale:      false,
 		Fields:     fields,
 	}
-	// Cache write failure is non-fatal; the fresh values are still usable.
-	_ = WriteCache(tool, entry)
+	cache.Set(tool, entry)
 
 	return valuesForBindings(bindings, fields), nil
 }

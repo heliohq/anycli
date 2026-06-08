@@ -21,6 +21,23 @@ import (
 // embedded definition set.
 var loadDefinition = definitions.LoadBundled
 
+// Engine runs tools through the full credential + middleware pipeline. It holds
+// the consumer-supplied credential cache; tool definitions come from the
+// internal embedded set, not from the engine's configuration.
+type Engine struct {
+	cache credential.Cache
+}
+
+// NewEngine constructs an Engine with the given credential cache. cache must be
+// non-nil; the public constructor installs the in-memory default when the
+// consumer supplies none.
+func NewEngine(cache credential.Cache) (*Engine, error) {
+	if cache == nil {
+		return nil, fmt.Errorf("credential cache must not be nil")
+	}
+	return &Engine{cache: cache}, nil
+}
+
 // Execute runs a tool through the full credential + middleware pipeline.
 //
 // The tool's definition is loaded from the embedded definition set; an unknown
@@ -28,7 +45,7 @@ var loadDefinition = definitions.LoadBundled
 // supplied resolver, which must be non-nil. Resolver-supplied credentials are
 // always treated as ephemeral/managed (file injection writes a temp file and
 // redirects via config_env / config_flag, then cleans up).
-func Execute(ctx context.Context, tool string, args []string, resolver credential.CredentialResolver) (int, error) {
+func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolver credential.CredentialResolver) (int, error) {
 	if resolver == nil {
 		return 1, fmt.Errorf("credential resolver must not be nil")
 	}
@@ -49,7 +66,7 @@ func Execute(ctx context.Context, tool string, args []string, resolver credentia
 
 	// 2-3. Resolve credentials and apply bindings.
 	if hasCredentials {
-		values, err := credential.ResolveBindings(ctx, tool, def.Auth.Credentials, resolver)
+		values, err := credential.ResolveBindings(ctx, e.cache, tool, def.Auth.Credentials, resolver)
 		if err != nil {
 			return 1, fmt.Errorf("credential resolution failed for %q: %w", tool, err)
 		}
@@ -83,7 +100,7 @@ func Execute(ctx context.Context, tool string, args []string, resolver credentia
 		}
 		exitCode, err := svc.Execute(ctx, mctx.Args, mctx.Env)
 		if exitCode != 0 && hasCredentials {
-			markCredentialsStale(tool)
+			e.markCredentialsStale(tool)
 		}
 		return exitCode, err
 	}
@@ -105,7 +122,7 @@ func Execute(ctx context.Context, tool string, args []string, resolver credentia
 		exitCode, err := executePassthrough(binaryPath, mctx.Args, mctx.Env)
 		// 9. On non-zero exit, mark credentials stale.
 		if exitCode != 0 && hasCredentials {
-			markCredentialsStale(tool)
+			e.markCredentialsStale(tool)
 		}
 		return exitCode, err
 	}
@@ -127,7 +144,7 @@ func Execute(ctx context.Context, tool string, args []string, resolver credentia
 
 	// 9. On non-zero raw exit (before after-hook remapping), mark credentials stale.
 	if rawExitCode != 0 && hasCredentials {
-		markCredentialsStale(tool)
+		e.markCredentialsStale(tool)
 	}
 
 	return mctx.ExitCode, nil
@@ -135,8 +152,8 @@ func Execute(ctx context.Context, tool string, args []string, resolver credentia
 
 // markCredentialsStale marks the cached credential for a tool as stale and
 // prints a hint to stderr so the agent retries (triggering a re-resolve).
-func markCredentialsStale(tool string) {
-	_ = credential.MarkStale(tool)
+func (e *Engine) markCredentialsStale(tool string) {
+	e.cache.MarkStale(tool)
 	fmt.Fprintf(os.Stderr, "[anycli] credentials for %q may be stale. retry the same command to fetch fresh credentials.\n", tool)
 }
 

@@ -38,6 +38,18 @@ func useDefinitions(t *testing.T, defs map[string]*registry.Definition) {
 	t.Cleanup(func() { loadDefinition = orig })
 }
 
+// newTestEngine builds an Engine backed by a fresh in-memory cache and returns
+// both so a test can inspect the cache after Execute.
+func newTestEngine(t *testing.T) (*Engine, credential.Cache) {
+	t.Helper()
+	cache := credential.NewMemoryCache()
+	e, err := NewEngine(cache)
+	if err != nil {
+		t.Fatalf("NewEngine failed: %v", err)
+	}
+	return e, cache
+}
+
 // fixedResolver returns the same credential data for every tool.
 type fixedResolver struct {
 	data map[string]any
@@ -87,9 +99,16 @@ func falseBinary(t *testing.T) string {
 	return ""
 }
 
+func TestNewEngine_NilCache(t *testing.T) {
+	if _, err := NewEngine(nil); err == nil {
+		t.Fatal("expected error for nil cache")
+	}
+}
+
 func TestExecute_NilResolver(t *testing.T) {
 	setupHome(t)
-	exitCode, err := Execute(context.Background(), "gh", nil, nil)
+	e, _ := newTestEngine(t)
+	exitCode, err := e.Execute(context.Background(), "gh", nil, nil)
 	if err == nil {
 		t.Fatal("expected error for nil resolver")
 	}
@@ -101,8 +120,9 @@ func TestExecute_NilResolver(t *testing.T) {
 func TestExecute_UnknownTool(t *testing.T) {
 	setupHome(t)
 	useDefinitions(t, map[string]*registry.Definition{})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "nonexistent-tool", []string{}, nilResolver{})
+	exitCode, err := e.Execute(context.Background(), "nonexistent-tool", []string{}, nilResolver{})
 	if err == nil {
 		t.Fatal("expected error for unknown tool, got nil")
 	}
@@ -134,8 +154,9 @@ func TestExecute_WithEnvCredential(t *testing.T) {
 		},
 	})
 	resolver := fixedResolver{data: map[string]any{"access_token": "secret-value-123"}}
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "test-env-cred", []string{"hello"}, resolver)
+	exitCode, err := e.Execute(context.Background(), "test-env-cred", []string{"hello"}, resolver)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -154,8 +175,9 @@ func TestExecute_NoAuth(t *testing.T) {
 	useDefinitions(t, map[string]*registry.Definition{
 		"test-noauth": {Name: "test-noauth", Binary: "true", Resolve: truePath},
 	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "test-noauth", []string{}, nilResolver{})
+	exitCode, err := e.Execute(context.Background(), "test-noauth", []string{}, nilResolver{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -169,8 +191,9 @@ func TestExecute_ServiceType_Unregistered(t *testing.T) {
 	useDefinitions(t, map[string]*registry.Definition{
 		"test-service": {Name: "test-service", Type: "service"},
 	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "test-service", []string{}, nilResolver{})
+	exitCode, err := e.Execute(context.Background(), "test-service", []string{}, nilResolver{})
 	if err == nil {
 		t.Fatal("expected error for unregistered service, got nil")
 	}
@@ -192,8 +215,9 @@ func TestExecute_ResolveBinary_AbsolutePath(t *testing.T) {
 	useDefinitions(t, map[string]*registry.Definition{
 		"test-abs-resolve": {Name: "test-abs-resolve", Binary: "true", Resolve: truePath},
 	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "test-abs-resolve", []string{}, nilResolver{})
+	exitCode, err := e.Execute(context.Background(), "test-abs-resolve", []string{}, nilResolver{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -207,8 +231,9 @@ func TestExecute_ResolveBinary_AbsolutePath_NotFound(t *testing.T) {
 	useDefinitions(t, map[string]*registry.Definition{
 		"test-abs-missing": {Name: "test-abs-missing", Binary: "nonexistent", Resolve: "/nonexistent/path/to/binary"},
 	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "test-abs-missing", []string{}, nilResolver{})
+	exitCode, err := e.Execute(context.Background(), "test-abs-missing", []string{}, nilResolver{})
 	if err == nil {
 		t.Fatal("expected error for missing binary, got nil")
 	}
@@ -236,8 +261,9 @@ func TestExecute_ResolveBinary_Which(t *testing.T) {
 	useDefinitions(t, map[string]*registry.Definition{
 		"test-which-tool": {Name: "test-which-tool", Binary: "test-which-tool", Resolve: ""},
 	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "test-which-tool", []string{}, nilResolver{})
+	exitCode, err := e.Execute(context.Background(), "test-which-tool", []string{}, nilResolver{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -253,8 +279,9 @@ func TestExecute_ResolveBinary_Which_NotFound(t *testing.T) {
 	useDefinitions(t, map[string]*registry.Definition{
 		"test-not-in-path": {Name: "test-not-in-path", Binary: "definitely-not-a-real-binary", Resolve: ""},
 	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "test-not-in-path", []string{}, nilResolver{})
+	exitCode, err := e.Execute(context.Background(), "test-not-in-path", []string{}, nilResolver{})
 	if err == nil {
 		t.Fatal("expected error for binary not in PATH, got nil")
 	}
@@ -273,8 +300,9 @@ func TestExecute_NonZeroExitCode(t *testing.T) {
 	useDefinitions(t, map[string]*registry.Definition{
 		"test-false": {Name: "test-false", Binary: "false", Resolve: falsePath},
 	})
+	e, _ := newTestEngine(t)
 
-	exitCode, _ := Execute(context.Background(), "test-false", []string{}, nilResolver{})
+	exitCode, _ := e.Execute(context.Background(), "test-false", []string{}, nilResolver{})
 	if exitCode == 0 {
 		t.Error("expected non-zero exit code from false binary")
 	}
@@ -303,18 +331,16 @@ func TestExecute_StaleMarkOnFailure(t *testing.T) {
 		},
 	})
 	resolver := fixedResolver{data: map[string]any{"access_token": "tok"}}
+	e, cache := newTestEngine(t)
 
-	exitCode, _ := Execute(context.Background(), "test-fail-creds", []string{}, resolver)
+	exitCode, _ := e.Execute(context.Background(), "test-fail-creds", []string{}, resolver)
 	if exitCode == 0 {
 		t.Fatal("expected non-zero exit code")
 	}
 
 	// After a failure, the cached credential should be marked stale.
-	cached, err := credential.ReadCache("test-fail-creds")
-	if err != nil {
-		t.Fatalf("ReadCache failed: %v", err)
-	}
-	if cached == nil {
+	cached, ok := cache.Get("test-fail-creds")
+	if !ok || cached == nil {
 		t.Fatal("expected a cache entry to exist")
 	}
 	if !cached.Stale {
@@ -339,8 +365,9 @@ func TestExecute_WithBeforeHook(t *testing.T) {
 			},
 		},
 	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "test-before-hook", []string{"test"}, nilResolver{})
+	exitCode, err := e.Execute(context.Background(), "test-before-hook", []string{"test"}, nilResolver{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -366,8 +393,9 @@ func TestExecute_WithAfterHook(t *testing.T) {
 			},
 		},
 	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Execute(context.Background(), "test-after-hook", []string{"hello world"}, nilResolver{})
+	exitCode, err := e.Execute(context.Background(), "test-after-hook", []string{"hello world"}, nilResolver{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

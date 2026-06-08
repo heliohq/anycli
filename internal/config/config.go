@@ -23,11 +23,6 @@ func BinDir() string {
 	return filepath.Join(Dir(), "bin")
 }
 
-// CacheDir returns the credential cache directory.
-func CacheDir() string {
-	return filepath.Join(Dir(), "cache")
-}
-
 // TmpDir returns the directory for ephemeral file-injection temp files.
 func TmpDir() string {
 	return filepath.Join(Dir(), "tmp")
