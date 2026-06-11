@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heliohq/anycli/definitions"
 	"github.com/heliohq/anycli/internal/registry"
 )
 
@@ -386,5 +387,27 @@ func TestApplyBindings_LengthMismatch(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "mismatch") {
 		t.Errorf("error should mention mismatch, got: %v", err)
+	}
+}
+
+// TestApplyBindings_BundledGitHubDefinition runs the shipped github
+// definition's bindings through the inject framework end to end: the resolved
+// access_token must land in the GH_TOKEN env var (design 003 toolset).
+func TestApplyBindings_BundledGitHubDefinition(t *testing.T) {
+	def, err := definitions.LoadBundled("github")
+	if err != nil {
+		t.Fatalf("LoadBundled(github) failed: %v", err)
+	}
+	values := valuesForBindings(def.Auth.Credentials, map[string]string{"access_token": "ghs_minted"})
+
+	result, err := ApplyBindings("github", def.Auth.Credentials, values)
+	if err != nil {
+		t.Fatalf("ApplyBindings returned error: %v", err)
+	}
+	if result.Env["GH_TOKEN"] != "ghs_minted" {
+		t.Errorf("GH_TOKEN = %q, want ghs_minted", result.Env["GH_TOKEN"])
+	}
+	if len(result.Args) != 0 {
+		t.Errorf("Args = %v, want empty (env-only injection)", result.Args)
 	}
 }

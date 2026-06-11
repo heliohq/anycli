@@ -1,0 +1,20 @@
+{
+  "name": "github",
+  "description": "GitHub CLI with minted installation token",
+  "binary": "gh",
+  "source": {
+    "type": "github-release",
+    "repo": "cli/cli",
+    "asset_pattern": "gh_{version}_{os}_{arch}{ext}",
+    "binary_path": "gh_{version}_{os}_{arch}/bin/gh",
+    "version": "2.63.0"
+  },
+  "auth": {
+    "credentials": [
+      {
+        "source": {"vault_field": "access_token"},
+        "inject": {"type": "env", "env_var": "GH_TOKEN"}
+      }
+    ]
+  }
+}
