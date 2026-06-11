@@ -1,0 +1,13 @@
+{
+  "name": "slack",
+  "type": "service",
+  "description": "Slack as a tool (bot token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"vault_field": "access_token"},
+        "inject": {"type": "env", "env_var": "SLACK_BOT_TOKEN"}
+      }
+    ]
+  }
+}

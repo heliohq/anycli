@@ -18,3 +18,41 @@ func TestLoadBundled_NotFound(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
+
+// TestLoadBundled_ShippedDefinitions asserts every shipped definition loads
+// and exposes the expected credential-injection shape (design 003 toolset).
+func TestLoadBundled_ShippedDefinitions(t *testing.T) {
+	cases := []struct {
+		name    string
+		typ     string
+		envVars []string
+	}{
+		{"slack", "service", []string{"SLACK_BOT_TOKEN"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			def, err := LoadBundled(tc.name)
+			if err != nil {
+				t.Fatalf("LoadBundled(%q) failed: %v", tc.name, err)
+			}
+			if def.Name != tc.name {
+				t.Errorf("Name = %q, want %q", def.Name, tc.name)
+			}
+			if def.Type != tc.typ {
+				t.Errorf("Type = %q, want %q", def.Type, tc.typ)
+			}
+			if def.Auth == nil || len(def.Auth.Credentials) != len(tc.envVars) {
+				t.Fatalf("want %d credential bindings, got %+v", len(tc.envVars), def.Auth)
+			}
+			for i, envVar := range tc.envVars {
+				b := def.Auth.Credentials[i]
+				if b.Inject.Type != "env" || b.Inject.EnvVar != envVar {
+					t.Errorf("binding %d inject = %+v, want env %s", i, b.Inject, envVar)
+				}
+				if b.Source.VaultField == "" {
+					t.Errorf("binding %d has no vault_field", i)
+				}
+			}
+		})
+	}
+}
