@@ -27,6 +27,8 @@ type Credential struct {
 // The resolver returns in-memory data only; AnyCLI owns injection, caching,
 // and lifecycle. The resolver never learns how the data is injected.
 type CredentialResolver interface {
-	// Resolve returns the credential fields for one tool, plus when they go stale.
-	Resolve(ctx context.Context, tool Tool) (*Credential, error)
+	// Resolve returns the credential fields for one (tool, account), plus
+	// when they go stale. account "" selects the resolver's default
+	// (primary) account (design 003).
+	Resolve(ctx context.Context, tool Tool, account string) (*Credential, error)
 }

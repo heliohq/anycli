@@ -83,12 +83,24 @@ func New(cfg Config) (*Engine, error) {
 	return &Engine{inner: inner}, nil
 }
 
-// Execute loads the embedded definition for tool, resolves and injects its
-// credentials via resolver, runs middleware, and execs the underlying binary or
-// built-in service.
+// ExecOptions carries per-invocation execution options (design 003).
+type ExecOptions struct {
+	// Account selects which connected account's credential to resolve when
+	// the host has several for one tool. Empty = the resolver's default.
+	Account string
+}
+
+// ExecuteWith loads the embedded definition for tool, resolves and injects its
+// credentials via resolver for the account selected by opts, runs middleware,
+// and execs the underlying binary or built-in service.
 //
 // resolver must be non-nil; an unknown tool (no embedded definition) returns an
 // error.
+func (e *Engine) ExecuteWith(ctx context.Context, tool Tool, args []string, resolver CredentialResolver, opts ExecOptions) (exitCode int, err error) {
+	return e.inner.Execute(ctx, string(tool), args, resolver, opts.Account)
+}
+
+// Execute runs with the default account. Kept as the short form of ExecuteWith.
 func (e *Engine) Execute(ctx context.Context, tool Tool, args []string, resolver CredentialResolver) (exitCode int, err error) {
-	return e.inner.Execute(ctx, string(tool), args, resolver)
+	return e.ExecuteWith(ctx, tool, args, resolver, ExecOptions{})
 }

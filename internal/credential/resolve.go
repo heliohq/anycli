@@ -8,18 +8,20 @@ import (
 	"github.com/heliohq/anycli/internal/registry"
 )
 
-// ResolveBindings produces the per-binding credential values for a tool using
-// the supplied resolver, parallel to the input bindings slice. An empty string
-// means the credential field was not found (the binding is skipped on inject).
+// ResolveBindings produces the per-binding credential values for one
+// (tool, account) using the supplied resolver, parallel to the input bindings
+// slice. An empty string means the credential field was not found (the binding
+// is skipped on inject). account "" selects the resolver's default account.
 //
-// The cache is consulted first: a fresh (non-stale, unexpired) cache entry that
-// contains all required fields is used without calling the resolver. Otherwise
-// the resolver is invoked, the extracted fields are written to the cache keyed
-// by the resolver-supplied CacheUntil, and the fresh values are returned.
+// The cache is consulted first, keyed by CacheKey(tool, account): a fresh
+// (non-stale, unexpired) cache entry that contains all required fields is used
+// without calling the resolver. Otherwise the resolver is invoked, the
+// extracted fields are written to the cache keyed by the resolver-supplied
+// CacheUntil, and the fresh values are returned.
 //
 // cache must be non-nil; the engine always supplies one (the in-memory default
 // when the consumer provides none).
-func ResolveBindings(ctx context.Context, cache Cache, tool string, bindings []registry.CredentialBinding, resolver CredentialResolver) ([]string, error) {
+func ResolveBindings(ctx context.Context, cache Cache, tool, account string, bindings []registry.CredentialBinding, resolver CredentialResolver) ([]string, error) {
 	if len(bindings) == 0 {
 		return nil, nil
 	}
@@ -31,14 +33,15 @@ func ResolveBindings(ctx context.Context, cache Cache, tool string, bindings []r
 	}
 
 	required := requiredFields(bindings)
+	key := CacheKey(tool, account)
 
 	// 1. Try the cache.
-	if cached, ok := cache.Get(tool); ok && cached != nil && cached.IsValid() && hasAllFields(cached.Fields, required) {
+	if cached, ok := cache.Get(key); ok && cached != nil && cached.IsValid() && hasAllFields(cached.Fields, required) {
 		return valuesForBindings(bindings, cached.Fields), nil
 	}
 
 	// 2. Resolve fresh credentials.
-	cred, err := resolver.Resolve(ctx, Tool(tool))
+	cred, err := resolver.Resolve(ctx, Tool(tool), account)
 	if err != nil {
 		return nil, fmt.Errorf("resolve credentials for %q: %w", tool, err)
 	}
@@ -68,7 +71,7 @@ func ResolveBindings(ctx context.Context, cache Cache, tool string, bindings []r
 		Stale:      false,
 		Fields:     fields,
 	}
-	cache.Set(tool, entry)
+	cache.Set(key, entry)
 
 	return valuesForBindings(bindings, fields), nil
 }

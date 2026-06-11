@@ -22,20 +22,27 @@ func (e *CacheEntry) IsValid() bool {
 	return time.Now().Before(e.CacheUntil)
 }
 
+// CacheKey derives the cache map key for one (tool, account). NUL cannot
+// appear in either part, so the join is collision-free: distinct accounts of
+// the same tool never share an entry, and the default account ("") keys
+// distinctly from any named account (design 003).
+func CacheKey(tool, account string) string { return tool + "\x00" + account }
+
 // Cache is the credential cache the engine uses to avoid re-resolving on every
 // call. It is a consumer-supplied interface: a host can back it with a
 // per-process / per-assistant in-memory map, a shared store, or anything else.
 // The engine never assumes on-disk storage. The cache stores entries keyed by
-// tool name; freshness (CacheUntil / Stale) is interpreted by the engine, not
-// by the Cache implementation — the implementation only stores and retrieves.
+// CacheKey(tool, account) — the engine derives the key; freshness
+// (CacheUntil / Stale) is interpreted by the engine, not by the Cache
+// implementation — the implementation only stores and retrieves.
 type Cache interface {
-	// Get returns the cached entry for a tool and whether one exists.
-	Get(tool string) (*CacheEntry, bool)
-	// Set stores (or replaces) the cached entry for a tool.
-	Set(tool string, entry *CacheEntry)
+	// Get returns the cached entry for a key and whether one exists.
+	Get(key string) (*CacheEntry, bool)
+	// Set stores (or replaces) the cached entry for a key.
+	Set(key string, entry *CacheEntry)
 	// MarkStale marks an existing entry stale so the next resolve refetches.
-	// A no-op if no entry exists for the tool.
-	MarkStale(tool string)
+	// A no-op if no entry exists for the key.
+	MarkStale(key string)
 }
 
 // memCache is the default in-memory Cache used when Config.Cache is nil. It is
@@ -51,23 +58,23 @@ func NewMemoryCache() Cache {
 	return &memCache{entries: make(map[string]*CacheEntry)}
 }
 
-func (c *memCache) Get(tool string) (*CacheEntry, bool) {
+func (c *memCache) Get(key string) (*CacheEntry, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	entry, ok := c.entries[tool]
+	entry, ok := c.entries[key]
 	return entry, ok
 }
 
-func (c *memCache) Set(tool string, entry *CacheEntry) {
+func (c *memCache) Set(key string, entry *CacheEntry) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.entries[tool] = entry
+	c.entries[key] = entry
 }
 
-func (c *memCache) MarkStale(tool string) {
+func (c *memCache) MarkStale(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if entry, ok := c.entries[tool]; ok {
+	if entry, ok := c.entries[key]; ok {
 		entry.Stale = true
 	}
 }
