@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"github.com/heliohq/anycli/internal/tools/google"
 	"github.com/heliohq/anycli/internal/tools/notion"
 	"github.com/heliohq/anycli/internal/tools/slack"
 )
@@ -13,4 +14,5 @@ import (
 func init() {
 	RegisterService("slack", &slack.Service{})
 	RegisterService("notion", &notion.Service{})
+	RegisterService("google", &google.Service{})
 }
