@@ -28,6 +28,7 @@ func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 		envVars []string
 	}{
 		{"slack", "service", []string{"SLACK_BOT_TOKEN"}},
+		{"notion", "service", []string{"NOTION_TOKEN"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

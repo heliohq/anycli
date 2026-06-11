@@ -1,0 +1,13 @@
+{
+  "name": "notion",
+  "type": "service",
+  "description": "Notion as a tool (internal integration / OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"vault_field": "access_token"},
+        "inject": {"type": "env", "env_var": "NOTION_TOKEN"}
+      }
+    ]
+  }
+}
