@@ -15,8 +15,8 @@ package anycli
 import (
 	"context"
 
-	"github.com/shipbase/anycli/internal/credential"
-	"github.com/shipbase/anycli/internal/exec"
+	"github.com/heliohq/anycli/internal/credential"
+	"github.com/heliohq/anycli/internal/exec"
 )
 
 // Tool identifies a tool by its definition name. It is a named type for

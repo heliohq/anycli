@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/shipbase/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/registry"
 )
 
 // Context holds the mutable state of a command execution passing through the middleware pipeline.

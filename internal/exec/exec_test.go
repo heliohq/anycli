@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shipbase/anycli/internal/credential"
-	"github.com/shipbase/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/credential"
+	"github.com/heliohq/anycli/internal/registry"
 )
 
 // setupHome creates a temp ANYCLI_HOME and points the env at it.

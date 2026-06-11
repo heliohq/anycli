@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shipbase/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/registry"
 )
 
 // ResolveBindings produces the per-binding credential values for a tool using

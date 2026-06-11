@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shipbase/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/registry"
 )
 
 func TestApplyBindings_EnvInjection(t *testing.T) {

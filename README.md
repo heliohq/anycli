@@ -15,7 +15,7 @@ AnyCLI's job is the missing piece: let an agent run those tools **authenticated*
 ## Embeddable API
 
 ```go
-import "github.com/shipbase/anycli"
+import "github.com/heliohq/anycli"
 
 // 1. Construct an engine. Cache is optional; nil uses an in-memory default.
 engine, err := anycli.New(anycli.Config{

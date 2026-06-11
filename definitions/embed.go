@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/shipbase/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/registry"
 )
 
 // fs embeds the tools/ directory. The directory is embedded (rather than a

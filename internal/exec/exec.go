@@ -8,12 +8,12 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/shipbase/anycli/definitions"
-	"github.com/shipbase/anycli/internal/config"
-	"github.com/shipbase/anycli/internal/credential"
-	"github.com/shipbase/anycli/internal/middleware"
-	"github.com/shipbase/anycli/internal/registry"
-	"github.com/shipbase/anycli/internal/tools"
+	"github.com/heliohq/anycli/definitions"
+	"github.com/heliohq/anycli/internal/config"
+	"github.com/heliohq/anycli/internal/credential"
+	"github.com/heliohq/anycli/internal/middleware"
+	"github.com/heliohq/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/tools"
 )
 
 // loadDefinition loads a tool definition by name. It is a package variable so

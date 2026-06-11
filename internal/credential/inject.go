@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shipbase/anycli/internal/config"
-	"github.com/shipbase/anycli/internal/credential/format"
-	"github.com/shipbase/anycli/internal/registry"
-	"github.com/shipbase/anycli/internal/tools"
+	"github.com/heliohq/anycli/internal/config"
+	"github.com/heliohq/anycli/internal/credential/format"
+	"github.com/heliohq/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/tools"
 )
 
 // InjectionResult holds the results of applying credential bindings.
