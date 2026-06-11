@@ -31,6 +31,7 @@ func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 		{"notion", "service", []string{"NOTION_TOKEN"}},
 		{"google", "service", []string{"GOOGLE_ACCESS_TOKEN"}},
 		{"discord", "service", []string{"DISCORD_BOT_TOKEN"}},
+		{"linkedin", "service", []string{"LINKEDIN_ACCESS_TOKEN", "LINKEDIN_PERSON_URN"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

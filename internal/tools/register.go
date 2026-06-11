@@ -3,6 +3,7 @@ package tools
 import (
 	"github.com/heliohq/anycli/internal/tools/discord"
 	"github.com/heliohq/anycli/internal/tools/google"
+	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/notion"
 	"github.com/heliohq/anycli/internal/tools/slack"
 )
@@ -17,4 +18,5 @@ func init() {
 	RegisterService("notion", &notion.Service{})
 	RegisterService("google", &google.Service{})
 	RegisterService("discord", &discord.Service{})
+	RegisterService("linkedin", &linkedin.Service{})
 }
