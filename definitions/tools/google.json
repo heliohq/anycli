@@ -1,0 +1,13 @@
+{
+  "name": "google",
+  "type": "service",
+  "description": "Google Workspace as a tool (Gmail / Calendar / Drive, user access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"vault_field": "access_token"},
+        "inject": {"type": "env", "env_var": "GOOGLE_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

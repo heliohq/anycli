@@ -1,5 +1,7 @@
 # Why AnyCLI?
 
+> AnyCLI is an **embeddable Go library**, not a standalone CLI. This document explains the thesis behind it — why a CLI surface is the right interface for agents — which is the same whether AnyCLI is embedded in a host or run on its own. The "how to embed" reference lives in [README.md](./README.md).
+
 ## The Problem: MCP Is Overkill for Most Agent Workflows
 
 The Model Context Protocol (MCP) was designed as a universal bridge between AI agents and external tools. In practice, it introduces significant overhead that hurts agent performance in the majority of developer-facing use cases.
@@ -62,9 +64,9 @@ We acknowledge MCP's strengths — these inform AnyCLI's design:
 
 | Concern | MCP's Answer | AnyCLI's Approach |
 |---------|-------------|-------------------|
-| **Tool discovery** | Standardized capability registry | CLI registry with searchable metadata |
-| **Security & permissions** | Protocol-level authorization | Scoped execution policies, no full shell access |
-| **Cross-platform portability** | Mount servers in any MCP-compatible host | Generate agent-ready CLI wrappers for any platform |
+| **Tool discovery** | Standardized capability registry | Embedded tool definitions inside AnyCLI |
+| **Security & permissions** | Protocol-level authorization | Host-supplied credential resolver; credentials injected per-call, never written to persistent disk |
+| **Cross-platform portability** | Mount servers in any MCP-compatible host | Embed the AnyCLI core in any Go host |
 
 ## Design Principles for Agent-Native CLIs
 
@@ -79,7 +81,9 @@ Drawing from Peter Steinberger and the broader community, AnyCLI follows these p
 
 ## The Vision
 
-AnyCLI wraps authenticated cloud service CLIs/APIs into agent-friendly interfaces — no MCP server needed, no schema bloat, no protocol overhead. Install, authenticate, and let agents use tools they already know.
+AnyCLI is the embeddable core that lets a host run authenticated cloud-service CLIs/APIs on an agent's behalf — no MCP server needed, no schema bloat, no protocol overhead. The host supplies a credential resolver; AnyCLI loads the embedded tool definition, injects credentials, and execs the tool the agent already knows. Credentials are injected per-call and never written to persistent disk.
+
+See [README.md](./README.md) for the embeddable API (`anycli.New` + `Engine.Execute`).
 
 ## References
 

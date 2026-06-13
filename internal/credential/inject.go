@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shipbase/anycli/internal/config"
-	"github.com/shipbase/anycli/internal/credential/format"
-	"github.com/shipbase/anycli/internal/registry"
-	"github.com/shipbase/anycli/internal/tools"
+	"github.com/heliohq/anycli/internal/config"
+	"github.com/heliohq/anycli/internal/credential/format"
+	"github.com/heliohq/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/tools"
 )
 
 // InjectionResult holds the results of applying credential bindings.
@@ -30,8 +30,12 @@ type fileBindingEntry struct {
 
 // ApplyBindings applies resolved credentials according to their injection config.
 // bindings and values must be parallel slices.
-// isVaultMode indicates whether to use vault-mode file isolation.
-func ApplyBindings(toolName string, bindings []registry.CredentialBinding, values []string, isVaultMode bool) (*InjectionResult, error) {
+//
+// Resolver-supplied credentials are always treated as ephemeral/managed:
+// file-type injection writes a temp file and redirects the tool via
+// config_env / config_flag, then cleans up. AnyCLI never patches a persistent
+// user config file.
+func ApplyBindings(toolName string, bindings []registry.CredentialBinding, values []string) (*InjectionResult, error) {
 	if len(bindings) != len(values) {
 		return nil, fmt.Errorf("bindings and values length mismatch: %d vs %d", len(bindings), len(values))
 	}
@@ -92,9 +96,10 @@ func ApplyBindings(toolName string, bindings []registry.CredentialBinding, value
 	}
 
 	// Second pass: process file binding groups.
-	// In vault mode, create one unique temp directory per ApplyBindings call.
+	// Create one unique temp directory per ApplyBindings call. File-type
+	// credentials are always injected into an ephemeral temp file.
 	var tmpDir string
-	if isVaultMode && len(fileGroups) > 0 {
+	if len(fileGroups) > 0 {
 		parentDir := config.TmpDir()
 		if err := os.MkdirAll(parentDir, 0755); err != nil {
 			return nil, fmt.Errorf("failed to create temp parent dir: %w", err)
@@ -111,7 +116,7 @@ func ApplyBindings(toolName string, bindings []registry.CredentialBinding, value
 
 	for _, targetPath := range fileGroupOrder {
 		entries := fileGroups[targetPath]
-		cleanup, err := applyFileBindingGroup(tmpDir, targetPath, entries, isVaultMode, result)
+		cleanup, err := applyFileBindingGroup(tmpDir, targetPath, entries, result)
 		if err != nil {
 			// Clean up anything we already created before returning
 			for _, c := range cleanups {
@@ -136,38 +141,19 @@ func ApplyBindings(toolName string, bindings []registry.CredentialBinding, value
 }
 
 // applyFileBindingGroup handles a group of file bindings that all target the same path.
-// In standalone mode: patches the file at the configured path directly with all fields.
-// In vault mode: creates ONE temp file per unique target path (inside tmpDir),
-// copies the original, patches ALL fields from the group, and sets config_env/config_flag once.
-func applyFileBindingGroup(tmpDir, targetPath string, entries []fileBindingEntry, isVaultMode bool, result *InjectionResult) (func(), error) {
-	if !isVaultMode {
-		// Standalone mode: patch the file at path directly for each binding
-		var patchCleanups []func() error
-		for _, e := range entries {
-			patchCleanup, err := patchFile(targetPath, e.binding.Inject, e.value)
-			if err != nil {
-				return nil, fmt.Errorf("binding %d: failed to patch file %q: %w", e.index, targetPath, err)
-			}
-			if patchCleanup != nil {
-				patchCleanups = append(patchCleanups, patchCleanup)
-			}
-		}
-		if len(patchCleanups) > 0 {
-			return func() {
-				for _, c := range patchCleanups {
-					_ = c()
-				}
-			}, nil
-		}
-		return nil, nil
-	}
-
-	// Vault mode: validate that at least one binding provides config_env or config_flag
+// It creates ONE ephemeral temp file per unique target path (inside tmpDir),
+// copies the original config (if any) to preserve non-credential settings,
+// patches ALL fields from the group, and redirects the tool to the temp file
+// via config_env / config_flag. AnyCLI never modifies the persistent file at
+// targetPath; that path is only read as a template.
+func applyFileBindingGroup(tmpDir, targetPath string, entries []fileBindingEntry, result *InjectionResult) (func(), error) {
+	// Validate that at least one binding provides config_env or config_flag so
+	// the tool can be redirected to the ephemeral temp file.
 	var configEnv, configFlag string
 	for _, e := range entries {
 		if e.binding.Inject.ConfigEnv == "" && e.binding.Inject.ConfigFlag == "" {
 			return nil, fmt.Errorf(
-				"binding %d: vault mode file inject requires config_env or config_flag to redirect config path",
+				"binding %d: file inject requires config_env or config_flag to redirect config path",
 				e.index,
 			)
 		}

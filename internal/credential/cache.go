@@ -1,23 +1,12 @@
 package credential
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"os"
-	"path/filepath"
+	"sync"
 	"time"
-
-	"github.com/shipbase/anycli/internal/config"
 )
 
-// TokenFingerprint returns the first 8 characters of the SHA-256 hex digest of the token.
-func TokenFingerprint(token string) string {
-	h := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(h[:])[:8]
-}
-
-// CacheEntry represents a cached credential.
+// CacheEntry represents a cached credential. It stores only the extracted
+// string fields needed for injection, never the full resolver Data blob.
 type CacheEntry struct {
 	FetchedAt  time.Time         `json:"fetched_at"`
 	CacheUntil time.Time         `json:"cache_until"`
@@ -33,55 +22,59 @@ func (e *CacheEntry) IsValid() bool {
 	return time.Now().Before(e.CacheUntil)
 }
 
-// cachePath returns the file path for a cached credential entry.
-func cachePath(workspaceID, tokenHash, vaultTool string) string {
-	return filepath.Join(config.CacheDir(), workspaceID, tokenHash, vaultTool+".json")
+// CacheKey derives the cache map key for one (tool, account). NUL cannot
+// appear in either part, so the join is collision-free: distinct accounts of
+// the same tool never share an entry, and the default account ("") keys
+// distinctly from any named account (design 003).
+func CacheKey(tool, account string) string { return tool + "\x00" + account }
+
+// Cache is the credential cache the engine uses to avoid re-resolving on every
+// call. It is a consumer-supplied interface: a host can back it with a
+// per-process / per-assistant in-memory map, a shared store, or anything else.
+// The engine never assumes on-disk storage. The cache stores entries keyed by
+// CacheKey(tool, account) — the engine derives the key; freshness
+// (CacheUntil / Stale) is interpreted by the engine, not by the Cache
+// implementation — the implementation only stores and retrieves.
+type Cache interface {
+	// Get returns the cached entry for a key and whether one exists.
+	Get(key string) (*CacheEntry, bool)
+	// Set stores (or replaces) the cached entry for a key.
+	Set(key string, entry *CacheEntry)
+	// MarkStale marks an existing entry stale so the next resolve refetches.
+	// A no-op if no entry exists for the key.
+	MarkStale(key string)
 }
 
-// ReadCache reads the cache file for a tool in a workspace.
-// Path: ~/.anycli/cache/<workspace_id>/<token_hash>/<vault_tool>.json
-// Returns nil, nil if cache doesn't exist.
-func ReadCache(workspaceID, tokenHash, vaultTool string) (*CacheEntry, error) {
-	data, err := os.ReadFile(cachePath(workspaceID, tokenHash, vaultTool))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	var entry CacheEntry
-	if err := json.Unmarshal(data, &entry); err != nil {
-		return nil, err
-	}
-	return &entry, nil
+// memCache is the default in-memory Cache used when Config.Cache is nil. It is
+// safe for concurrent use.
+type memCache struct {
+	mu      sync.Mutex
+	entries map[string]*CacheEntry
 }
 
-// WriteCache writes a cache entry.
-func WriteCache(workspaceID, tokenHash, vaultTool string, entry *CacheEntry) error {
-	p := cachePath(workspaceID, tokenHash, vaultTool)
-	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
-		return err
-	}
-
-	data, err := json.MarshalIndent(entry, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(p, data, 0600)
+// NewMemoryCache returns an empty in-memory Cache. This is the default the
+// engine installs when the consumer does not supply one.
+func NewMemoryCache() Cache {
+	return &memCache{entries: make(map[string]*CacheEntry)}
 }
 
-// MarkStale marks an existing cache entry as stale.
-// Reads the current entry, sets Stale=true, writes back.
-func MarkStale(workspaceID, tokenHash, vaultTool string) error {
-	entry, err := ReadCache(workspaceID, tokenHash, vaultTool)
-	if err != nil {
-		return err
+func (c *memCache) Get(key string) (*CacheEntry, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.entries[key]
+	return entry, ok
+}
+
+func (c *memCache) Set(key string, entry *CacheEntry) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[key] = entry
+}
+
+func (c *memCache) MarkStale(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if entry, ok := c.entries[key]; ok {
+		entry.Stale = true
 	}
-	if entry == nil {
-		// No cache to mark stale
-		return nil
-	}
-	entry.Stale = true
-	return WriteCache(workspaceID, tokenHash, vaultTool, entry)
 }

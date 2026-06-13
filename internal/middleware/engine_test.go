@@ -3,7 +3,7 @@ package middleware
 import (
 	"testing"
 
-	"github.com/shipbase/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/registry"
 )
 
 func TestEvalCondition_Empty(t *testing.T) {

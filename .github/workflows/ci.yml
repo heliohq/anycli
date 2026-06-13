@@ -1,0 +1,26 @@
+name: CI
+
+# AnyCLI is an embeddable Go library (design 002): there is no binary to build,
+# no release to publish, and no website to deploy. CI only compiles and checks
+# the library packages.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./...

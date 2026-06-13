@@ -1,0 +1,13 @@
+{
+  "name": "discord",
+  "type": "service",
+  "description": "Discord as a tool (bot token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"vault_field": "access_token"},
+        "inject": {"type": "env", "env_var": "DISCORD_BOT_TOKEN"}
+      }
+    ]
+  }
+}

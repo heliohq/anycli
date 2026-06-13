@@ -7,7 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shipbase/anycli/internal/registry"
+	"github.com/heliohq/anycli/definitions"
+	"github.com/heliohq/anycli/internal/registry"
 )
 
 func TestApplyBindings_EnvInjection(t *testing.T) {
@@ -23,7 +24,7 @@ func TestApplyBindings_EnvInjection(t *testing.T) {
 	}
 	values := []string{"ghp_abc123", "key_xyz"}
 
-	result, err := ApplyBindings("test-tool", bindings, values, false)
+	result, err := ApplyBindings("test-tool", bindings, values)
 	if err != nil {
 		t.Fatalf("ApplyBindings returned error: %v", err)
 	}
@@ -51,7 +52,7 @@ func TestApplyBindings_ArgInjection_SpaceFormat(t *testing.T) {
 	}
 	values := []string{"my-secret-token"}
 
-	result, err := ApplyBindings("test-tool", bindings, values, false)
+	result, err := ApplyBindings("test-tool", bindings, values)
 	if err != nil {
 		t.Fatalf("ApplyBindings returned error: %v", err)
 	}
@@ -76,7 +77,7 @@ func TestApplyBindings_ArgInjection_EqFormat(t *testing.T) {
 	}
 	values := []string{"my-secret-token"}
 
-	result, err := ApplyBindings("test-tool", bindings, values, false)
+	result, err := ApplyBindings("test-tool", bindings, values)
 	if err != nil {
 		t.Fatalf("ApplyBindings returned error: %v", err)
 	}
@@ -89,58 +90,7 @@ func TestApplyBindings_ArgInjection_EqFormat(t *testing.T) {
 	}
 }
 
-func TestApplyBindings_FileInjection_Standalone_JSON(t *testing.T) {
-	home := setupHome(t)
-
-	// Create a target file path within the temp dir
-	targetPath := filepath.Join(home, "config", "creds.json")
-
-	bindings := []registry.CredentialBinding{
-		{
-			Source: registry.CredentialSource{LocalKey: "access_token"},
-			Inject: registry.CredentialInject{
-				Type:       "file",
-				Path:       targetPath,
-				FileFormat: "json",
-				Fields: map[string]string{
-					"oauth.access_token": "{{value}}",
-				},
-			},
-		},
-	}
-	values := []string{"tok_standalone_abc"}
-
-	result, err := ApplyBindings("test-tool", bindings, values, false)
-	if err != nil {
-		t.Fatalf("ApplyBindings returned error: %v", err)
-	}
-
-	// In standalone mode, Cleanup should be nil (no temp files)
-	if result.Cleanup != nil {
-		t.Error("Cleanup should be nil for standalone file injection")
-	}
-
-	// Verify the file was written
-	data, err := os.ReadFile(targetPath)
-	if err != nil {
-		t.Fatalf("failed to read target file: %v", err)
-	}
-
-	var parsed map[string]interface{}
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		t.Fatalf("failed to parse target file JSON: %v", err)
-	}
-
-	oauth, ok := parsed["oauth"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("expected oauth to be a map, got %T", parsed["oauth"])
-	}
-	if oauth["access_token"] != "tok_standalone_abc" {
-		t.Errorf("oauth.access_token = %q, want %q", oauth["access_token"], "tok_standalone_abc")
-	}
-}
-
-func TestApplyBindings_FileInjection_VaultMode_JSON(t *testing.T) {
+func TestApplyBindings_FileInjection_Managed_JSON(t *testing.T) {
 	home := setupHome(t)
 
 	// Create a source config file that will be copied to temp
@@ -174,12 +124,12 @@ func TestApplyBindings_FileInjection_VaultMode_JSON(t *testing.T) {
 	}
 	values := []string{"tok_vault_xyz"}
 
-	result, err := ApplyBindings("test-tool", bindings, values, true)
+	result, err := ApplyBindings("test-tool", bindings, values)
 	if err != nil {
 		t.Fatalf("ApplyBindings returned error: %v", err)
 	}
 
-	// In vault mode, config_env should be set to temp file path
+	// config_env should be set to the ephemeral temp file path
 	tmpPath, ok := result.Env["TOOL_CONFIG_PATH"]
 	if !ok {
 		t.Fatal("TOOL_CONFIG_PATH not set in result.Env")
@@ -216,7 +166,7 @@ func TestApplyBindings_FileInjection_VaultMode_JSON(t *testing.T) {
 
 	// Cleanup should be non-nil
 	if result.Cleanup == nil {
-		t.Fatal("Cleanup should be non-nil for vault mode file injection")
+		t.Fatal("Cleanup should be non-nil for file injection")
 	}
 
 	// Temp file should be within ANYCLI_HOME/tmp/
@@ -226,7 +176,7 @@ func TestApplyBindings_FileInjection_VaultMode_JSON(t *testing.T) {
 	}
 }
 
-func TestApplyBindings_VaultMode_FileInject_NoConfigEnv_ReturnsError(t *testing.T) {
+func TestApplyBindings_FileInject_NoConfigEnv_ReturnsError(t *testing.T) {
 	setupHome(t)
 
 	bindings := []registry.CredentialBinding{
@@ -245,9 +195,9 @@ func TestApplyBindings_VaultMode_FileInject_NoConfigEnv_ReturnsError(t *testing.
 	}
 	values := []string{"tok_abc"}
 
-	_, err := ApplyBindings("test-tool", bindings, values, true)
+	_, err := ApplyBindings("test-tool", bindings, values)
 	if err == nil {
-		t.Fatal("expected error for vault mode file inject without config_env/config_flag")
+		t.Fatal("expected error for file inject without config_env/config_flag")
 	}
 	if !strings.Contains(err.Error(), "config_env") {
 		t.Errorf("error message should mention config_env, got: %v", err)
@@ -283,7 +233,7 @@ func TestApplyBindings_Cleanup_RemovesTempFiles(t *testing.T) {
 	}
 	values := []string{"secret_tok"}
 
-	result, err := ApplyBindings("cleanup-tool", bindings, values, true)
+	result, err := ApplyBindings("cleanup-tool", bindings, values)
 	if err != nil {
 		t.Fatalf("ApplyBindings returned error: %v", err)
 	}
@@ -310,8 +260,11 @@ func TestApplyBindings_Cleanup_RemovesTempFiles(t *testing.T) {
 	}
 }
 
-// Regression: yaml file injection must use the format handler (not raw overwrite)
-func TestApplyBindings_FileInjection_Standalone_YAML(t *testing.T) {
+// Regression: yaml file injection must use the format handler (not raw
+// overwrite) and must preserve non-credential settings from the original
+// config. The original is copied to the ephemeral temp file and patched there;
+// the original on disk is never modified.
+func TestApplyBindings_FileInjection_Managed_YAML(t *testing.T) {
 	home := setupHome(t)
 
 	targetPath := filepath.Join(home, "config", "creds.yaml")
@@ -320,7 +273,8 @@ func TestApplyBindings_FileInjection_Standalone_YAML(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 		t.Fatalf("failed to create config dir: %v", err)
 	}
-	if err := os.WriteFile(targetPath, []byte("region: us-west-2\nformat: json\n"), 0600); err != nil {
+	originalContent := "region: us-west-2\nformat: json\n"
+	if err := os.WriteFile(targetPath, []byte(originalContent), 0600); err != nil {
 		t.Fatalf("failed to write existing yaml: %v", err)
 	}
 
@@ -330,6 +284,7 @@ func TestApplyBindings_FileInjection_Standalone_YAML(t *testing.T) {
 			Inject: registry.CredentialInject{
 				Type:       "file",
 				Path:       targetPath,
+				ConfigEnv:  "TOOL_CONFIG",
 				FileFormat: "yaml",
 				Fields: map[string]string{
 					"api_key": "{{.Value}}",
@@ -339,18 +294,23 @@ func TestApplyBindings_FileInjection_Standalone_YAML(t *testing.T) {
 	}
 	values := []string{"my_secret_key"}
 
-	result, err := ApplyBindings("test-tool", bindings, values, false)
+	result, err := ApplyBindings("test-tool", bindings, values)
 	if err != nil {
 		t.Fatalf("ApplyBindings returned error: %v", err)
 	}
-	if result.Cleanup != nil {
-		t.Error("Cleanup should be nil for standalone file injection")
+	if result.Cleanup == nil {
+		t.Fatal("Cleanup should be non-nil for file injection")
 	}
 
-	// Verify the file was patched (not overwritten)
-	data, err := os.ReadFile(targetPath)
+	tmpPath := result.Env["TOOL_CONFIG"]
+	if tmpPath == "" {
+		t.Fatal("TOOL_CONFIG env var not set")
+	}
+
+	// Verify the temp file was patched (not overwritten)
+	data, err := os.ReadFile(tmpPath)
 	if err != nil {
-		t.Fatalf("failed to read target file: %v", err)
+		t.Fatalf("failed to read temp file: %v", err)
 	}
 	content := string(data)
 
@@ -360,7 +320,16 @@ func TestApplyBindings_FileInjection_Standalone_YAML(t *testing.T) {
 	}
 	// Must still contain the original non-credential config
 	if !strings.Contains(content, "region") {
-		t.Error("patched file must preserve existing 'region' field — raw overwrite would destroy it")
+		t.Error("patched temp file must preserve existing 'region' field — raw overwrite would destroy it")
+	}
+
+	// The original on-disk file must be untouched.
+	orig, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("failed to read original file: %v", err)
+	}
+	if string(orig) != originalContent {
+		t.Errorf("original file was modified: got %q, want %q", string(orig), originalContent)
 	}
 }
 
@@ -390,7 +359,7 @@ func TestApplyBindings_SkipsEmptyValues(t *testing.T) {
 	}
 	values := []string{"real-token", ""}
 
-	result, err := ApplyBindings("test-tool", bindings, values, false)
+	result, err := ApplyBindings("test-tool", bindings, values)
 	if err != nil {
 		t.Fatalf("ApplyBindings returned error: %v", err)
 	}
@@ -412,11 +381,33 @@ func TestApplyBindings_LengthMismatch(t *testing.T) {
 	}
 	values := []string{"a", "b"} // length mismatch
 
-	_, err := ApplyBindings("test-tool", bindings, values, false)
+	_, err := ApplyBindings("test-tool", bindings, values)
 	if err == nil {
 		t.Fatal("expected error for length mismatch")
 	}
 	if !strings.Contains(err.Error(), "mismatch") {
 		t.Errorf("error should mention mismatch, got: %v", err)
+	}
+}
+
+// TestApplyBindings_BundledGitHubDefinition runs the shipped github
+// definition's bindings through the inject framework end to end: the resolved
+// access_token must land in the GH_TOKEN env var (design 003 toolset).
+func TestApplyBindings_BundledGitHubDefinition(t *testing.T) {
+	def, err := definitions.LoadBundled("github")
+	if err != nil {
+		t.Fatalf("LoadBundled(github) failed: %v", err)
+	}
+	values := valuesForBindings(def.Auth.Credentials, map[string]string{"access_token": "ghs_minted"})
+
+	result, err := ApplyBindings("github", def.Auth.Credentials, values)
+	if err != nil {
+		t.Fatalf("ApplyBindings returned error: %v", err)
+	}
+	if result.Env["GH_TOKEN"] != "ghs_minted" {
+		t.Errorf("GH_TOKEN = %q, want ghs_minted", result.Env["GH_TOKEN"])
+	}
+	if len(result.Args) != 0 {
+		t.Errorf("Args = %v, want empty (env-only injection)", result.Args)
 	}
 }

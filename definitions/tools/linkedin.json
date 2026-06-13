@@ -1,0 +1,17 @@
+{
+  "name": "linkedin",
+  "type": "service",
+  "description": "LinkedIn as a tool (member token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"vault_field": "access_token"},
+        "inject": {"type": "env", "env_var": "LINKEDIN_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"vault_field": "person_urn"},
+        "inject": {"type": "env", "env_var": "LINKEDIN_PERSON_URN"}
+      }
+    ]
+  }
+}

@@ -1,63 +1,74 @@
 package exec
 
 import (
-	"encoding/json"
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
-	"github.com/shipbase/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/credential"
+	"github.com/heliohq/anycli/internal/registry"
 )
 
-// setupHome creates a temp ANYCLI_HOME with required subdirectories
-// and sets the environment variable. It returns the home path and a
-// cleanup function that restores the original env.
+// setupHome creates a temp ANYCLI_HOME and points the env at it.
 func setupHome(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("ANYCLI_HOME", home)
-
-	dirs := []string{"registry", "bin", "credentials", "tools", "cache", "tmp"}
-	for _, d := range dirs {
-		if err := os.MkdirAll(filepath.Join(home, d), 0755); err != nil {
-			t.Fatalf("failed to create dir %s: %v", d, err)
-		}
+	if err := os.MkdirAll(filepath.Join(home, "bin"), 0755); err != nil {
+		t.Fatalf("failed to create bin dir: %v", err)
 	}
 	return home
 }
 
-// writeDefinition writes a registry.Definition as JSON into the registry dir.
-func writeDefinition(t *testing.T, home string, def *registry.Definition) {
+// useDefinitions installs a synthetic definition loader for the duration of a
+// test, restoring the embedded loader afterward.
+func useDefinitions(t *testing.T, defs map[string]*registry.Definition) {
 	t.Helper()
-	data, err := json.MarshalIndent(def, "", "  ")
-	if err != nil {
-		t.Fatalf("failed to marshal definition: %v", err)
+	orig := loadDefinition
+	loadDefinition = func(name string) (*registry.Definition, error) {
+		if d, ok := defs[name]; ok {
+			return d, nil
+		}
+		return nil, fmt.Errorf("no bundled definition for %q", name)
 	}
-	path := filepath.Join(home, "registry", def.Name+".json")
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		t.Fatalf("failed to write definition: %v", err)
-	}
+	t.Cleanup(func() { loadDefinition = orig })
 }
 
-// writeCredential writes a local credential file for the given tool.
-func writeCredential(t *testing.T, home, toolName string, creds map[string]string) {
+// newTestEngine builds an Engine backed by a fresh in-memory cache and returns
+// both so a test can inspect the cache after Execute.
+func newTestEngine(t *testing.T) (*Engine, credential.Cache) {
 	t.Helper()
-	data, err := json.Marshal(creds)
+	cache := credential.NewMemoryCache()
+	e, err := NewEngine(cache)
 	if err != nil {
-		t.Fatalf("failed to marshal credentials: %v", err)
+		t.Fatalf("NewEngine failed: %v", err)
 	}
-	path := filepath.Join(home, "credentials", toolName+".json")
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		t.Fatalf("failed to write credentials: %v", err)
-	}
+	return e, cache
 }
 
-// echoBinary returns the path to /bin/echo (or /usr/bin/echo on some systems).
+// fixedResolver returns the same credential data for every tool.
+type fixedResolver struct {
+	data map[string]any
+}
+
+func (r fixedResolver) Resolve(ctx context.Context, tool credential.Tool, account string) (*credential.Credential, error) {
+	return &credential.Credential{Data: r.data, CacheUntil: time.Now().Add(time.Hour)}, nil
+}
+
+// nilResolver always returns no credential.
+type nilResolver struct{}
+
+func (nilResolver) Resolve(ctx context.Context, tool credential.Tool, account string) (*credential.Credential, error) {
+	return nil, nil
+}
+
 func echoBinary(t *testing.T) string {
 	t.Helper()
-	candidates := []string{"/bin/echo", "/usr/bin/echo"}
-	for _, c := range candidates {
+	for _, c := range []string{"/bin/echo", "/usr/bin/echo"} {
 		if _, err := os.Stat(c); err == nil {
 			return c
 		}
@@ -66,11 +77,9 @@ func echoBinary(t *testing.T) string {
 	return ""
 }
 
-// trueBinary returns the path to /usr/bin/true (or /bin/true).
 func trueBinary(t *testing.T) string {
 	t.Helper()
-	candidates := []string{"/usr/bin/true", "/bin/true"}
-	for _, c := range candidates {
+	for _, c := range []string{"/usr/bin/true", "/bin/true"} {
 		if _, err := os.Stat(c); err == nil {
 			return c
 		}
@@ -79,11 +88,9 @@ func trueBinary(t *testing.T) string {
 	return ""
 }
 
-// falseBinary returns the path to /usr/bin/false (or /bin/false).
 func falseBinary(t *testing.T) string {
 	t.Helper()
-	candidates := []string{"/usr/bin/false", "/bin/false"}
-	for _, c := range candidates {
+	for _, c := range []string{"/usr/bin/false", "/bin/false"} {
 		if _, err := os.Stat(c); err == nil {
 			return c
 		}
@@ -92,58 +99,64 @@ func falseBinary(t *testing.T) string {
 	return ""
 }
 
-func TestRun_ToolNotInstalled(t *testing.T) {
-	setupHome(t)
+func TestNewEngine_NilCache(t *testing.T) {
+	if _, err := NewEngine(nil); err == nil {
+		t.Fatal("expected error for nil cache")
+	}
+}
 
-	exitCode, err := Run("nonexistent-tool", []string{})
+func TestExecute_NilResolver(t *testing.T) {
+	setupHome(t)
+	e, _ := newTestEngine(t)
+	exitCode, err := e.Execute(context.Background(), "gh", nil, nil, "")
 	if err == nil {
-		t.Fatal("expected error for non-installed tool, got nil")
+		t.Fatal("expected error for nil resolver")
 	}
 	if exitCode != 1 {
 		t.Errorf("expected exit code 1, got %d", exitCode)
 	}
 }
 
-func TestRun_WithEnvCredential(t *testing.T) {
+func TestExecute_UnknownTool(t *testing.T) {
+	setupHome(t)
+	useDefinitions(t, map[string]*registry.Definition{})
+	e, _ := newTestEngine(t)
+
+	exitCode, err := e.Execute(context.Background(), "nonexistent-tool", []string{}, nilResolver{}, "")
+	if err == nil {
+		t.Fatal("expected error for unknown tool, got nil")
+	}
+	if exitCode != 1 {
+		t.Errorf("expected exit code 1, got %d", exitCode)
+	}
+}
+
+func TestExecute_WithEnvCredential(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
-
-	home := setupHome(t)
-
-	// Ensure vault mode is NOT active so we use local credentials
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
+	setupHome(t)
 	echoPath := echoBinary(t)
 
-	def := &registry.Definition{
-		Name:        "test-env-cred",
-		Description: "test tool with env credential",
-		Binary:      "echo",
-		Resolve:     echoPath,
-		Auth: &registry.AuthConfig{
-			Credentials: []registry.CredentialBinding{
-				{
-					Source: registry.CredentialSource{
-						LocalKey: "MY_TOKEN",
-					},
-					Inject: registry.CredentialInject{
-						Type:   "env",
-						EnvVar: "TEST_TOKEN",
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-env-cred": {
+			Name:    "test-env-cred",
+			Binary:  "echo",
+			Resolve: echoPath,
+			Auth: &registry.AuthConfig{
+				Credentials: []registry.CredentialBinding{
+					{
+						Source: registry.CredentialSource{VaultTool: "test", VaultField: "access_token"},
+						Inject: registry.CredentialInject{Type: "env", EnvVar: "TEST_TOKEN"},
 					},
 				},
 			},
 		},
-	}
-	writeDefinition(t, home, def)
-	writeCredential(t, home, "test-env-cred", map[string]string{
-		"MY_TOKEN": "secret-value-123",
 	})
+	resolver := fixedResolver{data: map[string]any{"access_token": "secret-value-123"}}
+	e, _ := newTestEngine(t)
 
-	// echo will just print args; we mainly verify it runs without error
-	exitCode, err := Run("test-env-cred", []string{"hello"})
+	exitCode, err := e.Execute(context.Background(), "test-env-cred", []string{"hello"}, resolver, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -152,29 +165,19 @@ func TestRun_WithEnvCredential(t *testing.T) {
 	}
 }
 
-func TestRun_NoAuth(t *testing.T) {
+func TestExecute_NoAuth(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
-
-	home := setupHome(t)
-
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
+	setupHome(t)
 	truePath := trueBinary(t)
 
-	def := &registry.Definition{
-		Name:        "test-noauth",
-		Description: "tool with no auth",
-		Binary:      "true",
-		Resolve:     truePath,
-	}
-	writeDefinition(t, home, def)
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-noauth": {Name: "test-noauth", Binary: "true", Resolve: truePath},
+	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Run("test-noauth", []string{})
+	exitCode, err := e.Execute(context.Background(), "test-noauth", []string{}, nilResolver{}, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -183,57 +186,38 @@ func TestRun_NoAuth(t *testing.T) {
 	}
 }
 
-func TestRun_ServiceType(t *testing.T) {
-	home := setupHome(t)
+func TestExecute_ServiceType_Unregistered(t *testing.T) {
+	setupHome(t)
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-service": {Name: "test-service", Type: "service"},
+	})
+	e, _ := newTestEngine(t)
 
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
-	def := &registry.Definition{
-		Name:        "test-service",
-		Type:        "service",
-		Description: "service type tool",
-	}
-	writeDefinition(t, home, def)
-
-	exitCode, err := Run("test-service", []string{})
+	exitCode, err := e.Execute(context.Background(), "test-service", []string{}, nilResolver{}, "")
 	if err == nil {
 		t.Fatal("expected error for unregistered service, got nil")
 	}
 	if exitCode != 1 {
 		t.Errorf("expected exit code 1, got %d", exitCode)
 	}
-	// Verify the error mentions the service not being registered
 	if err.Error() != `no built-in service registered for "test-service"` {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
 
-func TestRun_ResolveBinary_AbsolutePath(t *testing.T) {
+func TestExecute_ResolveBinary_AbsolutePath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
-
-	home := setupHome(t)
-
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
+	setupHome(t)
 	truePath := trueBinary(t)
 
-	def := &registry.Definition{
-		Name:        "test-abs-resolve",
-		Description: "tool with absolute resolve path",
-		Binary:      "true",
-		Resolve:     truePath,
-	}
-	writeDefinition(t, home, def)
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-abs-resolve": {Name: "test-abs-resolve", Binary: "true", Resolve: truePath},
+	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Run("test-abs-resolve", []string{})
+	exitCode, err := e.Execute(context.Background(), "test-abs-resolve", []string{}, nilResolver{}, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -242,23 +226,14 @@ func TestRun_ResolveBinary_AbsolutePath(t *testing.T) {
 	}
 }
 
-func TestRun_ResolveBinary_AbsolutePath_NotFound(t *testing.T) {
-	home := setupHome(t)
+func TestExecute_ResolveBinary_AbsolutePath_NotFound(t *testing.T) {
+	setupHome(t)
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-abs-missing": {Name: "test-abs-missing", Binary: "nonexistent", Resolve: "/nonexistent/path/to/binary"},
+	})
+	e, _ := newTestEngine(t)
 
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
-	def := &registry.Definition{
-		Name:        "test-abs-missing",
-		Description: "tool with missing absolute path",
-		Binary:      "nonexistent",
-		Resolve:     "/nonexistent/path/to/binary",
-	}
-	writeDefinition(t, home, def)
-
-	exitCode, err := Run("test-abs-missing", []string{})
+	exitCode, err := e.Execute(context.Background(), "test-abs-missing", []string{}, nilResolver{}, "")
 	if err == nil {
 		t.Fatal("expected error for missing binary, got nil")
 	}
@@ -267,44 +242,28 @@ func TestRun_ResolveBinary_AbsolutePath_NotFound(t *testing.T) {
 	}
 }
 
-func TestRun_ResolveBinary_Which(t *testing.T) {
+func TestExecute_ResolveBinary_Which(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
-
 	home := setupHome(t)
 
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
-	// Create a temporary directory with a fake binary and put it on PATH
 	binDir := filepath.Join(t.TempDir(), "testbin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
 	}
-
-	// Create a simple executable script
 	scriptPath := filepath.Join(binDir, "test-which-tool")
-	script := "#!/bin/sh\nexit 0\n"
-	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+filepath.Join(home, "bin"))
 
-	// Prepend our test bin dir to PATH (after the shim dir which will be skipped)
-	origPath := os.Getenv("PATH")
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+origPath)
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-which-tool": {Name: "test-which-tool", Binary: "test-which-tool", Resolve: ""},
+	})
+	e, _ := newTestEngine(t)
 
-	def := &registry.Definition{
-		Name:        "test-which-tool",
-		Description: "tool resolved via PATH",
-		Binary:      "test-which-tool",
-		Resolve:     "", // empty means search PATH
-	}
-	writeDefinition(t, home, def)
-
-	exitCode, err := Run("test-which-tool", []string{})
+	exitCode, err := e.Execute(context.Background(), "test-which-tool", []string{}, nilResolver{}, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -313,26 +272,16 @@ func TestRun_ResolveBinary_Which(t *testing.T) {
 	}
 }
 
-func TestRun_ResolveBinary_Which_NotFound(t *testing.T) {
+func TestExecute_ResolveBinary_Which_NotFound(t *testing.T) {
 	home := setupHome(t)
-
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
-	// Set PATH to empty so nothing is found, except the shim dir
 	t.Setenv("PATH", filepath.Join(home, "bin"))
 
-	def := &registry.Definition{
-		Name:        "test-not-in-path",
-		Description: "tool not found in PATH",
-		Binary:      "definitely-not-a-real-binary",
-		Resolve:     "",
-	}
-	writeDefinition(t, home, def)
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-not-in-path": {Name: "test-not-in-path", Binary: "definitely-not-a-real-binary", Resolve: ""},
+	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Run("test-not-in-path", []string{})
+	exitCode, err := e.Execute(context.Background(), "test-not-in-path", []string{}, nilResolver{}, "")
 	if err == nil {
 		t.Fatal("expected error for binary not in PATH, got nil")
 	}
@@ -341,69 +290,84 @@ func TestRun_ResolveBinary_Which_NotFound(t *testing.T) {
 	}
 }
 
-func TestRun_NonZeroExitCode(t *testing.T) {
+func TestExecute_NonZeroExitCode(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
-
-	home := setupHome(t)
-
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
+	setupHome(t)
 	falsePath := falseBinary(t)
 
-	def := &registry.Definition{
-		Name:        "test-false",
-		Description: "tool that exits non-zero",
-		Binary:      "false",
-		Resolve:     falsePath,
-	}
-	writeDefinition(t, home, def)
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-false": {Name: "test-false", Binary: "false", Resolve: falsePath},
+	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Run("test-false", []string{})
-	// false returns exit code 1, which causes exec error
+	exitCode, _ := e.Execute(context.Background(), "test-false", []string{}, nilResolver{}, "")
 	if exitCode == 0 {
 		t.Error("expected non-zero exit code from false binary")
 	}
-	// err may or may not be set depending on how the system handles non-zero exits
-	_ = err
 }
 
-func TestRun_WithBeforeHook(t *testing.T) {
+func TestExecute_StaleMarkOnFailure(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
+	setupHome(t)
+	falsePath := falseBinary(t)
 
-	home := setupHome(t)
-
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
-	echoPath := echoBinary(t)
-
-	def := &registry.Definition{
-		Name:        "test-before-hook",
-		Description: "tool with before hook",
-		Binary:      "echo",
-		Resolve:     echoPath,
-		Before: []registry.Rule{
-			{
-				Name: "append-json",
-				Rule: "append_flag",
-				Config: map[string]interface{}{
-					"flag": "--json",
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-fail-creds": {
+			Name:    "test-fail-creds",
+			Binary:  "false",
+			Resolve: falsePath,
+			Auth: &registry.AuthConfig{
+				Credentials: []registry.CredentialBinding{
+					{
+						Source: registry.CredentialSource{VaultTool: "t", VaultField: "access_token"},
+						Inject: registry.CredentialInject{Type: "env", EnvVar: "TOK"},
+					},
 				},
 			},
 		},
-	}
-	writeDefinition(t, home, def)
+	})
+	resolver := fixedResolver{data: map[string]any{"access_token": "tok"}}
+	e, cache := newTestEngine(t)
 
-	exitCode, err := Run("test-before-hook", []string{"test"})
+	exitCode, _ := e.Execute(context.Background(), "test-fail-creds", []string{}, resolver, "")
+	if exitCode == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+
+	// After a failure, the cached credential should be marked stale.
+	cached, ok := cache.Get(credential.CacheKey("test-fail-creds", ""))
+	if !ok || cached == nil {
+		t.Fatal("expected a cache entry to exist")
+	}
+	if !cached.Stale {
+		t.Error("expected cache to be marked stale after non-zero exit")
+	}
+}
+
+func TestExecute_WithBeforeHook(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows")
+	}
+	setupHome(t)
+	echoPath := echoBinary(t)
+
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-before-hook": {
+			Name:    "test-before-hook",
+			Binary:  "echo",
+			Resolve: echoPath,
+			Before: []registry.Rule{
+				{Name: "append-json", Rule: "append_flag", Config: map[string]interface{}{"flag": "--json"}},
+			},
+		},
+	})
+	e, _ := newTestEngine(t)
+
+	exitCode, err := e.Execute(context.Background(), "test-before-hook", []string{"test"}, nilResolver{}, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -412,35 +376,26 @@ func TestRun_WithBeforeHook(t *testing.T) {
 	}
 }
 
-func TestRun_WithAfterHook(t *testing.T) {
+func TestExecute_WithAfterHook(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
-
-	home := setupHome(t)
-
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
+	setupHome(t)
 	echoPath := echoBinary(t)
 
-	def := &registry.Definition{
-		Name:        "test-after-hook",
-		Description: "tool with after hook",
-		Binary:      "echo",
-		Resolve:     echoPath,
-		After: []registry.Rule{
-			{
-				Name: "ensure-json",
-				Rule: "ensure_json",
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-after-hook": {
+			Name:    "test-after-hook",
+			Binary:  "echo",
+			Resolve: echoPath,
+			After: []registry.Rule{
+				{Name: "ensure-json", Rule: "ensure_json"},
 			},
 		},
-	}
-	writeDefinition(t, home, def)
+	})
+	e, _ := newTestEngine(t)
 
-	exitCode, err := Run("test-after-hook", []string{"hello world"})
+	exitCode, err := e.Execute(context.Background(), "test-after-hook", []string{"hello world"}, nilResolver{}, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -453,14 +408,8 @@ func TestResolveBinary_AbsolutePath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
-
 	truePath := trueBinary(t)
-
-	def := &registry.Definition{
-		Name:    "test",
-		Binary:  "true",
-		Resolve: truePath,
-	}
+	def := &registry.Definition{Name: "test", Binary: "true", Resolve: truePath}
 
 	got, err := resolveBinary(def)
 	if err != nil {
@@ -472,14 +421,8 @@ func TestResolveBinary_AbsolutePath(t *testing.T) {
 }
 
 func TestResolveBinary_AbsolutePath_Missing(t *testing.T) {
-	def := &registry.Definition{
-		Name:    "test",
-		Binary:  "missing",
-		Resolve: "/nonexistent/path/to/binary",
-	}
-
-	_, err := resolveBinary(def)
-	if err == nil {
+	def := &registry.Definition{Name: "test", Binary: "missing", Resolve: "/nonexistent/path/to/binary"}
+	if _, err := resolveBinary(def); err == nil {
 		t.Fatal("expected error for missing absolute path")
 	}
 }
@@ -488,14 +431,8 @@ func TestResolveBinary_Which(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
+	home := setupHome(t)
 
-	home := t.TempDir()
-	t.Setenv("ANYCLI_HOME", home)
-	if err := os.MkdirAll(filepath.Join(home, "bin"), 0755); err != nil {
-		t.Fatalf("failed to create bin dir: %v", err)
-	}
-
-	// Create a temp directory with a binary
 	binDir := filepath.Join(t.TempDir(), "testbin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		t.Fatalf("failed to create bin dir: %v", err)
@@ -504,15 +441,9 @@ func TestResolveBinary_Which(t *testing.T) {
 	if err := os.WriteFile(fakeBin, []byte("#!/bin/sh\n"), 0755); err != nil {
 		t.Fatalf("failed to write fake binary: %v", err)
 	}
-
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+filepath.Join(home, "bin"))
 
-	def := &registry.Definition{
-		Name:    "my-tool",
-		Binary:  "my-tool",
-		Resolve: "",
-	}
-
+	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: ""}
 	got, err := resolveBinary(def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -526,21 +457,13 @@ func TestResolveBinary_SkipsShimDir(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
-
-	home := t.TempDir()
-	t.Setenv("ANYCLI_HOME", home)
+	home := setupHome(t)
 	shimDir := filepath.Join(home, "bin")
-	if err := os.MkdirAll(shimDir, 0755); err != nil {
-		t.Fatalf("failed to create shim dir: %v", err)
-	}
 
-	// Put a binary in the shim dir (should be skipped)
 	shimBin := filepath.Join(shimDir, "my-tool")
 	if err := os.WriteFile(shimBin, []byte("#!/bin/sh\n"), 0755); err != nil {
 		t.Fatalf("failed to write shim binary: %v", err)
 	}
-
-	// Put the same binary in a real dir (should be found)
 	realDir := filepath.Join(t.TempDir(), "realbin")
 	if err := os.MkdirAll(realDir, 0755); err != nil {
 		t.Fatalf("failed to create real dir: %v", err)
@@ -549,16 +472,9 @@ func TestResolveBinary_SkipsShimDir(t *testing.T) {
 	if err := os.WriteFile(realBin, []byte("#!/bin/sh\n"), 0755); err != nil {
 		t.Fatalf("failed to write real binary: %v", err)
 	}
-
-	// PATH: shim dir first, then real dir
 	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+realDir)
 
-	def := &registry.Definition{
-		Name:    "my-tool",
-		Binary:  "my-tool",
-		Resolve: "",
-	}
-
+	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: ""}
 	got, err := resolveBinary(def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -572,12 +488,7 @@ func TestResolveBinary_WhichResolveValue(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
-
-	home := t.TempDir()
-	t.Setenv("ANYCLI_HOME", home)
-	if err := os.MkdirAll(filepath.Join(home, "bin"), 0755); err != nil {
-		t.Fatalf("failed to create bin dir: %v", err)
-	}
+	setupHome(t)
 
 	binDir := filepath.Join(t.TempDir(), "testbin")
 	if err := os.MkdirAll(binDir, 0755); err != nil {
@@ -587,16 +498,9 @@ func TestResolveBinary_WhichResolveValue(t *testing.T) {
 	if err := os.WriteFile(fakeBin, []byte("#!/bin/sh\n"), 0755); err != nil {
 		t.Fatalf("failed to write fake binary: %v", err)
 	}
-
 	t.Setenv("PATH", binDir)
 
-	// Resolve = "which" should behave the same as Resolve = ""
-	def := &registry.Definition{
-		Name:    "my-tool",
-		Binary:  "my-tool",
-		Resolve: "which",
-	}
-
+	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: "which"}
 	got, err := resolveBinary(def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -607,14 +511,9 @@ func TestResolveBinary_WhichResolveValue(t *testing.T) {
 }
 
 func TestBuildEnv(t *testing.T) {
-	env := map[string]string{
-		"FOO": "bar",
-		"BAZ": "qux",
-	}
-
+	env := map[string]string{"FOO": "bar", "BAZ": "qux"}
 	result := buildEnv(env)
 
-	// Should contain all original env vars plus our additions
 	found := make(map[string]bool)
 	for _, e := range result {
 		if e == "FOO=bar" {
@@ -624,7 +523,6 @@ func TestBuildEnv(t *testing.T) {
 			found["BAZ"] = true
 		}
 	}
-
 	if !found["FOO"] {
 		t.Error("expected FOO=bar in environment")
 	}
@@ -633,116 +531,50 @@ func TestBuildEnv(t *testing.T) {
 	}
 }
 
-func TestUniqueVaultTools(t *testing.T) {
-	bindings := []registry.CredentialBinding{
-		{Source: registry.CredentialSource{VaultTool: "github"}},
-		{Source: registry.CredentialSource{VaultTool: "github"}},
-		{Source: registry.CredentialSource{VaultTool: "notion"}},
-		{Source: registry.CredentialSource{VaultTool: ""}},
-		{Source: registry.CredentialSource{VaultTool: "github"}},
-	}
-
-	result := uniqueVaultTools(bindings)
-	if len(result) != 2 {
-		t.Fatalf("expected 2 unique vault tools, got %d: %v", len(result), result)
-	}
-
-	expected := map[string]bool{"github": true, "notion": true}
-	for _, vt := range result {
-		if !expected[vt] {
-			t.Errorf("unexpected vault tool: %s", vt)
-		}
-	}
-}
-
-func TestUniqueVaultTools_Empty(t *testing.T) {
-	result := uniqueVaultTools(nil)
-	if len(result) != 0 {
-		t.Errorf("expected empty result, got %v", result)
-	}
-
-	result = uniqueVaultTools([]registry.CredentialBinding{
-		{Source: registry.CredentialSource{LocalKey: "token"}},
-	})
-	if len(result) != 0 {
-		t.Errorf("expected empty result for bindings with no vault_tool, got %v", result)
-	}
-}
-
-func TestRun_AuthWithCredentials_ResolvesCredentials(t *testing.T) {
+func TestExecute_StaleMarkHitsOnlyFailingAccount(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
+	setupHome(t)
+	falsePath := falseBinary(t)
 
-	home := setupHome(t)
-
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
-	truePath := trueBinary(t)
-
-	// Definition with Auth that has credentials; credential resolution runs.
-	def := &registry.Definition{
-		Name:        "test-creds",
-		Description: "tool with credential-based auth",
-		Binary:      "true",
-		Resolve:     truePath,
-		Auth: &registry.AuthConfig{
-			Credentials: []registry.CredentialBinding{
-				{
-					Source: registry.CredentialSource{LocalKey: "TOKEN"},
-					Inject: registry.CredentialInject{Type: "env", EnvVar: "MY_TOKEN"},
+	useDefinitions(t, map[string]*registry.Definition{
+		"test-multi-acct": {
+			Name:    "test-multi-acct",
+			Binary:  "false",
+			Resolve: falsePath,
+			Auth: &registry.AuthConfig{
+				Credentials: []registry.CredentialBinding{
+					{
+						Source: registry.CredentialSource{VaultTool: "t", VaultField: "access_token"},
+						Inject: registry.CredentialInject{Type: "env", EnvVar: "TOK"},
+					},
 				},
 			},
 		},
-	}
-	writeDefinition(t, home, def)
-	writeCredential(t, home, "test-creds", map[string]string{
-		"TOKEN": "secret-value",
 	})
+	e, cache := newTestEngine(t)
 
-	exitCode, err := Run("test-creds", []string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if exitCode != 0 {
-		t.Errorf("expected exit code 0, got %d", exitCode)
-	}
-}
-
-func TestRun_EmptyCredentials_NoError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on windows")
+	// Pre-seed fresh entries for two accounts of the same tool.
+	for _, account := range []string{"a1", "a2"} {
+		cache.Set(credential.CacheKey("test-multi-acct", account), &credential.CacheEntry{
+			FetchedAt:  time.Now(),
+			CacheUntil: time.Now().Add(time.Hour),
+			Fields:     map[string]string{"access_token": "tok-" + account},
+		})
 	}
 
-	home := setupHome(t)
-
-	// Ensure vault mode is NOT active
-	t.Setenv("ANYCLI_VAULT_URL", "")
-	t.Setenv("ANYCLI_VAULT_TOKEN", "")
-	t.Setenv("ANYCLI_WORKSPACE_ID", "")
-
-	truePath := trueBinary(t)
-
-	// Auth config present but with empty credentials slice
-	def := &registry.Definition{
-		Name:        "test-empty-creds",
-		Description: "tool with empty credentials list",
-		Binary:      "true",
-		Resolve:     truePath,
-		Auth: &registry.AuthConfig{
-			Credentials: []registry.CredentialBinding{},
-		},
+	exitCode, _ := e.Execute(context.Background(), "test-multi-acct", []string{}, fixedResolver{}, "a1")
+	if exitCode == 0 {
+		t.Fatal("expected non-zero exit code")
 	}
-	writeDefinition(t, home, def)
 
-	exitCode, err := Run("test-empty-creds", []string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	a1, ok := cache.Get(credential.CacheKey("test-multi-acct", "a1"))
+	if !ok || !a1.Stale {
+		t.Error("expected the failing account's entry (a1) to be marked stale")
 	}
-	if exitCode != 0 {
-		t.Errorf("expected exit code 0, got %d", exitCode)
+	a2, ok := cache.Get(credential.CacheKey("test-multi-acct", "a2"))
+	if !ok || a2.Stale {
+		t.Error("the other account's entry (a2) must NOT be marked stale")
 	}
 }
