@@ -16,7 +16,7 @@ func TestJSON_CreateNewFile(t *testing.T) {
 
 	fields := map[string]string{
 		"github.com.oauth_token": "ghp_abc123",
-		"github.com.user":       "testuser",
+		"github.com.user":        "testuser",
 	}
 
 	if err := PatchFile(path, "json", fields, 0600); err != nil {
@@ -159,7 +159,7 @@ func TestYAML_CreateNewFile(t *testing.T) {
 
 	fields := map[string]string{
 		"github.com.oauth_token": "ghp_abc123",
-		"github.com.user":       "testuser",
+		"github.com.user":        "testuser",
 	}
 
 	if err := PatchFile(path, "yaml", fields, 0600); err != nil {
