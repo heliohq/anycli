@@ -78,6 +78,25 @@ func TestExecute_MissingToken(t *testing.T) {
 	}
 }
 
+func TestUnknownSubcommand_Fails(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{}`, &got)
+	defer srv.Close()
+
+	// Without NoArgs on the group commands, cobra silently prints help and
+	// exits 0 for an unknown subcommand — a false success for an agent.
+	code, _, stderr := run(t, srv, "page", "destroy", "x")
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1 for an unknown subcommand", code)
+	}
+	if !strings.Contains(stderr, "unknown command") {
+		t.Errorf("stderr = %q, want an unknown-command error", stderr)
+	}
+	if got.Path != "" {
+		t.Errorf("no request must be sent for an unknown subcommand, got %s", got.Path)
+	}
+}
+
 func TestPageCreate_Happy(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"object":"page","id":"p1"}`, &got)

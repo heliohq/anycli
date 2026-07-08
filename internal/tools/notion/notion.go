@@ -85,17 +85,30 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	root.SetErr(s.stderr())
 	root.PersistentFlags().Bool("json", false, "output JSON (always on; accepted for uniformity)")
 
-	page := &cobra.Command{Use: "page", Short: "Pages"}
+	page := newGroupCmd("page", "Pages")
 	page.AddCommand(s.newPageCreateCmd(token), s.newPageGetCmd(token), s.newPageAppendCmd(token), s.newPageReadCmd(token))
 
-	db := &cobra.Command{Use: "db", Short: "Databases"}
+	db := newGroupCmd("db", "Databases")
 	db.AddCommand(s.newDBQueryCmd(token))
 
-	block := &cobra.Command{Use: "block", Short: "Blocks"}
+	block := newGroupCmd("block", "Blocks")
 	block.AddCommand(s.newBlockChildrenCmd(token))
 
 	root.AddCommand(page, s.newSearchCmd(token), db, block)
 	return root
+}
+
+// newGroupCmd is a runnable command group. cobra skips Args validation on
+// non-runnable commands (help + exit 0 even for an unknown subcommand — a
+// false success for an agent); making the group runnable restores it: bare
+// group shows help, unknown subcommand fails.
+func newGroupCmd(use, short string) *cobra.Command {
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  cobra.NoArgs,
+		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+	}
 }
 
 func (s *Service) newPageCreateCmd(token string) *cobra.Command {
