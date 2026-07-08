@@ -85,7 +85,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "output JSON (always on; accepted for uniformity)")
 
 	page := &cobra.Command{Use: "page", Short: "Pages"}
-	page.AddCommand(s.newPageCreateCmd(token), s.newPageGetCmd(token), s.newPageAppendCmd(token))
+	page.AddCommand(s.newPageCreateCmd(token), s.newPageGetCmd(token), s.newPageAppendCmd(token), s.newPageReadCmd(token))
 
 	db := &cobra.Command{Use: "db", Short: "Databases"}
 	db.AddCommand(s.newDBQueryCmd(token))
@@ -140,6 +140,28 @@ func (s *Service) newPageGetCmd(token string) *cobra.Command {
 			return s.emit(body)
 		},
 	}
+}
+
+func (s *Service) newPageReadCmd(token string) *cobra.Command {
+	var includeTranscript bool
+	cmd := &cobra.Command{
+		Use:   "read <page-id>",
+		Short: "Read a page's body as markdown",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := "/pages/" + url.PathEscape(args[0]) + "/markdown"
+			if includeTranscript {
+				path += "?" + url.Values{"include_transcript": {"true"}}.Encode()
+			}
+			body, err := s.callWithVersion(cmd.Context(), token, http.MethodGet, path, nil, markdownVersion)
+			if err != nil {
+				return err
+			}
+			return s.emit(body)
+		},
+	}
+	cmd.Flags().BoolVar(&includeTranscript, "include-transcript", false, "include meeting-note transcripts")
+	return cmd
 }
 
 func (s *Service) newPageAppendCmd(token string) *cobra.Command {

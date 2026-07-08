@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -17,6 +18,7 @@ type capturedRequest struct {
 	Path    string
 	Auth    string
 	Version string
+	Query   url.Values
 	Body    []byte
 }
 
@@ -31,6 +33,7 @@ func newServer(t *testing.T, status int, response string, got *capturedRequest) 
 			Path:    r.URL.Path,
 			Auth:    r.Header.Get("Authorization"),
 			Version: r.Header.Get("Notion-Version"),
+			Query:   r.URL.Query(),
 			Body:    body,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -154,6 +157,66 @@ func TestPageGet_APIError(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "check the ID and that the integration has been granted access") {
 		t.Errorf("stderr = %q, want the access hint", stderr)
+	}
+}
+
+func TestPageRead_Happy(t *testing.T) {
+	var got capturedRequest
+	response := `{"object":"page_markdown","id":"p9","markdown":"# Title\nbody","truncated":false,"unknown_block_ids":[]}`
+	srv := newServer(t, http.StatusOK, response, &got)
+	defer srv.Close()
+
+	code, stdout, _ := run(t, srv, "page", "read", "p9", "--include-transcript")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if got.Method != http.MethodGet || got.Path != "/pages/p9/markdown" {
+		t.Errorf("request = %s %s, want GET /pages/p9/markdown", got.Method, got.Path)
+	}
+	assertAuth(t, got, "2026-03-11")
+	if got.Query.Get("include_transcript") != "true" {
+		t.Errorf("include_transcript = %q, want true", got.Query.Get("include_transcript"))
+	}
+	// Exact match: truncated / unknown_block_ids are the agent's re-fetch
+	// signal — any reshaping of the body must fail here.
+	if stdout != response+"\n" {
+		t.Errorf("stdout = %q, want the page_markdown JSON verbatim", stdout)
+	}
+}
+
+func TestPageRead_APIError(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusNotFound, `{"object":"error","code":"object_not_found","message":"no such page"}`, &got)
+	defer srv.Close()
+
+	code, _, stderr := run(t, srv, "page", "read", "missing")
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
+	}
+	if !strings.Contains(stderr, "object_not_found") {
+		t.Errorf("stderr = %q, want the Notion error code", stderr)
+	}
+	if !strings.Contains(stderr, "check the ID and that the integration has been granted access") {
+		t.Errorf("stderr = %q, want the access hint", stderr)
+	}
+}
+
+func TestPageRead_DefaultNoTranscript(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"page_markdown","id":"p9"}`, &got)
+	defer srv.Close()
+
+	code, _, _ := run(t, srv, "page", "read", "p9")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if got.Path != "/pages/p9/markdown" {
+		t.Errorf("path = %q, want /pages/p9/markdown", got.Path)
+	}
+	// Key-existence check: a present-but-empty include_transcript= would pass
+	// a Get()!="" comparison.
+	if _, ok := got.Query["include_transcript"]; ok {
+		t.Errorf("include_transcript sent as %q, want absent when the flag is off", got.Query.Get("include_transcript"))
 	}
 }
 
