@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -90,7 +91,10 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	db := &cobra.Command{Use: "db", Short: "Databases"}
 	db.AddCommand(s.newDBQueryCmd(token))
 
-	root.AddCommand(page, s.newSearchCmd(token), db)
+	block := &cobra.Command{Use: "block", Short: "Blocks"}
+	block.AddCommand(s.newBlockChildrenCmd(token))
+
+	root.AddCommand(page, s.newSearchCmd(token), db, block)
 	return root
 }
 
@@ -226,6 +230,32 @@ func (s *Service) newDBQueryCmd(token string) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&filterJSON, "filter-json", "", "raw Notion filter object (JSON)")
+	return cmd
+}
+
+func (s *Service) newBlockChildrenCmd(token string) *cobra.Command {
+	var pageSize int
+	var startCursor string
+	cmd := &cobra.Command{
+		Use:   "children <block-id>",
+		Short: "List a block's (or page's) child blocks",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			q := url.Values{}
+			q.Set("page_size", strconv.Itoa(pageSize))
+			if startCursor != "" {
+				q.Set("start_cursor", startCursor)
+			}
+			path := "/blocks/" + url.PathEscape(args[0]) + "/children?" + q.Encode()
+			body, err := s.call(cmd.Context(), token, http.MethodGet, path, nil)
+			if err != nil {
+				return err
+			}
+			return s.emit(body)
+		},
+	}
+	cmd.Flags().IntVar(&pageSize, "page-size", 100, "max blocks to return (Notion caps at 100)")
+	cmd.Flags().StringVar(&startCursor, "start-cursor", "", "pagination cursor from a previous response")
 	return cmd
 }
 

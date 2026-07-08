@@ -346,3 +346,66 @@ func TestDBQuery_APIError(t *testing.T) {
 		t.Errorf("stderr = %q, want the Notion message", stderr)
 	}
 }
+
+func TestBlockChildren_Happy(t *testing.T) {
+	var got capturedRequest
+	response := `{"object":"list","results":[],"has_more":false,"next_cursor":null}`
+	srv := newServer(t, http.StatusOK, response, &got)
+	defer srv.Close()
+
+	code, stdout, _ := run(t, srv, "block", "children", "b1", "--page-size", "50", "--start-cursor", "cur123")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if got.Method != http.MethodGet || got.Path != "/blocks/b1/children" {
+		t.Errorf("request = %s %s, want GET /blocks/b1/children", got.Method, got.Path)
+	}
+	assertAuth(t, got, "2022-06-28")
+	if got.Query.Get("page_size") != "50" {
+		t.Errorf("page_size = %q, want 50", got.Query.Get("page_size"))
+	}
+	if got.Query.Get("start_cursor") != "cur123" {
+		t.Errorf("start_cursor = %q, want cur123", got.Query.Get("start_cursor"))
+	}
+	// Exact match: has_more / next_cursor drive the agent's pagination — any
+	// reshaping of the body must fail here.
+	if stdout != response+"\n" {
+		t.Errorf("stdout = %q, want the list JSON verbatim", stdout)
+	}
+}
+
+func TestBlockChildren_APIError(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusForbidden, `{"object":"error","code":"restricted_resource","message":"no access"}`, &got)
+	defer srv.Close()
+
+	code, _, stderr := run(t, srv, "block", "children", "b1")
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
+	}
+	if !strings.Contains(stderr, "restricted_resource") {
+		t.Errorf("stderr = %q, want the Notion error code", stderr)
+	}
+	if !strings.Contains(stderr, "check the ID and that the integration has been granted access") {
+		t.Errorf("stderr = %q, want the access hint", stderr)
+	}
+}
+
+func TestBlockChildren_DefaultQuery(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"list","results":[]}`, &got)
+	defer srv.Close()
+
+	code, _, _ := run(t, srv, "block", "children", "b1")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if got.Query.Get("page_size") != "100" {
+		t.Errorf("page_size = %q, want 100 (the default)", got.Query.Get("page_size"))
+	}
+	// Key-existence check: a present-but-empty start_cursor= (which Notion
+	// rejects) would pass a Get()!="" comparison.
+	if _, ok := got.Query["start_cursor"]; ok {
+		t.Errorf("start_cursor sent as %q, want absent when the flag is unset", got.Query.Get("start_cursor"))
+	}
+}
