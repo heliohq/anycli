@@ -130,7 +130,7 @@ func TestPageGet_Happy(t *testing.T) {
 	srv := newServer(t, http.StatusOK, `{"object":"page","id":"p2"}`, &got)
 	defer srv.Close()
 
-	code, stdout, _ := run(t, srv, "page", "get", "p2")
+	code, stdout, stderr := run(t, srv, "page", "get", "p2")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
@@ -140,6 +140,27 @@ func TestPageGet_Happy(t *testing.T) {
 	assertAuth(t, got, "2022-06-28")
 	if !strings.Contains(stdout, `"id":"p2"`) {
 		t.Errorf("stdout = %q, want the provider JSON", stdout)
+	}
+	if stderr != "" {
+		t.Errorf("stderr = %q, want empty when the page has no children", stderr)
+	}
+}
+
+func TestPageGet_HasChildrenNudge(t *testing.T) {
+	var got capturedRequest
+	response := `{"object":"page","id":"p2","has_children":true}`
+	srv := newServer(t, http.StatusOK, response, &got)
+	defer srv.Close()
+
+	code, stdout, stderr := run(t, srv, "page", "get", "p2")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if stdout != response+"\n" {
+		t.Errorf("stdout = %q, want the provider JSON verbatim", stdout)
+	}
+	if !strings.Contains(stderr, "notion page read") {
+		t.Errorf("stderr = %q, want a nudge to page read when has_children is true", stderr)
 	}
 }
 

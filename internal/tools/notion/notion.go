@@ -134,14 +134,25 @@ func (s *Service) newPageCreateCmd(token string) *cobra.Command {
 func (s *Service) newPageGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <page-id>",
-		Short: "Fetch a page",
+		Short: "Fetch a page's metadata and properties (use page read for the body)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/pages/"+url.PathEscape(args[0]), nil)
 			if err != nil {
 				return err
 			}
-			return s.emit(body)
+			if err := s.emit(body); err != nil {
+				return err
+			}
+			// GET /pages/{id} never includes the body; without this nudge a
+			// page with content reads as an empty page (stdout stays verbatim).
+			var page struct {
+				HasChildren bool `json:"has_children"`
+			}
+			if err := json.Unmarshal(body, &page); err == nil && page.HasChildren {
+				fmt.Fprintln(s.stderr(), `note: this page has content blocks not included here; use "notion page read <page-id>" to read the body`)
+			}
+			return nil
 		},
 	}
 }
