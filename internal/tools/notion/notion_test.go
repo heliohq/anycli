@@ -50,13 +50,13 @@ func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdo
 	return code, out.String(), errBuf.String()
 }
 
-func assertAuth(t *testing.T, got capturedRequest) {
+func assertAuth(t *testing.T, got capturedRequest, wantVersion string) {
 	t.Helper()
 	if got.Auth != "Bearer secret-notion-token" {
 		t.Errorf("Authorization = %q, want Bearer secret-notion-token", got.Auth)
 	}
-	if got.Version != "2022-06-28" {
-		t.Errorf("Notion-Version = %q, want 2022-06-28", got.Version)
+	if got.Version != wantVersion {
+		t.Errorf("Notion-Version = %q, want %s", got.Version, wantVersion)
 	}
 }
 
@@ -87,7 +87,7 @@ func TestPageCreate_Happy(t *testing.T) {
 	if got.Method != http.MethodPost || got.Path != "/pages" {
 		t.Errorf("request = %s %s, want POST /pages", got.Method, got.Path)
 	}
-	assertAuth(t, got)
+	assertAuth(t, got, "2022-06-28")
 	var payload map[string]any
 	if err := json.Unmarshal(got.Body, &payload); err != nil {
 		t.Fatalf("request body not JSON: %v", err)
@@ -116,6 +116,10 @@ func TestPageCreate_APIError(t *testing.T) {
 	if !strings.Contains(stderr, "validation_error") || !strings.Contains(stderr, "parent not found") {
 		t.Errorf("stderr = %q, want the Notion code and message", stderr)
 	}
+	// The 403/404 access hint must not leak onto other statuses (400 here).
+	if strings.Contains(stderr, "check the ID and that the integration has been granted access") {
+		t.Errorf("stderr = %q, must not carry the 403/404 access hint on a 400", stderr)
+	}
 }
 
 func TestPageGet_Happy(t *testing.T) {
@@ -130,7 +134,7 @@ func TestPageGet_Happy(t *testing.T) {
 	if got.Method != http.MethodGet || got.Path != "/pages/p2" {
 		t.Errorf("request = %s %s, want GET /pages/p2", got.Method, got.Path)
 	}
-	assertAuth(t, got)
+	assertAuth(t, got, "2022-06-28")
 	if !strings.Contains(stdout, `"id":"p2"`) {
 		t.Errorf("stdout = %q, want the provider JSON", stdout)
 	}
@@ -148,6 +152,9 @@ func TestPageGet_APIError(t *testing.T) {
 	if !strings.Contains(stderr, "object_not_found") {
 		t.Errorf("stderr = %q, want the Notion error code", stderr)
 	}
+	if !strings.Contains(stderr, "check the ID and that the integration has been granted access") {
+		t.Errorf("stderr = %q, want the access hint", stderr)
+	}
 }
 
 func TestPageAppend_Happy(t *testing.T) {
@@ -162,7 +169,7 @@ func TestPageAppend_Happy(t *testing.T) {
 	if got.Method != http.MethodPatch || got.Path != "/blocks/p3/children" {
 		t.Errorf("request = %s %s, want PATCH /blocks/p3/children", got.Method, got.Path)
 	}
-	assertAuth(t, got)
+	assertAuth(t, got, "2022-06-28")
 	if !strings.Contains(string(got.Body), "more text") {
 		t.Errorf("body = %s, want the paragraph content", got.Body)
 	}
@@ -180,6 +187,9 @@ func TestPageAppend_APIError(t *testing.T) {
 	if !strings.Contains(stderr, "restricted_resource") {
 		t.Errorf("stderr = %q, want the Notion error code", stderr)
 	}
+	if !strings.Contains(stderr, "check the ID and that the integration has been granted access") {
+		t.Errorf("stderr = %q, want the access hint on a 403", stderr)
+	}
 }
 
 func TestSearch_Happy(t *testing.T) {
@@ -194,7 +204,7 @@ func TestSearch_Happy(t *testing.T) {
 	if got.Method != http.MethodPost || got.Path != "/search" {
 		t.Errorf("request = %s %s, want POST /search", got.Method, got.Path)
 	}
-	assertAuth(t, got)
+	assertAuth(t, got, "2022-06-28")
 	if !strings.Contains(string(got.Body), `"query":"roadmap"`) {
 		t.Errorf("body = %s, want the query", got.Body)
 	}
@@ -215,6 +225,10 @@ func TestSearch_APIError(t *testing.T) {
 	if !strings.Contains(stderr, "unauthorized") {
 		t.Errorf("stderr = %q, want the Notion error code", stderr)
 	}
+	// The 403/404 access hint must not leak onto other statuses (401 here).
+	if strings.Contains(stderr, "check the ID and that the integration has been granted access") {
+		t.Errorf("stderr = %q, must not carry the 403/404 access hint on a 401", stderr)
+	}
 }
 
 func TestDBQuery_Happy(t *testing.T) {
@@ -229,7 +243,7 @@ func TestDBQuery_Happy(t *testing.T) {
 	if got.Method != http.MethodPost || got.Path != "/databases/db-1/query" {
 		t.Errorf("request = %s %s, want POST /databases/db-1/query", got.Method, got.Path)
 	}
-	assertAuth(t, got)
+	assertAuth(t, got, "2022-06-28")
 	var payload map[string]any
 	if err := json.Unmarshal(got.Body, &payload); err != nil {
 		t.Fatalf("request body not JSON: %v", err)

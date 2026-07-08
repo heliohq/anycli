@@ -19,8 +19,13 @@ import (
 // DefaultBaseURL is the production Notion API base.
 const DefaultBaseURL = "https://api.notion.com/v1"
 
-// notionVersion pins the Notion-Version header sent on every call.
+// notionVersion is the default Notion-Version header; commands can override it
+// per call via callWithVersion (page read uses markdownVersion).
 const notionVersion = "2022-06-28"
+
+// markdownVersion is the Notion-Version required by the page-markdown
+// endpoints; page read uses it without moving the global pin.
+const markdownVersion = "2026-03-11"
 
 // EnvToken is the env var the credential binding injects (definitions/tools/notion.json).
 const EnvToken = "NOTION_TOKEN"
@@ -224,9 +229,15 @@ func (s *Service) emit(body []byte) error {
 	return err
 }
 
-// call performs one Notion API request: Bearer auth + the pinned
-// Notion-Version header on every call; non-2xx surfaces the body's message.
+// call performs one Notion API request on the globally pinned Notion-Version.
 func (s *Service) call(ctx context.Context, token, method, path string, payload any) ([]byte, error) {
+	return s.callWithVersion(ctx, token, method, path, payload, notionVersion)
+}
+
+// callWithVersion is call with a caller-chosen Notion-Version header. Bearer
+// auth + the version on every call; non-2xx surfaces the body's message and,
+// for 403/404, an actionable access hint.
+func (s *Service) callWithVersion(ctx context.Context, token, method, path string, payload any, version string) ([]byte, error) {
 	base := s.BaseURL
 	if base == "" {
 		base = DefaultBaseURL
@@ -244,7 +255,7 @@ func (s *Service) call(ctx context.Context, token, method, path string, payload 
 		return nil, fmt.Errorf("notion: build request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Notion-Version", notionVersion)
+	req.Header.Set("Notion-Version", version)
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -262,9 +273,18 @@ func (s *Service) call(ctx context.Context, token, method, path string, payload 
 		return nil, fmt.Errorf("notion: read response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("notion API error (HTTP %d): %s", resp.StatusCode, apiMessage(body))
+		return nil, fmt.Errorf("notion API error (HTTP %d): %s%s", resp.StatusCode, apiMessage(body), accessHint(resp.StatusCode))
 	}
 	return body, nil
+}
+
+// accessHint returns an actionable clause for the failures an agent most often
+// hits: a wrong ID or a resource never shared with the integration.
+func accessHint(status int) string {
+	if status == http.StatusForbidden || status == http.StatusNotFound {
+		return " (check the ID and that the integration has been granted access to this resource)"
+	}
+	return ""
 }
 
 // apiMessage extracts Notion's error message (code + message) from an error
