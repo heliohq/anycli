@@ -1,7 +1,7 @@
 // Package definitions holds the tool definitions AnyCLI ships, embedded at
 // build time. These definitions are internal to AnyCLI — the embedder never
 // supplies them. The design 003 toolset ships under tools/<name>.json:
-// slack / notion / google / discord / linkedin (service) and github (cli).
+// slack / notion / google / discord / linkedin / x (service) and github (cli).
 package definitions
 
 import (
