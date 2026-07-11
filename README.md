@@ -72,7 +72,17 @@ type Cache interface {
 
 ### Tools
 
-`Tool` is `type Tool string`. AnyCLI ships **no** tool-name constants yet — the supported-tool definitions are added internally to AnyCLI in a later round. Pass a raw `anycli.Tool("…")` whose name matches an embedded definition; an unknown tool is an error from `Execute`, not a compile error.
+`Tool` is `type Tool string`; pass a raw `anycli.Tool("…")` whose name matches
+an embedded definition. The built-in service tools are `slack`, `notion`,
+`google`, `discord`, `linkedin`, and `x`; `github` wraps the `gh` binary. An
+unknown tool is an error from `Execute`, not a compile error.
+
+The `x` service supports OAuth 2.0 user-context identity and user lookup,
+recent post search, timelines, post/reply/thread/repost management, simple
+JPEG/PNG/WebP uploads for posts or DMs, alt text, and legacy Direct Messages.
+Every list/search command retrieves one explicit page; callers pass the
+returned token with `--next-token`. XChat and chunked video/GIF uploads are not
+part of this surface.
 
 ## Documentation
 

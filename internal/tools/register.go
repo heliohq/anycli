@@ -6,6 +6,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/notion"
 	"github.com/heliohq/anycli/internal/tools/slack"
+	"github.com/heliohq/anycli/internal/tools/x"
 )
 
 // Built-in service registration. internal/exec imports this package (for
@@ -19,4 +20,5 @@ func init() {
 	RegisterService("google", &google.Service{})
 	RegisterService("discord", &discord.Service{})
 	RegisterService("linkedin", &linkedin.Service{})
+	RegisterService("x", &x.Service{})
 }

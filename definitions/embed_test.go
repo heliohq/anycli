@@ -20,7 +20,7 @@ func TestLoadBundled_NotFound(t *testing.T) {
 }
 
 // TestLoadBundled_ShippedDefinitions asserts every shipped definition loads
-// and exposes the expected credential-injection shape (design 003 toolset).
+// and exposes the expected credential-injection shape.
 // Type "" = the cli default (a wrapped binary, e.g. github -> gh).
 func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 	cases := []struct {
@@ -33,6 +33,7 @@ func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 		{"google", "service", []string{"GOOGLE_ACCESS_TOKEN"}},
 		{"discord", "service", []string{"DISCORD_BOT_TOKEN"}},
 		{"linkedin", "service", []string{"LINKEDIN_ACCESS_TOKEN", "LINKEDIN_PERSON_URN"}},
+		{"x", "service", []string{"X_ACCESS_TOKEN", "X_USER_ID"}},
 		{"github", "", []string{"GH_TOKEN"}},
 	}
 	for _, tc := range cases {
@@ -60,6 +61,31 @@ func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLoadBundled_XCredentialBindings(t *testing.T) {
+	def, err := LoadBundled("x")
+	if err != nil {
+		t.Fatalf("LoadBundled(x) failed: %v", err)
+	}
+	want := []struct {
+		vaultField string
+		envVar     string
+	}{
+		{vaultField: "access_token", envVar: "X_ACCESS_TOKEN"},
+		{vaultField: "user_id", envVar: "X_USER_ID"},
+	}
+	if def.Auth == nil || len(def.Auth.Credentials) != len(want) {
+		t.Fatalf("credentials = %+v, want %d bindings", def.Auth, len(want))
+	}
+	for i, binding := range def.Auth.Credentials {
+		if binding.Source.VaultField != want[i].vaultField {
+			t.Errorf("binding %d vault_field = %q, want %q", i, binding.Source.VaultField, want[i].vaultField)
+		}
+		if binding.Inject.Type != "env" || binding.Inject.EnvVar != want[i].envVar {
+			t.Errorf("binding %d inject = %+v, want env %s", i, binding.Inject, want[i].envVar)
+		}
 	}
 }
 
