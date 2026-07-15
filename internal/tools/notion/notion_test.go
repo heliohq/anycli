@@ -85,254 +85,35 @@ func TestExecute_MissingToken(t *testing.T) {
 	}
 }
 
-func TestCredentialRejectionClassification(t *testing.T) {
-	cases := []struct {
-		name         string
-		status       int
-		providerCode string
-		wantRejected bool
-	}{
-		{name: "unauthorized", status: http.StatusUnauthorized, providerCode: "unauthorized", wantRejected: true},
-		{name: "explicit unauthorized code", status: http.StatusBadRequest, providerCode: "unauthorized", wantRejected: true},
-		{name: "restricted resource", status: http.StatusForbidden, providerCode: "restricted_resource", wantRejected: false},
-		{name: "rate limited", status: http.StatusTooManyRequests, providerCode: "rate_limited", wantRejected: false},
-		{name: "server failure", status: http.StatusInternalServerError, providerCode: "internal_server_error", wantRejected: false},
+func TestExecute_MissingToken_JSON(t *testing.T) {
+	// The missing-token check runs before cobra parses flags, but --json in the
+	// raw args must still yield the structured error envelope on stderr (§error).
+	var errBuf bytes.Buffer
+	svc := &Service{Err: &errBuf}
+	result, err := svc.Execute(context.Background(), []string{"search", "--query", "x", "--json"}, map[string]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var got capturedRequest
-			srv := newServer(t, tc.status, `{"code":"`+tc.providerCode+`","message":"provider message"}`, &got)
-			defer srv.Close()
-
-			result, _, _ := runResult(t, srv, "search", "--query", "x")
-			if result.CredentialRejected != tc.wantRejected {
-				t.Errorf("CredentialRejected = %t, want %t", result.CredentialRejected, tc.wantRejected)
-			}
-		})
+	if result.ExitCode != 1 {
+		t.Errorf("exit code = %d, want 1", result.ExitCode)
 	}
-}
-
-func TestUnknownSubcommand_Fails(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{}`, &got)
-	defer srv.Close()
-
-	// Without NoArgs on the group commands, cobra silently prints help and
-	// exits 0 for an unknown subcommand — a false success for an agent.
-	code, _, stderr := run(t, srv, "page", "destroy", "x")
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1 for an unknown subcommand", code)
+	var env struct {
+		Error struct {
+			Message string `json:"message"`
+			Kind    string `json:"kind"`
+		} `json:"error"`
 	}
-	if !strings.Contains(stderr, "unknown command") {
-		t.Errorf("stderr = %q, want an unknown-command error", stderr)
+	if err := json.Unmarshal([]byte(strings.TrimSpace(errBuf.String())), &env); err != nil {
+		t.Fatalf("stderr not a JSON error envelope: %v (%q)", err, errBuf.String())
 	}
-	if got.Path != "" {
-		t.Errorf("no request must be sent for an unknown subcommand, got %s", got.Path)
-	}
-}
-
-func TestPageCreate_Happy(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"object":"page","id":"p1"}`, &got)
-	defer srv.Close()
-
-	code, stdout, _ := run(t, srv, "page", "create", "--parent", "parent-1", "--title", "Hello", "--content", "First paragraph")
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0", code)
-	}
-	if got.Method != http.MethodPost || got.Path != "/pages" {
-		t.Errorf("request = %s %s, want POST /pages", got.Method, got.Path)
-	}
-	assertAuth(t, got, "2022-06-28")
-	var payload map[string]any
-	if err := json.Unmarshal(got.Body, &payload); err != nil {
-		t.Fatalf("request body not JSON: %v", err)
-	}
-	parent, _ := payload["parent"].(map[string]any)
-	if parent["page_id"] != "parent-1" {
-		t.Errorf("parent = %v, want page_id parent-1", payload["parent"])
-	}
-	if _, ok := payload["children"]; !ok {
-		t.Error("expected children block for --content")
-	}
-	if !strings.Contains(stdout, `"id":"p1"`) {
-		t.Errorf("stdout = %q, want the provider JSON", stdout)
-	}
-}
-
-func TestPageCreate_APIError(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusBadRequest, `{"object":"error","code":"validation_error","message":"parent not found"}`, &got)
-	defer srv.Close()
-
-	code, _, stderr := run(t, srv, "page", "create", "--parent", "bad", "--title", "x")
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
-	}
-	if !strings.Contains(stderr, "validation_error") || !strings.Contains(stderr, "parent not found") {
-		t.Errorf("stderr = %q, want the Notion code and message", stderr)
-	}
-	// The 403/404 access hint must not leak onto other statuses (400 here).
-	if strings.Contains(stderr, "check the ID and that the integration has been granted access") {
-		t.Errorf("stderr = %q, must not carry the 403/404 access hint on a 400", stderr)
-	}
-}
-
-func TestPageGet_Happy(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"object":"page","id":"p2"}`, &got)
-	defer srv.Close()
-
-	code, stdout, stderr := run(t, srv, "page", "get", "p2")
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0", code)
-	}
-	if got.Method != http.MethodGet || got.Path != "/pages/p2" {
-		t.Errorf("request = %s %s, want GET /pages/p2", got.Method, got.Path)
-	}
-	assertAuth(t, got, "2022-06-28")
-	if !strings.Contains(stdout, `"id":"p2"`) {
-		t.Errorf("stdout = %q, want the provider JSON", stdout)
-	}
-	if stderr != "" {
-		t.Errorf("stderr = %q, want empty when the page has no children", stderr)
-	}
-}
-
-func TestPageGet_HasChildrenNudge(t *testing.T) {
-	var got capturedRequest
-	response := `{"object":"page","id":"p2","has_children":true}`
-	srv := newServer(t, http.StatusOK, response, &got)
-	defer srv.Close()
-
-	code, stdout, stderr := run(t, srv, "page", "get", "p2")
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0", code)
-	}
-	if stdout != response+"\n" {
-		t.Errorf("stdout = %q, want the provider JSON verbatim", stdout)
-	}
-	if !strings.Contains(stderr, "notion page read") {
-		t.Errorf("stderr = %q, want a nudge to page read when has_children is true", stderr)
-	}
-}
-
-func TestPageGet_APIError(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusNotFound, `{"object":"error","code":"object_not_found","message":"no such page"}`, &got)
-	defer srv.Close()
-
-	code, _, stderr := run(t, srv, "page", "get", "missing")
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
-	}
-	if !strings.Contains(stderr, "object_not_found") {
-		t.Errorf("stderr = %q, want the Notion error code", stderr)
-	}
-	if !strings.Contains(stderr, "check the ID and that the integration has been granted access") {
-		t.Errorf("stderr = %q, want the access hint", stderr)
-	}
-}
-
-func TestPageRead_Happy(t *testing.T) {
-	var got capturedRequest
-	response := `{"object":"page_markdown","id":"p9","markdown":"# Title\nbody","truncated":false,"unknown_block_ids":[]}`
-	srv := newServer(t, http.StatusOK, response, &got)
-	defer srv.Close()
-
-	code, stdout, _ := run(t, srv, "page", "read", "p9", "--include-transcript")
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0", code)
-	}
-	if got.Method != http.MethodGet || got.Path != "/pages/p9/markdown" {
-		t.Errorf("request = %s %s, want GET /pages/p9/markdown", got.Method, got.Path)
-	}
-	assertAuth(t, got, "2026-03-11")
-	if got.Query.Get("include_transcript") != "true" {
-		t.Errorf("include_transcript = %q, want true", got.Query.Get("include_transcript"))
-	}
-	// Exact match: truncated / unknown_block_ids are the agent's re-fetch
-	// signal — any reshaping of the body must fail here.
-	if stdout != response+"\n" {
-		t.Errorf("stdout = %q, want the page_markdown JSON verbatim", stdout)
-	}
-}
-
-func TestPageRead_APIError(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusNotFound, `{"object":"error","code":"object_not_found","message":"no such page"}`, &got)
-	defer srv.Close()
-
-	code, _, stderr := run(t, srv, "page", "read", "missing")
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
-	}
-	if !strings.Contains(stderr, "object_not_found") {
-		t.Errorf("stderr = %q, want the Notion error code", stderr)
-	}
-	if !strings.Contains(stderr, "check the ID and that the integration has been granted access") {
-		t.Errorf("stderr = %q, want the access hint", stderr)
-	}
-}
-
-func TestPageRead_DefaultNoTranscript(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"object":"page_markdown","id":"p9"}`, &got)
-	defer srv.Close()
-
-	code, _, _ := run(t, srv, "page", "read", "p9")
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0", code)
-	}
-	if got.Path != "/pages/p9/markdown" {
-		t.Errorf("path = %q, want /pages/p9/markdown", got.Path)
-	}
-	// Key-existence check: a present-but-empty include_transcript= would pass
-	// a Get()!="" comparison.
-	if _, ok := got.Query["include_transcript"]; ok {
-		t.Errorf("include_transcript sent as %q, want absent when the flag is off", got.Query.Get("include_transcript"))
-	}
-}
-
-func TestPageAppend_Happy(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"object":"list","results":[]}`, &got)
-	defer srv.Close()
-
-	code, _, _ := run(t, srv, "page", "append", "p3", "--content", "more text")
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0", code)
-	}
-	if got.Method != http.MethodPatch || got.Path != "/blocks/p3/children" {
-		t.Errorf("request = %s %s, want PATCH /blocks/p3/children", got.Method, got.Path)
-	}
-	assertAuth(t, got, "2022-06-28")
-	if !strings.Contains(string(got.Body), "more text") {
-		t.Errorf("body = %s, want the paragraph content", got.Body)
-	}
-}
-
-func TestPageAppend_APIError(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusForbidden, `{"object":"error","code":"restricted_resource","message":"no access"}`, &got)
-	defer srv.Close()
-
-	code, _, stderr := run(t, srv, "page", "append", "p3", "--content", "x")
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
-	}
-	if !strings.Contains(stderr, "restricted_resource") {
-		t.Errorf("stderr = %q, want the Notion error code", stderr)
-	}
-	if !strings.Contains(stderr, "check the ID and that the integration has been granted access") {
-		t.Errorf("stderr = %q, want the access hint on a 403", stderr)
+	if env.Error.Kind != "usage" || !strings.Contains(env.Error.Message, "NOTION_TOKEN is not set") {
+		t.Errorf("envelope = %+v, want kind=usage with the missing-token message", env.Error)
 	}
 }
 
 func TestSearch_Happy(t *testing.T) {
 	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"object":"list","results":[]}`, &got)
+	srv := newServer(t, http.StatusOK, `{"object":"list","results":[],"has_more":false,"next_cursor":null}`, &got)
 	defer srv.Close()
 
 	code, stdout, _ := run(t, srv, "search", "--query", "roadmap")
@@ -342,7 +123,8 @@ func TestSearch_Happy(t *testing.T) {
 	if got.Method != http.MethodPost || got.Path != "/search" {
 		t.Errorf("request = %s %s, want POST /search", got.Method, got.Path)
 	}
-	assertAuth(t, got, "2022-06-28")
+	// search runs on the 2026-03-11 data model (data_source object filter).
+	assertAuth(t, got, markdownVersion)
 	if !strings.Contains(string(got.Body), `"query":"roadmap"`) {
 		t.Errorf("body = %s, want the query", got.Body)
 	}
@@ -351,136 +133,386 @@ func TestSearch_Happy(t *testing.T) {
 	}
 }
 
-func TestSearch_APIError(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusUnauthorized, `{"object":"error","code":"unauthorized","message":"token invalid"}`, &got)
-	defer srv.Close()
-
-	code, _, stderr := run(t, srv, "search", "--query", "x")
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
-	}
-	if !strings.Contains(stderr, "unauthorized") {
-		t.Errorf("stderr = %q, want the Notion error code", stderr)
-	}
-	// The 403/404 access hint must not leak onto other statuses (401 here).
-	if strings.Contains(stderr, "check the ID and that the integration has been granted access") {
-		t.Errorf("stderr = %q, must not carry the 403/404 access hint on a 401", stderr)
-	}
-}
-
-func TestDBQuery_Happy(t *testing.T) {
+func TestSearch_TypeFilter(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"object":"list","results":[]}`, &got)
 	defer srv.Close()
 
-	code, _, _ := run(t, srv, "db", "query", "db-1", "--filter-json", `{"property":"Done","checkbox":{"equals":true}}`)
+	code, _, _ := run(t, srv, "search", "--query", "x", "--type", "data_source")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
-	if got.Method != http.MethodPost || got.Path != "/databases/db-1/query" {
-		t.Errorf("request = %s %s, want POST /databases/db-1/query", got.Method, got.Path)
-	}
-	assertAuth(t, got, "2022-06-28")
 	var payload map[string]any
 	if err := json.Unmarshal(got.Body, &payload); err != nil {
-		t.Fatalf("request body not JSON: %v", err)
+		t.Fatalf("body not JSON: %v", err)
 	}
-	if _, ok := payload["filter"]; !ok {
-		t.Errorf("payload = %v, want the filter passed through", payload)
+	filter, _ := payload["filter"].(map[string]any)
+	if filter["property"] != "object" || filter["value"] != "data_source" {
+		t.Errorf("filter = %v, want object=data_source", payload["filter"])
 	}
 }
 
-func TestDBQuery_InvalidFilterJSON(t *testing.T) {
+func TestSearch_BadType(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{}`, &got)
 	defer srv.Close()
 
-	code, _, stderr := run(t, srv, "db", "query", "db-1", "--filter-json", "{not json")
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
+	code, _, stderr := run(t, srv, "search", "--query", "x", "--type", "database")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2 for a bad enum", code)
 	}
-	if !strings.Contains(stderr, "not valid JSON") {
-		t.Errorf("stderr = %q, want the JSON validation error", stderr)
+	if !strings.Contains(stderr, "must be one of") {
+		t.Errorf("stderr = %q, want the enum validation error", stderr)
 	}
 	if got.Path != "" {
-		t.Errorf("no request must be sent for invalid filter JSON, got %s", got.Path)
+		t.Errorf("no request must be sent for a bad enum, got %s", got.Path)
 	}
 }
 
-func TestDBQuery_APIError(t *testing.T) {
+func TestSearch_MissingQuery_Usage(t *testing.T) {
 	var got capturedRequest
-	srv := newServer(t, http.StatusBadRequest, `{"object":"error","code":"validation_error","message":"bad filter"}`, &got)
+	srv := newServer(t, http.StatusOK, `{}`, &got)
 	defer srv.Close()
 
-	code, _, stderr := run(t, srv, "db", "query", "db-1")
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
+	code, _, _ := run(t, srv, "search")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2 for a missing required flag", code)
 	}
-	if !strings.Contains(stderr, "bad filter") {
-		t.Errorf("stderr = %q, want the Notion message", stderr)
+	if got.Path != "" {
+		t.Errorf("no request must be sent when --query is missing, got %s", got.Path)
 	}
 }
 
-func TestBlockChildren_Happy(t *testing.T) {
-	var got capturedRequest
-	response := `{"object":"list","results":[],"has_more":false,"next_cursor":null}`
-	srv := newServer(t, http.StatusOK, response, &got)
+func TestSearch_All_Paginates(t *testing.T) {
+	// Two-page result: the first page has_more with a cursor, the second ends
+	// it. --all must follow the cursor and merge results.
+	var reqs []capturedRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		reqs = append(reqs, capturedRequest{Body: body})
+		var payload map[string]any
+		_ = json.Unmarshal(body, &payload)
+		w.Header().Set("Content-Type", "application/json")
+		if payload["start_cursor"] == "cur2" {
+			_, _ = w.Write([]byte(`{"object":"list","results":[{"id":"b"}],"has_more":false,"next_cursor":null}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"object":"list","results":[{"id":"a"}],"has_more":true,"next_cursor":"cur2"}`))
+	}))
 	defer srv.Close()
 
-	code, stdout, _ := run(t, srv, "block", "children", "b1", "--page-size", "50", "--start-cursor", "cur123")
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0", code)
+	var out, errBuf bytes.Buffer
+	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	result, err := svc.Execute(context.Background(), []string{"search", "--query", "x", "--all"}, map[string]string{EnvToken: "t"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if got.Method != http.MethodGet || got.Path != "/blocks/b1/children" {
-		t.Errorf("request = %s %s, want GET /blocks/b1/children", got.Method, got.Path)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, want 0", result.ExitCode)
 	}
-	assertAuth(t, got, "2022-06-28")
-	if got.Query.Get("page_size") != "50" {
-		t.Errorf("page_size = %q, want 50", got.Query.Get("page_size"))
+	if len(reqs) != 2 {
+		t.Fatalf("made %d requests, want 2 (followed the cursor)", len(reqs))
 	}
-	if got.Query.Get("start_cursor") != "cur123" {
-		t.Errorf("start_cursor = %q, want cur123", got.Query.Get("start_cursor"))
+	var merged struct {
+		Results []map[string]any `json:"results"`
+		HasMore bool             `json:"has_more"`
 	}
-	// Exact match: has_more / next_cursor drive the agent's pagination — any
-	// reshaping of the body must fail here.
-	if stdout != response+"\n" {
-		t.Errorf("stdout = %q, want the list JSON verbatim", stdout)
+	if err := json.Unmarshal([]byte(out.String()), &merged); err != nil {
+		t.Fatalf("merged output not JSON: %v", err)
+	}
+	if len(merged.Results) != 2 || merged.HasMore {
+		t.Errorf("merged = %+v, want 2 results and has_more=false", merged)
 	}
 }
 
-func TestBlockChildren_APIError(t *testing.T) {
+func TestSearch_APIError_CredentialRejected(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusUnauthorized, `{"object":"error","code":"unauthorized","message":"token invalid"}`, &got)
+	defer srv.Close()
+
+	result, _, stderr := runResult(t, srv, "search", "--query", "x")
+	if result.ExitCode != 1 {
+		t.Fatalf("exit code = %d, want 1 for an API error", result.ExitCode)
+	}
+	if !result.CredentialRejected {
+		t.Error("CredentialRejected = false, want true on a 401 unauthorized")
+	}
+	if !strings.Contains(stderr, "unauthorized") {
+		t.Errorf("stderr = %q, want the Notion error code", stderr)
+	}
+}
+
+func TestSearch_APIError_NotRejected(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusForbidden, `{"object":"error","code":"restricted_resource","message":"no access"}`, &got)
 	defer srv.Close()
 
-	code, _, stderr := run(t, srv, "block", "children", "b1")
-	if code != 1 {
-		t.Fatalf("exit code = %d, want 1", code)
+	result, _, stderr := runResult(t, srv, "search", "--query", "x")
+	if result.ExitCode != 1 {
+		t.Fatalf("exit code = %d, want 1", result.ExitCode)
 	}
-	if !strings.Contains(stderr, "restricted_resource") {
-		t.Errorf("stderr = %q, want the Notion error code", stderr)
+	if result.CredentialRejected {
+		t.Error("CredentialRejected = true, want false on a 403 restricted_resource")
 	}
 	if !strings.Contains(stderr, "check the ID and that the integration has been granted access") {
-		t.Errorf("stderr = %q, want the access hint", stderr)
+		t.Errorf("stderr = %q, want the 403 access hint", stderr)
 	}
 }
 
-func TestBlockChildren_DefaultQuery(t *testing.T) {
+func TestSearch_JSONErrorEnvelope(t *testing.T) {
 	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"object":"list","results":[]}`, &got)
+	srv := newServer(t, http.StatusBadRequest, `{"object":"error","code":"validation_error","message":"bad"}`, &got)
 	defer srv.Close()
 
-	code, _, _ := run(t, srv, "block", "children", "b1")
+	code, _, stderr := run(t, srv, "search", "--query", "x", "--json")
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
+	}
+	var env struct {
+		Error struct {
+			Message string `json:"message"`
+			Kind    string `json:"kind"`
+			Status  int    `json:"status"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(stderr)), &env); err != nil {
+		t.Fatalf("stderr not a JSON error envelope: %v (%q)", err, stderr)
+	}
+	if env.Error.Kind != "api" || env.Error.Status != http.StatusBadRequest {
+		t.Errorf("envelope = %+v, want kind=api status=400", env.Error)
+	}
+	if !strings.Contains(env.Error.Message, "validation_error") {
+		t.Errorf("message = %q, want the Notion code", env.Error.Message)
+	}
+}
+
+func TestFetch_Page_Markdown(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"page_markdown","id":"p9","markdown":"# Title\nbody","truncated":false,"unknown_block_ids":[]}`, &got)
+	defer srv.Close()
+
+	code, stdout, stderr := run(t, srv, "fetch", "p9", "--type", "page")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
-	if got.Query.Get("page_size") != "100" {
-		t.Errorf("page_size = %q, want 100 (the default)", got.Query.Get("page_size"))
+	if got.Method != http.MethodGet || got.Path != "/pages/p9/markdown" {
+		t.Errorf("request = %s %s, want GET /pages/p9/markdown", got.Method, got.Path)
 	}
-	// Key-existence check: a present-but-empty start_cursor= (which Notion
-	// rejects) would pass a Get()!="" comparison.
-	if _, ok := got.Query["start_cursor"]; ok {
-		t.Errorf("start_cursor sent as %q, want absent when the flag is unset", got.Query.Get("start_cursor"))
+	assertAuth(t, got, markdownVersion)
+	if stdout != "# Title\nbody\n" {
+		t.Errorf("stdout = %q, want the bare markdown", stdout)
+	}
+	if stderr != "" {
+		t.Errorf("stderr = %q, want empty for a complete read", stderr)
+	}
+}
+
+func TestFetch_Page_PartialNote(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"markdown":"partial","truncated":true,"unknown_block_ids":["b1"]}`, &got)
+	defer srv.Close()
+
+	code, stdout, stderr := run(t, srv, "fetch", "p9", "--type", "page")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if stdout != "partial\n" {
+		t.Errorf("stdout = %q, want the bare markdown only", stdout)
+	}
+	if !strings.Contains(stderr, "partial") {
+		t.Errorf("stderr = %q, want the re-fetch note", stderr)
+	}
+}
+
+func TestFetch_Page_JSONForcesEnvelope(t *testing.T) {
+	var got capturedRequest
+	response := `{"object":"page_markdown","id":"p9","markdown":"x"}`
+	srv := newServer(t, http.StatusOK, response, &got)
+	defer srv.Close()
+
+	code, stdout, _ := run(t, srv, "fetch", "p9", "--type", "page", "--json")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if stdout != response+"\n" {
+		t.Errorf("stdout = %q, want the full envelope verbatim under --json", stdout)
+	}
+}
+
+func TestFetch_DataSource_JSON(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"data_source","id":"ds1"}`, &got)
+	defer srv.Close()
+
+	code, stdout, _ := run(t, srv, "fetch", "ds1", "--type", "data_source")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if got.Method != http.MethodGet || got.Path != "/data_sources/ds1" {
+		t.Errorf("request = %s %s, want GET /data_sources/ds1", got.Method, got.Path)
+	}
+	assertAuth(t, got, markdownVersion)
+	if !strings.Contains(stdout, `"id":"ds1"`) {
+		t.Errorf("stdout = %q, want the provider JSON", stdout)
+	}
+}
+
+func TestFetch_Database_JSON(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"database","id":"db1"}`, &got)
+	defer srv.Close()
+
+	code, _, _ := run(t, srv, "fetch", "db1", "--type", "database")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if got.Path != "/databases/db1" {
+		t.Errorf("path = %q, want /databases/db1", got.Path)
+	}
+}
+
+func TestFetch_Probe_PageWins(t *testing.T) {
+	// newServer answers 200 to everything, so the first probe (page markdown)
+	// wins and the id types as a page.
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"page_markdown","markdown":"hi"}`, &got)
+	defer srv.Close()
+
+	code, stdout, _ := run(t, srv, "fetch", "p9")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if got.Path != "/pages/p9/markdown" {
+		t.Errorf("path = %q, want the page markdown endpoint via probe", got.Path)
+	}
+	if stdout != "hi\n" {
+		t.Errorf("stdout = %q, want the probed page markdown", stdout)
+	}
+}
+
+// TestFetch_Self routes `fetch self` to GET /v1/users/me (MCP notion-fetch
+// `self` → connected workspace + authed-user identity; REST's closest is
+// /users/me) and returns JSON, rather than erroring.
+func TestFetch_Self(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"user","id":"me","bot":{"workspace_name":"WS"}}`, &got)
+	defer srv.Close()
+
+	code, stdout, _ := run(t, srv, "fetch", "self")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 for fetch self", code)
+	}
+	if got.Method != http.MethodGet || got.Path != "/users/me" {
+		t.Errorf("request = %s %s, want GET /users/me", got.Method, got.Path)
+	}
+	if !strings.Contains(stdout, `"id": "me"`) && !strings.Contains(stdout, `"id":"me"`) {
+		t.Errorf("stdout = %q, want the /users/me identity JSON", stdout)
+	}
+}
+
+// TestFetch_EmptyDatabaseRow_Hints: fetching a database row returns an empty
+// body (fields live in properties), so fetch must retrieve the page, see the
+// data-source parent, and print a non-fatal hint — never a silent empty.
+func TestFetch_EmptyDatabaseRow_Hints(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"GET /pages/row1/markdown": {http.StatusOK, `{"markdown":""}`},
+		"GET /pages/row1":          {http.StatusOK, `{"object":"page","id":"row1","parent":{"type":"data_source_id","data_source_id":"ds1"}}`},
+	})
+	defer srv.Close()
+
+	code, stdout, stderr := run(t, srv, "fetch", "row1", "--type", "page")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("stdout = %q, want empty (row has no body)", stdout)
+	}
+	if !strings.Contains(stderr, "database row") {
+		t.Errorf("stderr = %q, want the database-row hint", stderr)
+	}
+}
+
+// TestFetch_EmptyNormalPage_NoHint: an empty body on a normal page (parent is a
+// page) is legitimate — no database-row hint.
+func TestFetch_EmptyNormalPage_NoHint(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"GET /pages/pg1/markdown": {http.StatusOK, `{"markdown":""}`},
+		"GET /pages/pg1":          {http.StatusOK, `{"object":"page","id":"pg1","parent":{"type":"page_id","page_id":"par"}}`},
+	})
+	defer srv.Close()
+
+	code, _, stderr := run(t, srv, "fetch", "pg1", "--type", "page")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if strings.Contains(stderr, "database row") {
+		t.Errorf("stderr = %q, must not hint database row for a normal page", stderr)
+	}
+}
+
+func TestUnknownSubcommand_Usage(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{}`, &got)
+	defer srv.Close()
+
+	// A runnable group rejects an unknown subcommand instead of exiting 0 with
+	// help — a false success for an agent. It is a usage error → exit 2.
+	code, _, stderr := run(t, srv, "page", "destroy", "x")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2 for an unknown subcommand", code)
+	}
+	if !strings.Contains(stderr, "unknown command") {
+		t.Errorf("stderr = %q, want an unknown-command error", stderr)
+	}
+	if got.Path != "" {
+		t.Errorf("no request must be sent for an unknown subcommand, got %s", got.Path)
+	}
+}
+
+func TestResolveID(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"abc", "abc"},
+		{"12345678123412341234123456789012", "12345678-1234-1234-1234-123456789012"},
+		{"12345678-1234-1234-1234-123456789012", "12345678-1234-1234-1234-123456789012"},
+		{"https://www.notion.so/Team-Page-12345678123412341234123456789012", "12345678-1234-1234-1234-123456789012"},
+		{"https://www.notion.so/12345678123412341234123456789012?v=aaaaaaaabbbbccccddddeeeeffff0000", "12345678-1234-1234-1234-123456789012"},
+	}
+	for _, tc := range cases {
+		got, err := resolveID(tc.in)
+		if err != nil {
+			t.Errorf("resolveID(%q) error: %v", tc.in, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("resolveID(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestIconWire(t *testing.T) {
+	emoji, err := iconWire("🚀")
+	if err != nil {
+		t.Fatalf("emoji icon: %v", err)
+	}
+	if !strings.Contains(string(emoji), `"emoji":"🚀"`) {
+		t.Errorf("emoji wire = %s, want an emoji object", emoji)
+	}
+	ext, err := iconWire("https://x/y.png")
+	if err != nil {
+		t.Fatalf("url icon: %v", err)
+	}
+	if !strings.Contains(string(ext), `"external"`) {
+		t.Errorf("url wire = %s, want an external object", ext)
+	}
+	if _, err := iconWire("plain"); err == nil {
+		t.Error("iconWire(plain) = nil error, want a usage error")
+	}
+	if _, err := coverWire("nope"); err == nil {
+		t.Error("coverWire(nope) = nil error, want a usage error")
 	}
 }
