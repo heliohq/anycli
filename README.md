@@ -83,7 +83,7 @@ tools, err := anycli.ListTools()
 
 `Tool` is `type Tool string`; pass a raw `anycli.Tool("…")` whose name matches
 an embedded definition. The built-in service tools are `slack`, `notion`,
-`google`, `discord`, `linkedin`, `x`, and `figma`; `github` wraps the `gh`
+`gmail`, `discord`, `linkedin`, `x`, and `figma`; `github` wraps the `gh`
 binary. An unknown tool is an error from `Execute`, not a compile error.
 
 The Figma service uses personal access tokens and exposes every PAT-compatible
@@ -100,6 +100,17 @@ render/image-fill URLs without forwarding the PAT to the asset host. Run
 native-canvas create/edit/delete API, so hosted-MCP operations such as
 `use_figma`, new-file/design generation, uploads, shaders, and native Code
 Connect mappings require Figma's hosted MCP or a Figma plugin bridge.
+
+The `gmail` service projects the Gmail API v1 `users.*` resource namespaces
+(`profile`, `messages`, `messages attachments`, `threads`, `drafts`, `labels`)
+plus the synthetic `reply` / `forward` verbs, which assemble the threading
+headers (`In-Reply-To` / `References` / `threadId`) and the quoted original
+inside the tool. `--query` passes native Gmail search syntax through verbatim;
+`messages modify` batches multiple ids via `batchModify`; send/reply support
+`--body`/`--body-file`, `--html`, and repeated `--attach` (multipart MIME up
+to 25MB). Every command supports `--json`; list commands page with `--max` and
+`--page-token`. It replaces the retired `google` tool (per-app split, Helio
+design 303).
 
 The `x` service supports OAuth 2.0 user-context identity and user lookup,
 recent post search, timelines, post/reply/thread/repost management, simple
