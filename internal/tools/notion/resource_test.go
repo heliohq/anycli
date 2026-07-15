@@ -240,6 +240,67 @@ func TestViewCreate_BadType(t *testing.T) {
 	}
 }
 
+// TestViewCreate_CreateDatabaseRequiresDataSource: the --create-database parent
+// path also requires --data-source-id (verified live: POST /v1/views 400s
+// without it), so cobra must reject it before any request.
+func TestViewCreate_CreateDatabaseRequiresDataSource(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{}`, &got)
+	defer srv.Close()
+	code, _, stderr := run(t, srv, "view", "create", "--create-database", `{}`, "--name", "X", "--type", "table")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2 for missing --data-source-id", code)
+	}
+	if !strings.Contains(stderr, "data-source-id") {
+		t.Errorf("stderr = %q, want the required-flag error", stderr)
+	}
+	if got.Path != "" {
+		t.Errorf("no request must be sent, got %s", got.Path)
+	}
+}
+
+// TestViewCreate_ConfigurationAndQuickFilters: --configuration / --quick-filters
+// pass through verbatim into the create body.
+func TestViewCreate_ConfigurationAndQuickFilters(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"view","id":"v1"}`, &got)
+	defer srv.Close()
+	code, _, _ := run(t, srv, "view", "create", "--database-id", "db1", "--data-source-id", "ds1",
+		"--name", "N", "--type", "board",
+		"--configuration", `{"type":"table","group_by":{"type":"select"}}`,
+		"--quick-filters", `{"and":[]}`)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	body := bodyMap(t, got.Body)
+	if _, ok := body["configuration"].(map[string]any); !ok {
+		t.Errorf("body.configuration = %v, want the passthrough object", body["configuration"])
+	}
+	if _, ok := body["quick_filters"].(map[string]any); !ok {
+		t.Errorf("body.quick_filters = %v, want the passthrough object", body["quick_filters"])
+	}
+}
+
+// TestViewUpdate_ConfigurationAndQuickFilters: --configuration / --quick-filters
+// pass through verbatim into the update body.
+func TestViewUpdate_ConfigurationAndQuickFilters(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"view","id":"v1"}`, &got)
+	defer srv.Close()
+	code, _, _ := run(t, srv, "view", "update", "v1",
+		"--configuration", `{"type":"table"}`, "--quick-filters", `{"and":[]}`)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	body := bodyMap(t, got.Body)
+	if _, ok := body["configuration"]; !ok {
+		t.Errorf("body.configuration missing; got %v", body)
+	}
+	if _, ok := body["quick_filters"]; !ok {
+		t.Errorf("body.quick_filters missing; got %v", body)
+	}
+}
+
 func TestViewUpdate_Happy(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"object":"view","id":"v1"}`, &got)
