@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -132,6 +133,22 @@ func (s *Service) newMessagesGetCmd(token string) *cobra.Command {
 	return cmd
 }
 
+// cleanMessageIDs trims whitespace from multi-id args and drops empties;
+// Gmail returns INVALID_ARGUMENT for ids with trailing spaces or empty
+// strings, so sanitize before the call.
+func cleanMessageIDs(args []string) ([]string, error) {
+	ids := make([]string, 0, len(args))
+	for _, id := range args {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("gmail: no valid message ids")
+	}
+	return ids, nil
+}
+
 func (s *Service) newMessagesModifyCmd(token string) *cobra.Command {
 	var addLabels, removeLabels []string
 	var archive, markRead, markUnread bool
@@ -139,7 +156,11 @@ func (s *Service) newMessagesModifyCmd(token string) *cobra.Command {
 		Use:   "modify <message-id>...",
 		Short: "Add/remove labels (batchModify for multiple ids)",
 		Args:  cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, ids []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ids, err := cleanMessageIDs(args)
+			if err != nil {
+				return err
+			}
 			add := append([]string{}, addLabels...)
 			remove := append([]string{}, removeLabels...)
 			if archive {
@@ -196,7 +217,11 @@ func (s *Service) newMessagesTrashCmd(token string, untrash bool) *cobra.Command
 		Use:   verb + " <message-id>...",
 		Short: short,
 		Args:  cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, ids []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ids, err := cleanMessageIDs(args)
+			if err != nil {
+				return err
+			}
 			for _, id := range ids {
 				if _, err := s.call(cmd.Context(), token, http.MethodPost, "/users/me/messages/"+url.PathEscape(id)+"/"+verb, nil, nil); err != nil {
 					return err

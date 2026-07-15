@@ -16,9 +16,10 @@ func b64url(s string) string {
 // body, and one attachment.
 func fullMessage(id string) string {
 	m := map[string]any{
-		"id":       id,
-		"threadId": "t9",
-		"labelIds": []string{"INBOX", "UNREAD"},
+		"id":           id,
+		"threadId":     "t9",
+		"labelIds":     []string{"INBOX", "UNREAD"},
+		"sizeEstimate": 4321,
 		"payload": map[string]any{
 			"mimeType": "multipart/mixed",
 			"headers": []map[string]string{
@@ -94,7 +95,7 @@ func TestMessagesGet_BodyAndAttachmentInventory(t *testing.T) {
 	if !strings.Contains(got.Query, "format=full") {
 		t.Errorf("query = %q, want format=full", got.Query)
 	}
-	for _, want := range []string{"plain body!", "Quarterly numbers", "att-1", "report.pdf", "3 bytes"} {
+	for _, want := range []string{"plain body!", "Quarterly numbers", "att-1", "report.pdf", "3 bytes", "Size:    4321 bytes"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("human output = %q, want it to contain %q", stdout, want)
 		}
@@ -121,6 +122,57 @@ func TestMessagesGet_HTMLBodyAndJSON(t *testing.T) {
 	}
 	if view.Headers["Subject"] != "Quarterly numbers" {
 		t.Errorf("headers = %v, want the Subject header", view.Headers)
+	}
+	if view.SizeEstimate != 4321 {
+		t.Errorf("size estimate = %d, want 4321", view.SizeEstimate)
+	}
+	if !strings.Contains(stdout, `"size_estimate":4321`) {
+		t.Errorf("--json output = %q, want the size_estimate field", stdout)
+	}
+}
+
+// TestMessagesGetJSON_ControlCharSubjectStaysValidJSON is the regression for
+// live Gmail bodies (GitHub notification mail) whose Subject carries raw
+// control characters: the served body is invalid JSON, and --json output
+// must still parse with a strict decoder.
+func TestMessagesGetJSON_ControlCharSubjectStaysValidJSON(t *testing.T) {
+	subject := "PR merged \r \n \x0b subject \x1f end"
+	// Embed the control characters raw so the provider body itself is
+	// invalid JSON, exactly as observed in the wild.
+	body := `{"id":"m1","threadId":"t1","sizeEstimate":512,"payload":{"mimeType":"text/plain","headers":[{"name":"Subject","value":"` + subject + `"}],"body":{"size":2,"data":"` + b64url("hi") + `"}}}`
+	if json.Valid([]byte(body)) {
+		t.Fatal("fixture body must be invalid JSON to exercise the regression")
+	}
+	f := newFixture(t, map[string]route{
+		"GET /gmail/v1/users/me/messages/m1": {http.StatusOK, body},
+	})
+	stdout := f.runOK(t, "messages", "get", "m1", "--json")
+	var view messageView
+	if err := json.Unmarshal([]byte(stdout), &view); err != nil {
+		t.Fatalf("--json output is not valid JSON: %v\noutput: %q", err, stdout)
+	}
+	if view.Headers["Subject"] != subject {
+		t.Errorf("Subject = %q, want the control characters preserved (%q)", view.Headers["Subject"], subject)
+	}
+	if view.SizeEstimate != 512 {
+		t.Errorf("size estimate = %d, want 512", view.SizeEstimate)
+	}
+}
+
+// Raw --json pass-throughs must also stay strictly valid when the provider
+// body carries raw control characters.
+func TestMessagesListJSON_ControlCharSnippetStaysValidJSON(t *testing.T) {
+	body := "{\"messages\":[{\"id\":\"m1\",\"threadId\":\"t1\"}],\"snippet\":\"bad \x1f snippet\"}"
+	f := newFixture(t, map[string]route{
+		"GET /gmail/v1/users/me/messages": {http.StatusOK, body},
+	})
+	stdout := f.runOK(t, "messages", "list", "--json")
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(stdout), &parsed); err != nil {
+		t.Fatalf("--json output is not valid JSON: %v\noutput: %q", err, stdout)
+	}
+	if parsed["snippet"] != "bad \x1f snippet" {
+		t.Errorf("snippet = %q, want the control character preserved", parsed["snippet"])
 	}
 }
 
@@ -169,6 +221,77 @@ func TestMessagesModify_MultipleUseBatchModify(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "modified 3 messages") {
 		t.Errorf("human output = %q, want the batch summary", stdout)
+	}
+}
+
+func TestMessagesModify_TrimsDirtyIDs(t *testing.T) {
+	f := newFixture(t, map[string]route{
+		"POST /gmail/v1/users/me/messages/m1/modify": {http.StatusOK, `{"id":"m1"}`},
+	})
+	// A trailing-space id plus empty ids must collapse to one clean id and
+	// hit the per-message endpoint.
+	f.runOK(t, "messages", "modify", " m1 ", "", "   ", "--add-label", "STARRED")
+	if len(f.requests) != 1 {
+		t.Fatalf("saw %d requests, want exactly one modify call", len(f.requests))
+	}
+	if got := f.requests[0].Path; got != "/gmail/v1/users/me/messages/m1/modify" {
+		t.Errorf("path = %q, want the trimmed id in the URL", got)
+	}
+}
+
+func TestMessagesModify_BatchTrimsDirtyIDs(t *testing.T) {
+	f := newFixture(t, map[string]route{
+		"POST /gmail/v1/users/me/messages/batchModify": {http.StatusNoContent, ""},
+	})
+	f.runOK(t, "messages", "modify", " m1 ", "m2\n", "--archive")
+	got := f.last(t, "POST", "/gmail/v1/users/me/messages/batchModify")
+	var payload struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.Unmarshal(got.Body, &payload); err != nil {
+		t.Fatalf("request body not JSON: %v", err)
+	}
+	if len(payload.IDs) != 2 || payload.IDs[0] != "m1" || payload.IDs[1] != "m2" {
+		t.Errorf("ids = %v, want trimmed [m1 m2]", payload.IDs)
+	}
+}
+
+func TestMessagesMultiID_NoValidIDsFails(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{"modify", []string{"messages", "modify", " ", "", "--add-label", "X"}},
+		{"trash", []string{"messages", "trash", "  ", ""}},
+		{"untrash", []string{"messages", "untrash", "\t"}},
+	}
+	f := newFixture(t, map[string]route{})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, _, stderr := f.run(t, tc.args...)
+			if result.ExitCode != 1 {
+				t.Fatalf("exit code = %d, want 1", result.ExitCode)
+			}
+			if !strings.Contains(stderr, "no valid message ids") {
+				t.Errorf("stderr = %q, want the no-valid-ids error", stderr)
+			}
+		})
+	}
+	if len(f.requests) != 0 {
+		t.Errorf("empty-id failures must not reach the API; saw %d requests", len(f.requests))
+	}
+}
+
+func TestMessagesTrash_TrimsDirtyIDs(t *testing.T) {
+	f := newFixture(t, map[string]route{
+		"POST /gmail/v1/users/me/messages/m1/trash": {http.StatusOK, `{"id":"m1"}`},
+	})
+	stdout := f.runOK(t, "messages", "trash", " m1 ", "")
+	if len(f.requests) != 1 {
+		t.Fatalf("saw %d requests, want one trash call for the single clean id", len(f.requests))
+	}
+	if !strings.Contains(stdout, "trashed 1 message(s)") {
+		t.Errorf("human output = %q, want a count of the cleaned ids", stdout)
 	}
 }
 

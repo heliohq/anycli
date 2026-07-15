@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
@@ -40,6 +41,9 @@ type Service struct {
 	// Out / Err override stdout / stderr; nil = the process streams.
 	Out io.Writer
 	Err io.Writer
+	// sleep overrides the retry backoff sleeper; nil = time.Sleep. Tests
+	// inject a recorder to keep retries deterministic and fast.
+	sleep func(time.Duration)
 }
 
 // Execute runs one gmail subcommand with the resolved credentials in env.
@@ -123,8 +127,8 @@ func (s *Service) newRoot(token string) *cobra.Command {
 		s.newDraftsDeleteCmd(token),
 	)
 
-	labels := newGroupCmd("labels", "Labels")
-	labels.AddCommand(s.newLabelsListCmd(token), s.newLabelsCreateCmd(token))
+	labels := newGroupCmd("labels", "Labels (`labels get INBOX` returns unread/total counters in one call)")
+	labels.AddCommand(s.newLabelsListCmd(token), s.newLabelsGetCmd(token), s.newLabelsCreateCmd(token))
 
 	root.AddCommand(s.newProfileCmd(token), messages, threads, drafts, labels)
 	return root

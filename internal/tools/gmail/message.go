@@ -11,11 +11,12 @@ import (
 
 // apiMsg mirrors the Gmail API message resource (format=full).
 type apiMsg struct {
-	ID       string   `json:"id"`
-	ThreadID string   `json:"threadId"`
-	LabelIDs []string `json:"labelIds"`
-	Snippet  string   `json:"snippet"`
-	Payload  *apiPart `json:"payload"`
+	ID           string   `json:"id"`
+	ThreadID     string   `json:"threadId"`
+	LabelIDs     []string `json:"labelIds"`
+	Snippet      string   `json:"snippet"`
+	SizeEstimate int64    `json:"sizeEstimate"`
+	Payload      *apiPart `json:"payload"`
 }
 
 // apiPart is one node of the MIME part tree.
@@ -51,14 +52,15 @@ type attachmentInfo struct {
 // messageView is the parsed projection emitted for `messages get`,
 // `threads get`, and `drafts get` (--json contract).
 type messageView struct {
-	ID          string            `json:"id"`
-	ThreadID    string            `json:"threadId"`
-	LabelIDs    []string          `json:"labelIds,omitempty"`
-	Headers     map[string]string `json:"headers"`
-	AllHeaders  []apiHeader       `json:"allHeaders,omitempty"`
-	BodyType    string            `json:"bodyType,omitempty"`
-	Body        string            `json:"body,omitempty"`
-	Attachments []attachmentInfo  `json:"attachments"`
+	ID           string            `json:"id"`
+	ThreadID     string            `json:"threadId"`
+	LabelIDs     []string          `json:"labelIds,omitempty"`
+	SizeEstimate int64             `json:"size_estimate"`
+	Headers      map[string]string `json:"headers"`
+	AllHeaders   []apiHeader       `json:"allHeaders,omitempty"`
+	BodyType     string            `json:"bodyType,omitempty"`
+	Body         string            `json:"body,omitempty"`
+	Attachments  []attachmentInfo  `json:"attachments"`
 }
 
 // coreHeaders are the headers always surfaced on a parsed message.
@@ -174,13 +176,14 @@ func buildView(m *apiMsg, bodyKind string, allHeaders bool) (messageView, error)
 		return messageView{}, err
 	}
 	view := messageView{
-		ID:          m.ID,
-		ThreadID:    m.ThreadID,
-		LabelIDs:    m.LabelIDs,
-		Headers:     map[string]string{},
-		BodyType:    actual,
-		Body:        body,
-		Attachments: m.attachments(),
+		ID:           m.ID,
+		ThreadID:     m.ThreadID,
+		LabelIDs:     m.LabelIDs,
+		SizeEstimate: m.SizeEstimate,
+		Headers:      map[string]string{},
+		BodyType:     actual,
+		Body:         body,
+		Attachments:  m.attachments(),
 	}
 	for _, name := range coreHeaders {
 		if v := m.header(name); v != "" {
@@ -199,6 +202,9 @@ func renderMessage(w io.Writer, view messageView) {
 	fmt.Fprintf(w, "Thread:  %s\n", view.ThreadID)
 	if len(view.LabelIDs) > 0 {
 		fmt.Fprintf(w, "Labels:  %s\n", strings.Join(view.LabelIDs, ", "))
+	}
+	if view.SizeEstimate > 0 {
+		fmt.Fprintf(w, "Size:    %d bytes\n", view.SizeEstimate)
 	}
 	for _, name := range []string{"From", "To", "Cc", "Bcc", "Reply-To", "Date", "Subject"} {
 		if v := view.Headers[name]; v != "" {

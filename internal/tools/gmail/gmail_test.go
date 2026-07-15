@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
 )
@@ -27,10 +28,12 @@ type route struct {
 }
 
 // fixture is a fake Gmail API server: routes keyed by "METHOD /gmail/v1/...",
-// every request recorded in order.
+// every request recorded in order. Retry backoff sleeps are recorded instead
+// of slept so tests stay fast and deterministic.
 type fixture struct {
 	srv      *httptest.Server
 	requests []recordedRequest
+	sleeps   []time.Duration
 }
 
 func newFixture(t *testing.T, routes map[string]route) *fixture {
@@ -81,6 +84,7 @@ func (f *fixture) run(t *testing.T, args ...string) (execution.Result, string, s
 		HC:      f.srv.Client(),
 		Out:     &out,
 		Err:     &errBuf,
+		sleep:   func(d time.Duration) { f.sleeps = append(f.sleeps, d) },
 	}
 	result, err := svc.Execute(context.Background(), args, map[string]string{EnvAccessToken: "ya29.test-token"})
 	if err != nil {
