@@ -204,7 +204,7 @@ func TestViewCreate_ParentExclusivity(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"none", []string{"view", "create", "--name", "X", "--type", "table"}},
+		{"none", []string{"view", "create", "--data-source-id", "ds1", "--name", "X", "--type", "table"}},
 		{"two", []string{"view", "create", "--database-id", "db1", "--view-id", "v9", "--data-source-id", "ds1", "--name", "X", "--type", "table"}},
 	}
 	for _, tc := range cases {
@@ -261,33 +261,80 @@ func TestViewUpdate_Happy(t *testing.T) {
 	}
 }
 
-func TestCommentCreate_PlainText(t *testing.T) {
+// TestCommentCreate_PageMarkdown: --content is sent via the `markdown` field
+// (not a plain-text rich_text run), targeting a page.
+func TestCommentCreate_PageMarkdown(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"object":"comment","id":"c1"}`, &got)
 	defer srv.Close()
 
-	code, _, _ := run(t, srv, "comment", "create", "--page-id", "p1", "--content", "looks *good*")
+	code, _, _ := run(t, srv, "comment", "create", "--page-id", "p1", "--content", "looks **good**")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
 	if got.Method != http.MethodPost || got.Path != "/comments" {
 		t.Errorf("request = %s %s, want POST /comments", got.Method, got.Path)
 	}
-	// Comment endpoint uses the default Notion-Version (not the markdown one).
 	assertAuth(t, got, notionVersion)
 	body := bodyMap(t, got.Body)
-	parent, ok := body["parent"].(map[string]any)
-	if !ok || parent["page_id"] != "p1" {
+	if parent, ok := body["parent"].(map[string]any); !ok || parent["page_id"] != "p1" {
 		t.Errorf("body.parent = %v, want {page_id:p1}", body["parent"])
 	}
-	rt, ok := body["rich_text"].([]any)
-	if !ok || len(rt) != 1 {
-		t.Fatalf("body.rich_text = %v, want a single run", body["rich_text"])
+	if body["markdown"] != "looks **good**" {
+		t.Errorf("body.markdown = %v, want the markdown content", body["markdown"])
 	}
-	txt := rt[0].(map[string]any)["text"].(map[string]any)
-	// The content is dropped in verbatim — no markdown parsing.
-	if txt["content"] != "looks *good*" {
-		t.Errorf("rich_text content = %v, want the verbatim plain text", txt["content"])
+	if _, ok := body["rich_text"]; ok {
+		t.Errorf("body must send markdown, not rich_text; got %v", body["rich_text"])
+	}
+}
+
+// TestCommentCreate_Block: --block-id targets a specific block.
+func TestCommentCreate_Block(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"comment","id":"c1"}`, &got)
+	defer srv.Close()
+	code, _, _ := run(t, srv, "comment", "create", "--block-id", "b1", "--content", "on this block")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if parent, ok := bodyMap(t, got.Body)["parent"].(map[string]any); !ok || parent["block_id"] != "b1" {
+		t.Errorf("body.parent = %v, want {block_id:b1}", bodyMap(t, got.Body)["parent"])
+	}
+}
+
+// TestCommentCreate_Discussion: --discussion-id replies into a thread (top-level
+// discussion_id, no parent).
+func TestCommentCreate_Discussion(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"comment","id":"c1"}`, &got)
+	defer srv.Close()
+	code, _, _ := run(t, srv, "comment", "create", "--discussion-id", "d1", "--content", "reply")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	body := bodyMap(t, got.Body)
+	if body["discussion_id"] != "d1" {
+		t.Errorf("body.discussion_id = %v, want d1", body["discussion_id"])
+	}
+	if _, ok := body["parent"]; ok {
+		t.Errorf("discussion reply must not send parent; got %v", body["parent"])
+	}
+}
+
+// TestCommentCreate_TargetExclusivity: exactly one target is required.
+func TestCommentCreate_TargetExclusivity(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{}`, &got)
+	defer srv.Close()
+	// none
+	code, _, stderr := run(t, srv, "comment", "create", "--content", "x")
+	if code != 2 || !strings.Contains(stderr, "exactly one of") {
+		t.Errorf("no-target: code=%d stderr=%q, want 2 + exclusivity error", code, stderr)
+	}
+	// two
+	code, _, stderr = run(t, srv, "comment", "create", "--page-id", "p1", "--block-id", "b1", "--content", "x")
+	if code != 2 || !strings.Contains(stderr, "exactly one of") {
+		t.Errorf("two-targets: code=%d stderr=%q, want 2 + exclusivity error", code, stderr)
 	}
 }
 

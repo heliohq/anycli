@@ -633,25 +633,33 @@ func TestPageMove_Happy(t *testing.T) {
 	}
 }
 
-func TestPageMove_RejectsDatabaseID(t *testing.T) {
+// TestPageMove_RoutesDatabaseToUpdate: a database id is not a page-move — it is
+// relocated via PATCH /v1/databases/{id} with the new parent (databases have no
+// /move endpoint).
+func TestPageMove_RoutesDatabaseToUpdate(t *testing.T) {
 	var reqs []capturedRequest
 	// Probe: page markdown 404, data source 404, database 200 → typed database.
 	srv := newMux(t, &reqs, map[string]stub{
-		"GET /databases/db1": {http.StatusOK, `{"object":"database","id":"db1"}`},
+		"GET /databases/db1":   {http.StatusOK, `{"object":"database","id":"db1"}`},
+		"PATCH /databases/db1": {http.StatusOK, `{"object":"database","id":"db1"}`},
 	})
 	defer srv.Close()
 
-	code, _, stderr := run(t, srv, "page", "move",
+	code, _, _ := run(t, srv, "page", "move",
 		"--page-or-database-ids", `["db1"]`,
 		"--new-parent", `{"type":"page_id","page_id":"par1"}`)
-	if code != 2 {
-		t.Fatalf("exit code = %d, want 2 for a database id in move", code)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 for a database move", code)
 	}
-	if !strings.Contains(stderr, "move only supports page ids") {
-		t.Errorf("stderr = %q, want the page-id-only rejection", stderr)
+	patch := findReq(reqs, http.MethodPatch, "/databases/db1")
+	if patch == nil {
+		t.Fatalf("PATCH /databases/db1 was not sent; reqs=%v", reqs)
+	}
+	if parent, ok := bodyMap(t, patch.Body)["parent"].(map[string]any); !ok || parent["page_id"] != "par1" {
+		t.Errorf("PATCH body.parent = %v, want {page_id:par1}", bodyMap(t, patch.Body)["parent"])
 	}
 	if countReq(reqs, http.MethodPost, "/pages/db1/move") != 0 {
-		t.Error("a move must not be sent for a database id")
+		t.Error("a page-move must not be sent for a database id")
 	}
 }
 
@@ -905,7 +913,7 @@ func TestPageMove_UnresolvableID_Usage(t *testing.T) {
 	if strings.Contains(stderr, "--type") {
 		t.Errorf("stderr = %q, must not tell the caller to pass --type", stderr)
 	}
-	if !strings.Contains(stderr, "move only accepts page ids") {
+	if !strings.Contains(stderr, "could not resolve") {
 		t.Errorf("stderr = %q, want move-specific guidance", stderr)
 	}
 }

@@ -12,33 +12,53 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newCommentCreateCmd is `comment create` (POST /v1/comments). Page-level only:
-// the body is {"parent":{"page_id":…},"rich_text":[…]}. --content is plain text
-// — this is the one write path that does not go through /markdown, and the
-// comments endpoint takes structured rich_text, not a markdown string, so the
-// content is dropped verbatim into a single text run with no markdown parsing
-// (design 304 §comment). Output JSON.
+// newCommentCreateCmd is `comment create` (POST /v1/comments). Exactly one
+// target: --page-id (comment on a page), --block-id (comment on a specific
+// block), or --discussion-id (reply into an existing discussion thread) — the
+// three are mutually exclusive. --content is Notion-flavored **markdown** (sent
+// via the endpoint's `markdown` field), so inline bold/italic/strikethrough/
+// code/links, inline equations, and @mentions all work. Output JSON.
 func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
-	var pageID, content string
+	var pageID, blockID, discussionID, content string
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Create a page-level comment",
+		Short: "Comment on a page/block, or reply to a discussion",
 		Args:  cobra.NoArgs,
 	}
-	cmd.Flags().StringVar(&pageID, "page-id", "", "page to comment on (required)")
-	cmd.Flags().StringVar(&content, "content", "", "plain-text comment body, not markdown (required)")
-	_ = cmd.MarkFlagRequired("page-id")
+	cmd.Flags().StringVar(&pageID, "page-id", "", "page to comment on")
+	cmd.Flags().StringVar(&blockID, "block-id", "", "block to comment on")
+	cmd.Flags().StringVar(&discussionID, "discussion-id", "", "existing discussion thread to reply into")
+	cmd.Flags().StringVar(&content, "content", "", "markdown comment body (required)")
 	_ = cmd.MarkFlagRequired("content")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		id, err := resolveID(pageID)
-		if err != nil {
-			return err
+		payload := map[string]any{"markdown": content}
+		set := 0
+		if cmd.Flags().Changed("page-id") {
+			set++
+			id, err := resolveID(pageID)
+			if err != nil {
+				return err
+			}
+			payload["parent"] = map[string]any{"page_id": id}
 		}
-		payload := map[string]any{
-			"parent": map[string]any{"page_id": id},
-			"rich_text": []any{
-				map[string]any{"type": "text", "text": map[string]any{"content": content}},
-			},
+		if cmd.Flags().Changed("block-id") {
+			set++
+			id, err := resolveID(blockID)
+			if err != nil {
+				return err
+			}
+			payload["parent"] = map[string]any{"block_id": id}
+		}
+		if cmd.Flags().Changed("discussion-id") {
+			set++
+			id, err := resolveID(discussionID)
+			if err != nil {
+				return err
+			}
+			payload["discussion_id"] = id
+		}
+		if set != 1 {
+			return &usageError{msg: "comment create requires exactly one of --page-id, --block-id, --discussion-id"}
 		}
 		body, err := s.call(cmd.Context(), token, http.MethodPost, "/comments", payload)
 		if err != nil {

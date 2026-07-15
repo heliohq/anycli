@@ -12,17 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newPageMoveCmd is `page move`: loop each page id through POST
-// /v1/pages/{page_id}/move with the resolved parent. All ids are prechecked to
-// be pages (database/data-source ids have no move endpoint → usage error).
+// newPageMoveCmd is `page move`: relocate each id to the resolved parent. Each
+// id is typed (page vs database) and routed accordingly — a page via POST
+// /v1/pages/{id}/move, a database via a parent update PATCH /v1/databases/{id}
+// (databases have no /move endpoint). A data-source id is rejected (not
+// independently movable). Fail-fast per id, reporting moved vs not.
 func (s *Service) newPageMoveCmd(token string) *cobra.Command {
 	var idsFlag, newParent string
 	cmd := &cobra.Command{
 		Use:   "move",
-		Short: "Move pages to a new parent",
+		Short: "Move pages or databases to a new parent",
 		Args:  cobra.NoArgs,
 	}
-	cmd.Flags().StringVar(&idsFlag, "page-or-database-ids", "", "JSON array of page ids to move (<=100)")
+	cmd.Flags().StringVar(&idsFlag, "page-or-database-ids", "", "JSON array of page or database ids to move (<=100)")
 	cmd.Flags().StringVar(&newParent, "new-parent", "", "destination parent: JSON, URL, or id")
 	_ = cmd.MarkFlagRequired("page-or-database-ids")
 	_ = cmd.MarkFlagRequired("new-parent")
@@ -46,6 +48,7 @@ func (s *Service) newPageMoveCmd(token string) *cobra.Command {
 			return err
 		}
 		resolved := make([]string, len(ids))
+		kinds := make([]string, len(ids))
 		for i, id := range ids {
 			rid, err := resolveID(id)
 			if err != nil {
@@ -54,21 +57,35 @@ func (s *Service) newPageMoveCmd(token string) *cobra.Command {
 			kind, err := s.probeIDType(cmd.Context(), token, rid)
 			if errors.Is(err, errIndeterminateType) {
 				return &usageError{msg: fmt.Sprintf(
-					"move only accepts page ids; could not resolve %s (check the id and that the integration has been granted access)", id)}
+					"move: could not resolve %s (check the id and that the integration has been granted access)", id)}
 			}
 			if err != nil {
 				return err
 			}
-			if kind != "page" {
-				return &usageError{msg: fmt.Sprintf("move only supports page ids; %s is a %s (database/data-source move has no standard REST endpoint)", id, kind)}
+			// A data source isn't independently movable — it lives inside its
+			// database container; move the database instead.
+			if kind == "data_source" {
+				return &usageError{msg: fmt.Sprintf("move accepts page or database ids; %s is a data source (move its parent database instead)", id)}
 			}
 			resolved[i] = rid
+			kinds[i] = kind
 		}
 		jsonMode, _ := cmd.Flags().GetBool("json")
 		var moved []string
 		var bodies []json.RawMessage
 		for i, rid := range resolved {
-			body, err := s.callWithVersion(cmd.Context(), token, http.MethodPost, "/pages/"+url.PathEscape(rid)+"/move", map[string]any{"parent": parent}, markdownVersion)
+			var body []byte
+			var err error
+			switch kinds[i] {
+			case "page":
+				// Move a page: POST /v1/pages/{id}/move.
+				body, err = s.callWithVersion(cmd.Context(), token, http.MethodPost, "/pages/"+url.PathEscape(rid)+"/move", map[string]any{"parent": parent}, markdownVersion)
+			case "database":
+				// Move a database: databases have no /move endpoint — relocation
+				// is a parent update via PATCH /v1/databases/{id} (the body's
+				// `parent` field, verified against the update-a-database API).
+				body, err = s.callWithVersion(cmd.Context(), token, http.MethodPatch, "/databases/"+url.PathEscape(rid), map[string]any{"parent": parent}, markdownVersion)
+			}
 			if err != nil {
 				fmt.Fprintf(s.stderr(), "moved %d/%d before failure (moved: [%s]); failed moving %s\n", len(moved), len(resolved), strings.Join(moved, ", "), ids[i])
 				return err
