@@ -3,6 +3,7 @@ package notion
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -51,6 +52,10 @@ func (s *Service) newPageMoveCmd(token string) *cobra.Command {
 				return err
 			}
 			kind, err := s.probeIDType(cmd.Context(), token, rid)
+			if errors.Is(err, errIndeterminateType) {
+				return &usageError{msg: fmt.Sprintf(
+					"move only accepts page ids; could not resolve %s (check the id and that the integration has been granted access)", id)}
+			}
 			if err != nil {
 				return err
 			}
@@ -115,9 +120,20 @@ func (s *Service) newPageDuplicateCmd(token string) *cobra.Command {
 			}
 			parent = pg.Parent
 		}
-		payload := map[string]any{"parent": parent, "template": map[string]any{"template_id": src}}
+		// POST /v1/pages `template` is a discriminated union: template_id is
+		// honored only when type is "template_id" (the default "none" copies
+		// nothing), so the type discriminator is required.
+		payload := map[string]any{"parent": parent, "template": map[string]any{"type": "template_id", "template_id": src}}
 		if strings.TrimSpace(title) != "" {
-			payload["title"] = title
+			// POST /v1/pages has no top-level `title`; a page title is a title
+			// property under `properties` (the "title" key for a page parent).
+			payload["properties"] = map[string]any{
+				"title": map[string]any{
+					"title": []any{
+						map[string]any{"text": map[string]any{"content": title}},
+					},
+				},
+			}
 		}
 		allowAsync, _ := cmd.Flags().GetBool("allow-async")
 		if allowAsync {
@@ -159,16 +175,33 @@ func (s *Service) parentWire(ctx context.Context, token, v string) (json.RawMess
 		if err != nil {
 			return nil, err
 		}
+		// A page URL types directly. Any other URL (a database/data-source view
+		// URL) must be probed like a bare uuid — its extracted id is the
+		// database container id, not a data_source id, so blindly emitting
+		// data_source_id would carry the wrong id type.
 		if detectURLType(v) == "page" {
 			return parentIDWire("page_id", id), nil
 		}
-		return parentIDWire("data_source_id", id), nil
+		return s.parentWireFromID(ctx, token, v, id)
 	}
 	id, err := resolveID(v)
 	if err != nil {
 		return nil, err
 	}
+	return s.parentWireFromID(ctx, token, v, id)
+}
+
+// parentWireFromID probes an id's type (reusing the fetch endpoint chain) and
+// packs it into the matching parent wire. A data-source id types as
+// data_source_id; a page id as page_id; a database container id is rejected
+// (records live in its data sources — resolve via `fetch <db-id>`); an
+// indeterminate id is a usage error.
+func (s *Service) parentWireFromID(ctx context.Context, token, orig, id string) (json.RawMessage, error) {
 	kind, err := s.probeIDType(ctx, token, id)
+	if errors.Is(err, errIndeterminateType) {
+		return nil, &usageError{msg: fmt.Sprintf(
+			"cannot determine --new-parent type for %q; pass a page or data-source id/URL, or a full parent JSON object", orig)}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +211,9 @@ func (s *Service) parentWire(ctx context.Context, token, v string) (json.RawMess
 	case "data_source":
 		return parentIDWire("data_source_id", id), nil
 	default:
-		return nil, &usageError{msg: fmt.Sprintf("cannot determine --new-parent type for %q", v)}
+		return nil, &usageError{msg: fmt.Sprintf(
+			"--new-parent %q is a database container, not a valid parent; to move/duplicate into a database pass a data-source id — run `fetch %s` and use one of its data_sources[] ids",
+			orig, id)}
 	}
 }
 

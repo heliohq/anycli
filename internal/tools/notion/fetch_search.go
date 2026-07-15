@@ -2,10 +2,12 @@ package notion
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -128,7 +130,11 @@ func (s *Service) resolveFetchType(ctx context.Context, token, raw, id, typ stri
 	if typ != "" {
 		return typ, nil
 	}
-	return s.probeIDType(ctx, token, id)
+	kind, err := s.probeIDType(ctx, token, id)
+	if errors.Is(err, errIndeterminateType) {
+		return "", &usageError{msg: "cannot determine the type of " + id + "; pass --type page|database|data_source"}
+	}
+	return kind, err
 }
 
 // detectURLType judges a Notion URL by slug shape: a database URL carries a
@@ -145,19 +151,59 @@ func detectURLType(raw string) string {
 	return "page"
 }
 
+// errIndeterminateType is returned by probeIDType when every endpoint probe
+// reported a clean not-this-type / no-access miss (no hard failure). Callers
+// wrap it with command-appropriate guidance, since only `fetch` exposes --type.
+var errIndeterminateType = errors.New("indeterminate id type")
+
 // probeIDType types a bare uuid by trying the endpoints in order: page markdown
-// → data source → database. The first 2xx wins; all-fail is a usage error
-// directing the caller to pass --type. Shared by fetch and the --new-parent
-// wire resolution / page move id-type checks in later slices.
+// → data source → database. The first 2xx wins. A clean miss on every endpoint
+// (404 / 403 / 400) yields errIndeterminateType for the caller to phrase. A
+// hard failure — 401 / credential rejection, a 5xx, or a transport error — is
+// returned immediately so exit-1 and the credential-rejection classification
+// survive (design 227 OAuth refresh depends on it) instead of being masked as a
+// "pass --type" usage error. Shared by fetch, --new-parent wire resolution, and
+// the page move id-type check.
 func (s *Service) probeIDType(ctx context.Context, token, id string) (string, error) {
 	if _, err := s.readPageMarkdown(ctx, token, id); err == nil {
 		return "page", nil
+	} else if fatal := fatalProbeError(err); fatal != nil {
+		return "", fatal
 	}
 	if _, err := s.callWithVersion(ctx, token, http.MethodGet, "/data_sources/"+url.PathEscape(id), nil, markdownVersion); err == nil {
 		return "data_source", nil
+	} else if fatal := fatalProbeError(err); fatal != nil {
+		return "", fatal
 	}
 	if _, err := s.callWithVersion(ctx, token, http.MethodGet, "/databases/"+url.PathEscape(id), nil, markdownVersion); err == nil {
 		return "database", nil
+	} else if fatal := fatalProbeError(err); fatal != nil {
+		return "", fatal
 	}
-	return "", &usageError{msg: "cannot determine the type of " + id + "; pass --type page|database|data_source"}
+	return "", errIndeterminateType
+}
+
+// fatalProbeError decides whether a probe error must abort the endpoint chain
+// rather than fall through to the next type. A 404 / 403 / 400 means "not this
+// type / not accessible via this endpoint" and the probe should continue
+// (nil). A 401 (or any credential rejection), a 5xx, or a transport error
+// (status 0) is fatal and is returned so the caller propagates exit-1 and the
+// credential-rejection signal.
+func fatalProbeError(err error) error {
+	var apiErr *apiError
+	if !errors.As(err, &apiErr) {
+		// Not an API error (should not happen on this path) — treat as fatal.
+		return err
+	}
+	if execution.IsCredentialRejected(apiErr.err) {
+		return err
+	}
+	switch apiErr.status {
+	case http.StatusBadRequest, http.StatusForbidden, http.StatusNotFound:
+		return nil // clean mismatch — advance to the next endpoint
+	}
+	if apiErr.status == 0 || apiErr.status >= 500 {
+		return err // transport failure or server error — fatal
+	}
+	return nil
 }

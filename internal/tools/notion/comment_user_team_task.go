@@ -87,9 +87,9 @@ func (s *Service) newCommentListCmd(token string) *cobra.Command {
 // newUserGetCmd is `user get [self] [--query <name|email>]` — three mutually
 // exclusive forms: bare `self` → GET /v1/users/me; --query → list every user
 // and keep case-insensitive substring matches on name OR email (0 hits is an
-// empty list, not an error); no arg → GET /v1/users first page verbatim
-// (has_more / next_cursor intact). self + --query together is a usage error.
-// Output JSON.
+// empty list, not an error); no arg → GET /v1/users paginated through every
+// page, aggregated into one list envelope (design 304 §user "列出所有用户(分页)").
+// self + --query together is a usage error. Output JSON.
 func (s *Service) newUserGetCmd(token string) *cobra.Command {
 	var query string
 	cmd := &cobra.Command{
@@ -120,7 +120,9 @@ func (s *Service) newUserGetCmd(token string) *cobra.Command {
 		if queried {
 			return s.searchUsers(cmd.Context(), token, query)
 		}
-		body, err := s.call(cmd.Context(), token, http.MethodGet, "/users", nil)
+		// No arg: enumerate every user (paginated) into one list envelope so a
+		// workspace with >100 members is not silently truncated to the first page.
+		body, err := paginate(cmd.Context(), true, "", s.usersFetch(token))
 		if err != nil {
 			return err
 		}
@@ -129,19 +131,24 @@ func (s *Service) newUserGetCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// searchUsers lists every user (following pagination) and keeps those whose
-// name or email contains query, case-insensitively. It emits a list envelope so
-// the shape matches an unfiltered list; zero matches yields an empty results
-// array rather than an error.
-func (s *Service) searchUsers(ctx context.Context, token, query string) error {
-	fetch := func(ctx context.Context, cursor string) ([]byte, error) {
+// usersFetch returns a page fetcher over GET /v1/users, threading start_cursor.
+// Shared by `user get` (no arg) and searchUsers so both enumerate identically.
+func (s *Service) usersFetch(token string) pageFetcher {
+	return func(ctx context.Context, cursor string) ([]byte, error) {
 		path := "/users"
 		if cursor != "" {
 			path += "?start_cursor=" + url.QueryEscape(cursor)
 		}
 		return s.call(ctx, token, http.MethodGet, path, nil)
 	}
-	body, err := paginate(ctx, true, "", fetch)
+}
+
+// searchUsers lists every user (following pagination) and keeps those whose
+// name or email contains query, case-insensitively. It emits a list envelope so
+// the shape matches an unfiltered list; zero matches yields an empty results
+// array rather than an error.
+func (s *Service) searchUsers(ctx context.Context, token, query string) error {
+	body, err := paginate(ctx, true, "", s.usersFetch(token))
 	if err != nil {
 		return err
 	}

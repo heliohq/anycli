@@ -1,7 +1,12 @@
 package notion
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -297,6 +302,47 @@ func TestUserGet_List(t *testing.T) {
 	}
 	if got.Path != "/users" {
 		t.Errorf("path = %q, want /users", got.Path)
+	}
+}
+
+// TestUserGet_List_Paginates: the no-arg form must enumerate every user by
+// following next_cursor (spec §user "列出所有用户(分页)"), not return only the
+// first page.
+func TestUserGet_List_Paginates(t *testing.T) {
+	var reqs []capturedRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		reqs = append(reqs, capturedRequest{Method: r.Method, Path: r.URL.Path, Query: r.URL.Query(), Body: body})
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("start_cursor") == "cur2" {
+			_, _ = w.Write([]byte(`{"object":"list","results":[{"id":"u2"}],"has_more":false,"next_cursor":null}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"object":"list","results":[{"id":"u1"}],"has_more":true,"next_cursor":"cur2"}`))
+	}))
+	defer srv.Close()
+
+	var out, errBuf bytes.Buffer
+	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	result, err := svc.Execute(context.Background(), []string{"user", "get"}, map[string]string{EnvToken: "t"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, want 0", result.ExitCode)
+	}
+	if len(reqs) != 2 {
+		t.Fatalf("made %d requests, want 2 (no-arg must follow next_cursor)", len(reqs))
+	}
+	var merged struct {
+		Results []map[string]any `json:"results"`
+		HasMore bool             `json:"has_more"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &merged); err != nil {
+		t.Fatalf("merged output not JSON: %v", err)
+	}
+	if len(merged.Results) != 2 || merged.HasMore {
+		t.Errorf("merged = %+v, want both users aggregated and has_more=false", merged)
 	}
 }
 

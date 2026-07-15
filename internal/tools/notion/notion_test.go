@@ -85,6 +85,32 @@ func TestExecute_MissingToken(t *testing.T) {
 	}
 }
 
+func TestExecute_MissingToken_JSON(t *testing.T) {
+	// The missing-token check runs before cobra parses flags, but --json in the
+	// raw args must still yield the structured error envelope on stderr (§error).
+	var errBuf bytes.Buffer
+	svc := &Service{Err: &errBuf}
+	result, err := svc.Execute(context.Background(), []string{"search", "--query", "x", "--json"}, map[string]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.ExitCode != 1 {
+		t.Errorf("exit code = %d, want 1", result.ExitCode)
+	}
+	var env struct {
+		Error struct {
+			Message string `json:"message"`
+			Kind    string `json:"kind"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(errBuf.String())), &env); err != nil {
+		t.Fatalf("stderr not a JSON error envelope: %v (%q)", err, errBuf.String())
+	}
+	if env.Error.Kind != "usage" || !strings.Contains(env.Error.Message, "NOTION_TOKEN is not set") {
+		t.Errorf("envelope = %+v, want kind=usage with the missing-token message", env.Error)
+	}
+}
+
 func TestSearch_Happy(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"object":"list","results":[],"has_more":false,"next_cursor":null}`, &got)

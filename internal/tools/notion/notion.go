@@ -54,7 +54,9 @@ type Service struct {
 func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvToken]
 	if token == "" {
-		fmt.Fprintln(s.stderr(), "NOTION_TOKEN is not set")
+		// The token check runs before cobra parses flags, so detect --json in
+		// the raw args to honor the structured error-envelope contract (§error).
+		s.renderError(hasJSONArg(args), &usageError{msg: "NOTION_TOKEN is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(token)
@@ -76,6 +78,18 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	// usageError plus every cobra-originated parse/arg/enum/unknown-command
 	// error is inherently a usage error → exit 2.
 	return execution.Result{ExitCode: 2}, nil
+}
+
+// hasJSONArg reports whether the raw args carry the --json global flag, used to
+// pick the error format before cobra has parsed flags (e.g. the pre-parse
+// missing-token check).
+func hasJSONArg(args []string) bool {
+	for _, a := range args {
+		if a == "--json" || a == "--json=true" {
+			return true
+		}
+	}
+	return false
 }
 
 // renderError writes err to stderr. Under --json the shape is

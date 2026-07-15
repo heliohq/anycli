@@ -135,25 +135,43 @@ func (s *Service) newPageCreateCmd(token string) *cobra.Command {
 		if err := json.Unmarshal(pages, &arr); err != nil {
 			return &usageError{msg: "--pages must be a JSON array of page objects"}
 		}
+		if len(arr) == 0 {
+			return &usageError{msg: "--pages must contain at least one page object"}
+		}
 		allowAsync, _ := cmd.Flags().GetBool("allow-async")
-		payload := map[string]any{"pages": pages}
-		if allowAsync {
-			payload["allow_async"] = true
-		}
-		body, err := s.callWithVersion(cmd.Context(), token, http.MethodPost, "/pages", payload, markdownVersion)
-		if err != nil {
-			return err
-		}
-		if body, err = s.resolveAsync(cmd.Context(), token, body, allowAsync); err != nil {
-			return err
-		}
 		jsonMode, _ := cmd.Flags().GetBool("json")
-		if jsonMode {
-			return s.emitJSON(body)
+		// POST /v1/pages creates a single page: it requires a top-level `parent`
+		// and does not accept a `pages` batch envelope. Fan out one request per
+		// element (mirroring how the MCP create-pages tool fans out), spreading
+		// each element's fields (parent/properties/content/icon/cover) at the
+		// top level of its own request body and carrying --allow-async per call.
+		var ids []string
+		var bodies []json.RawMessage
+		for i, el := range arr {
+			var page map[string]any
+			if err := json.Unmarshal(el, &page); err != nil {
+				return &usageError{msg: fmt.Sprintf("--pages[%d] must be a JSON object", i)}
+			}
+			if allowAsync {
+				page["allow_async"] = true
+			}
+			body, err := s.callWithVersion(cmd.Context(), token, http.MethodPost, "/pages", page, markdownVersion)
+			if err != nil {
+				if len(ids) > 0 {
+					fmt.Fprintf(s.stderr(), "created %d/%d page(s) before failure (created: [%s]); failed creating --pages[%d]\n",
+						len(ids), len(arr), strings.Join(ids, ", "), i)
+				}
+				return err
+			}
+			if body, err = s.resolveAsync(cmd.Context(), token, body, allowAsync); err != nil {
+				return err
+			}
+			bodies = append(bodies, body)
+			ids = append(ids, collectPageIDs(body)...)
 		}
-		ids := collectPageIDs(body)
-		if len(ids) == 0 {
-			return s.emitJSON(body)
+		if jsonMode || len(ids) == 0 {
+			out, _ := json.Marshal(map[string]any{"pages": bodies})
+			return s.emitJSON(out)
 		}
 		return s.emitLines(ids)
 	}
@@ -257,25 +275,29 @@ func (s *Service) applyUpdateFlags(cmd *cobra.Command, u *pageUpdate) {
 }
 
 // contentPayload builds the markdown-endpoint body. The CLI `command` maps to
-// the REST field `type`; content params differ per command. --position is
-// always sent (default end), never omitted.
+// the REST field `type`, and the operation's params are nested under an object
+// keyed by that type value (e.g. {"type":"replace_content","replace_content":
+// {...}}) — the markdown endpoint (Notion-Version 2026-03-11) rejects a flat
+// body. Only `allow_async` is top-level. --position is always sent (default
+// end), never omitted.
 func contentPayload(u pageUpdate) map[string]any {
-	p := map[string]any{"type": u.command}
+	op := map[string]any{}
 	switch u.command {
 	case "replace_content":
-		p["new_str"] = u.restContent
+		op["new_str"] = u.restContent
 		if u.allowDeleting {
-			p["allow_deleting_content"] = true
+			op["allow_deleting_content"] = true
 		}
 	case "update_content":
-		p["content_updates"] = u.contentUpdates
+		op["content_updates"] = u.contentUpdates
 		if u.allowDeleting {
-			p["allow_deleting_content"] = true
+			op["allow_deleting_content"] = true
 		}
 	case "insert_content":
-		p["content"] = u.restContent
-		p["position"] = positionWire(u.position)
+		op["content"] = u.restContent
+		op["position"] = positionWire(u.position)
 	}
+	p := map[string]any{"type": u.command, u.command: op}
 	if u.allowAsync {
 		p["allow_async"] = true
 	}
@@ -314,7 +336,7 @@ func (s *Service) executePageUpdate(ctx context.Context, token string, u pageUpd
 		propsBody, err := s.patchPageProps(ctx, token, u)
 		if err != nil {
 			if u.command != "" {
-				_ = s.emitPageMarkdown(ctx, token, u.id, contentBody)
+				_ = s.emitPageMarkdown(ctx, token, u.id, contentBody, true)
 				return partialUpdateError(err)
 			}
 			return err
@@ -322,12 +344,12 @@ func (s *Service) executePageUpdate(ctx context.Context, token string, u pageUpd
 		if u.jsonMode {
 			return s.emitJSON(propsBody)
 		}
-		return s.emitPageMarkdown(ctx, token, u.id, contentBody)
+		return s.emitPageMarkdown(ctx, token, u.id, contentBody, true)
 	}
 	if u.jsonMode {
 		return s.emitJSON(contentBody)
 	}
-	return s.emitPageMarkdown(ctx, token, u.id, contentBody)
+	return s.emitPageMarkdown(ctx, token, u.id, contentBody, true)
 }
 
 // patchPageProps applies --properties / --icon / --cover via PATCH /v1/pages/{id}.
@@ -347,8 +369,11 @@ func (s *Service) patchPageProps(ctx context.Context, token string, u pageUpdate
 
 // emitPageMarkdown writes the post-update markdown, preferring the PATCH
 // response's markdown and falling back to a fresh GET when it lacks one (e.g. a
-// properties-only update or an async result).
-func (s *Service) emitPageMarkdown(ctx context.Context, token, id string, contentBody []byte) error {
+// properties-only update or an async result). When the mutation already
+// succeeded (bestEffort), a failed confirmation read is non-fatal: the write
+// stands, so the read failure is noted on stderr and nil is returned rather
+// than turning a successful mutation into an exit-1 failure (design 304).
+func (s *Service) emitPageMarkdown(ctx context.Context, token, id string, contentBody []byte, bestEffort bool) error {
 	if len(contentBody) > 0 {
 		var pm pageMarkdown
 		if json.Unmarshal(contentBody, &pm) == nil && pm.Markdown != "" {
@@ -357,6 +382,11 @@ func (s *Service) emitPageMarkdown(ctx context.Context, token, id string, conten
 	}
 	body, err := s.readPageMarkdown(ctx, token, id)
 	if err != nil {
+		if bestEffort {
+			fmt.Fprintf(s.stderr(),
+				"note: the update succeeded but reading back the page markdown failed: %v; re-fetch to view the current content\n", err)
+			return nil
+		}
 		return err
 	}
 	return s.emitMarkdown(body)
@@ -480,6 +510,11 @@ func (s *Service) newPageEditCmd(token string) *cobra.Command {
 		if err != nil {
 			return err
 		}
+		// update_content has no single-content input, so --file does not apply;
+		// reject it rather than silently ignoring a supplied flag (§④ matrix).
+		if cmd.Flags().Changed("file") {
+			return &usageError{msg: "--file is not allowed with page edit (update_content takes --old/--new, not single-content input)"}
+		}
 		if len(olds) == 0 {
 			return &usageError{msg: "page edit requires at least one --old/--new pair"}
 		}
@@ -516,6 +551,11 @@ func (s *Service) newPageInsertCmd(token string) *cobra.Command {
 		if !cmd.Flags().Changed("content") && !cmd.Flags().Changed("file") {
 			return &usageError{msg: "page insert requires --content or --file"}
 		}
+		// insert_content does not accept allow_deleting_content (§④ matrix,
+		// endpoint constraint); reject it rather than silently dropping it.
+		if cmd.Flags().Changed("allow-deleting-content") {
+			return &usageError{msg: "--allow-deleting-content is not allowed with page insert (insert_content does not accept it)"}
+		}
 		if at != "" && at != "start" && at != "end" {
 			return &usageError{msg: "--at must be start or end"}
 		}
@@ -547,6 +587,11 @@ func (s *Service) newPageAppendCmd(token string) *cobra.Command {
 		}
 		if !cmd.Flags().Changed("content") && !cmd.Flags().Changed("file") {
 			return &usageError{msg: "page append requires --content or --file"}
+		}
+		// insert_content does not accept allow_deleting_content (§④ matrix,
+		// endpoint constraint); reject it rather than silently dropping it.
+		if cmd.Flags().Changed("allow-deleting-content") {
+			return &usageError{msg: "--allow-deleting-content is not allowed with page append (insert_content does not accept it)"}
 		}
 		file, _ := cmd.Flags().GetString("file")
 		c, err := readContent(content, file, "content")
