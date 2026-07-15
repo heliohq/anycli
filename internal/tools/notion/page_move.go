@@ -135,15 +135,12 @@ func (s *Service) newPageDuplicateCmd(token string) *cobra.Command {
 				},
 			}
 		}
-		allowAsync, _ := cmd.Flags().GetBool("allow-async")
-		if allowAsync {
-			payload["allow_async"] = true
-		}
+		// A template-based create (POST /v1/pages with `template`) is always
+		// synchronous and returns the new page directly. Notion rejects
+		// `allow_async` unless a `markdown` body is present, so `page duplicate`
+		// never forwards it — the global --allow-async is a no-op here.
 		body, err := s.callWithVersion(cmd.Context(), token, http.MethodPost, "/pages", payload, markdownVersion)
 		if err != nil {
-			return err
-		}
-		if body, err = s.resolveAsync(cmd.Context(), token, body, allowAsync); err != nil {
 			return err
 		}
 		jsonMode, _ := cmd.Flags().GetBool("json")

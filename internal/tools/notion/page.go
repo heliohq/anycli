@@ -162,8 +162,13 @@ func (s *Service) newPageCreateCmd(token string) *cobra.Command {
 				page["markdown"] = c
 				delete(page, "content")
 			}
+			// allow_async is only valid when a markdown body is present (Notion
+			// rejects it otherwise), so only forward it for elements that carry
+			// markdown content.
 			if allowAsync {
-				page["allow_async"] = true
+				if _, hasMD := page["markdown"]; hasMD {
+					page["allow_async"] = true
+				}
 			}
 			body, err := s.callWithVersion(cmd.Context(), token, http.MethodPost, "/pages", page, markdownVersion)
 			if err != nil {

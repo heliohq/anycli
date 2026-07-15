@@ -776,6 +776,40 @@ func TestPageDuplicate_Title(t *testing.T) {
 	}
 }
 
+// TestPageDuplicate_IgnoresAllowAsync: a template-based create is synchronous
+// and Notion rejects allow_async without a markdown body, so `page duplicate`
+// must never forward the global --allow-async into the request body.
+func TestPageDuplicate_IgnoresAllowAsync(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"page","id":"dup1"}`, &got)
+	defer srv.Close()
+
+	code, _, _ := run(t, srv, "page", "duplicate", "p1",
+		"--new-parent", `{"type":"page_id","page_id":"par"}`, "--allow-async")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if _, ok := bodyMap(t, got.Body)["allow_async"]; ok {
+		t.Error("page duplicate must not send allow_async (template create has no markdown)")
+	}
+}
+
+// TestPageCreate_AllowAsyncWithoutMarkdown: an element with no markdown body must
+// not carry allow_async even under --allow-async (Notion rejects it).
+func TestPageCreate_AllowAsyncWithoutMarkdown(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"page","id":"np1"}`, &got)
+	defer srv.Close()
+
+	code, _, _ := run(t, srv, "page", "create", "--pages", `[{"parent":{"page_id":"p"},"properties":{}}]`, "--allow-async")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if _, ok := bodyMap(t, got.Body)["allow_async"]; ok {
+		t.Error("create without markdown must not send allow_async")
+	}
+}
+
 func TestPageDuplicate_CopiesSourceParent(t *testing.T) {
 	var reqs []capturedRequest
 	srv := newMux(t, &reqs, map[string]stub{
@@ -927,7 +961,9 @@ func TestPageCreate_AsyncPoll(t *testing.T) {
 	})
 	defer srv.Close()
 
-	code, stdout, _ := run(t, srv, "page", "create", "--pages", `[{"parent":{"page_id":"p"}}]`, "--allow-async", "--json")
+	// allow_async is only valid when a markdown body is present, so the element
+	// must carry content for the flag to be forwarded (and the async path taken).
+	code, stdout, _ := run(t, srv, "page", "create", "--pages", `[{"parent":{"page_id":"p"},"content":"# Big\n\nbody"}]`, "--allow-async", "--json")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
