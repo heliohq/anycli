@@ -127,8 +127,19 @@ func TestDataSourceUpdate_Happy(t *testing.T) {
 	}
 	assertAuth(t, *p, markdownVersion)
 	body := bodyMap(t, p.Body)
-	if body["name"] != "Renamed" {
-		t.Errorf("body.name = %v, want Renamed", body["name"])
+	// --name is mapped to the rich-text `title` array; there is no `name` field
+	// on PATCH /v1/data_sources.
+	if _, ok := body["name"]; ok {
+		t.Errorf("body.name must not be sent (no such field); got %v", body["name"])
+	}
+	title, ok := body["title"].([]any)
+	if !ok || len(title) == 0 {
+		t.Fatalf("body.title = %v, want a rich-text array carrying the rename", body["title"])
+	}
+	run0, _ := title[0].(map[string]any)
+	txt, _ := run0["text"].(map[string]any)
+	if txt["content"] != "Renamed" {
+		t.Errorf("body.title[0].text.content = %v, want Renamed", txt["content"])
 	}
 	if _, ok := body["properties"].(map[string]any); !ok {
 		t.Errorf("body.properties = %v, want the passthrough schema patch", body["properties"])
@@ -288,6 +299,22 @@ func TestUserGet_Self(t *testing.T) {
 	}
 	if got.Method != http.MethodGet || got.Path != "/users/me" {
 		t.Errorf("request = %s %s, want GET /users/me", got.Method, got.Path)
+	}
+}
+
+// TestUserGet_ByID resolves a specific user id to GET /v1/users/{id} (agents
+// resolve created_by/last_edited_by ids, incl. guests that list omits).
+func TestUserGet_ByID(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"object":"user","id":"u1"}`, &got)
+	defer srv.Close()
+
+	code, _, _ := run(t, srv, "user", "get", "u1")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if got.Method != http.MethodGet || got.Path != "/users/u1" {
+		t.Errorf("request = %s %s, want GET /users/u1", got.Method, got.Path)
 	}
 }
 

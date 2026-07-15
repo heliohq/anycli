@@ -73,7 +73,16 @@ func (s *Service) newFetchCmd(token string) *cobra.Command {
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		raw := strings.TrimSpace(args[0])
 		if strings.EqualFold(raw, "self") {
-			return &usageError{msg: `fetch does not accept "self"; use "user get self" for the current user`}
+			// MCP notion-fetch supports the special id `self` → the connected
+			// workspace + authenticated-user identity. REST's closest equivalent
+			// is GET /v1/users/me: for a bot token the response carries the bot
+			// user plus its workspace name/owner. Kept so a pretrained agent's
+			// `fetch self` reflex works instead of erroring (design 304 §fetch).
+			body, err := s.call(cmd.Context(), token, http.MethodGet, "/users/me", nil)
+			if err != nil {
+				return err
+			}
+			return s.emitJSON(body)
 		}
 		if typ != "" {
 			if err := validateType(typ); err != nil {

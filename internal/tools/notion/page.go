@@ -152,6 +152,16 @@ func (s *Service) newPageCreateCmd(token string) *cobra.Command {
 			if err := json.Unmarshal(el, &page); err != nil {
 				return &usageError{msg: fmt.Sprintf("--pages[%d] must be a JSON object", i)}
 			}
+			// MCP create-pages carries the page body in `content` as a markdown
+			// string, but REST POST /v1/pages expects markdown text in the
+			// `markdown` field — its `content`/`children` are block-object arrays.
+			// Map a string `content` to `markdown` so MCP-verbatim input is not
+			// rejected as malformed blocks (design 304 §page create). A non-string
+			// `content` (an explicit block array) is left untouched.
+			if c, ok := page["content"].(string); ok {
+				page["markdown"] = c
+				delete(page, "content")
+			}
 			if allowAsync {
 				page["allow_async"] = true
 			}

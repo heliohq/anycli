@@ -390,20 +390,23 @@ func TestFetch_Probe_PageWins(t *testing.T) {
 	}
 }
 
-func TestFetch_Self_Usage(t *testing.T) {
+// TestFetch_Self routes `fetch self` to GET /v1/users/me (MCP notion-fetch
+// `self` → connected workspace + authed-user identity; REST's closest is
+// /users/me) and returns JSON, rather than erroring.
+func TestFetch_Self(t *testing.T) {
 	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{}`, &got)
+	srv := newServer(t, http.StatusOK, `{"object":"user","id":"me","bot":{"workspace_name":"WS"}}`, &got)
 	defer srv.Close()
 
-	code, _, stderr := run(t, srv, "fetch", "self")
-	if code != 2 {
-		t.Fatalf("exit code = %d, want 2 for fetch self", code)
+	code, stdout, _ := run(t, srv, "fetch", "self")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 for fetch self", code)
 	}
-	if !strings.Contains(stderr, "user get self") {
-		t.Errorf("stderr = %q, want a redirect to user get self", stderr)
+	if got.Method != http.MethodGet || got.Path != "/users/me" {
+		t.Errorf("request = %s %s, want GET /users/me", got.Method, got.Path)
 	}
-	if got.Path != "" {
-		t.Errorf("no request must be sent for fetch self, got %s", got.Path)
+	if !strings.Contains(stdout, `"id": "me"`) && !strings.Contains(stdout, `"id":"me"`) {
+		t.Errorf("stdout = %q, want the /users/me identity JSON", stdout)
 	}
 }
 

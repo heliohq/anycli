@@ -38,8 +38,13 @@ func TestPageCreate_Happy(t *testing.T) {
 	if !ok || parent["page_id"] != "par" {
 		t.Errorf("body.parent = %v, want the spread {page_id:par}", body["parent"])
 	}
-	if body["content"] != "# Hi" {
-		t.Errorf("body.content = %v, want the spread content", body["content"])
+	// A string `content` (MCP markdown) is mapped to REST `markdown`; `content`
+	// must not survive (REST `content` is a block array, not a markdown string).
+	if body["markdown"] != "# Hi" {
+		t.Errorf("body.markdown = %v, want the content mapped to markdown", body["markdown"])
+	}
+	if _, ok := body["content"]; ok {
+		t.Errorf("body.content must be renamed to markdown, got %v", body["content"])
 	}
 	if strings.TrimSpace(stdout) != "np1" {
 		t.Errorf("stdout = %q, want the created page id", stdout)
@@ -56,7 +61,8 @@ func TestPageCreate_MultipleFanOut(t *testing.T) {
 		var p map[string]any
 		_ = json.Unmarshal(body, &p)
 		w.Header().Set("Content-Type", "application/json")
-		title, _ := p["content"].(string)
+		// String `content` is mapped to `markdown` before the request is sent.
+		title, _ := p["markdown"].(string)
 		w.Write([]byte(`{"object":"page","id":"id-` + title + `"}`))
 	}))
 	defer srv.Close()

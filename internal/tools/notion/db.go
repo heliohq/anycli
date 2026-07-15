@@ -112,17 +112,19 @@ func (s *Service) newDBQueryCmd(token string) *cobra.Command {
 
 // newDataSourceUpdateCmd is `data-source update <id>` (PATCH /v1/data_sources/{id}).
 // The id is a data-source id only (same database-id fail-fast as db query).
-// --properties is a schema patch passed through verbatim. Output JSON.
+// PATCH /v1/data_sources accepts title/properties/icon/parent/in_trash — there
+// is no `name` or `description` field, so --name is mapped to the rich-text
+// `title` (a data source is renamed via title). --properties is a schema patch
+// passed through verbatim. Output JSON.
 func (s *Service) newDataSourceUpdateCmd(token string) *cobra.Command {
-	var propertiesFlag, name, description string
+	var propertiesFlag, name string
 	cmd := &cobra.Command{
 		Use:   "update <data-source-id>",
-		Short: "Update a data source's schema, name, or description",
+		Short: "Update a data source's schema or title",
 		Args:  cobra.ExactArgs(1),
 	}
 	cmd.Flags().StringVar(&propertiesFlag, "properties", "", "JSON schema patch (REST wire)")
-	cmd.Flags().StringVar(&name, "name", "", "new data-source name")
-	cmd.Flags().StringVar(&description, "description", "", "new data-source description")
+	cmd.Flags().StringVar(&name, "name", "", "new data-source title (mapped to the rich-text `title` field)")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		id, err := resolveID(args[0])
 		if err != nil {
@@ -137,13 +139,14 @@ func (s *Service) newDataSourceUpdateCmd(token string) *cobra.Command {
 			payload["properties"] = properties
 		}
 		if cmd.Flags().Changed("name") {
-			payload["name"] = name
-		}
-		if cmd.Flags().Changed("description") {
-			payload["description"] = description
+			// No top-level `name` field: a data source is renamed through the
+			// rich-text `title` array.
+			payload["title"] = []any{
+				map[string]any{"type": "text", "text": map[string]any{"content": name}},
+			}
 		}
 		if len(payload) == 0 {
-			return &usageError{msg: "data-source update requires at least one of --properties, --name, --description"}
+			return &usageError{msg: "data-source update requires at least one of --properties, --name"}
 		}
 		if err := s.rejectDatabaseID(cmd.Context(), token, id, "data-source update"); err != nil {
 			return err

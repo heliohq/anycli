@@ -84,34 +84,49 @@ func (s *Service) newCommentListCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// newUserGetCmd is `user get [self] [--query <name|email>]` — three mutually
-// exclusive forms: bare `self` → GET /v1/users/me; --query → list every user
-// and keep case-insensitive substring matches on name OR email (0 hits is an
-// empty list, not an error); no arg → GET /v1/users paginated through every
-// page, aggregated into one list envelope (design 304 §user "列出所有用户(分页)").
-// self + --query together is a usage error. Output JSON.
+// newUserGetCmd is `user get [self|<user-id>] [--query <name|email>]` — four
+// mutually exclusive forms: bare `self` → GET /v1/users/me; a `<user-id>` →
+// GET /v1/users/{id} (resolve a specific user, incl. guests, that list omits);
+// --query → list every user and keep case-insensitive substring matches on
+// name OR email (0 hits is an empty list, not an error); no arg → GET /v1/users
+// paginated through every page, aggregated into one list envelope (design 304
+// §user "列出所有用户(分页)"). A positional and --query together is a usage
+// error. Output JSON.
 func (s *Service) newUserGetCmd(token string) *cobra.Command {
 	var query string
 	cmd := &cobra.Command{
-		Use:   "get [self]",
-		Short: "Get the current user (self), search users (--query), or list all users",
+		Use:   "get [self|<user-id>]",
+		Short: "Get the current user (self), a user by id, search users (--query), or list all users",
 		Args:  cobra.MaximumNArgs(1),
 	}
 	cmd.Flags().StringVar(&query, "query", "", "case-insensitive substring match on user name or email")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		self := false
+		userID := ""
 		if len(args) == 1 {
-			if !strings.EqualFold(strings.TrimSpace(args[0]), "self") {
-				return &usageError{msg: fmt.Sprintf(`user get accepts only the positional value "self", got %q`, args[0])}
+			if strings.EqualFold(strings.TrimSpace(args[0]), "self") {
+				self = true
+			} else {
+				id, err := resolveID(args[0])
+				if err != nil {
+					return err
+				}
+				userID = id
 			}
-			self = true
 		}
 		queried := cmd.Flags().Changed("query")
-		if self && queried {
-			return &usageError{msg: "user get: `self` and --query are mutually exclusive"}
+		if (self || userID != "") && queried {
+			return &usageError{msg: "user get: a positional (self / user-id) and --query are mutually exclusive"}
 		}
 		if self {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/users/me", nil)
+			if err != nil {
+				return err
+			}
+			return s.emitJSON(body)
+		}
+		if userID != "" {
+			body, err := s.call(cmd.Context(), token, http.MethodGet, "/users/"+url.PathEscape(userID), nil)
 			if err != nil {
 				return err
 			}
