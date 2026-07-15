@@ -5,7 +5,7 @@
   "auth": {
     "credentials": [
       {
-        "source": {"vault_field": "access_token"},
+        "source": {"field": "access_token"},
         "inject": {"type": "env", "env_var": "GOOGLE_ACCESS_TOKEN"}
       }
     ]

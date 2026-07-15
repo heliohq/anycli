@@ -11,6 +11,7 @@ import (
 
 	"github.com/heliohq/anycli/internal/credential"
 	"github.com/heliohq/anycli/internal/registry"
+	"github.com/heliohq/anycli/internal/tools"
 )
 
 // setupHome creates a temp ANYCLI_HOME and points the env at it.
@@ -52,7 +53,7 @@ func newTestEngine(t *testing.T) (*Engine, credential.Cache) {
 
 // fixedResolver returns the same credential data for every tool.
 type fixedResolver struct {
-	data map[string]any
+	data map[string]string
 }
 
 func (r fixedResolver) Resolve(ctx context.Context, tool credential.Tool, account string) (*credential.Credential, error) {
@@ -64,6 +65,15 @@ type nilResolver struct{}
 
 func (nilResolver) Resolve(ctx context.Context, tool credential.Tool, account string) (*credential.Credential, error) {
 	return nil, nil
+}
+
+type fixedService struct {
+	result tools.ExecutionResult
+	err    error
+}
+
+func (s fixedService) Execute(context.Context, []string, map[string]string) (tools.ExecutionResult, error) {
+	return s.result, s.err
 }
 
 func echoBinary(t *testing.T) string {
@@ -146,14 +156,14 @@ func TestExecute_WithEnvCredential(t *testing.T) {
 			Auth: &registry.AuthConfig{
 				Credentials: []registry.CredentialBinding{
 					{
-						Source: registry.CredentialSource{VaultTool: "test", VaultField: "access_token"},
+						Source: registry.CredentialSource{Field: "access_token"},
 						Inject: registry.CredentialInject{Type: "env", EnvVar: "TEST_TOKEN"},
 					},
 				},
 			},
 		},
 	})
-	resolver := fixedResolver{data: map[string]any{"access_token": "secret-value-123"}}
+	resolver := fixedResolver{data: map[string]string{"access_token": "secret-value-123"}}
 	e, _ := newTestEngine(t)
 
 	exitCode, err := e.Execute(context.Background(), "test-env-cred", []string{"hello"}, resolver, "")
@@ -202,6 +212,57 @@ func TestExecute_ServiceType_Unregistered(t *testing.T) {
 	}
 	if err.Error() != `no built-in service registered for "test-service"` {
 		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestExecute_ServiceMarksOnlyRejectedCredentialsStale(t *testing.T) {
+	cases := []struct {
+		name               string
+		toolName           string
+		credentialRejected bool
+		wantStale          bool
+	}{
+		{name: "ordinary command failure stays fresh", toolName: "test-service-command-failure", wantStale: false},
+		{name: "credential rejection becomes stale", toolName: "test-service-credential-rejected", credentialRejected: true, wantStale: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			useDefinitions(t, map[string]*registry.Definition{
+				tc.toolName: {
+					Name: tc.toolName,
+					Type: "service",
+					Auth: &registry.AuthConfig{Credentials: []registry.CredentialBinding{
+						{
+							Source: registry.CredentialSource{Field: "access_token"},
+							Inject: registry.CredentialInject{Type: "env", EnvVar: "TEST_TOKEN"},
+						},
+					}},
+				},
+			})
+			tools.RegisterService(tc.toolName, fixedService{result: tools.ExecutionResult{
+				ExitCode:           1,
+				CredentialRejected: tc.credentialRejected,
+			}})
+
+			engine, cache := newTestEngine(t)
+			resolver := fixedResolver{data: map[string]string{"access_token": "test-token"}}
+			exitCode, err := engine.Execute(context.Background(), tc.toolName, nil, resolver, "account-1")
+			if err != nil {
+				t.Fatalf("Execute returned unexpected error: %v", err)
+			}
+			if exitCode != 1 {
+				t.Fatalf("exit code = %d, want 1", exitCode)
+			}
+
+			entry, ok := cache.Get(credential.CacheKey(tc.toolName, "account-1"))
+			if !ok {
+				t.Fatal("credential was not cached")
+			}
+			if entry.Stale != tc.wantStale {
+				t.Errorf("credential stale = %t, want %t", entry.Stale, tc.wantStale)
+			}
+		})
 	}
 }
 
@@ -323,14 +384,14 @@ func TestExecute_StaleMarkOnFailure(t *testing.T) {
 			Auth: &registry.AuthConfig{
 				Credentials: []registry.CredentialBinding{
 					{
-						Source: registry.CredentialSource{VaultTool: "t", VaultField: "access_token"},
+						Source: registry.CredentialSource{Field: "access_token"},
 						Inject: registry.CredentialInject{Type: "env", EnvVar: "TOK"},
 					},
 				},
 			},
 		},
 	})
-	resolver := fixedResolver{data: map[string]any{"access_token": "tok"}}
+	resolver := fixedResolver{data: map[string]string{"access_token": "tok"}}
 	e, cache := newTestEngine(t)
 
 	exitCode, _ := e.Execute(context.Background(), "test-fail-creds", []string{}, resolver, "")
@@ -546,7 +607,7 @@ func TestExecute_StaleMarkHitsOnlyFailingAccount(t *testing.T) {
 			Auth: &registry.AuthConfig{
 				Credentials: []registry.CredentialBinding{
 					{
-						Source: registry.CredentialSource{VaultTool: "t", VaultField: "access_token"},
+						Source: registry.CredentialSource{Field: "access_token"},
 						Inject: registry.CredentialInject{Type: "env", EnvVar: "TOK"},
 					},
 				},

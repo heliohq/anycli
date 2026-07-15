@@ -47,9 +47,8 @@ func (yamlHandler) Remove(existing []byte, fields map[string]string) ([]byte, er
 // node represents a tree of key-value pairs for YAML generation.
 type node struct {
 	key      string
-	value    string   // leaf value (empty for branch nodes)
-	children []*node  // ordered children
-	order    []string // insertion order tracking
+	value    string  // leaf value (empty for branch nodes)
+	children []*node // ordered children
 }
 
 // buildTree converts a flat dot-path map into an ordered tree.

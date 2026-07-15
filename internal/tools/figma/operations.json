@@ -1,0 +1,1066 @@
+{
+  "source": "figma/rest-api-spec@e854a2c2dff3ff8cb743e9a06575fbbf225faa33",
+  "operations": [
+    {
+      "id": "getFile",
+      "method": "GET",
+      "path": "/v1/files/{file_key}",
+      "summary": "Get file JSON",
+      "pat": true,
+      "scopes": [
+        "file_content:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "version",
+        "ids",
+        "depth",
+        "geometry",
+        "plugin_data",
+        "branch_data"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getFileNodes",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/nodes",
+      "summary": "Get file JSON for specific nodes",
+      "pat": true,
+      "scopes": [
+        "file_content:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "ids",
+        "version",
+        "depth",
+        "geometry",
+        "plugin_data"
+      ],
+      "required_query_params": [
+        "ids"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getImages",
+      "method": "GET",
+      "path": "/v1/images/{file_key}",
+      "summary": "Render images of file nodes",
+      "pat": true,
+      "scopes": [
+        "file_content:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "ids",
+        "version",
+        "scale",
+        "format",
+        "svg_outline_text",
+        "svg_include_id",
+        "svg_include_node_id",
+        "svg_simplify_stroke",
+        "contents_only",
+        "use_absolute_bounds"
+      ],
+      "required_query_params": [
+        "ids"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getImageFills",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/images",
+      "summary": "Get image fills",
+      "pat": true,
+      "scopes": [
+        "file_content:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getFileMeta",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/meta",
+      "summary": "Get file metadata",
+      "pat": true,
+      "scopes": [
+        "file_metadata:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getTeamProjects",
+      "method": "GET",
+      "path": "/v1/teams/{team_id}/projects",
+      "summary": "Get projects in a team",
+      "pat": true,
+      "scopes": [
+        "projects:read"
+      ],
+      "path_params": [
+        "team_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getProjectMeta",
+      "method": "GET",
+      "path": "/v1/projects/{project_id}/meta",
+      "summary": "Get project metadata",
+      "pat": true,
+      "scopes": [
+        "project_metadata:read"
+      ],
+      "path_params": [
+        "project_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getProjectFiles",
+      "method": "GET",
+      "path": "/v1/projects/{project_id}/files",
+      "summary": "Get files in a project",
+      "pat": true,
+      "scopes": [
+        "projects:read"
+      ],
+      "path_params": [
+        "project_id"
+      ],
+      "query_params": [
+        "branch_data"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getFileVersions",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/versions",
+      "summary": "Get versions of a file",
+      "pat": true,
+      "scopes": [
+        "file_versions:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "page_size",
+        "before",
+        "after"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getComments",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/comments",
+      "summary": "Get comments in a file",
+      "pat": true,
+      "scopes": [
+        "file_comments:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "as_md"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "postComment",
+      "method": "POST",
+      "path": "/v1/files/{file_key}/comments",
+      "summary": "Add a comment to a file",
+      "pat": true,
+      "scopes": [
+        "file_comments:write"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": true
+    },
+    {
+      "id": "deleteComment",
+      "method": "DELETE",
+      "path": "/v1/files/{file_key}/comments/{comment_id}",
+      "summary": "Delete a comment",
+      "pat": true,
+      "scopes": [
+        "file_comments:write"
+      ],
+      "path_params": [
+        "file_key",
+        "comment_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getCommentReactions",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/comments/{comment_id}/reactions",
+      "summary": "Get reactions for a comment",
+      "pat": true,
+      "scopes": [
+        "file_comments:read"
+      ],
+      "path_params": [
+        "file_key",
+        "comment_id"
+      ],
+      "query_params": [
+        "cursor"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "postCommentReaction",
+      "method": "POST",
+      "path": "/v1/files/{file_key}/comments/{comment_id}/reactions",
+      "summary": "Add a reaction to a comment",
+      "pat": true,
+      "scopes": [
+        "file_comments:write"
+      ],
+      "path_params": [
+        "file_key",
+        "comment_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": true
+    },
+    {
+      "id": "deleteCommentReaction",
+      "method": "DELETE",
+      "path": "/v1/files/{file_key}/comments/{comment_id}/reactions",
+      "summary": "Delete a reaction",
+      "pat": true,
+      "scopes": [
+        "file_comments:write"
+      ],
+      "path_params": [
+        "file_key",
+        "comment_id"
+      ],
+      "query_params": [
+        "emoji"
+      ],
+      "required_query_params": [
+        "emoji"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getMe",
+      "method": "GET",
+      "path": "/v1/me",
+      "summary": "Get current user",
+      "pat": true,
+      "scopes": [
+        "current_user:read"
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getTeamComponents",
+      "method": "GET",
+      "path": "/v1/teams/{team_id}/components",
+      "summary": "Get team components",
+      "pat": true,
+      "scopes": [
+        "team_library_content:read"
+      ],
+      "path_params": [
+        "team_id"
+      ],
+      "query_params": [
+        "page_size",
+        "after",
+        "before"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getFileComponents",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/components",
+      "summary": "Get file components",
+      "pat": true,
+      "scopes": [
+        "library_content:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getComponent",
+      "method": "GET",
+      "path": "/v1/components/{key}",
+      "summary": "Get component",
+      "pat": true,
+      "scopes": [
+        "library_assets:read"
+      ],
+      "path_params": [
+        "key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getTeamComponentSets",
+      "method": "GET",
+      "path": "/v1/teams/{team_id}/component_sets",
+      "summary": "Get team component sets",
+      "pat": true,
+      "scopes": [
+        "team_library_content:read"
+      ],
+      "path_params": [
+        "team_id"
+      ],
+      "query_params": [
+        "page_size",
+        "after",
+        "before"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getFileComponentSets",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/component_sets",
+      "summary": "Get file component sets",
+      "pat": true,
+      "scopes": [
+        "library_content:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getComponentSet",
+      "method": "GET",
+      "path": "/v1/component_sets/{key}",
+      "summary": "Get component set",
+      "pat": true,
+      "scopes": [
+        "library_assets:read"
+      ],
+      "path_params": [
+        "key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getTeamStyles",
+      "method": "GET",
+      "path": "/v1/teams/{team_id}/styles",
+      "summary": "Get team styles",
+      "pat": true,
+      "scopes": [
+        "team_library_content:read"
+      ],
+      "path_params": [
+        "team_id"
+      ],
+      "query_params": [
+        "page_size",
+        "after",
+        "before"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getFileStyles",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/styles",
+      "summary": "Get file styles",
+      "pat": true,
+      "scopes": [
+        "library_content:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getStyle",
+      "method": "GET",
+      "path": "/v1/styles/{key}",
+      "summary": "Get style",
+      "pat": true,
+      "scopes": [
+        "library_assets:read"
+      ],
+      "path_params": [
+        "key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getWebhooks",
+      "method": "GET",
+      "path": "/v2/webhooks",
+      "summary": "Get webhooks by context or plan",
+      "pat": true,
+      "scopes": [
+        "webhooks:read"
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+        "context",
+        "context_id",
+        "plan_api_id",
+        "cursor"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "postWebhook",
+      "method": "POST",
+      "path": "/v2/webhooks",
+      "summary": "Create a webhook",
+      "pat": true,
+      "scopes": [
+        "webhooks:write"
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": true
+    },
+    {
+      "id": "getWebhook",
+      "method": "GET",
+      "path": "/v2/webhooks/{webhook_id}",
+      "summary": "Get a webhook",
+      "pat": true,
+      "scopes": [
+        "webhooks:read"
+      ],
+      "path_params": [
+        "webhook_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "putWebhook",
+      "method": "PUT",
+      "path": "/v2/webhooks/{webhook_id}",
+      "summary": "Update a webhook",
+      "pat": true,
+      "scopes": [
+        "webhooks:write"
+      ],
+      "path_params": [
+        "webhook_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": true
+    },
+    {
+      "id": "deleteWebhook",
+      "method": "DELETE",
+      "path": "/v2/webhooks/{webhook_id}",
+      "summary": "Delete a webhook",
+      "pat": true,
+      "scopes": [
+        "webhooks:write"
+      ],
+      "path_params": [
+        "webhook_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getTeamWebhooks",
+      "method": "GET",
+      "path": "/v2/teams/{team_id}/webhooks",
+      "summary": "[Deprecated] Get team webhooks",
+      "pat": true,
+      "scopes": [
+        "webhooks:read"
+      ],
+      "path_params": [
+        "team_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getWebhookRequests",
+      "method": "GET",
+      "path": "/v2/webhooks/{webhook_id}/requests",
+      "summary": "Get webhook requests",
+      "pat": true,
+      "scopes": [
+        "webhooks:read"
+      ],
+      "path_params": [
+        "webhook_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getActivityLogs",
+      "method": "GET",
+      "path": "/v1/activity_logs",
+      "summary": "Get activity logs",
+      "pat": false,
+      "scopes": [
+        "org:activity_log_read"
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+        "events",
+        "start_time",
+        "end_time",
+        "limit",
+        "order"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getDeveloperLogs",
+      "method": "POST",
+      "path": "/v1/developer_logs",
+      "summary": "Get developer logs",
+      "pat": false,
+      "scopes": [
+
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getAiUsageDaily",
+      "method": "GET",
+      "path": "/v1/ai_usage/daily",
+      "summary": "Get daily AI credit usage",
+      "pat": false,
+      "scopes": [
+
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+        "start_date",
+        "end_date",
+        "user_email",
+        "limit",
+        "cursor"
+      ],
+      "required_query_params": [
+        "start_date",
+        "end_date"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getPayments",
+      "method": "GET",
+      "path": "/v1/payments",
+      "summary": "Get payments",
+      "pat": true,
+      "scopes": [
+
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+        "plugin_payment_token",
+        "user_id",
+        "community_file_id",
+        "plugin_id",
+        "widget_id"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getLocalVariables",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/variables/local",
+      "summary": "Get local variables",
+      "pat": true,
+      "scopes": [
+        "file_variables:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getPublishedVariables",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/variables/published",
+      "summary": "Get published variables",
+      "pat": true,
+      "scopes": [
+        "file_variables:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "postVariables",
+      "method": "POST",
+      "path": "/v1/files/{file_key}/variables",
+      "summary": "Create/modify/delete variables",
+      "pat": true,
+      "scopes": [
+        "file_variables:write"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": true
+    },
+    {
+      "id": "getDevResources",
+      "method": "GET",
+      "path": "/v1/files/{file_key}/dev_resources",
+      "summary": "Get dev resources",
+      "pat": true,
+      "scopes": [
+        "file_dev_resources:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "node_ids"
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "postDevResources",
+      "method": "POST",
+      "path": "/v1/dev_resources",
+      "summary": "Create dev resources",
+      "pat": true,
+      "scopes": [
+        "file_dev_resources:write"
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": true
+    },
+    {
+      "id": "putDevResources",
+      "method": "PUT",
+      "path": "/v1/dev_resources",
+      "summary": "Update dev resources",
+      "pat": true,
+      "scopes": [
+        "file_dev_resources:write"
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": true
+    },
+    {
+      "id": "deleteDevResource",
+      "method": "DELETE",
+      "path": "/v1/files/{file_key}/dev_resources/{dev_resource_id}",
+      "summary": "Delete dev resource",
+      "pat": true,
+      "scopes": [
+        "file_dev_resources:write"
+      ],
+      "path_params": [
+        "file_key",
+        "dev_resource_id"
+      ],
+      "query_params": [
+
+      ],
+      "required_query_params": [
+
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getLibraryAnalyticsComponentActions",
+      "method": "GET",
+      "path": "/v1/analytics/libraries/{file_key}/component/actions",
+      "summary": "Get library analytics component action data.",
+      "pat": true,
+      "scopes": [
+        "library_analytics:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "cursor",
+        "group_by",
+        "start_date",
+        "end_date"
+      ],
+      "required_query_params": [
+        "group_by"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getLibraryAnalyticsComponentUsages",
+      "method": "GET",
+      "path": "/v1/analytics/libraries/{file_key}/component/usages",
+      "summary": "Get library analytics component usage data.",
+      "pat": true,
+      "scopes": [
+        "library_analytics:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "cursor",
+        "group_by"
+      ],
+      "required_query_params": [
+        "group_by"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getLibraryAnalyticsStyleActions",
+      "method": "GET",
+      "path": "/v1/analytics/libraries/{file_key}/style/actions",
+      "summary": "Get library analytics style action data.",
+      "pat": true,
+      "scopes": [
+        "library_analytics:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "cursor",
+        "group_by",
+        "start_date",
+        "end_date"
+      ],
+      "required_query_params": [
+        "group_by"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getLibraryAnalyticsStyleUsages",
+      "method": "GET",
+      "path": "/v1/analytics/libraries/{file_key}/style/usages",
+      "summary": "Get library analytics style usage data.",
+      "pat": true,
+      "scopes": [
+        "library_analytics:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "cursor",
+        "group_by"
+      ],
+      "required_query_params": [
+        "group_by"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getLibraryAnalyticsVariableActions",
+      "method": "GET",
+      "path": "/v1/analytics/libraries/{file_key}/variable/actions",
+      "summary": "Get library analytics variable action data.",
+      "pat": true,
+      "scopes": [
+        "library_analytics:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "cursor",
+        "group_by",
+        "start_date",
+        "end_date"
+      ],
+      "required_query_params": [
+        "group_by"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getLibraryAnalyticsVariableUsages",
+      "method": "GET",
+      "path": "/v1/analytics/libraries/{file_key}/variable/usages",
+      "summary": "Get library analytics variable usage data.",
+      "pat": true,
+      "scopes": [
+        "library_analytics:read"
+      ],
+      "path_params": [
+        "file_key"
+      ],
+      "query_params": [
+        "cursor",
+        "group_by"
+      ],
+      "required_query_params": [
+        "group_by"
+      ],
+      "body_required": false
+    },
+    {
+      "id": "getOEmbed",
+      "method": "GET",
+      "path": "/v1/oembed",
+      "summary": "Get oEmbed data",
+      "pat": true,
+      "scopes": [
+        "file_metadata:read"
+      ],
+      "path_params": [
+
+      ],
+      "query_params": [
+        "url",
+        "maxwidth",
+        "maxheight"
+      ],
+      "required_query_params": [
+        "url"
+      ],
+      "body_required": false
+    }
+  ]
+}

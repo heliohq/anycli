@@ -100,11 +100,11 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 		if err != nil {
 			return 1, err
 		}
-		exitCode, err := svc.Execute(ctx, mctx.Args, mctx.Env)
-		if exitCode != 0 && hasCredentials {
+		result, err := svc.Execute(ctx, mctx.Args, mctx.Env)
+		if result.CredentialRejected && hasCredentials {
 			e.markCredentialsStale(tool, account)
 		}
-		return exitCode, err
+		return result.ExitCode, err
 	}
 
 	// 5. Resolve the real binary path.

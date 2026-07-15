@@ -37,13 +37,10 @@ type CredentialBinding struct {
 	Inject CredentialInject `json:"inject"`
 }
 
-// CredentialSource specifies where to find the credential value within the
-// resolver-supplied Data map.
+// CredentialSource identifies one scalar value in the resolver-supplied Data
+// map. Credential acquisition and persistence belong to the host.
 type CredentialSource struct {
-	VaultTool  string `json:"vault_tool,omitempty"`  // Tool name in vault (e.g., "github")
-	VaultField string `json:"vault_field,omitempty"` // Field key in the credential Data (e.g., "access_token")
-	LocalKey   string `json:"local_key"`             // Key in local credential file (e.g., "GH_TOKEN")
-	AuthFlag   string `json:"auth_flag,omitempty"`   // CLI flag name for a future `auth --set` shell
+	Field string `json:"field"`
 }
 
 // CredentialInject specifies how to deliver the credential to the tool.

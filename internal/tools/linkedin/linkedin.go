@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -47,19 +48,19 @@ type Service struct {
 }
 
 // Execute runs one linkedin subcommand with the resolved credentials in env.
-func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (int, error) {
+func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvAccessToken]
 	if token == "" {
 		fmt.Fprintln(s.stderr(), "LINKEDIN_ACCESS_TOKEN is not set")
-		return 1, nil
+		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(token, env[EnvPersonURN])
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(s.stderr(), err)
-		return 1, nil
+		return execution.Failure(err), nil
 	}
-	return 0, nil
+	return execution.Result{}, nil
 }
 
 func (s *Service) stdout() io.Writer {
@@ -187,7 +188,11 @@ func (s *Service) call(ctx context.Context, token, method, path string, versione
 		return nil, fmt.Errorf("linkedin: read response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("linkedin API error (HTTP %d): %s", resp.StatusCode, apiMessage(body))
+		apiErr := fmt.Errorf("linkedin API error (HTTP %d): %s", resp.StatusCode, apiMessage(body))
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, execution.RejectCredential(apiErr)
+		}
+		return nil, apiErr
 	}
 	return body, nil
 }

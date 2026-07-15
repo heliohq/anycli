@@ -18,7 +18,7 @@ import (
 type InjectionResult struct {
 	Env     map[string]string // Environment variables to set
 	Args    []string          // Arguments to append
-	Cleanup func()            // Cleanup function for temp files (vault mode file inject)
+	Cleanup func()            // Cleanup function for ephemeral file injection
 }
 
 // fileBindingEntry holds a file binding together with its resolved value and original index.

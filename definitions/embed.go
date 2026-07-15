@@ -1,13 +1,16 @@
 // Package definitions holds the tool definitions AnyCLI ships, embedded at
 // build time. These definitions are internal to AnyCLI — the embedder never
 // supplies them. The design 003 toolset ships under tools/<name>.json:
-// slack / notion / google / discord / linkedin / x (service) and github (cli).
+// slack / notion / google / discord / linkedin / x / figma (service) and
+// github (cli).
 package definitions
 
 import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/heliohq/anycli/internal/registry"
 )
@@ -31,4 +34,35 @@ func LoadBundled(name string) (*registry.Definition, error) {
 		return nil, fmt.Errorf("invalid bundled definition for %q: %w", name, err)
 	}
 	return &def, nil
+}
+
+// ListBundled loads every embedded JSON definition in deterministic name
+// order. Non-JSON files (such as tools/README.md) are ignored.
+func ListBundled() ([]*registry.Definition, error) {
+	entries, err := fs.ReadDir("tools")
+	if err != nil {
+		return nil, fmt.Errorf("read bundled definitions: %w", err)
+	}
+
+	bundled := make([]*registry.Definition, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+
+		name := strings.TrimSuffix(entry.Name(), ".json")
+		definition, err := LoadBundled(name)
+		if err != nil {
+			return nil, err
+		}
+		if definition.Name != name {
+			return nil, fmt.Errorf("bundled definition %q declares name %q", entry.Name(), definition.Name)
+		}
+		bundled = append(bundled, definition)
+	}
+
+	sort.Slice(bundled, func(i, j int) bool {
+		return bundled[i].Name < bundled[j].Name
+	})
+	return bundled, nil
 }

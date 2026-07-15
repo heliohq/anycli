@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 type capturedRequest struct {
@@ -40,6 +42,11 @@ func newTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 }
 
 func run(t *testing.T, server *httptest.Server, env map[string]string, args ...string) (int, string, string) {
+	result, stdout, stderr := runResult(t, server, env, args...)
+	return result.ExitCode, stdout, stderr
+}
+
+func runResult(t *testing.T, server *httptest.Server, env map[string]string, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
 	svc := &Service{
@@ -48,11 +55,11 @@ func run(t *testing.T, server *httptest.Server, env map[string]string, args ...s
 		Out:     &stdout,
 		Err:     &stderr,
 	}
-	code, err := svc.Execute(context.Background(), args, env)
+	result, err := svc.Execute(context.Background(), args, env)
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)
 	}
-	return code, stdout.String(), stderr.String()
+	return result, stdout.String(), stderr.String()
 }
 
 func fullEnv() map[string]string {

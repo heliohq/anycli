@@ -40,7 +40,7 @@ func bindings(fields ...string) []registry.CredentialBinding {
 	var bs []registry.CredentialBinding
 	for _, f := range fields {
 		bs = append(bs, registry.CredentialBinding{
-			Source: registry.CredentialSource{VaultTool: "tool", VaultField: f},
+			Source: registry.CredentialSource{Field: f},
 			Inject: registry.CredentialInject{Type: "env", EnvVar: f},
 		})
 	}
@@ -55,7 +55,7 @@ func TestResolveBindings_NilResolver(t *testing.T) {
 }
 
 func TestResolveBindings_NilCache(t *testing.T) {
-	r := &stubResolver{cred: &Credential{Data: map[string]any{"access_token": "x"}}}
+	r := &stubResolver{cred: &Credential{Data: map[string]string{"access_token": "x"}}}
 	_, err := ResolveBindings(context.Background(), nil, "gh", "", bindings("access_token"), r)
 	if err == nil {
 		t.Fatal("expected error for nil cache")
@@ -79,7 +79,7 @@ func TestResolveBindings_EmptyBindings(t *testing.T) {
 func TestResolveBindings_ResolvesAndExtractsFields(t *testing.T) {
 	cache := NewMemoryCache()
 	r := &stubResolver{cred: &Credential{
-		Data: map[string]any{
+		Data: map[string]string{
 			"access_token":  "ghp_abc",
 			"refresh_token": "ghr_secret",
 		},
@@ -116,7 +116,7 @@ func TestResolveBindings_UsesFreshCache(t *testing.T) {
 		Fields:     map[string]string{"access_token": "cached_tok"},
 	})
 
-	r := &stubResolver{cred: &Credential{Data: map[string]any{"access_token": "fresh_tok"}}}
+	r := &stubResolver{cred: &Credential{Data: map[string]string{"access_token": "fresh_tok"}}}
 	values, err := ResolveBindings(context.Background(), cache, "gh", "", bindings("access_token"), r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -139,7 +139,7 @@ func TestResolveBindings_ReResolvesWhenCacheMissingField(t *testing.T) {
 	})
 
 	r := &stubResolver{cred: &Credential{
-		Data: map[string]any{
+		Data: map[string]string{
 			"access_key_id":     "AKIA-fresh",
 			"secret_access_key": "secret-fresh",
 		},
@@ -168,7 +168,7 @@ func TestResolveBindings_ReResolvesWhenStale(t *testing.T) {
 	})
 
 	r := &stubResolver{cred: &Credential{
-		Data:       map[string]any{"access_token": "fresh_tok"},
+		Data:       map[string]string{"access_token": "fresh_tok"},
 		CacheUntil: time.Now().Add(10 * time.Minute),
 	}}
 	values, err := ResolveBindings(context.Background(), cache, "gh", "", bindings("access_token"), r)
@@ -205,7 +205,7 @@ func TestResolveBindings_ResolverError(t *testing.T) {
 func TestResolveBindings_ZeroCacheUntilNotReused(t *testing.T) {
 	cache := NewMemoryCache()
 	r := &stubResolver{cred: &Credential{
-		Data: map[string]any{"access_token": "tok"},
+		Data: map[string]string{"access_token": "tok"},
 		// CacheUntil zero => ephemeral, not reused on next call.
 	}}
 
@@ -218,29 +218,6 @@ func TestResolveBindings_ZeroCacheUntilNotReused(t *testing.T) {
 	}
 	if r.calls != 2 {
 		t.Errorf("resolver called %d times, want 2 (zero CacheUntil must not be reused)", r.calls)
-	}
-}
-
-func TestExtractStringFields_ScalarsOnly(t *testing.T) {
-	out := extractStringFields(map[string]any{
-		"s": "str",
-		"f": float64(42),
-		"b": true,
-		"o": map[string]any{"nested": "x"},
-		"a": []any{"y"},
-		"n": nil,
-	})
-	if out["s"] != "str" || out["f"] != "42" || out["b"] != "true" {
-		t.Errorf("scalar extraction wrong: %v", out)
-	}
-	if _, ok := out["o"]; ok {
-		t.Error("nested object must not be extracted")
-	}
-	if _, ok := out["a"]; ok {
-		t.Error("array must not be extracted")
-	}
-	if _, ok := out["n"]; ok {
-		t.Error("nil must not be extracted")
 	}
 }
 
@@ -279,8 +256,8 @@ func TestCacheKey_CollisionFree(t *testing.T) {
 func TestResolveBindings_DistinctAccountsDoNotShareCache(t *testing.T) {
 	cache := NewMemoryCache()
 	r := &accountResolver{byAccount: map[string]*Credential{
-		"a1": {Data: map[string]any{"access_token": "tok-a1"}, CacheUntil: time.Now().Add(time.Hour)},
-		"a2": {Data: map[string]any{"access_token": "tok-a2"}, CacheUntil: time.Now().Add(time.Hour)},
+		"a1": {Data: map[string]string{"access_token": "tok-a1"}, CacheUntil: time.Now().Add(time.Hour)},
+		"a2": {Data: map[string]string{"access_token": "tok-a2"}, CacheUntil: time.Now().Add(time.Hour)},
 	}}
 
 	v1, err := ResolveBindings(context.Background(), cache, "slack", "a1", bindings("access_token"), r)
@@ -321,7 +298,7 @@ func TestResolveBindings_ExpiredAccountEntryReResolves(t *testing.T) {
 		Fields:     map[string]string{"access_token": "expired-tok"},
 	})
 	r := &accountResolver{byAccount: map[string]*Credential{
-		"a1": {Data: map[string]any{"access_token": "fresh-tok"}, CacheUntil: time.Now().Add(time.Hour)},
+		"a1": {Data: map[string]string{"access_token": "fresh-tok"}, CacheUntil: time.Now().Add(time.Hour)},
 	}}
 
 	values, err := ResolveBindings(context.Background(), cache, "slack", "a1", bindings("access_token"), r)

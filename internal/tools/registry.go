@@ -4,7 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
+
+// ExecutionResult is the outcome of one built-in service invocation.
+type ExecutionResult = execution.Result
 
 // Service is the interface for built-in API client services.
 // Each service is a Go package that implements this interface with its own
@@ -12,14 +17,14 @@ import (
 type Service interface {
 	// Execute runs the service with the given arguments and credentials.
 	// The env map contains resolved credentials (e.g., {"NOTION_TOKEN": "xxx"}).
-	Execute(ctx context.Context, args []string, env map[string]string) (int, error)
+	Execute(ctx context.Context, args []string, env map[string]string) (ExecutionResult, error)
 }
 
 // CredentialPatcher handles non-standard credential file formats.
 type CredentialPatcher interface {
 	// Patch writes credential values to the tool's config file and returns
 	// a cleanup function. The cleanup function is called after execution
-	// (in vault mode) to remove any credential data written by Patch.
+	// to remove any ephemeral credential data written by Patch.
 	// Each call to Patch returns its own independent cleanup handle,
 	// so concurrent invocations do not share state.
 	Patch(path string, fields map[string]string, mode os.FileMode) (cleanup func() error, err error)

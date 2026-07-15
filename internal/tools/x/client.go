@@ -130,5 +130,6 @@ func newAPIError(status int, body []byte, token string) error {
 	case http.StatusTooManyRequests:
 		hint = "; rate limit exceeded — retry after the provider reset window"
 	}
-	return fmt.Errorf("x API error (HTTP %d %s): %s%s", status, http.StatusText(status), raw, hint)
+	apiErr := fmt.Errorf("x API error (HTTP %d %s): %s%s", status, http.StatusText(status), raw, hint)
+	return classifyXCredentialError(status, body, apiErr)
 }

@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -45,19 +46,19 @@ type Service struct {
 }
 
 // Execute runs one notion subcommand with the resolved credentials in env.
-func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (int, error) {
+func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvToken]
 	if token == "" {
 		fmt.Fprintln(s.stderr(), "NOTION_TOKEN is not set")
-		return 1, nil
+		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(token)
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(s.stderr(), err)
-		return 1, nil
+		return execution.Failure(err), nil
 	}
-	return 0, nil
+	return execution.Result{}, nil
 }
 
 func (s *Service) stdout() io.Writer {
@@ -349,7 +350,8 @@ func (s *Service) callWithVersion(ctx context.Context, token, method, path strin
 		return nil, fmt.Errorf("notion: read response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("notion API error (HTTP %d): %s%s", resp.StatusCode, apiMessage(body), accessHint(resp.StatusCode))
+		apiErr := fmt.Errorf("notion API error (HTTP %d): %s%s", resp.StatusCode, apiMessage(body), accessHint(resp.StatusCode))
+		return nil, classifyNotionCredentialError(resp.StatusCode, body, apiErr)
 	}
 	return body, nil
 }

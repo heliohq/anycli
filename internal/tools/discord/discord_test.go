@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // capturedRequest records what the fake Discord server saw.
@@ -36,28 +38,59 @@ func newServer(t *testing.T, status int, response string, got *capturedRequest) 
 }
 
 func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdout, stderr string) {
+	result, stdout, stderr := runResult(t, srv, args...)
+	return result.ExitCode, stdout, stderr
+}
+
+func runResult(t *testing.T, srv *httptest.Server, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
 	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
-	code, err := svc.Execute(context.Background(), args, map[string]string{EnvBotToken: "bot-token-123"})
+	result, err := svc.Execute(context.Background(), args, map[string]string{EnvBotToken: "bot-token-123"})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)
 	}
-	return code, out.String(), errBuf.String()
+	return result, out.String(), errBuf.String()
 }
 
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
 	svc := &Service{Err: &errBuf}
-	code, err := svc.Execute(context.Background(), []string{"channels", "list", "--guild", "g1"}, map[string]string{})
+	result, err := svc.Execute(context.Background(), []string{"channels", "list", "--guild", "g1"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if code != 1 {
-		t.Errorf("exit code = %d, want 1", code)
+	if result.ExitCode != 1 {
+		t.Errorf("exit code = %d, want 1", result.ExitCode)
 	}
 	if !strings.Contains(errBuf.String(), "DISCORD_BOT_TOKEN is not set") {
 		t.Errorf("stderr = %q, want the missing-token message", errBuf.String())
+	}
+}
+
+func TestCredentialRejectionClassification(t *testing.T) {
+	cases := []struct {
+		name         string
+		status       int
+		wantRejected bool
+	}{
+		{name: "unauthorized", status: http.StatusUnauthorized, wantRejected: true},
+		{name: "missing access", status: http.StatusForbidden, wantRejected: false},
+		{name: "rate limited", status: http.StatusTooManyRequests, wantRejected: false},
+		{name: "server failure", status: http.StatusInternalServerError, wantRejected: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got capturedRequest
+			srv := newServer(t, tc.status, `{"message":"provider message","code":0}`, &got)
+			defer srv.Close()
+
+			result, _, _ := runResult(t, srv, "channels", "list", "--guild", "g1")
+			if result.CredentialRejected != tc.wantRejected {
+				t.Errorf("CredentialRejected = %t, want %t", result.CredentialRejected, tc.wantRejected)
+			}
+		})
 	}
 }
 

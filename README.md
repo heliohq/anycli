@@ -48,12 +48,13 @@ The resolver is the **only** thing that crosses the boundary into AnyCLI. It ret
 
 ```go
 type CredentialResolver interface {
-    // Resolve returns the credential fields for one tool, plus when they go stale.
-    Resolve(ctx context.Context, tool Tool) (*Credential, error)
+    // Resolve returns the credential fields for one tool/account pair, plus
+    // when they go stale. An empty account selects the host's default.
+    Resolve(ctx context.Context, tool Tool, account string) (*Credential, error)
 }
 
 type Credential struct {
-    Data       map[string]any // credential fields; bindings index into it by field name
+    Data       map[string]string // credential fields; bindings index into it by field name
     CacheUntil time.Time      // when this credential goes stale (drives the cache)
 }
 ```
@@ -62,20 +63,43 @@ type Credential struct {
 
 ```go
 type Cache interface {
-    Get(tool string) (*CacheEntry, bool)
-    Set(tool string, entry *CacheEntry)
-    MarkStale(tool string)
+    Get(key string) (*CacheEntry, bool)
+    Set(key string, entry *CacheEntry)
+    MarkStale(key string)
 }
 ```
 
-`CacheEntry` stores only the extracted credential fields plus `CacheUntil`/`Stale`. Supply your own (e.g. an in-memory map keyed per assistant) or pass `nil` to use the built-in in-memory cache.
+`CacheEntry` stores only the extracted credential fields plus `CacheUntil`/`Stale`. The engine derives a collision-free key from `(tool, account)`. Supply your own cache or pass `nil` to use the built-in in-memory implementation.
+
+### Tool discovery
+
+`ListTools` returns credential-safe manifests for every embedded tool in deterministic name order. Discovery also validates that service definitions have registered implementations and CLI definitions declare a binary.
+
+```go
+tools, err := anycli.ListTools()
+```
 
 ### Tools
 
 `Tool` is `type Tool string`; pass a raw `anycli.Tool("…")` whose name matches
 an embedded definition. The built-in service tools are `slack`, `notion`,
-`google`, `discord`, `linkedin`, and `x`; `github` wraps the `gh` binary. An
-unknown tool is an error from `Execute`, not a compile error.
+`google`, `discord`, `linkedin`, `x`, and `figma`; `github` wraps the `gh`
+binary. An unknown tool is an error from `Execute`, not a compile error.
+
+The Figma service uses personal access tokens and exposes every PAT-compatible
+operation in the pinned official OpenAPI catalog: 47 operations across files,
+projects, comments/reactions, libraries, variables, Dev Mode resources,
+webhooks, library analytics, payments, and oEmbed. Every operation has a named
+command and is also callable by operation ID through `figma api call`.
+
+Agent-oriented commands accept Figma URLs directly: `figma context metadata`,
+`context design`, `context figjam`, `context screenshot`, and `context
+variables`. `figma assets download` and `download-fills` materialize signed
+render/image-fill URLs without forwarding the PAT to the asset host. Run
+`figma capabilities` for the machine-readable boundary: PAT REST has no general
+native-canvas create/edit/delete API, so hosted-MCP operations such as
+`use_figma`, new-file/design generation, uploads, shaders, and native Code
+Connect mappings require Figma's hosted MCP or a Figma plugin bridge.
 
 The `x` service supports OAuth 2.0 user-context identity and user lookup,
 recent post search, timelines, post/reply/thread/repost management, simple
@@ -89,8 +113,11 @@ part of this surface.
 - [Why AnyCLI](WHY_ANY_CLI.md) — CLI vs MCP for agents
 - [Credential Lifecycle](docs/credential-lifecycle.md) — how credentials are resolved, cached, and injected at runtime
 - [Tool Definition Schema](docs/definition-schema.md) — field reference for the embedded tool definitions
-- [Design 001: Vault Credential Integration](docs/design/001-vault-credential-integration.md) — credential schema and injection modes
+- [Design 001: Vault Credential Integration](docs/design/001-vault-credential-integration.md) — superseded historical vault/local design
 - [Design 002: Embeddable Core + Credential Resolver](docs/design/002-embeddable-core-and-credential-resolver.md) — the library architecture
+- [Design 003: Multi-account + Helio toolset](docs/design/003-multi-account-and-helio-toolset.md) — account-aware execution and built-in services
+- [Design 005: Tool Manifest Discovery](docs/design/005-tool-manifest-discovery.md) — deterministic discovery and definition/executor validation
+- [Design 006: Figma REST Service](docs/design/006-figma-rest-service.md) — PAT-authenticated Figma command surface
 
 ## License
 

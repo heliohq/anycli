@@ -1,8 +1,8 @@
 # AnyCLI as an Embeddable Core + Pluggable Credential Resolver
 
 **Date:** 2026-06-08
-**Status:** Draft
-**Scope:** Reposition AnyCLI as an embeddable Go library; introduce a pluggable `CredentialResolver`; remove the standalone CLI implementation. The credential **schema** and **injection modes** from 001 are kept; the standalone-CLI assumptions in 001 are superseded.
+**Status:** Accepted
+**Scope:** Reposition AnyCLI as an embeddable Go library; introduce a pluggable `CredentialResolver`; remove the standalone CLI implementation. The injection modes from 001 are kept, while its vault-specific credential-source schema and standalone-CLI assumptions are superseded.
 
 ## 1. Background
 
@@ -14,7 +14,7 @@ The genuinely useful part — load a tool definition, resolve credentials, injec
 
 ### Problem
 
-Helio's `heliox` needs to drive that exec core **in-process** (embedded, not as a subprocess), and to resolve credentials **itself** — per-assistant, from its own sources (stored OAuth in vault, or backend-minted short-lived tokens) — not from AnyCLI's built-in vault/local resolvers. (Consumer design: Helio `docs/design/215` — AI Teammate OAuth integration.)
+Helio's `heliox` needs to drive that exec core **in-process** (embedded, not as a subprocess), and to resolve credentials **itself** — per-assistant, from its own sources (stored OAuth in vault, or backend-minted short-lived tokens) — not from AnyCLI's built-in vault/local resolvers. (Consumer design: Helio `docs/design/227-ai-teammate-oauth-integration`.)
 
 The standalone-CLI machinery (cobra, shim, installer, the built-in default resolvers) is the wrong layer for embedding and is dead weight for that use.
 
@@ -26,14 +26,14 @@ The standalone-CLI machinery (cobra, shim, installer, the built-in default resol
 4. **Remove** the standalone CLI implementation. A standalone CLI, if needed later, is a thin cobra shell over the same core.
 5. Clean break — AnyCLI has not shipped; no backward compatibility.
 
-Non-goals: re-adding a CLI now; consumer-supplied tool definitions / host-injected registries; changing the 001 credential schema.
+Non-goals: re-adding a CLI now; consumer-supplied tool definitions / host-injected registries.
 
 ## 2. Positioning
 
 **AnyCLI is an embeddable core library** for "run an underlying CLI/API tool with injected credentials + middleware." It is the engine **plus the embedded definitions for the tools it supports** — not a generic blank engine, and not a standalone binary.
 
-- The product is: the exec engine (`New` + `Engine.Execute`), the `CredentialResolver` seam, the consumer-supplied `Cache` seam, and the declarative tool-definition schema (from 001) with its **internal embedded** definition set.
-- The **host** (e.g. `heliox`) embeds AnyCLI via Go module `replace github.com/shipbase/anycli => …`, constructs an engine with `New(Config{Cache})`, provides a `CredentialResolver`, and calls `Engine.Execute`. The host supplies **only** a resolver and (optionally) a cache — never tool definitions.
+- The product is: the exec engine (`New` + `Engine.Execute`), the `CredentialResolver` seam, the consumer-supplied `Cache` seam, and the declarative tool-definition schema with its **internal embedded** definition set.
+- The **host** (e.g. `heliox`) embeds `github.com/heliohq/anycli`, constructs an engine with `New(Config{Cache})`, provides a `CredentialResolver`, and calls `Engine.Execute`. The host supplies **only** a resolver and (optionally) a cache — never tool definitions.
 - If a standalone CLI is ever wanted again, it is a **thin cobra shell**: it supplies a resolver (e.g. the old HTTP-vault one) and calls `Engine.Execute`. The core stays the single source of truth; the shell adds no logic.
 
 ```
@@ -50,12 +50,9 @@ Non-goals: re-adding a CLI now; consumer-supplied tool definitions / host-inject
 ## 3. Core API
 
 ```go
-// Tool identifies a tool by its definition name. It is a NAMED TYPE (not a bare
-// string) for type-safety + discoverability. AnyCLI ships NO tool-name constants
-// yet — the supported-tool definitions are added internally to AnyCLI in a later
-// round. Validity is checked at runtime against the embedded definition set, so
-// callers pass a raw Tool("…") whose name matches an embedded definition; an
-// unknown tool is an error from Execute, not a compile error.
+// Tool identifies a tool by its definition name. It is a named type for
+// type-safety and discoverability. ListTools reports the embedded definition
+// set; an unknown name is an Execute error, not a compile error.
 type Tool string
 
 // Config carries the consumer-supplied initialization. It carries ONLY a Cache —
@@ -79,7 +76,7 @@ func (e *Engine) Execute(ctx context.Context, tool Tool, args []string, resolver
 // Cache is the credential cache, consumer-supplied so a host can use a
 // per-process / per-assistant in-memory store instead of any on-disk cache. The
 // engine interprets freshness (CacheUntil / Stale via CacheEntry.IsValid); the
-// implementation only stores and retrieves, keyed by tool name.
+// implementation only stores and retrieves, keyed by (tool, account).
 type Cache interface {
     Get(tool string) (*CacheEntry, bool)
     Set(tool string, entry *CacheEntry)
@@ -91,15 +88,16 @@ func NewMemoryCache() Cache
 
 // The ONLY thing that crosses the resolver boundary: in-memory data.
 type CredentialResolver interface {
-    // Resolve returns the credential fields for one tool, plus when they go stale.
-    Resolve(ctx context.Context, tool Tool) (*Credential, error)
+    // Resolve returns the credential fields for one tool/account pair, plus
+    // when they go stale. An empty account selects the host's default.
+    Resolve(ctx context.Context, tool Tool, account string) (*Credential, error)
 }
 
 type Credential struct {
     // Data holds the tool's credential fields. Bindings index into it by the
-    // definition's VaultField (e.g. Data["access_token"]). Its shape is the
-    // resolver's choice.
-    Data map[string]any
+    // definition's source field (e.g. Data["access_token"]). Credential
+    // bindings are string-valued by contract.
+    Data map[string]string
     // CacheUntil is when this credential goes stale. The resolver is the only party
     // that knows it (a stored token's expiry, a minted token's TTL, …). AnyCLI uses
     // it to manage its cache; AnyCLI does not decide it.
@@ -110,11 +108,11 @@ type Credential struct {
 ### Responsibility split
 
 - **Resolver (host's job):** return in-memory `Data` + `CacheUntil`. Where the data comes from (vault, on-demand mint, anything) and how it is obtained is entirely the host's business. **The resolver never learns how the data is injected.**
-- **Cache (host's job, optional):** store and retrieve `CacheEntry` per tool. The host chooses the storage (per-process, per-assistant, shared); the engine decides freshness. A nil `Config.Cache` installs the in-memory default.
+- **Cache (host's job, optional):** store and retrieve `CacheEntry` per `(tool, account)`. The host chooses the storage (per-process, per-assistant, shared); the engine decides freshness. A nil `Config.Cache` installs the in-memory default.
 - **AnyCLI core (internal, not exposed):**
   - **Resolve tool definitions** from the **internal embedded** set (never from `Config`).
   - **Inject** per the tool definition's `Inject` spec — env var / CLI arg / file. The injection method is AnyCLI's internal consumption logic and is not visible to the resolver.
-  - **Cache** by `CacheUntil`: serve cached until then; re-call `Resolve` when expired; `mark-stale` + re-resolve on exec failure — all through the supplied `Cache`.
+  - **Cache** by `CacheUntil`: serve cached until then; re-call `Resolve` when expired; mark stale after explicit service credential rejection or a failed external CLI execution — all through the supplied `Cache`.
   - **Lifecycle:** file-type injection writes an **ephemeral temp file** and redirects the underlying tool to it (`config_env` / `config_flag`), then cleans up. Resolver-supplied credentials are never written into a persistent user config.
   - **Middleware** (before/after rules) and **exec** of the underlying binary or built-in service.
 
@@ -124,8 +122,8 @@ This is the line that was previously blurred by the `isVaultMode` flag: "where c
 
 ### Kept — the core
 
-- `internal/registry` — declarative tool-definition schema (`Definition` / `CredentialBinding` / `CredentialSource` / `CredentialInject`, from 001).
-- `definitions/` — the **internal embedded-definitions mechanism**: a `go:embed` of the `tools/` directory plus the `LoadBundled(name)` loader. **Kept and compiling with zero bundled definitions** (the directory holds only a README placeholder); the real Helio tool definitions are added here internally in a later round. This mechanism is never consumer-supplied.
+- `internal/registry` — provider-neutral declarative tool-definition schema (`Definition` / `CredentialBinding` / `CredentialSource` / `CredentialInject`).
+- `definitions/` — the **internal embedded-definitions mechanism**: a `go:embed` of the `tools/` directory plus the `LoadBundled(name)` and `ListBundled()` loaders. This mechanism is never consumer-supplied.
 - `internal/credential` — injection (env/arg/file) + format patchers + the cache + mark-stale; **plus** the `CredentialResolver` interface, the `Credential` type, and the consumer-supplied `Cache` interface with an in-memory default (`NewMemoryCache`).
 - `internal/middleware` — the before/after rule engine.
 - `internal/exec` — refactored into the `Engine` type (`NewEngine(cache)` + `Engine.Execute`), exposed publicly via `New(Config)` + `Engine.Execute`.
@@ -140,33 +138,32 @@ This is the line that was previously blurred by the `isVaultMode` flag: "where c
 - The **hardcoded on-disk file cache** (`~/.anycli/cache/<tool>.json`, `ReadCache` / `WriteCache` / `MarkStale` over the filesystem, and `config.CacheDir`). It was a CLI artifact. The `cache_until`-driven semantics are kept behind the `Cache` interface; the engine installs an in-memory default and the host may supply its own.
 - The **bundled example tool definitions** (`definitions/gh.json`, `definitions/wrangler.json`) and their `Tool` constants (`ToolGitHub` / `ToolWrangler`). The embedded-definitions mechanism itself is kept (see above); only the example payloads are removed.
 
-## 5. The `effective?tool=` HTTP contract
+## 5. Host credential gateway
 
-001 defined a vault HTTP contract (`GET /vault/credentials/effective?workspace_id=&tool=` → `{credentials: [{data, cache_until, status, …}]}`). With this design that **HTTP client leaves the core** (it was the standalone resolver). The contract does not disappear — it becomes the shape a **vault-backed resolver produces**:
+001 defined a vault HTTP contract inside AnyCLI. With this design that **HTTP client leaves the core**: a host-specific resolver owns whatever network or storage contract produces `Credential{Data, CacheUntil}`.
 
-- Helio's `heliox` resolver fetches/mints and returns `Credential{Data, CacheUntil}`; Helio's vault/broker serves the `effective?tool=` shape on its side (Helio `docs/design/215`).
+- Helio's `heliox` resolver calls integration-service's `/connections/token` gateway and returns its provider-neutral string credential projection as `Credential{Data, CacheUntil}` (Helio design 227).
 - A future standalone CLI shell can re-introduce the HTTP client as its resolver.
 
 The core only ever knows `Credential{Data, CacheUntil}`.
 
 ## 6. Tool definitions
 
-Tool definitions are **internal to AnyCLI**. They stay declarative JSON (001 schema) and are **embedded** in the binary under `definitions/tools/` via `go:embed`, loaded by `LoadBundled`. They are **not** consumer-supplied: the embedder provides only a `CredentialResolver` and an optional `Cache` — never tool definitions, and there is **no** consumer-supplied registry seam (no `Config.Registry`, no host-injected definition set).
+Tool definitions are **internal to AnyCLI**. They stay declarative JSON and are **embedded** in the binary under `definitions/tools/` via `go:embed`, loaded by `LoadBundled`. They are **not** consumer-supplied: the embedder provides only a `CredentialResolver` and an optional `Cache` — never tool definitions, and there is **no** consumer-supplied registry seam (no `Config.Registry`, no host-injected definition set).
 
-AnyCLI is "the engine + the definitions for the tools it supports," not a generic blank engine. The supported-tool definitions are added **internally** to AnyCLI in a later round; none ship yet, and the embedded mechanism compiles with zero definitions. The earlier `gh` / `wrangler` example definitions have been removed.
+AnyCLI is "the engine + the definitions for the tools it supports," not a generic blank engine. Supported definitions are added internally under `definitions/tools/`; the host cannot add or replace them at runtime.
 
 ## 7. Clean break
 
-AnyCLI has not shipped. The removed packages are deleted outright — no deprecation, no compatibility shims. The 001 credential schema (bindings / injection modes / file formats) is unchanged.
+AnyCLI had not shipped when this clean break landed. The removed packages were deleted outright — no deprecation or compatibility shims. Credential bindings and injection modes remain, while the source selector is reduced to the provider-neutral resolver `field`; standalone-only `vault_tool`, `local_key`, and `auth_flag` fields are gone.
 
 ## 8. Open / future
 
-- Adding the real Helio tool definitions internally under `definitions/tools/` (a later round; not in this design).
 - A standalone CLI shell — a thin cobra wrapper over `Engine.Execute`, supplying the HTTP-vault resolver — if/when a non-embedded use appears.
-- Service-type tools' own auth flows.
+- Additional host-supplied resolver implementations; OAuth and PAT collection remain outside AnyCLI.
 
 ## References
 
-- `docs/design/001-vault-credential-integration.md` — credential schema + three injection modes (kept).
+- `docs/design/001-vault-credential-integration.md` — superseded vault/local architecture; retained as historical context for the three injection modes.
 - `docs/credential-lifecycle.md`, `docs/definition-schema.md`.
-- Helio `docs/design/215` — AI Teammate OAuth integration (the consumer; defines the host-side `CredentialResolver` implementation and the `effective?tool=` server side).
+- Helio `docs/design/227-ai-teammate-oauth-integration` — consumer-side connection and token-gateway architecture.

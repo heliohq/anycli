@@ -51,10 +51,9 @@ func ResolveBindings(ctx context.Context, cache Cache, tool, account string, bin
 	}
 
 	// 3. Extract only the required fields from the resolver's Data.
-	allFields := extractStringFields(cred.Data)
 	fields := make(map[string]string, len(required))
 	for f := range required {
-		if v, ok := allFields[f]; ok {
+		if v, ok := cred.Data[f]; ok {
 			fields[f] = v
 		}
 	}
@@ -76,12 +75,12 @@ func ResolveBindings(ctx context.Context, cache Cache, tool, account string, bin
 	return valuesForBindings(bindings, fields), nil
 }
 
-// requiredFields returns the set of vault_field values the bindings index into.
+// requiredFields returns the set of resolver fields the bindings index into.
 func requiredFields(bindings []registry.CredentialBinding) map[string]struct{} {
 	required := make(map[string]struct{})
 	for _, b := range bindings {
-		if b.Source.VaultField != "" {
-			required[b.Source.VaultField] = struct{}{}
+		if b.Source.Field != "" {
+			required[b.Source.Field] = struct{}{}
 		}
 	}
 	return required
@@ -102,27 +101,9 @@ func hasAllFields(fields map[string]string, required map[string]struct{}) bool {
 func valuesForBindings(bindings []registry.CredentialBinding, fields map[string]string) []string {
 	values := make([]string, len(bindings))
 	for i, b := range bindings {
-		if b.Source.VaultField != "" {
-			values[i] = fields[b.Source.VaultField]
+		if b.Source.Field != "" {
+			values[i] = fields[b.Source.Field]
 		}
 	}
 	return values
-}
-
-// extractStringFields converts the resolver's Data map to a flat string map,
-// keeping only scalar values. Complex types (nested objects, arrays, nil) are
-// skipped because bindings index into scalar credential fields.
-func extractStringFields(data map[string]any) map[string]string {
-	fields := make(map[string]string, len(data))
-	for k, v := range data {
-		switch val := v.(type) {
-		case string:
-			fields[k] = val
-		case float64:
-			fields[k] = fmt.Sprintf("%v", val)
-		case bool:
-			fields[k] = fmt.Sprintf("%v", val)
-		}
-	}
-	return fields
 }

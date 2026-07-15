@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -53,19 +54,19 @@ type Service struct {
 }
 
 // Execute runs one google subcommand with the resolved credentials in env.
-func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (int, error) {
+func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvAccessToken]
 	if token == "" {
 		fmt.Fprintln(s.stderr(), "GOOGLE_ACCESS_TOKEN is not set")
-		return 1, nil
+		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(token)
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(s.stderr(), err)
-		return 1, nil
+		return execution.Failure(err), nil
 	}
-	return 0, nil
+	return execution.Result{}, nil
 }
 
 func (s *Service) stdout() io.Writer {
@@ -317,7 +318,8 @@ func (s *Service) call(ctx context.Context, token, method, endpoint string, quer
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 			hint = scopeHint
 		}
-		return nil, fmt.Errorf("google API error (HTTP %d): %s%s", resp.StatusCode, apiMessage(body), hint)
+		apiErr := fmt.Errorf("google API error (HTTP %d): %s%s", resp.StatusCode, apiMessage(body), hint)
+		return nil, classifyGoogleCredentialError(resp.StatusCode, body, apiErr)
 	}
 	return body, nil
 }
