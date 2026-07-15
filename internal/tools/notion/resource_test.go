@@ -165,7 +165,7 @@ func TestViewCreate_Happy(t *testing.T) {
 	srv := newServer(t, http.StatusOK, `{"object":"view","id":"v1"}`, &got)
 	defer srv.Close()
 
-	code, _, _ := run(t, srv, "view", "create", "--database-id", "db1", "--type", "table")
+	code, _, _ := run(t, srv, "view", "create", "--database-id", "db1", "--data-source-id", "ds1", "--name", "Recent", "--type", "table")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
@@ -174,8 +174,28 @@ func TestViewCreate_Happy(t *testing.T) {
 	}
 	assertAuth(t, got, markdownVersion)
 	body := bodyMap(t, got.Body)
-	if body["type"] != "table" || body["database_id"] != "db1" {
-		t.Errorf("body = %v, want type=table database_id=db1", body)
+	// POST /v1/views requires database_id + data_source_id + name + type.
+	if body["type"] != "table" || body["database_id"] != "db1" || body["data_source_id"] != "ds1" || body["name"] != "Recent" {
+		t.Errorf("body = %v, want type=table database_id=db1 data_source_id=ds1 name=Recent", body)
+	}
+}
+
+// TestViewCreate_RequiresDataSource: the --database-id path must supply
+// --data-source-id (POST /v1/views rejects a missing data_source_id).
+func TestViewCreate_RequiresDataSource(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{}`, &got)
+	defer srv.Close()
+
+	code, _, stderr := run(t, srv, "view", "create", "--database-id", "db1", "--name", "X", "--type", "table")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2 for missing --data-source-id", code)
+	}
+	if !strings.Contains(stderr, "data-source-id") {
+		t.Errorf("stderr = %q, want the missing data-source-id error", stderr)
+	}
+	if got.Path != "" {
+		t.Errorf("no request must be sent, got %s", got.Path)
 	}
 }
 
@@ -184,8 +204,8 @@ func TestViewCreate_ParentExclusivity(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"none", []string{"view", "create", "--type", "table"}},
-		{"two", []string{"view", "create", "--database-id", "db1", "--view-id", "v9", "--type", "table"}},
+		{"none", []string{"view", "create", "--name", "X", "--type", "table"}},
+		{"two", []string{"view", "create", "--database-id", "db1", "--view-id", "v9", "--data-source-id", "ds1", "--name", "X", "--type", "table"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -211,7 +231,7 @@ func TestViewCreate_BadType(t *testing.T) {
 	srv := newServer(t, http.StatusOK, `{}`, &got)
 	defer srv.Close()
 
-	code, _, stderr := run(t, srv, "view", "create", "--database-id", "db1", "--type", "kanban")
+	code, _, stderr := run(t, srv, "view", "create", "--database-id", "db1", "--data-source-id", "ds1", "--name", "X", "--type", "kanban")
 	if code != 2 {
 		t.Fatalf("exit code = %d, want 2 for a bad view type", code)
 	}
@@ -404,21 +424,6 @@ func TestUserGet_SelfAndQuery_Usage(t *testing.T) {
 	if got.Path != "" {
 		t.Errorf("no request must be sent, got %s", got.Path)
 	}
-}
-
-func TestTeamList_Happy(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"object":"list","results":[]}`, &got)
-	defer srv.Close()
-
-	code, _, _ := run(t, srv, "team", "list")
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0", code)
-	}
-	if got.Method != http.MethodGet || got.Path != "/teams" {
-		t.Errorf("request = %s %s, want GET /teams", got.Method, got.Path)
-	}
-	assertAuth(t, got, markdownVersion)
 }
 
 func TestTaskGet_Happy(t *testing.T) {

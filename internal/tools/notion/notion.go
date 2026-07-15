@@ -185,15 +185,13 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	)
 	user := newGroupCmd("user", "Look up users")
 	user.AddCommand(s.newUserGetCmd(token))
-	team := newGroupCmd("team", "List teamspaces")
-	team.AddCommand(s.newTeamListCmd(token))
 	task := newGroupCmd("task", "Async task status")
 	task.AddCommand(s.newTaskGetCmd(token))
 
 	root.AddCommand(
 		s.newFetchCmd(token),
 		s.newSearchCmd(token),
-		page, db, dataSource, view, comment, user, team, task,
+		page, db, dataSource, view, comment, user, task,
 	)
 	return root
 }

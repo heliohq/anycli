@@ -197,25 +197,6 @@ func (s *Service) searchUsers(ctx context.Context, token, query string) error {
 	return s.emitJSON(out)
 }
 
-// newTeamListCmd is `team list` (GET /v1/teams): teamspaces under the 2026-03-11
-// data model. Output JSON. A non-2xx surfaces as an apiError — the command never
-// silently returns an empty list.
-func (s *Service) newTeamListCmd(token string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List teamspaces",
-		Args:  cobra.NoArgs,
-	}
-	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		body, err := s.callWithVersion(cmd.Context(), token, http.MethodGet, "/teams", nil, markdownVersion)
-		if err != nil {
-			return err
-		}
-		return s.emitJSON(body)
-	}
-	return cmd
-}
-
 // newTaskGetCmd is `task get <id>`: a single async-task status read. This is the
 // manual fallback that is always available — the --allow-async write path polls
 // this endpoint internally, and a caller can re-run `task get` to keep checking
