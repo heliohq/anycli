@@ -5,11 +5,11 @@
   "auth": {
     "credentials": [
       {
-        "source": {"vault_field": "access_token"},
+        "source": {"field": "access_token"},
         "inject": {"type": "env", "env_var": "LINKEDIN_ACCESS_TOKEN"}
       },
       {
-        "source": {"vault_field": "person_urn"},
+        "source": {"field": "person_urn"},
         "inject": {"type": "env", "env_var": "LINKEDIN_PERSON_URN"}
       }
     ]

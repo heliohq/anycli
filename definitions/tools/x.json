@@ -5,11 +5,11 @@
   "auth": {
     "credentials": [
       {
-        "source": {"vault_field": "access_token"},
+        "source": {"field": "access_token"},
         "inject": {"type": "env", "env_var": "X_ACCESS_TOKEN"}
       },
       {
-        "source": {"vault_field": "user_id"},
+        "source": {"field": "user_id"},
         "inject": {"type": "env", "env_var": "X_USER_ID"}
       }
     ]

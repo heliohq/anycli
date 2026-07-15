@@ -1,0 +1,13 @@
+{
+  "name": "figma",
+  "type": "service",
+  "description": "Complete PAT-accessible Figma REST API with design context and asset downloads",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "FIGMA_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

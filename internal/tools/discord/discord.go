@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,7 @@ import (
 const DefaultBaseURL = "https://discord.com/api/v10"
 
 // EnvBotToken is the env var the credential binding injects
-// (definitions/tools/discord.json). The vault access_token IS the bot token
+// (definitions/tools/discord.json). The resolved access_token is the bot token
 // in v1 single-app mode (Helio design 227 D6).
 const EnvBotToken = "DISCORD_BOT_TOKEN"
 
@@ -39,19 +40,19 @@ type Service struct {
 }
 
 // Execute runs one discord subcommand with the resolved credentials in env.
-func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (int, error) {
+func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvBotToken]
 	if token == "" {
 		fmt.Fprintln(s.stderr(), "DISCORD_BOT_TOKEN is not set")
-		return 1, nil
+		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(token)
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(s.stderr(), err)
-		return 1, nil
+		return execution.Failure(err), nil
 	}
-	return 0, nil
+	return execution.Result{}, nil
 }
 
 func (s *Service) stdout() io.Writer {
@@ -175,7 +176,11 @@ func (s *Service) call(ctx context.Context, token, method, path string, payload 
 		return nil, fmt.Errorf("discord: read response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("discord API error (HTTP %d): %s", resp.StatusCode, apiMessage(body))
+		apiErr := fmt.Errorf("discord API error (HTTP %d): %s", resp.StatusCode, apiMessage(body))
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, execution.RejectCredential(apiErr)
+		}
+		return nil, apiErr
 	}
 	return body, nil
 }

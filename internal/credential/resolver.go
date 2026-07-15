@@ -14,9 +14,10 @@ type Tool string
 // It is the only thing that crosses the resolver boundary into AnyCLI.
 type Credential struct {
 	// Data holds the tool's credential fields. Bindings index into it by the
-	// definition's VaultField (e.g. Data["access_token"]). Its shape is the
-	// resolver's choice.
-	Data map[string]any
+	// definition's source field (e.g. Data["access_token"]). Credential
+	// bindings are string-valued by contract, so resolvers must reject or
+	// normalize any provider-specific shape before returning it.
+	Data map[string]string
 	// CacheUntil is when this credential goes stale. The resolver is the only
 	// party that knows it (a stored token's expiry, a minted token's TTL, ...).
 	// AnyCLI uses it to manage its cache; AnyCLI does not decide it.

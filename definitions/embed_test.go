@@ -20,44 +20,29 @@ func TestLoadBundled_NotFound(t *testing.T) {
 }
 
 // TestLoadBundled_ShippedDefinitions asserts every shipped definition loads
-// and exposes the expected credential-injection shape.
-// Type "" = the cli default (a wrapped binary, e.g. github -> gh).
+// and exposes a complete credential-injection shape.
 func TestLoadBundled_ShippedDefinitions(t *testing.T) {
-	cases := []struct {
-		name    string
-		typ     string
-		envVars []string
-	}{
-		{"slack", "service", []string{"SLACK_BOT_TOKEN"}},
-		{"notion", "service", []string{"NOTION_TOKEN"}},
-		{"google", "service", []string{"GOOGLE_ACCESS_TOKEN"}},
-		{"discord", "service", []string{"DISCORD_BOT_TOKEN"}},
-		{"linkedin", "service", []string{"LINKEDIN_ACCESS_TOKEN", "LINKEDIN_PERSON_URN"}},
-		{"x", "service", []string{"X_ACCESS_TOKEN", "X_USER_ID"}},
-		{"github", "", []string{"GH_TOKEN"}},
+	bundled, err := ListBundled()
+	if err != nil {
+		t.Fatalf("ListBundled failed: %v", err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			def, err := LoadBundled(tc.name)
-			if err != nil {
-				t.Fatalf("LoadBundled(%q) failed: %v", tc.name, err)
+	if len(bundled) == 0 {
+		t.Fatal("no bundled tool definitions")
+	}
+	for _, def := range bundled {
+		t.Run(def.Name, func(t *testing.T) {
+			if def.Description == "" {
+				t.Error("Description is empty")
 			}
-			if def.Name != tc.name {
-				t.Errorf("Name = %q, want %q", def.Name, tc.name)
+			if def.Auth == nil || len(def.Auth.Credentials) == 0 {
+				t.Fatal("tool has no credential bindings")
 			}
-			if def.Type != tc.typ {
-				t.Errorf("Type = %q, want %q", def.Type, tc.typ)
-			}
-			if def.Auth == nil || len(def.Auth.Credentials) != len(tc.envVars) {
-				t.Fatalf("want %d credential bindings, got %+v", len(tc.envVars), def.Auth)
-			}
-			for i, envVar := range tc.envVars {
-				b := def.Auth.Credentials[i]
-				if b.Inject.Type != "env" || b.Inject.EnvVar != envVar {
-					t.Errorf("binding %d inject = %+v, want env %s", i, b.Inject, envVar)
+			for i, binding := range def.Auth.Credentials {
+				if binding.Source.Field == "" {
+					t.Errorf("binding %d has no source field", i)
 				}
-				if b.Source.VaultField == "" {
-					t.Errorf("binding %d has no vault_field", i)
+				if binding.Inject.Type == "" {
+					t.Errorf("binding %d has no injection type", i)
 				}
 			}
 		})
@@ -70,22 +55,42 @@ func TestLoadBundled_XCredentialBindings(t *testing.T) {
 		t.Fatalf("LoadBundled(x) failed: %v", err)
 	}
 	want := []struct {
-		vaultField string
-		envVar     string
+		field  string
+		envVar string
 	}{
-		{vaultField: "access_token", envVar: "X_ACCESS_TOKEN"},
-		{vaultField: "user_id", envVar: "X_USER_ID"},
+		{field: "access_token", envVar: "X_ACCESS_TOKEN"},
+		{field: "user_id", envVar: "X_USER_ID"},
 	}
 	if def.Auth == nil || len(def.Auth.Credentials) != len(want) {
 		t.Fatalf("credentials = %+v, want %d bindings", def.Auth, len(want))
 	}
 	for i, binding := range def.Auth.Credentials {
-		if binding.Source.VaultField != want[i].vaultField {
-			t.Errorf("binding %d vault_field = %q, want %q", i, binding.Source.VaultField, want[i].vaultField)
+		if binding.Source.Field != want[i].field {
+			t.Errorf("binding %d field = %q, want %q", i, binding.Source.Field, want[i].field)
 		}
 		if binding.Inject.Type != "env" || binding.Inject.EnvVar != want[i].envVar {
 			t.Errorf("binding %d inject = %+v, want env %s", i, binding.Inject, want[i].envVar)
 		}
+	}
+}
+
+func TestLoadBundled_FigmaCredentialBinding(t *testing.T) {
+	def, err := LoadBundled("figma")
+	if err != nil {
+		t.Fatalf("LoadBundled(figma) failed: %v", err)
+	}
+	if def.Type != "service" {
+		t.Errorf("Type = %q, want service", def.Type)
+	}
+	if def.Auth == nil || len(def.Auth.Credentials) != 1 {
+		t.Fatalf("credentials = %+v, want one binding", def.Auth)
+	}
+	binding := def.Auth.Credentials[0]
+	if binding.Source.Field != "access_token" {
+		t.Errorf("field = %q, want access_token", binding.Source.Field)
+	}
+	if binding.Inject.Type != "env" || binding.Inject.EnvVar != "FIGMA_ACCESS_TOKEN" {
+		t.Errorf("inject = %+v, want env FIGMA_ACCESS_TOKEN", binding.Inject)
 	}
 }
 
@@ -113,8 +118,8 @@ func TestLoadBundled_GitHubCliShape(t *testing.T) {
 		t.Errorf("Source.Version = %q, want pinned 2.63.0", def.Source.Version)
 	}
 	b := def.Auth.Credentials[0]
-	if b.Source.VaultField != "access_token" {
-		t.Errorf("vault_field = %q, want access_token", b.Source.VaultField)
+	if b.Source.Field != "access_token" {
+		t.Errorf("field = %q, want access_token", b.Source.Field)
 	}
 	if b.Inject.Type != "env" || b.Inject.EnvVar != "GH_TOKEN" {
 		t.Errorf("inject = %+v, want env GH_TOKEN", b.Inject)

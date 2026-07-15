@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -38,19 +39,19 @@ type Service struct {
 }
 
 // Execute runs one slack subcommand with the resolved credentials in env.
-func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (int, error) {
+func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvBotToken]
 	if token == "" {
 		fmt.Fprintln(s.stderr(), "SLACK_BOT_TOKEN is not set")
-		return 1, nil
+		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(token)
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(s.stderr(), err)
-		return 1, nil
+		return execution.Failure(err), nil
 	}
-	return 0, nil
+	return execution.Result{}, nil
 }
 
 func (s *Service) stdout() io.Writer {
@@ -207,10 +208,32 @@ func (s *Service) call(ctx context.Context, token, method, path string, query ur
 		Error string `json:"error"`
 	}
 	if err := json.Unmarshal(body, &envelope); err != nil {
-		return nil, fmt.Errorf("slack: invalid response (HTTP %d): %w", resp.StatusCode, err)
+		apiErr := fmt.Errorf("slack: invalid response (HTTP %d): %w", resp.StatusCode, err)
+		return nil, classifySlackCredentialError(resp.StatusCode, "", apiErr)
 	}
-	if !envelope.OK {
-		return nil, fmt.Errorf("slack API error: %s (HTTP %d)", envelope.Error, resp.StatusCode)
+	if resp.StatusCode == http.StatusUnauthorized || !envelope.OK {
+		code := envelope.Error
+		if code == "" {
+			code = http.StatusText(resp.StatusCode)
+		}
+		apiErr := fmt.Errorf("slack API error: %s (HTTP %d)", code, resp.StatusCode)
+		return nil, classifySlackCredentialError(resp.StatusCode, envelope.Error, apiErr)
 	}
 	return body, nil
+}
+
+func classifySlackCredentialError(status int, code string, err error) error {
+	if status == http.StatusUnauthorized || slackCredentialErrorCode(code) {
+		return execution.RejectCredential(err)
+	}
+	return err
+}
+
+func slackCredentialErrorCode(code string) bool {
+	switch code {
+	case "account_inactive", "invalid_auth", "invalid_token", "not_authed", "token_expired", "token_revoked":
+		return true
+	default:
+		return false
+	}
 }

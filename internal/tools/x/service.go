@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -33,20 +34,20 @@ type Service struct {
 }
 
 // Execute runs one X subcommand with credentials resolved by the host.
-func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (int, error) {
+func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvAccessToken]
 	if token == "" {
 		fmt.Fprintln(s.stderr(), "X_ACCESS_TOKEN is not set")
-		return 1, nil
+		return execution.Result{ExitCode: 1}, nil
 	}
 
 	root := s.newRoot(token, env[EnvUserID])
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(s.stderr(), err)
-		return 1, nil
+		return execution.Failure(err), nil
 	}
-	return 0, nil
+	return execution.Result{}, nil
 }
 
 func (s *Service) newRoot(token, userID string) *cobra.Command {

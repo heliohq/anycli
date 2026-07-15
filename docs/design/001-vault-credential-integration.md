@@ -1,8 +1,14 @@
 # Vault Credential Integration Design
 
 **Date:** 2026-03-31
-**Status:** Draft
+**Status:** Superseded by design 002
 **Scope:** AnyCLI credential system redesign + Rollout vault service integration
+
+> Historical design only. Design 002 moved credential acquisition entirely to
+> the embedding host and replaced the vault-specific source fields with the
+> provider-neutral `source.field` contract. The injection-mode discussion below
+> remains historical context; none of the vault/local resolver architecture is
+> part of current AnyCLI.
 
 ## 1. Background
 

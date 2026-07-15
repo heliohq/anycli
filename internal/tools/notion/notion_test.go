@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // capturedRequest records what the fake Notion server saw.
@@ -43,14 +45,19 @@ func newServer(t *testing.T, status int, response string, got *capturedRequest) 
 }
 
 func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdout, stderr string) {
+	result, stdout, stderr := runResult(t, srv, args...)
+	return result.ExitCode, stdout, stderr
+}
+
+func runResult(t *testing.T, srv *httptest.Server, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
 	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
-	code, err := svc.Execute(context.Background(), args, map[string]string{EnvToken: "secret-notion-token"})
+	result, err := svc.Execute(context.Background(), args, map[string]string{EnvToken: "secret-notion-token"})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)
 	}
-	return code, out.String(), errBuf.String()
+	return result, out.String(), errBuf.String()
 }
 
 func assertAuth(t *testing.T, got capturedRequest, wantVersion string) {
@@ -66,15 +73,43 @@ func assertAuth(t *testing.T, got capturedRequest, wantVersion string) {
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
 	svc := &Service{Err: &errBuf}
-	code, err := svc.Execute(context.Background(), []string{"search", "--query", "x"}, map[string]string{})
+	result, err := svc.Execute(context.Background(), []string{"search", "--query", "x"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if code != 1 {
-		t.Errorf("exit code = %d, want 1", code)
+	if result.ExitCode != 1 {
+		t.Errorf("exit code = %d, want 1", result.ExitCode)
 	}
 	if !strings.Contains(errBuf.String(), "NOTION_TOKEN is not set") {
 		t.Errorf("stderr = %q, want the missing-token message", errBuf.String())
+	}
+}
+
+func TestCredentialRejectionClassification(t *testing.T) {
+	cases := []struct {
+		name         string
+		status       int
+		providerCode string
+		wantRejected bool
+	}{
+		{name: "unauthorized", status: http.StatusUnauthorized, providerCode: "unauthorized", wantRejected: true},
+		{name: "explicit unauthorized code", status: http.StatusBadRequest, providerCode: "unauthorized", wantRejected: true},
+		{name: "restricted resource", status: http.StatusForbidden, providerCode: "restricted_resource", wantRejected: false},
+		{name: "rate limited", status: http.StatusTooManyRequests, providerCode: "rate_limited", wantRejected: false},
+		{name: "server failure", status: http.StatusInternalServerError, providerCode: "internal_server_error", wantRejected: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got capturedRequest
+			srv := newServer(t, tc.status, `{"code":"`+tc.providerCode+`","message":"provider message"}`, &got)
+			defer srv.Close()
+
+			result, _, _ := runResult(t, srv, "search", "--query", "x")
+			if result.CredentialRejected != tc.wantRejected {
+				t.Errorf("CredentialRejected = %t, want %t", result.CredentialRejected, tc.wantRejected)
+			}
+		})
 	}
 }
 

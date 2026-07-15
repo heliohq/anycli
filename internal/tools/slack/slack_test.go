@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // capturedRequest records what the fake Slack server saw.
@@ -23,6 +25,10 @@ type capturedRequest struct {
 // newServer returns an httptest server answering every call with response,
 // recording the last request into got.
 func newServer(t *testing.T, response string, got *capturedRequest) *httptest.Server {
+	return newServerWithStatus(t, http.StatusOK, response, got)
+}
+
+func newServerWithStatus(t *testing.T, status int, response string, got *capturedRequest) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -34,35 +40,69 @@ func newServer(t *testing.T, response string, got *capturedRequest) *httptest.Se
 			Body:   body,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK) // Slack errors still come back HTTP 200
+		w.WriteHeader(status)
 		_, _ = w.Write([]byte(response))
 	}))
 }
 
 // run executes the service against srv with a bot token, capturing output.
 func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdout, stderr string) {
+	result, stdout, stderr := runResult(t, srv, args...)
+	return result.ExitCode, stdout, stderr
+}
+
+func runResult(t *testing.T, srv *httptest.Server, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
 	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
-	code, err := svc.Execute(context.Background(), args, map[string]string{EnvBotToken: "xoxb-test-token"})
+	result, err := svc.Execute(context.Background(), args, map[string]string{EnvBotToken: "xoxb-test-token"})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)
 	}
-	return code, out.String(), errBuf.String()
+	return result, out.String(), errBuf.String()
 }
 
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
 	svc := &Service{Err: &errBuf}
-	code, err := svc.Execute(context.Background(), []string{"channels", "list"}, map[string]string{})
+	result, err := svc.Execute(context.Background(), []string{"channels", "list"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if code != 1 {
-		t.Errorf("exit code = %d, want 1", code)
+	if result.ExitCode != 1 {
+		t.Errorf("exit code = %d, want 1", result.ExitCode)
 	}
 	if !strings.Contains(errBuf.String(), "SLACK_BOT_TOKEN is not set") {
 		t.Errorf("stderr = %q, want the missing-token message", errBuf.String())
+	}
+}
+
+func TestCredentialRejectionClassification(t *testing.T) {
+	cases := []struct {
+		name         string
+		status       int
+		providerCode string
+		wantRejected bool
+	}{
+		{name: "HTTP unauthorized", status: http.StatusUnauthorized, providerCode: "unknown_auth_error", wantRejected: true},
+		{name: "invalid auth", status: http.StatusOK, providerCode: "invalid_auth", wantRejected: true},
+		{name: "expired token", status: http.StatusOK, providerCode: "token_expired", wantRejected: true},
+		{name: "missing scope", status: http.StatusOK, providerCode: "missing_scope", wantRejected: false},
+		{name: "rate limited", status: http.StatusTooManyRequests, providerCode: "ratelimited", wantRejected: false},
+		{name: "server failure", status: http.StatusInternalServerError, providerCode: "internal_error", wantRejected: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got capturedRequest
+			srv := newServerWithStatus(t, tc.status, `{"ok":false,"error":"`+tc.providerCode+`"}`, &got)
+			defer srv.Close()
+
+			result, _, _ := runResult(t, srv, "channels", "list")
+			if result.CredentialRejected != tc.wantRejected {
+				t.Errorf("CredentialRejected = %t, want %t", result.CredentialRejected, tc.wantRejected)
+			}
+		})
 	}
 }
 

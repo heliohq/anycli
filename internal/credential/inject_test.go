@@ -14,11 +14,11 @@ import (
 func TestApplyBindings_EnvInjection(t *testing.T) {
 	bindings := []registry.CredentialBinding{
 		{
-			Source: registry.CredentialSource{LocalKey: "GH_TOKEN"},
+			Source: registry.CredentialSource{Field: "access_token"},
 			Inject: registry.CredentialInject{Type: "env", EnvVar: "GITHUB_TOKEN"},
 		},
 		{
-			Source: registry.CredentialSource{LocalKey: "API_KEY"},
+			Source: registry.CredentialSource{Field: "api_key"},
 			Inject: registry.CredentialInject{Type: "env", EnvVar: "MY_API_KEY"},
 		},
 	}
@@ -46,7 +46,7 @@ func TestApplyBindings_EnvInjection(t *testing.T) {
 func TestApplyBindings_ArgInjection_SpaceFormat(t *testing.T) {
 	bindings := []registry.CredentialBinding{
 		{
-			Source: registry.CredentialSource{LocalKey: "token"},
+			Source: registry.CredentialSource{Field: "token"},
 			Inject: registry.CredentialInject{Type: "arg", Flag: "--token"},
 		},
 	}
@@ -71,7 +71,7 @@ func TestApplyBindings_ArgInjection_SpaceFormat(t *testing.T) {
 func TestApplyBindings_ArgInjection_EqFormat(t *testing.T) {
 	bindings := []registry.CredentialBinding{
 		{
-			Source: registry.CredentialSource{LocalKey: "token"},
+			Source: registry.CredentialSource{Field: "token"},
 			Inject: registry.CredentialInject{Type: "arg", Flag: "--token", Format: "eq"},
 		},
 	}
@@ -110,7 +110,7 @@ func TestApplyBindings_FileInjection_Managed_JSON(t *testing.T) {
 
 	bindings := []registry.CredentialBinding{
 		{
-			Source: registry.CredentialSource{LocalKey: "access_token"},
+			Source: registry.CredentialSource{Field: "access_token"},
 			Inject: registry.CredentialInject{
 				Type:       "file",
 				Path:       srcPath,
@@ -122,7 +122,7 @@ func TestApplyBindings_FileInjection_Managed_JSON(t *testing.T) {
 			},
 		},
 	}
-	values := []string{"tok_vault_xyz"}
+	values := []string{"tok_resolved_xyz"}
 
 	result, err := ApplyBindings("test-tool", bindings, values)
 	if err != nil {
@@ -160,8 +160,8 @@ func TestApplyBindings_FileInjection_Managed_JSON(t *testing.T) {
 		t.Errorf("oauth.client_id = %q, want %q", oauth["client_id"], "my-client")
 	}
 	// New field injected
-	if oauth["access_token"] != "tok_vault_xyz" {
-		t.Errorf("oauth.access_token = %q, want %q", oauth["access_token"], "tok_vault_xyz")
+	if oauth["access_token"] != "tok_resolved_xyz" {
+		t.Errorf("oauth.access_token = %q, want %q", oauth["access_token"], "tok_resolved_xyz")
 	}
 
 	// Cleanup should be non-nil
@@ -181,7 +181,7 @@ func TestApplyBindings_FileInject_NoConfigEnv_ReturnsError(t *testing.T) {
 
 	bindings := []registry.CredentialBinding{
 		{
-			Source: registry.CredentialSource{LocalKey: "token"},
+			Source: registry.CredentialSource{Field: "token"},
 			Inject: registry.CredentialInject{
 				Type:       "file",
 				Path:       "/some/path/config.json",
@@ -219,7 +219,7 @@ func TestApplyBindings_Cleanup_RemovesTempFiles(t *testing.T) {
 
 	bindings := []registry.CredentialBinding{
 		{
-			Source: registry.CredentialSource{LocalKey: "token"},
+			Source: registry.CredentialSource{Field: "token"},
 			Inject: registry.CredentialInject{
 				Type:       "file",
 				Path:       srcPath,
@@ -280,7 +280,7 @@ func TestApplyBindings_FileInjection_Managed_YAML(t *testing.T) {
 
 	bindings := []registry.CredentialBinding{
 		{
-			Source: registry.CredentialSource{LocalKey: "token"},
+			Source: registry.CredentialSource{Field: "token"},
 			Inject: registry.CredentialInject{
 				Type:       "file",
 				Path:       targetPath,
@@ -349,11 +349,11 @@ func TestResolveTemplate_DotValueSyntax(t *testing.T) {
 func TestApplyBindings_SkipsEmptyValues(t *testing.T) {
 	bindings := []registry.CredentialBinding{
 		{
-			Source: registry.CredentialSource{LocalKey: "token"},
+			Source: registry.CredentialSource{Field: "token"},
 			Inject: registry.CredentialInject{Type: "env", EnvVar: "MY_TOKEN"},
 		},
 		{
-			Source: registry.CredentialSource{LocalKey: "missing"},
+			Source: registry.CredentialSource{Field: "missing"},
 			Inject: registry.CredentialInject{Type: "env", EnvVar: "MISSING_KEY"},
 		},
 	}
@@ -375,7 +375,7 @@ func TestApplyBindings_SkipsEmptyValues(t *testing.T) {
 func TestApplyBindings_LengthMismatch(t *testing.T) {
 	bindings := []registry.CredentialBinding{
 		{
-			Source: registry.CredentialSource{LocalKey: "token"},
+			Source: registry.CredentialSource{Field: "token"},
 			Inject: registry.CredentialInject{Type: "env", EnvVar: "TOK"},
 		},
 	}

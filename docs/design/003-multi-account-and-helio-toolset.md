@@ -115,11 +115,11 @@ Service-type tools follow one template (established by `slack`, mirrored by the 
 ### Unchanged
 
 - The `Cache` interface shape and consumer-supplied semantics (002).
-- The definition schema (001) and the rule that definitions are internal, never consumer-supplied.
+- The provider-neutral definition schema (002) and the rule that definitions are internal, never consumer-supplied.
 - The injection modes (env / arg / file) and middleware engine.
 
 ## References
 
-- `docs/design/001-vault-credential-integration.md` — credential schema + injection modes.
+- `docs/design/001-vault-credential-integration.md` — superseded vault/local design retained as historical injection-mode context.
 - `docs/design/002-embeddable-core-and-credential-resolver.md` — embeddable core + resolver/cache seams.
 - Helio `docs/design/227-ai-teammate-oauth-integration/` — the consumer: multi-account connections, token gateway, `heliox tool` portal.

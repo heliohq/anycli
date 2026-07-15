@@ -10,6 +10,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // capturedRequest records what the fake Google server saw.
@@ -42,6 +44,11 @@ func newServer(t *testing.T, status int, response string, got *capturedRequest) 
 
 // run executes the service with all three bases pointed at srv.
 func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdout, stderr string) {
+	result, stdout, stderr := runResult(t, srv, args...)
+	return result.ExitCode, stdout, stderr
+}
+
+func runResult(t *testing.T, srv *httptest.Server, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
 	svc := &Service{
@@ -52,11 +59,11 @@ func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdo
 		Out:       &out,
 		Err:       &errBuf,
 	}
-	code, err := svc.Execute(context.Background(), args, map[string]string{EnvAccessToken: "ya29.test-token"})
+	result, err := svc.Execute(context.Background(), args, map[string]string{EnvAccessToken: "ya29.test-token"})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)
 	}
-	return code, out.String(), errBuf.String()
+	return result, out.String(), errBuf.String()
 }
 
 func assertAuth(t *testing.T, got capturedRequest) {
@@ -69,15 +76,44 @@ func assertAuth(t *testing.T, got capturedRequest) {
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
 	svc := &Service{Err: &errBuf}
-	code, err := svc.Execute(context.Background(), []string{"drive", "list"}, map[string]string{})
+	result, err := svc.Execute(context.Background(), []string{"drive", "list"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if code != 1 {
-		t.Errorf("exit code = %d, want 1", code)
+	if result.ExitCode != 1 {
+		t.Errorf("exit code = %d, want 1", result.ExitCode)
 	}
 	if !strings.Contains(errBuf.String(), "GOOGLE_ACCESS_TOKEN is not set") {
 		t.Errorf("stderr = %q, want the missing-token message", errBuf.String())
+	}
+}
+
+func TestCredentialRejectionClassification(t *testing.T) {
+	cases := []struct {
+		name           string
+		status         int
+		providerStatus string
+		wantRejected   bool
+	}{
+		{name: "HTTP unauthorized", status: http.StatusUnauthorized, providerStatus: "UNKNOWN", wantRejected: true},
+		{name: "explicit unauthenticated status", status: http.StatusBadRequest, providerStatus: "UNAUTHENTICATED", wantRejected: true},
+		{name: "permission denied", status: http.StatusForbidden, providerStatus: "PERMISSION_DENIED", wantRejected: false},
+		{name: "rate limited", status: http.StatusTooManyRequests, providerStatus: "RESOURCE_EXHAUSTED", wantRejected: false},
+		{name: "server failure", status: http.StatusInternalServerError, providerStatus: "INTERNAL", wantRejected: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got capturedRequest
+			body := `{"error":{"status":"` + tc.providerStatus + `","message":"provider message"}}`
+			srv := newServer(t, tc.status, body, &got)
+			defer srv.Close()
+
+			result, _, _ := runResult(t, srv, "drive", "list")
+			if result.CredentialRejected != tc.wantRejected {
+				t.Errorf("CredentialRejected = %t, want %t", result.CredentialRejected, tc.wantRejected)
+			}
+		})
 	}
 }
 

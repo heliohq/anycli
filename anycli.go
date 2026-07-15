@@ -14,17 +14,17 @@ package anycli
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/heliohq/anycli/internal/credential"
 	"github.com/heliohq/anycli/internal/exec"
 )
 
 // Tool identifies a tool by its definition name. It is a named type for
-// type-safety + discoverability. AnyCLI ships no tool-name constants yet — the
-// supported-tool definitions are added internally in a later round. Pass a raw
-// Tool("…") whose name matches an embedded definition; validity is checked at
-// runtime against the embedded definition set, so an unknown tool is an error
-// from Execute, not a compile error.
+// type-safety + discoverability. Tool names come from the embedded definition
+// set returned by ListTools; AnyCLI intentionally does not duplicate that set
+// as exported constants. Pass a raw Tool("…") whose name matches an embedded
+// definition. An unknown tool is an error from Execute, not a compile error.
 type Tool = credential.Tool
 
 // Credential holds the in-memory credential data a resolver returns for a tool.
@@ -39,8 +39,8 @@ type CredentialResolver = credential.CredentialResolver
 // Cache is the credential cache the engine uses to avoid re-resolving on every
 // call. It is consumer-supplied so a host can back it with a per-process /
 // per-assistant in-memory store instead of any on-disk cache. The cache stores
-// entries keyed by tool name; the engine interprets freshness (CacheUntil /
-// Stale), the implementation only stores and retrieves.
+// entries keyed by (tool, account); the engine interprets freshness
+// (CacheUntil / Stale), while the implementation only stores and retrieves.
 type Cache = credential.Cache
 
 // CacheEntry is one cached credential: the extracted fields plus the freshness
@@ -72,6 +72,9 @@ type Engine struct {
 // New constructs an Engine from cfg. A nil cfg.Cache installs the in-memory
 // default cache.
 func New(cfg Config) (*Engine, error) {
+	if _, err := ListTools(); err != nil {
+		return nil, fmt.Errorf("validate bundled tools: %w", err)
+	}
 	cache := cfg.Cache
 	if cache == nil {
 		cache = credential.NewMemoryCache()
