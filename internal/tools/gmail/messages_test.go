@@ -239,6 +239,25 @@ func TestMessagesModify_TrimsDirtyIDs(t *testing.T) {
 	}
 }
 
+func TestMessagesModify_SplitsWhitespaceJoinedIDs(t *testing.T) {
+	// One arg carrying several ids (newline-joined shell variable, trailing
+	// \r) must split into clean separate ids — the R6 live-failure class.
+	f := newFixture(t, map[string]route{
+		"POST /gmail/v1/users/me/messages/batchModify": {http.StatusNoContent, ""},
+	})
+	f.runOK(t, "messages", "modify", "m1\nm2\r\n m3 ", "--archive")
+	got := f.last(t, "POST", "/gmail/v1/users/me/messages/batchModify")
+	var payload struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.Unmarshal(got.Body, &payload); err != nil {
+		t.Fatalf("request body not JSON: %v", err)
+	}
+	if len(payload.IDs) != 3 || payload.IDs[0] != "m1" || payload.IDs[1] != "m2" || payload.IDs[2] != "m3" {
+		t.Errorf("ids = %v, want split-clean [m1 m2 m3]", payload.IDs)
+	}
+}
+
 func TestMessagesModify_BatchTrimsDirtyIDs(t *testing.T) {
 	f := newFixture(t, map[string]route{
 		"POST /gmail/v1/users/me/messages/batchModify": {http.StatusNoContent, ""},

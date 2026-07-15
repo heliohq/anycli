@@ -133,15 +133,15 @@ func (s *Service) newMessagesGetCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// cleanMessageIDs trims whitespace from multi-id args and drops empties;
-// Gmail returns INVALID_ARGUMENT for ids with trailing spaces or empty
-// strings, so sanitize before the call.
+// cleanMessageIDs splits every multi-id arg on whitespace and drops empties.
+// Gmail returns INVALID_ARGUMENT for ids carrying ANY whitespace (trailing
+// spaces, \r from pipelines, several ids pasted into one arg); message ids
+// never contain whitespace, so Fields-splitting is always safe and kills the
+// whole invisible-whitespace class rather than only leading/trailing runs.
 func cleanMessageIDs(args []string) ([]string, error) {
 	ids := make([]string, 0, len(args))
-	for _, id := range args {
-		if id = strings.TrimSpace(id); id != "" {
-			ids = append(ids, id)
-		}
+	for _, arg := range args {
+		ids = append(ids, strings.Fields(arg)...)
 	}
 	if len(ids) == 0 {
 		return nil, fmt.Errorf("gmail: no valid message ids")
