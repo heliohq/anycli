@@ -104,6 +104,10 @@ func (s *Service) newFetchCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// A database row's fields live in properties, not the body; warn
+			// (non-fatal) if fetch returned an empty body for a row so an agent
+			// doesn't read the emptiness as "no data".
+			s.hintIfEmptyDatabaseRow(cmd.Context(), token, id, body)
 			if jsonMode {
 				return s.emitJSON(body)
 			}

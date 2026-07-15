@@ -410,6 +410,48 @@ func TestFetch_Self(t *testing.T) {
 	}
 }
 
+// TestFetch_EmptyDatabaseRow_Hints: fetching a database row returns an empty
+// body (fields live in properties), so fetch must retrieve the page, see the
+// data-source parent, and print a non-fatal hint — never a silent empty.
+func TestFetch_EmptyDatabaseRow_Hints(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"GET /pages/row1/markdown": {http.StatusOK, `{"markdown":""}`},
+		"GET /pages/row1":          {http.StatusOK, `{"object":"page","id":"row1","parent":{"type":"data_source_id","data_source_id":"ds1"}}`},
+	})
+	defer srv.Close()
+
+	code, stdout, stderr := run(t, srv, "fetch", "row1", "--type", "page")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("stdout = %q, want empty (row has no body)", stdout)
+	}
+	if !strings.Contains(stderr, "database row") {
+		t.Errorf("stderr = %q, want the database-row hint", stderr)
+	}
+}
+
+// TestFetch_EmptyNormalPage_NoHint: an empty body on a normal page (parent is a
+// page) is legitimate — no database-row hint.
+func TestFetch_EmptyNormalPage_NoHint(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"GET /pages/pg1/markdown": {http.StatusOK, `{"markdown":""}`},
+		"GET /pages/pg1":          {http.StatusOK, `{"object":"page","id":"pg1","parent":{"type":"page_id","page_id":"par"}}`},
+	})
+	defer srv.Close()
+
+	code, _, stderr := run(t, srv, "fetch", "pg1", "--type", "page")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0", code)
+	}
+	if strings.Contains(stderr, "database row") {
+		t.Errorf("stderr = %q, must not hint database row for a normal page", stderr)
+	}
+}
+
 func TestUnknownSubcommand_Usage(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{}`, &got)
