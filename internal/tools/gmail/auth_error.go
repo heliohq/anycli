@@ -1,4 +1,4 @@
-package google
+package gmail
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
-type googleErrorEnvelope struct {
+type errorEnvelope struct {
 	Error struct {
 		Status string `json:"status"`
 		Errors []struct {
@@ -16,15 +16,15 @@ type googleErrorEnvelope struct {
 	} `json:"error"`
 }
 
-func classifyGoogleCredentialError(status int, body []byte, err error) error {
-	if status == http.StatusUnauthorized || googleCredentialErrorBody(body) {
+func classifyCredentialError(status int, body []byte, err error) error {
+	if status == http.StatusUnauthorized || credentialErrorBody(body) {
 		return execution.RejectCredential(err)
 	}
 	return err
 }
 
-func googleCredentialErrorBody(body []byte) bool {
-	var envelope googleErrorEnvelope
+func credentialErrorBody(body []byte) bool {
+	var envelope errorEnvelope
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return false
 	}
