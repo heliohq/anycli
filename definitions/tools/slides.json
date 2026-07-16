@@ -1,0 +1,13 @@
+{
+  "name": "slides",
+  "type": "service",
+  "description": "Google Slides as a tool (user access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SLIDES_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

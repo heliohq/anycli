@@ -1,0 +1,13 @@
+{
+  "name": "meet",
+  "type": "service",
+  "description": "Google Meet as a tool (user access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "MEET_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
