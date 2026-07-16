@@ -1,0 +1,13 @@
+{
+  "name": "contacts",
+  "type": "service",
+  "description": "Google Contacts as a tool (user access token): resolve names to emails/phones, read My Contacts and Other Contacts (read-only)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "CONTACTS_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
