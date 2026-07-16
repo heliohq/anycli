@@ -5,6 +5,9 @@ import (
 	"github.com/heliohq/anycli/internal/tools/figma"
 	"github.com/heliohq/anycli/internal/tools/gmail"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
+	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
+	"github.com/heliohq/anycli/internal/tools/microsoftonedrive"
+	"github.com/heliohq/anycli/internal/tools/microsoftoutlook"
 	"github.com/heliohq/anycli/internal/tools/notion"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/x"
@@ -23,4 +26,7 @@ func init() {
 	RegisterService("figma", &figma.Service{})
 	RegisterService("linkedin", &linkedin.Service{})
 	RegisterService("x", &x.Service{})
+	RegisterService("microsoft-outlook", &microsoftoutlook.Service{})
+	RegisterService("microsoft-calendar", &microsoftcalendar.Service{})
+	RegisterService("microsoft-onedrive", &microsoftonedrive.Service{})
 }
