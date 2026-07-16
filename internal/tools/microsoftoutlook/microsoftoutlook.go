@@ -1,6 +1,6 @@
 // Package microsoftoutlook is the built-in Microsoft Outlook service: a
 // non-interactive cobra tree projecting the Microsoft Graph v1.0 mail resource
-// namespaces (/me, /me/messages, /me/mailFolders) plus the synthetic verbs
+// namespaces (/me/messages, /me/mailFolders) plus the synthetic verbs
 // reply / forward (createReply/createForward + send) and batched move / mark
 // (design 308 §Outlook). Search flags pass Graph $search / $filter (OData)
 // through verbatim. A 401/403 very often means the token lacks a Mail scope the
@@ -132,7 +132,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 		s.newDraftsDeleteCmd(token),
 	)
 
-	root.AddCommand(s.newProfileCmd(token), messages, folders, drafts)
+	root.AddCommand(messages, folders, drafts)
 	return root
 }
 

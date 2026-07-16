@@ -107,7 +107,7 @@ func (f *fixture) runOK(t *testing.T, args ...string) string {
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
 	svc := &Service{Err: &errBuf}
-	result, err := svc.Execute(context.Background(), []string{"profile"}, map[string]string{})
+	result, err := svc.Execute(context.Background(), []string{"messages", "list"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -188,9 +188,9 @@ func TestCredentialRejectionClassification(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t, map[string]route{
-				"GET /v1.0/me": {tc.status, `{"error":{"code":"` + tc.providerCode + `","message":"provider message"}}`},
+				"GET /v1.0/me/mailFolders": {tc.status, `{"error":{"code":"` + tc.providerCode + `","message":"provider message"}}`},
 			})
-			result, _, _ := f.run(t, "profile")
+			result, _, _ := f.run(t, "folders", "list")
 			if result.CredentialRejected != tc.wantRejected {
 				t.Errorf("CredentialRejected = %t, want %t", result.CredentialRejected, tc.wantRejected)
 			}
@@ -200,30 +200,10 @@ func TestCredentialRejectionClassification(t *testing.T) {
 
 func TestScopeHintAbsentOnPlainError(t *testing.T) {
 	f := newFixture(t, map[string]route{
-		"GET /v1.0/me": {http.StatusBadRequest, `{"error":{"code":"BadRequest","message":"bad request"}}`},
+		"GET /v1.0/me/mailFolders": {http.StatusBadRequest, `{"error":{"code":"BadRequest","message":"bad request"}}`},
 	})
-	_, _, stderr := f.run(t, "profile")
+	_, _, stderr := f.run(t, "folders", "list")
 	if strings.Contains(stderr, "possibly missing scope") {
 		t.Errorf("stderr = %q, scope hint must only appear on 401/403", stderr)
-	}
-}
-
-func TestProfile_HumanAndJSON(t *testing.T) {
-	body := `{"displayName":"Ada Lovelace","mail":"ada@example.com","userPrincipalName":"ada@example.com","id":"abc123"}`
-	f := newFixture(t, map[string]route{
-		"GET /v1.0/me": {http.StatusOK, body},
-	})
-	stdout := f.runOK(t, "profile")
-	if !strings.Contains(stdout, "ada@example.com") || !strings.Contains(stdout, "Ada Lovelace") {
-		t.Errorf("human output = %q, want name + email", stdout)
-	}
-	got := f.last(t, "GET", "/v1.0/me")
-	if got.Auth != "Bearer test-token" {
-		t.Errorf("Authorization = %q, want the bearer token", got.Auth)
-	}
-
-	stdout = f.runOK(t, "profile", "--json")
-	if strings.TrimSpace(stdout) != body {
-		t.Errorf("--json output = %q, want the raw provider body", stdout)
 	}
 }
