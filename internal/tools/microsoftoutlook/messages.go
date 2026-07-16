@@ -13,38 +13,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func (s *Service) newProfileCmd(token string) *cobra.Command {
-	return &cobra.Command{
-		Use:   "profile",
-		Short: "Show the connected account profile (GET /me)",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			body, err := s.call(cmd.Context(), token, http.MethodGet, "/me", nil, nil)
-			if err != nil {
-				return err
-			}
-			if jsonOut(cmd) {
-				return s.emit(body)
-			}
-			var p struct {
-				DisplayName       string `json:"displayName"`
-				Mail              string `json:"mail"`
-				UserPrincipalName string `json:"userPrincipalName"`
-				ID                string `json:"id"`
-			}
-			if err := json.Unmarshal(body, &p); err != nil {
-				return fmt.Errorf("microsoft-outlook: decode profile: %w", err)
-			}
-			mail := p.Mail
-			if mail == "" {
-				mail = p.UserPrincipalName
-			}
-			fmt.Fprintf(s.stdout(), "Name:  %s\nEmail: %s\nId:    %s\n", p.DisplayName, mail, p.ID)
-			return nil
-		},
-	}
-}
-
 func (s *Service) newMessagesListCmd(token string) *cobra.Command {
 	var search, filter, folder, page string
 	var max int
