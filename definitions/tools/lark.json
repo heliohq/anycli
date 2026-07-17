@@ -1,0 +1,51 @@
+{
+  "name": "lark",
+  "description": "Feishu / Lark via the official lark-cli (tenant access token, bot identity)",
+  "binary": "lark-cli",
+  "source": {
+    "type": "github-release",
+    "repo": "larksuite/cli",
+    "asset_pattern": "lark-cli-{version}-{os}-{arch}{ext}",
+    "binary_path": "lark-cli",
+    "version": "1.0.71",
+    "ext_map": {"darwin": ".tar.gz", "linux": ".tar.gz", "windows": ".zip"}
+  },
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "app_id"},
+        "inject": {"type": "env", "env_var": "LARKSUITE_CLI_APP_ID"}
+      },
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "LARKSUITE_CLI_TENANT_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "brand"},
+        "inject": {"type": "env", "env_var": "LARKSUITE_CLI_BRAND"}
+      }
+    ]
+  },
+  "before": [
+    {
+      "name": "bot identity only",
+      "rule": "set_env",
+      "config": {"env_var": "LARKSUITE_CLI_DEFAULT_AS", "value": "bot"}
+    },
+    {
+      "name": "strict bot mode",
+      "rule": "set_env",
+      "config": {"env_var": "LARKSUITE_CLI_STRICT_MODE", "value": "bot"}
+    },
+    {
+      "name": "no update notifier",
+      "rule": "set_env",
+      "config": {"env_var": "LARKSUITE_CLI_NO_UPDATE_NOTIFIER", "value": "1"}
+    },
+    {
+      "name": "no skills notifier",
+      "rule": "set_env",
+      "config": {"env_var": "LARKSUITE_CLI_NO_SKILLS_NOTIFIER", "value": "1"}
+    }
+  ]
+}

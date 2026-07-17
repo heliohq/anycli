@@ -94,6 +94,67 @@ func TestLoadBundled_FigmaCredentialBinding(t *testing.T) {
 	}
 }
 
+// TestLoadBundled_LarkCliShape pins the lark definition's cli-type shape: it
+// wraps the official larksuite/cli binary, injects the host-minted tenant
+// access token (never the app secret), and pins the bot identity via static
+// env. The field names are a wire contract with the host's token projection —
+// a drifted name silently falls back to the CLI's own keychain auth chain.
+func TestLoadBundled_LarkCliShape(t *testing.T) {
+	def, err := LoadBundled("lark")
+	if err != nil {
+		t.Fatalf("LoadBundled(lark) failed: %v", err)
+	}
+	if def.Type != "" {
+		t.Errorf("Type = %q, want \"\" (cli default)", def.Type)
+	}
+	if def.Binary != "lark-cli" {
+		t.Errorf("Binary = %q, want lark-cli", def.Binary)
+	}
+	if def.Source == nil || def.Source.Type != "github-release" || def.Source.Repo != "larksuite/cli" {
+		t.Errorf("Source = %+v, want github-release larksuite/cli", def.Source)
+	}
+	want := []struct {
+		field  string
+		envVar string
+	}{
+		{field: "app_id", envVar: "LARKSUITE_CLI_APP_ID"},
+		{field: "access_token", envVar: "LARKSUITE_CLI_TENANT_ACCESS_TOKEN"},
+		{field: "brand", envVar: "LARKSUITE_CLI_BRAND"},
+	}
+	if def.Auth == nil || len(def.Auth.Credentials) != len(want) {
+		t.Fatalf("credentials = %+v, want %d bindings", def.Auth, len(want))
+	}
+	for i, binding := range def.Auth.Credentials {
+		if binding.Source.Field != want[i].field {
+			t.Errorf("binding %d field = %q, want %q", i, binding.Source.Field, want[i].field)
+		}
+		if binding.Inject.Type != "env" || binding.Inject.EnvVar != want[i].envVar {
+			t.Errorf("binding %d inject = %+v, want env %s", i, binding.Inject, want[i].envVar)
+		}
+	}
+	// Bot-only identity is enforced before every exec: without these the CLI
+	// would auto-detect identity and could route through a user token.
+	wantEnv := map[string]string{
+		"LARKSUITE_CLI_DEFAULT_AS":  "bot",
+		"LARKSUITE_CLI_STRICT_MODE": "bot",
+	}
+	got := map[string]string{}
+	for _, r := range def.Before {
+		if r.Rule != "set_env" {
+			t.Errorf("before rule %q = %q, want set_env only", r.Name, r.Rule)
+			continue
+		}
+		envVar, _ := r.Config["env_var"].(string)
+		value, _ := r.Config["value"].(string)
+		got[envVar] = value
+	}
+	for k, v := range wantEnv {
+		if got[k] != v {
+			t.Errorf("before set_env %s = %q, want %q", k, got[k], v)
+		}
+	}
+}
+
 // TestLoadBundled_GitHubCliShape pins the github definition's cli-type shape:
 // it wraps the gh binary from a pinned github-release source and injects the
 // minted token as GH_TOKEN.
