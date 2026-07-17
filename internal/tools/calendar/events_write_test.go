@@ -9,7 +9,8 @@ import (
 
 func TestEventsCreate_MeetAttendeesAndSendUpdates(t *testing.T) {
 	f := newFixture(t, map[string]route{
-		"POST /calendar/v3/calendars/primary/events": {http.StatusOK, `{"id":"new1","summary":"Sync","start":{"dateTime":"2026-07-16T10:00:00-07:00"},"hangoutLink":"https://meet.google.com/abc-defg-hij"}`},
+		"GET /calendar/v3/users/me/calendarList/primary": {http.StatusOK, `{"id":"primary","timeZone":"America/Los_Angeles"}`},
+		"POST /calendar/v3/calendars/primary/events":     {http.StatusOK, `{"id":"new1","summary":"Sync","start":{"dateTime":"2026-07-16T10:00:00-07:00"},"hangoutLink":"https://meet.google.com/abc-defg-hij"}`},
 	})
 	stdout := f.runOK(t, "events", "create",
 		"--summary", "Sync",
@@ -30,10 +31,13 @@ func TestEventsCreate_MeetAttendeesAndSendUpdates(t *testing.T) {
 	}
 
 	var payload struct {
-		Summary    string                    `json:"summary"`
-		Start      struct{ DateTime string } `json:"start"`
-		Attendees  []struct{ Email string }  `json:"attendees"`
-		Recurrence []string                  `json:"recurrence"`
+		Summary string `json:"summary"`
+		Start   struct {
+			DateTime string `json:"dateTime"`
+			TimeZone string `json:"timeZone"`
+		} `json:"start"`
+		Attendees  []struct{ Email string } `json:"attendees"`
+		Recurrence []string                 `json:"recurrence"`
 		Reminders  struct {
 			UseDefault bool `json:"useDefault"`
 			Overrides  []struct {
@@ -194,6 +198,109 @@ func TestEventsRespond_PreservesOtherAttendees(t *testing.T) {
 	}
 	if !self || !other {
 		t.Errorf("attendees missing self=%t or other=%t", self, other)
+	}
+}
+
+// TestEventsCreate_TimedRecurringDefaultsCalendarTimeZone is the regression for
+// the reported bug: a timed recurring event was sent with only a numeric offset
+// and Google rejected it with "Missing time zone definition for start time".
+// With no --timezone, create now looks up the calendar's own zone and stamps it
+// on both start and end so recurring timed events can be created.
+func TestEventsCreate_TimedRecurringDefaultsCalendarTimeZone(t *testing.T) {
+	f := newFixture(t, map[string]route{
+		"GET /calendar/v3/users/me/calendarList/primary": {http.StatusOK, `{"id":"primary","timeZone":"America/Los_Angeles"}`},
+		"POST /calendar/v3/calendars/primary/events":     {http.StatusOK, `{"id":"r1"}`},
+	})
+	f.runOK(t, "events", "create", "--summary", "Standup",
+		"--from", "2026-09-01T10:00:00+08:00", "--to", "2026-09-01T10:30:00+08:00",
+		"--recurrence", "RRULE:FREQ=DAILY;COUNT=3")
+	got := f.last(t, "POST", "/calendar/v3/calendars/primary/events")
+	var payload struct {
+		Start map[string]string `json:"start"`
+		End   map[string]string `json:"end"`
+	}
+	if err := json.Unmarshal(got.Body, &payload); err != nil {
+		t.Fatalf("request body not JSON: %v", err)
+	}
+	if payload.Start["timeZone"] != "America/Los_Angeles" || payload.End["timeZone"] != "America/Los_Angeles" {
+		t.Errorf("start/end = %v / %v, want the calendar time zone stamped on both", payload.Start, payload.End)
+	}
+	if payload.Start["dateTime"] != "2026-09-01T10:00:00+08:00" {
+		t.Errorf("start dateTime = %q, want the original offset preserved", payload.Start["dateTime"])
+	}
+}
+
+// TestEventsCreate_ExplicitTimezoneSkipsLookup: --timezone wins and no calendar
+// lookup happens, even for a single (non-recurring) event.
+func TestEventsCreate_ExplicitTimezoneSkipsLookup(t *testing.T) {
+	f := newFixture(t, map[string]route{
+		"POST /calendar/v3/calendars/primary/events": {http.StatusOK, `{"id":"t1"}`},
+	})
+	f.runOK(t, "events", "create", "--summary", "One off",
+		"--from", "2026-09-01T10:00:00+08:00", "--to", "2026-09-01T10:30:00+08:00",
+		"--timezone", "Asia/Shanghai")
+	got := f.last(t, "POST", "/calendar/v3/calendars/primary/events")
+	var payload struct {
+		Start map[string]string `json:"start"`
+	}
+	if err := json.Unmarshal(got.Body, &payload); err != nil {
+		t.Fatalf("request body not JSON: %v", err)
+	}
+	if payload.Start["timeZone"] != "Asia/Shanghai" {
+		t.Errorf("start = %v, want the explicit --timezone", payload.Start)
+	}
+	for _, r := range f.requests {
+		if r.Method == http.MethodGet {
+			t.Errorf("explicit --timezone must not trigger a calendarList lookup; saw GET %s", r.Path)
+		}
+	}
+}
+
+// TestEventsCreate_SingleTimedNoTimezoneUnchanged: the common path — a single
+// timed event with no --timezone — is untouched: no lookup, offset only, no
+// timeZone field.
+func TestEventsCreate_SingleTimedNoTimezoneUnchanged(t *testing.T) {
+	f := newFixture(t, map[string]route{
+		"POST /calendar/v3/calendars/primary/events": {http.StatusOK, `{"id":"s1"}`},
+	})
+	f.runOK(t, "events", "create", "--summary", "Solo",
+		"--from", "2026-09-01T10:00:00-07:00", "--to", "2026-09-01T10:30:00-07:00")
+	got := f.last(t, "POST", "/calendar/v3/calendars/primary/events")
+	var payload struct {
+		Start map[string]string `json:"start"`
+	}
+	if err := json.Unmarshal(got.Body, &payload); err != nil {
+		t.Fatalf("request body not JSON: %v", err)
+	}
+	if _, ok := payload.Start["timeZone"]; ok {
+		t.Errorf("start = %v, want no timeZone for a single event with no --timezone", payload.Start)
+	}
+	for _, r := range f.requests {
+		if r.Method == http.MethodGet {
+			t.Errorf("single timed create must not trigger a calendarList lookup; saw GET %s", r.Path)
+		}
+	}
+}
+
+// TestEventsUpdate_TimedRecurringDefaultsCalendarTimeZone: patching a timed
+// start together with a recurrence resolves the calendar zone too.
+func TestEventsUpdate_TimedRecurringDefaultsCalendarTimeZone(t *testing.T) {
+	f := newFixture(t, map[string]route{
+		"GET /calendar/v3/users/me/calendarList/primary": {http.StatusOK, `{"id":"primary","timeZone":"America/Los_Angeles"}`},
+		"PATCH /calendar/v3/calendars/primary/events/e1": {http.StatusOK, `{"id":"e1"}`},
+	})
+	f.runOK(t, "events", "update", "e1",
+		"--from", "2026-09-01T10:00:00+08:00",
+		"--recurrence", "RRULE:FREQ=DAILY;COUNT=3")
+	got := f.last(t, "PATCH", "/calendar/v3/calendars/primary/events/e1")
+	var payload struct {
+		Start map[string]string `json:"start"`
+	}
+	if err := json.Unmarshal(got.Body, &payload); err != nil {
+		t.Fatalf("request body not JSON: %v", err)
+	}
+	if payload.Start["timeZone"] != "America/Los_Angeles" {
+		t.Errorf("start = %v, want the calendar time zone stamped on the patched start", payload.Start)
 	}
 }
 

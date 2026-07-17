@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -26,6 +27,7 @@ type eventOptions struct {
 	allDay      bool
 	meet        bool
 	sendUpdates string
+	timezone    string
 }
 
 // requireRFC3339 validates a timed timestamp carries an RFC3339 value with a
@@ -45,8 +47,11 @@ func requireDate(name, value string) error {
 	return nil
 }
 
-// eventTimeFor builds a start/end object, validating against --all-day.
-func eventTimeFor(name, value string, allDay bool) (map[string]any, error) {
+// eventTimeFor builds a start/end object, validating against --all-day. A
+// non-empty timeZone (IANA name) is attached to timed values: Google requires
+// an explicit time zone on a recurring event's start/end — a bare numeric
+// offset is rejected with "Missing time zone definition for start time".
+func eventTimeFor(name, value string, allDay bool, timeZone string) (map[string]any, error) {
 	if allDay {
 		if err := requireDate(name, value); err != nil {
 			return nil, err
@@ -56,7 +61,53 @@ func eventTimeFor(name, value string, allDay bool) (map[string]any, error) {
 	if err := requireRFC3339(name, value); err != nil {
 		return nil, err
 	}
-	return map[string]any{"dateTime": value}, nil
+	t := map[string]any{"dateTime": value}
+	if timeZone != "" {
+		t["timeZone"] = timeZone
+	}
+	return t, nil
+}
+
+// calendarTimeZone fetches a calendar's default IANA time zone from its
+// calendarList entry.
+func (s *Service) calendarTimeZone(ctx context.Context, token, calendar string) (string, error) {
+	if calendar == "" {
+		calendar = defaultCalendar
+	}
+	body, err := s.call(ctx, token, http.MethodGet, "/users/me/calendarList/"+url.PathEscape(calendar), nil, nil)
+	if err != nil {
+		return "", err
+	}
+	var entry struct {
+		TimeZone string `json:"timeZone"`
+	}
+	if err := json.Unmarshal(body, &entry); err != nil {
+		return "", fmt.Errorf("calendar: decode calendar time zone: %w", err)
+	}
+	return entry.TimeZone, nil
+}
+
+// resolveEventTimeZone decides which IANA time zone to stamp on a timed
+// start/end. An explicit --timezone always wins. Otherwise a zone is only
+// needed — and only fetched — for a recurring timed event whose times are
+// being set: Google rejects those without one. The default matches the
+// Calendar UI: the calendar's own time zone. Single (non-recurring) events keep
+// working on the offset alone, so no extra lookup happens on the common path.
+func (s *Service) resolveEventTimeZone(ctx context.Context, token string, o *eventOptions, timesSet bool) (string, error) {
+	if o.timezone != "" {
+		return o.timezone, nil
+	}
+	if len(o.recurrence) == 0 || o.allDay || !timesSet {
+		return "", nil
+	}
+	tz, err := s.calendarTimeZone(ctx, token, o.calendar)
+	if err != nil {
+		return "", err
+	}
+	if tz == "" {
+		return "", fmt.Errorf("calendar: could not determine the calendar's time zone for a recurring event; pass --timezone (e.g. America/Los_Angeles)")
+	}
+	return tz, nil
 }
 
 // validateSendUpdates guards the sendUpdates enum.
@@ -129,11 +180,15 @@ func (s *Service) newEventsCreateCmd(token string) *cobra.Command {
 				return err
 			}
 			body := map[string]any{"summary": o.summary}
-			start, err := eventTimeFor("from", o.from, o.allDay)
+			tz, err := s.resolveEventTimeZone(cmd.Context(), token, &o, true)
 			if err != nil {
 				return err
 			}
-			end, err := eventTimeFor("to", o.to, o.allDay)
+			start, err := eventTimeFor("from", o.from, o.allDay, tz)
+			if err != nil {
+				return err
+			}
+			end, err := eventTimeFor("to", o.to, o.allDay, tz)
 			if err != nil {
 				return err
 			}
@@ -183,15 +238,20 @@ func (s *Service) newEventsUpdateCmd(token string) *cobra.Command {
 			if cmd.Flags().Changed("summary") {
 				body["summary"] = o.summary
 			}
+			timesSet := cmd.Flags().Changed("from") || cmd.Flags().Changed("to")
+			tz, err := s.resolveEventTimeZone(cmd.Context(), token, &o, timesSet)
+			if err != nil {
+				return err
+			}
 			if cmd.Flags().Changed("from") {
-				start, err := eventTimeFor("from", o.from, o.allDay)
+				start, err := eventTimeFor("from", o.from, o.allDay, tz)
 				if err != nil {
 					return err
 				}
 				body["start"] = start
 			}
 			if cmd.Flags().Changed("to") {
-				end, err := eventTimeFor("to", o.to, o.allDay)
+				end, err := eventTimeFor("to", o.to, o.allDay, tz)
 				if err != nil {
 					return err
 				}
@@ -325,6 +385,7 @@ func addEventWriteFlags(cmd *cobra.Command, o *eventOptions) {
 	cmd.Flags().BoolVar(&o.allDay, "all-day", false, "treat --from/--to as all-day dates (YYYY-MM-DD)")
 	cmd.Flags().BoolVar(&o.meet, "meet", false, "attach a Google Meet video link")
 	cmd.Flags().StringVar(&o.sendUpdates, "send-updates", "all", "who to notify: all, externalOnly, or none")
+	cmd.Flags().StringVar(&o.timezone, "timezone", "", "IANA time zone for timed start/end (e.g. America/Los_Angeles); defaults to the calendar's zone. Recurring timed events require one — Google rejects a bare offset")
 }
 
 // emitEvent prints a create/update/respond response.
