@@ -30,11 +30,6 @@
     {
       "name": "bot identity only",
       "rule": "set_env",
-      "config": {"env_var": "LARKSUITE_CLI_DEFAULT_AS", "value": "bot"}
-    },
-    {
-      "name": "strict bot mode",
-      "rule": "set_env",
       "config": {"env_var": "LARKSUITE_CLI_STRICT_MODE", "value": "bot"}
     },
     {

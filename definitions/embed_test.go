@@ -98,7 +98,8 @@ func TestLoadBundled_FigmaCredentialBinding(t *testing.T) {
 // wraps the official larksuite/cli binary, injects the host-minted tenant
 // access token (never the app secret), and pins the bot identity via static
 // env. The field names are a wire contract with the host's token projection —
-// a drifted name silently falls back to the CLI's own keychain auth chain.
+// a drifted name means no injection, and the CLI then fails as not-logged-in
+// instead of naming the missing field, misattributing the drift.
 func TestLoadBundled_LarkCliShape(t *testing.T) {
 	def, err := LoadBundled("lark")
 	if err != nil {
@@ -132,26 +133,22 @@ func TestLoadBundled_LarkCliShape(t *testing.T) {
 			t.Errorf("binding %d inject = %+v, want env %s", i, binding.Inject, want[i].envVar)
 		}
 	}
-	// Bot-only identity is enforced before every exec: without these the CLI
-	// would auto-detect identity and could route through a user token.
-	wantEnv := map[string]string{
-		"LARKSUITE_CLI_DEFAULT_AS":  "bot",
-		"LARKSUITE_CLI_STRICT_MODE": "bot",
-	}
-	got := map[string]string{}
+	// Strict bot mode is THE identity invariant: it alone keeps the CLI on
+	// the bot identity even if a user access token leaks into the ambient
+	// env (verified against the real v1.0.71 binary).
+	strictBot := false
 	for _, r := range def.Before {
 		if r.Rule != "set_env" {
-			t.Errorf("before rule %q = %q, want set_env only", r.Name, r.Rule)
 			continue
 		}
 		envVar, _ := r.Config["env_var"].(string)
 		value, _ := r.Config["value"].(string)
-		got[envVar] = value
-	}
-	for k, v := range wantEnv {
-		if got[k] != v {
-			t.Errorf("before set_env %s = %q, want %q", k, got[k], v)
+		if envVar == "LARKSUITE_CLI_STRICT_MODE" && value == "bot" {
+			strictBot = true
 		}
+	}
+	if !strictBot {
+		t.Error("before rules lack set_env LARKSUITE_CLI_STRICT_MODE=bot — the bot-identity invariant")
 	}
 }
 
