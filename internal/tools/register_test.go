@@ -10,7 +10,7 @@ func TestBuiltinServicesRegistered(t *testing.T) {
 	for _, name := range []string{
 		"slack", "notion", "gmail", "calendar", "contacts",
 		"drive", "discord", "figma", "linkedin", "x", "sheets",
-		"meet", "docs", "tasks",
+		"meet", "docs", "tasks", "bitly",
 	} {
 		if _, err := GetService(name); err != nil {
 			t.Errorf("GetService(%q) = %v, want a registered service", name, err)
