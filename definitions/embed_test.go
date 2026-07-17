@@ -74,6 +74,26 @@ func TestLoadBundled_XCredentialBindings(t *testing.T) {
 	}
 }
 
+func TestLoadBundled_BitlyCredentialBinding(t *testing.T) {
+	def, err := LoadBundled("bitly")
+	if err != nil {
+		t.Fatalf("LoadBundled(bitly) failed: %v", err)
+	}
+	if def.Type != "service" {
+		t.Errorf("Type = %q, want service", def.Type)
+	}
+	if def.Auth == nil || len(def.Auth.Credentials) != 1 {
+		t.Fatalf("credentials = %+v, want one binding", def.Auth)
+	}
+	binding := def.Auth.Credentials[0]
+	if binding.Source.Field != "access_token" {
+		t.Errorf("field = %q, want access_token", binding.Source.Field)
+	}
+	if binding.Inject.Type != "env" || binding.Inject.EnvVar != "BITLY_ACCESS_TOKEN" {
+		t.Errorf("inject = %+v, want env BITLY_ACCESS_TOKEN", binding.Inject)
+	}
+}
+
 func TestLoadBundled_FigmaCredentialBinding(t *testing.T) {
 	def, err := LoadBundled("figma")
 	if err != nil {

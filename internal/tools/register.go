@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"github.com/heliohq/anycli/internal/tools/bitly"
 	"github.com/heliohq/anycli/internal/tools/calendar"
 	"github.com/heliohq/anycli/internal/tools/contacts"
 	"github.com/heliohq/anycli/internal/tools/discord"
@@ -28,6 +29,7 @@ import (
 // by duck typing and never import this registry, so registration cannot
 // create an import cycle.
 func init() {
+	RegisterService("bitly", &bitly.Service{})
 	RegisterService("slack", &slack.Service{})
 	RegisterService("notion", &notion.Service{})
 	RegisterService("sheets", &sheets.Service{})
