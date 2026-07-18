@@ -143,7 +143,7 @@ func enumValidator(flag string, allowed ...string) func(string) error {
 	}
 }
 
-// pageFlags holds the pagination flags shared by search / db query / comment
+// pageFlags holds the pagination flags shared by search / data-source query / comment
 // list. They register locally on those commands only — never as global flags.
 type pageFlags struct {
 	all         bool

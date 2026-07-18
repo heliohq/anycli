@@ -45,8 +45,8 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 				payload["start_cursor"] = cursor
 			}
 			// The `data_source` object filter value belongs to the 2026-03-11
-			// data model, so search runs on markdownVersion.
-			return s.callWithVersion(ctx, token, http.MethodPost, "/search", payload, markdownVersion)
+			// data model, so search runs on the current Notion version.
+			return s.call(ctx, token, http.MethodPost, "/search", payload)
 		}
 		body, err := paginate(cmd.Context(), pf.all, pf.startCursor, fetch)
 		if err != nil {
@@ -113,13 +113,13 @@ func (s *Service) newFetchCmd(token string) *cobra.Command {
 			}
 			return s.emitMarkdown(body)
 		case "data_source":
-			body, err := s.callWithVersion(cmd.Context(), token, http.MethodGet, "/data_sources/"+url.PathEscape(id), nil, markdownVersion)
+			body, err := s.call(cmd.Context(), token, http.MethodGet, "/data_sources/"+url.PathEscape(id), nil)
 			if err != nil {
 				return err
 			}
 			return s.emitJSON(body)
 		case "database":
-			body, err := s.callWithVersion(cmd.Context(), token, http.MethodGet, "/databases/"+url.PathEscape(id), nil, markdownVersion)
+			body, err := s.call(cmd.Context(), token, http.MethodGet, "/databases/"+url.PathEscape(id), nil)
 			if err != nil {
 				return err
 			}
@@ -183,12 +183,12 @@ func (s *Service) probeIDType(ctx context.Context, token, id string) (string, er
 	} else if fatal := fatalProbeError(err); fatal != nil {
 		return "", fatal
 	}
-	if _, err := s.callWithVersion(ctx, token, http.MethodGet, "/data_sources/"+url.PathEscape(id), nil, markdownVersion); err == nil {
+	if _, err := s.call(ctx, token, http.MethodGet, "/data_sources/"+url.PathEscape(id), nil); err == nil {
 		return "data_source", nil
 	} else if fatal := fatalProbeError(err); fatal != nil {
 		return "", fatal
 	}
-	if _, err := s.callWithVersion(ctx, token, http.MethodGet, "/databases/"+url.PathEscape(id), nil, markdownVersion); err == nil {
+	if _, err := s.call(ctx, token, http.MethodGet, "/databases/"+url.PathEscape(id), nil); err == nil {
 		return "database", nil
 	} else if fatal := fatalProbeError(err); fatal != nil {
 		return "", fatal

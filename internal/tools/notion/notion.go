@@ -22,13 +22,8 @@ import (
 // DefaultBaseURL is the production Notion API base.
 const DefaultBaseURL = "https://api.notion.com/v1"
 
-// notionVersion is the default Notion-Version header; commands override it per
-// call via callWithVersion (markdown + 2026-03-11 data-model endpoints).
-const notionVersion = "2022-06-28"
-
-// markdownVersion is the Notion-Version required by the markdown endpoints and
-// the 2026-03-11 data model (page markdown, search object filter, views).
-const markdownVersion = "2026-03-11"
+// notionVersion is the Notion-Version header used by every built-in Notion call.
+const notionVersion = "2026-03-11"
 
 // EnvToken is the env var the credential binding injects (definitions/tools/notion.json).
 const EnvToken = "NOTION_TOKEN"
@@ -142,7 +137,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	root.SetErr(s.stderr())
 
 	// Global (persistent) flags — visible to every subcommand. Pagination
-	// flags are NOT global; they register locally on search/db query/comment
+	// flags are NOT global; they register locally on search/data-source query/comment
 	// list only (see registerPaginationFlags).
 	pf := root.PersistentFlags()
 	pf.Bool("json", false, "force structured JSON output")
@@ -167,11 +162,16 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	db := newGroupCmd("db", "Manage databases")
 	db.AddCommand(
 		s.newDBCreateCmd(token),
-		s.newDBQueryCmd(token),
 	)
 	dataSource := newGroupCmd("data-source", "Manage data sources")
 	dataSource.AddCommand(
+		s.newDBQueryCmd(token),
 		s.newDataSourceUpdateCmd(token),
+	)
+	file := newGroupCmd("file", "Manage Notion files and uploads")
+	file.AddCommand(
+		s.newFileUploadCmd(token),
+		s.newFileAttachCmd(token),
 	)
 	view := newGroupCmd("view", "Manage views")
 	view.AddCommand(
@@ -191,7 +191,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	root.AddCommand(
 		s.newFetchCmd(token),
 		s.newSearchCmd(token),
-		page, db, dataSource, view, comment, user, task,
+		s.newAPICmd(token), page, db, dataSource, file, view, comment, user, task,
 	)
 	return root
 }

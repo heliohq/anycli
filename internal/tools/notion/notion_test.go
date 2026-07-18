@@ -16,12 +16,13 @@ import (
 
 // capturedRequest records what the fake Notion server saw.
 type capturedRequest struct {
-	Method  string
-	Path    string
-	Auth    string
-	Version string
-	Query   url.Values
-	Body    []byte
+	Method      string
+	Path        string
+	Auth        string
+	Version     string
+	ContentType string
+	Query       url.Values
+	Body        []byte
 }
 
 // newServer returns an httptest server answering every call with status +
@@ -31,12 +32,13 @@ func newServer(t *testing.T, status int, response string, got *capturedRequest) 
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		*got = capturedRequest{
-			Method:  r.Method,
-			Path:    r.URL.Path,
-			Auth:    r.Header.Get("Authorization"),
-			Version: r.Header.Get("Notion-Version"),
-			Query:   r.URL.Query(),
-			Body:    body,
+			Method:      r.Method,
+			Path:        r.URL.Path,
+			Auth:        r.Header.Get("Authorization"),
+			Version:     r.Header.Get("Notion-Version"),
+			ContentType: r.Header.Get("Content-Type"),
+			Query:       r.URL.Query(),
+			Body:        body,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
@@ -124,7 +126,7 @@ func TestSearch_Happy(t *testing.T) {
 		t.Errorf("request = %s %s, want POST /search", got.Method, got.Path)
 	}
 	// search runs on the 2026-03-11 data model (data_source object filter).
-	assertAuth(t, got, markdownVersion)
+	assertAuth(t, got, notionVersion)
 	if !strings.Contains(string(got.Body), `"query":"roadmap"`) {
 		t.Errorf("body = %s, want the query", got.Body)
 	}
@@ -298,7 +300,7 @@ func TestFetch_Page_Markdown(t *testing.T) {
 	if got.Method != http.MethodGet || got.Path != "/pages/p9/markdown" {
 		t.Errorf("request = %s %s, want GET /pages/p9/markdown", got.Method, got.Path)
 	}
-	assertAuth(t, got, markdownVersion)
+	assertAuth(t, got, notionVersion)
 	if stdout != "# Title\nbody\n" {
 		t.Errorf("stdout = %q, want the bare markdown", stdout)
 	}
@@ -351,7 +353,7 @@ func TestFetch_DataSource_JSON(t *testing.T) {
 	if got.Method != http.MethodGet || got.Path != "/data_sources/ds1" {
 		t.Errorf("request = %s %s, want GET /data_sources/ds1", got.Method, got.Path)
 	}
-	assertAuth(t, got, markdownVersion)
+	assertAuth(t, got, notionVersion)
 	if !strings.Contains(stdout, `"id":"ds1"`) {
 		t.Errorf("stdout = %q, want the provider JSON", stdout)
 	}

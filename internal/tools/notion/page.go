@@ -170,7 +170,7 @@ func (s *Service) newPageCreateCmd(token string) *cobra.Command {
 					page["allow_async"] = true
 				}
 			}
-			body, err := s.callWithVersion(cmd.Context(), token, http.MethodPost, "/pages", page, markdownVersion)
+			body, err := s.call(cmd.Context(), token, http.MethodPost, "/pages", page)
 			if err != nil {
 				if len(ids) > 0 {
 					fmt.Fprintf(s.stderr(), "created %d/%d page(s) before failure (created: [%s]); failed creating --pages[%d]\n",

@@ -79,12 +79,12 @@ func (s *Service) newPageMoveCmd(token string) *cobra.Command {
 			switch kinds[i] {
 			case "page":
 				// Move a page: POST /v1/pages/{id}/move.
-				body, err = s.callWithVersion(cmd.Context(), token, http.MethodPost, "/pages/"+url.PathEscape(rid)+"/move", map[string]any{"parent": parent}, markdownVersion)
+				body, err = s.call(cmd.Context(), token, http.MethodPost, "/pages/"+url.PathEscape(rid)+"/move", map[string]any{"parent": parent})
 			case "database":
 				// Move a database: databases have no /move endpoint — relocation
 				// is a parent update via PATCH /v1/databases/{id} (the body's
 				// `parent` field, verified against the update-a-database API).
-				body, err = s.callWithVersion(cmd.Context(), token, http.MethodPatch, "/databases/"+url.PathEscape(rid), map[string]any{"parent": parent}, markdownVersion)
+				body, err = s.call(cmd.Context(), token, http.MethodPatch, "/databases/"+url.PathEscape(rid), map[string]any{"parent": parent})
 			}
 			if err != nil {
 				fmt.Fprintf(s.stderr(), "moved %d/%d before failure (moved: [%s]); failed moving %s\n", len(moved), len(resolved), strings.Join(moved, ", "), ids[i])
@@ -125,7 +125,7 @@ func (s *Service) newPageDuplicateCmd(token string) *cobra.Command {
 				return err
 			}
 		} else {
-			body, err := s.callWithVersion(cmd.Context(), token, http.MethodGet, "/pages/"+url.PathEscape(src), nil, markdownVersion)
+			body, err := s.call(cmd.Context(), token, http.MethodGet, "/pages/"+url.PathEscape(src), nil)
 			if err != nil {
 				return err
 			}
@@ -156,7 +156,7 @@ func (s *Service) newPageDuplicateCmd(token string) *cobra.Command {
 		// synchronous and returns the new page directly. Notion rejects
 		// `allow_async` unless a `markdown` body is present, so `page duplicate`
 		// never forwards it — the global --allow-async is a no-op here.
-		body, err := s.callWithVersion(cmd.Context(), token, http.MethodPost, "/pages", payload, markdownVersion)
+		body, err := s.call(cmd.Context(), token, http.MethodPost, "/pages", payload)
 		if err != nil {
 			return err
 		}

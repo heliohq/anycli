@@ -46,7 +46,7 @@ func (s *Service) newDBCreateCmd(token string) *cobra.Command {
 		if properties != nil {
 			payload["initial_data_source"] = map[string]any{"properties": properties}
 		}
-		body, err := s.callWithVersion(cmd.Context(), token, http.MethodPost, "/databases", payload, markdownVersion)
+		body, err := s.call(cmd.Context(), token, http.MethodPost, "/databases", payload)
 		if err != nil {
 			return err
 		}
@@ -55,7 +55,7 @@ func (s *Service) newDBCreateCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// newDBQueryCmd is `db query <id>` (POST /v1/data_sources/{id}/query). The id is
+// newDBQueryCmd is `data-source query <id>` (POST /v1/data_sources/{id}/query). The id is
 // a data-source id only; a database id is rejected fail-fast (its records live
 // in a data source, found via `fetch <db-id>` → data_sources[]). Standard
 // filter/sorts — not the AI-only SQL query. Paginated. Output JSON.
@@ -82,7 +82,7 @@ func (s *Service) newDBQueryCmd(token string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		if err := s.rejectDatabaseID(cmd.Context(), token, id, "db query"); err != nil {
+		if err := s.rejectDatabaseID(cmd.Context(), token, id, "data-source query"); err != nil {
 			return err
 		}
 		fetch := func(ctx context.Context, cursor string) ([]byte, error) {
@@ -99,7 +99,7 @@ func (s *Service) newDBQueryCmd(token string) *cobra.Command {
 			if cursor != "" {
 				payload["start_cursor"] = cursor
 			}
-			return s.callWithVersion(ctx, token, http.MethodPost, "/data_sources/"+url.PathEscape(id)+"/query", payload, markdownVersion)
+			return s.call(ctx, token, http.MethodPost, "/data_sources/"+url.PathEscape(id)+"/query", payload)
 		}
 		body, err := paginate(cmd.Context(), pf.all, pf.startCursor, fetch)
 		if err != nil {
@@ -111,13 +111,13 @@ func (s *Service) newDBQueryCmd(token string) *cobra.Command {
 }
 
 // newDataSourceUpdateCmd is `data-source update <id>` (PATCH /v1/data_sources/{id}).
-// The id is a data-source id only (same database-id fail-fast as db query).
+// The id is a data-source id only (same database-id fail-fast as data-source query).
 // PATCH /v1/data_sources accepts title/properties/icon/parent/in_trash — there
 // is no `name` or `description` field, so --name is mapped to the rich-text
 // `title` (a data source is renamed via title). --properties is a schema patch
 // passed through verbatim. Output JSON.
 func (s *Service) newDataSourceUpdateCmd(token string) *cobra.Command {
-	var propertiesFlag, name string
+	var propertiesFlag, name, inTrash string
 	cmd := &cobra.Command{
 		Use:   "update <data-source-id>",
 		Short: "Update a data source's schema or title",
@@ -125,6 +125,7 @@ func (s *Service) newDataSourceUpdateCmd(token string) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&propertiesFlag, "properties", "", "JSON schema patch (REST wire)")
 	cmd.Flags().StringVar(&name, "name", "", "new data-source title (mapped to the rich-text `title` field)")
+	cmd.Flags().StringVar(&inTrash, "in-trash", "", "trash state: true|false")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		id, err := resolveID(args[0])
 		if err != nil {
@@ -145,13 +146,23 @@ func (s *Service) newDataSourceUpdateCmd(token string) *cobra.Command {
 				map[string]any{"type": "text", "text": map[string]any{"content": name}},
 			}
 		}
+		if cmd.Flags().Changed("in-trash") {
+			switch inTrash {
+			case "true":
+				payload["in_trash"] = true
+			case "false":
+				payload["in_trash"] = false
+			default:
+				return &usageError{msg: "--in-trash must be true or false"}
+			}
+		}
 		if len(payload) == 0 {
-			return &usageError{msg: "data-source update requires at least one of --properties, --name"}
+			return &usageError{msg: "data-source update requires at least one of --properties, --name, --in-trash"}
 		}
 		if err := s.rejectDatabaseID(cmd.Context(), token, id, "data-source update"); err != nil {
 			return err
 		}
-		body, err := s.callWithVersion(cmd.Context(), token, http.MethodPatch, "/data_sources/"+url.PathEscape(id), payload, markdownVersion)
+		body, err := s.call(cmd.Context(), token, http.MethodPatch, "/data_sources/"+url.PathEscape(id), payload)
 		if err != nil {
 			return err
 		}
@@ -160,14 +171,14 @@ func (s *Service) newDataSourceUpdateCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// rejectDatabaseID fails fast when id is a database container. db query and
+// rejectDatabaseID fails fast when id is a database container. data-source query and
 // data-source update accept data-source ids only; a positive GET
 // /v1/databases/{id} confirms a database and points the caller at fetch →
 // data_sources[]. Any non-2xx means "not a database" and the caller proceeds
 // (the real data-source endpoint validates the id), so a data-source id that
 // cannot be positively probed is never wrongly blocked.
 func (s *Service) rejectDatabaseID(ctx context.Context, token, id, cmd string) error {
-	if _, err := s.callWithVersion(ctx, token, http.MethodGet, "/databases/"+url.PathEscape(id), nil, markdownVersion); err == nil {
+	if _, err := s.call(ctx, token, http.MethodGet, "/databases/"+url.PathEscape(id), nil); err == nil {
 		return &usageError{msg: fmt.Sprintf(
 			"%s only accepts a data-source id; %s is a database — run `fetch %s` and use one of its data_sources[] ids",
 			cmd, id, id)}

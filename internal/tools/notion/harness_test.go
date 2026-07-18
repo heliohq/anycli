@@ -23,12 +23,13 @@ func newMux(t *testing.T, reqs *[]capturedRequest, routes map[string]stub) *http
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		*reqs = append(*reqs, capturedRequest{
-			Method:  r.Method,
-			Path:    r.URL.Path,
-			Auth:    r.Header.Get("Authorization"),
-			Version: r.Header.Get("Notion-Version"),
-			Query:   r.URL.Query(),
-			Body:    body,
+			Method:      r.Method,
+			Path:        r.URL.Path,
+			Auth:        r.Header.Get("Authorization"),
+			Version:     r.Header.Get("Notion-Version"),
+			ContentType: r.Header.Get("Content-Type"),
+			Query:       r.URL.Query(),
+			Body:        body,
 		})
 		w.Header().Set("Content-Type", "application/json")
 		if s, ok := routes[r.Method+" "+r.URL.Path]; ok {

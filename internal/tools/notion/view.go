@@ -15,7 +15,7 @@ var viewTypes = []string{
 	"gallery", "form", "chart", "map", "dashboard",
 }
 
-// newViewCreateCmd is `view create` (POST /v1/views, markdownVersion). Exactly
+// newViewCreateCmd is `view create` (POST /v1/views). Exactly
 // one of three mutually-exclusive parent flags is required: --database-id builds
 // a view at a database's top level; --view-id adds a widget view to an existing
 // dashboard; --create-database creates a linked database view on a page. The
@@ -94,7 +94,7 @@ func (s *Service) newViewCreateCmd(token string) *cobra.Command {
 		} else if qf != nil {
 			payload["quick_filters"] = qf
 		}
-		body, err := s.callWithVersion(cmd.Context(), token, http.MethodPost, "/views", payload, markdownVersion)
+		body, err := s.call(cmd.Context(), token, http.MethodPost, "/views", payload)
 		if err != nil {
 			return err
 		}
@@ -103,7 +103,7 @@ func (s *Service) newViewCreateCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// newViewUpdateCmd is `view update <id>` (PATCH /v1/views/{id}, markdownVersion).
+// newViewUpdateCmd is `view update <id>` (PATCH /v1/views/{id}).
 // --type is intentionally absent: a view's type is immutable after creation.
 // --filters and --sorts pass through verbatim. Output JSON.
 func (s *Service) newViewUpdateCmd(token string) *cobra.Command {
@@ -158,7 +158,7 @@ func (s *Service) newViewUpdateCmd(token string) *cobra.Command {
 		if len(payload) == 0 {
 			return &usageError{msg: "view update requires at least one of --name, --filters, --sorts, --configuration, --quick-filters"}
 		}
-		body, err := s.callWithVersion(cmd.Context(), token, http.MethodPatch, "/views/"+url.PathEscape(id), payload, markdownVersion)
+		body, err := s.call(cmd.Context(), token, http.MethodPatch, "/views/"+url.PathEscape(id), payload)
 		if err != nil {
 			return err
 		}
