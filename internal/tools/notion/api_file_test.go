@@ -1,6 +1,7 @@
 package notion
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -106,6 +107,37 @@ func TestFileUpload_Happy(t *testing.T) {
 	}
 	if !strings.Contains(string(send.Body), "Content-Type: application/pdf") {
 		t.Errorf("send multipart body = %s, want file part Content-Type: application/pdf", send.Body)
+	}
+}
+
+func TestFileUpload_SendFailurePreservesJSONStatus(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "invoice.pdf")
+	if err := os.WriteFile(path, []byte("pdf-bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"POST /file_uploads":          {http.StatusOK, `{"object":"file_upload","id":"fu1"}`},
+		"POST /file_uploads/fu1/send": {http.StatusUnsupportedMediaType, `{"object":"error","code":"validation_error","message":"content type mismatch"}`},
+	})
+	defer srv.Close()
+
+	code, _, stderr := run(t, srv, "file", "upload", path, "--json")
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
+	}
+	var envelope struct {
+		Error struct {
+			Kind   string `json:"kind"`
+			Status int    `json:"status"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+		t.Fatalf("stderr is not JSON: %v (%q)", err, stderr)
+	}
+	if envelope.Error.Kind != "api" || envelope.Error.Status != http.StatusUnsupportedMediaType {
+		t.Fatalf("error envelope = %#v, want api status %d", envelope.Error, http.StatusUnsupportedMediaType)
 	}
 }
 

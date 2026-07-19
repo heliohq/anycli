@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"mime"
 	"mime/multipart"
@@ -49,7 +50,7 @@ func (s *Service) newFileUploadCmd(token string) *cobra.Command {
 			}
 			sendBody, err := s.sendFileUpload(cmd.Context(), token, id, path, filename, ct, data, nil)
 			if err != nil {
-				return &apiError{msg: fmt.Sprintf("file upload: created file_upload %s but sending bytes failed: %v", id, err), err: err}
+				return fileUploadSendError(id, err)
 			}
 			jsonMode, _ := cmd.Flags().GetBool("json")
 			if jsonMode {
@@ -132,6 +133,15 @@ func (s *Service) createFileUpload(ctx context.Context, token, filename, content
 
 func (s *Service) sendFileUpload(ctx context.Context, token, id, path, filename, contentType string, data []byte, fields map[string]string) ([]byte, error) {
 	return s.callMultipart(ctx, token, "/file_uploads/"+url.PathEscape(id)+"/send", fields, "file", filename, contentType, data)
+}
+
+func fileUploadSendError(id string, err error) error {
+	msg := fmt.Sprintf("file upload: created file_upload %s but sending bytes failed: %v", id, err)
+	var apiErr *apiError
+	if errors.As(err, &apiErr) {
+		return &apiError{msg: msg, status: apiErr.status, err: err}
+	}
+	return &apiError{msg: msg, err: err}
 }
 
 func fileUploadID(body []byte) (string, error) {
