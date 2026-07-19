@@ -85,9 +85,9 @@ func (s *Service) emitMarkdown(body []byte) error {
 	return nil
 }
 
-// readPageMarkdown GETs a page body as the markdown envelope (markdownVersion).
+// readPageMarkdown GETs a page body as the markdown envelope.
 func (s *Service) readPageMarkdown(ctx context.Context, token, id string) ([]byte, error) {
-	return s.callWithVersion(ctx, token, http.MethodGet, "/pages/"+url.PathEscape(id)+"/markdown", nil, markdownVersion)
+	return s.call(ctx, token, http.MethodGet, "/pages/"+url.PathEscape(id)+"/markdown", nil)
 }
 
 // hintIfEmptyDatabaseRow guards against a silent-empty fetch. fetch reads a
@@ -95,7 +95,7 @@ func (s *Service) readPageMarkdown(ctx context.Context, token, id string) ([]byt
 // not its body — so fetching a row returns an empty body and an agent can
 // wrongly conclude the row has no data. When the body is empty, retrieve the
 // page and, if its parent is a data source / database (i.e. it is a row), print
-// a non-fatal hint on stderr pointing at `db query` / properties. Best-effort:
+// a non-fatal hint on stderr pointing at `data-source query` / properties. Best-effort:
 // stdout and the exit code are never changed, and a failed probe is silent (the
 // primary read already succeeded).
 func (s *Service) hintIfEmptyDatabaseRow(ctx context.Context, token, id string, body []byte) {
@@ -103,7 +103,7 @@ func (s *Service) hintIfEmptyDatabaseRow(ctx context.Context, token, id string, 
 	if json.Unmarshal(body, &pm) != nil || strings.TrimSpace(pm.Markdown) != "" {
 		return // decode failed or body has content — nothing to warn about
 	}
-	meta, err := s.callWithVersion(ctx, token, http.MethodGet, "/pages/"+url.PathEscape(id), nil, markdownVersion)
+	meta, err := s.call(ctx, token, http.MethodGet, "/pages/"+url.PathEscape(id), nil)
 	if err != nil {
 		return // best-effort; don't turn a successful read into a failure
 	}
@@ -118,19 +118,18 @@ func (s *Service) hintIfEmptyDatabaseRow(ctx context.Context, token, id string, 
 	switch page.Parent.Type {
 	case "data_source_id", "database_id":
 		fmt.Fprintln(s.stderr(),
-			"note: this looks like a database row; its fields may not be in the page body — use `db query` (or read the row's properties) to double-check")
+			"note: this looks like a database row; its fields may not be in the page body — use `data-source query` (or read the row's properties) to double-check")
 	}
 }
 
-// writePageMarkdown PATCHes a page body from a markdown-endpoint payload
-// (markdownVersion). Used by page update in a later slice.
+// writePageMarkdown PATCHes a page body from a markdown-endpoint payload.
 func (s *Service) writePageMarkdown(ctx context.Context, token, id string, payload any) ([]byte, error) {
-	return s.callWithVersion(ctx, token, http.MethodPatch, "/pages/"+url.PathEscape(id)+"/markdown", payload, markdownVersion)
+	return s.call(ctx, token, http.MethodPatch, "/pages/"+url.PathEscape(id)+"/markdown", payload)
 }
 
 // taskGet fetches one async task's status. Shared by task get and pollTask.
 func (s *Service) taskGet(ctx context.Context, token, id string) ([]byte, error) {
-	return s.callWithVersion(ctx, token, http.MethodGet, taskEndpoint+url.PathEscape(id), nil, markdownVersion)
+	return s.call(ctx, token, http.MethodGet, taskEndpoint+url.PathEscape(id), nil)
 }
 
 // asyncPoll is the "retrieve an async task" response. In-progress states

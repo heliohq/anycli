@@ -26,7 +26,7 @@ func TestDBCreate_WrapsProperties(t *testing.T) {
 	if got.Method != http.MethodPost || got.Path != "/databases" {
 		t.Errorf("request = %s %s, want POST /databases", got.Method, got.Path)
 	}
-	assertAuth(t, got, markdownVersion)
+	assertAuth(t, got, notionVersion)
 	body := bodyMap(t, got.Body)
 	// Schema is wrapped into initial_data_source.properties, not top-level.
 	if _, ok := body["properties"]; ok {
@@ -51,7 +51,7 @@ func TestDBCreate_WrapsProperties(t *testing.T) {
 	}
 }
 
-func TestDBQuery_Happy(t *testing.T) {
+func TestDataSourceQuery_Happy(t *testing.T) {
 	var reqs []capturedRequest
 	// GET /databases/ds1 is 404 (default) → not a database → query proceeds.
 	srv := newMux(t, &reqs, map[string]stub{
@@ -59,7 +59,7 @@ func TestDBQuery_Happy(t *testing.T) {
 	})
 	defer srv.Close()
 
-	code, _, _ := run(t, srv, "db", "query", "ds1", "--filter", `{"property":"Done","checkbox":{"equals":false}}`)
+	code, _, _ := run(t, srv, "data-source", "query", "ds1", "--filter", `{"property":"Done","checkbox":{"equals":false}}`)
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
@@ -67,21 +67,21 @@ func TestDBQuery_Happy(t *testing.T) {
 	if q == nil {
 		t.Fatalf("query was not sent; reqs=%v", reqs)
 	}
-	assertAuth(t, *q, markdownVersion)
+	assertAuth(t, *q, notionVersion)
 	body := bodyMap(t, q.Body)
 	if _, ok := body["filter"].(map[string]any); !ok {
 		t.Errorf("body.filter = %v, want the passthrough filter", body["filter"])
 	}
 }
 
-func TestDBQuery_RejectsDatabaseID(t *testing.T) {
+func TestDataSourceQuery_RejectsDatabaseID(t *testing.T) {
 	var reqs []capturedRequest
 	srv := newMux(t, &reqs, map[string]stub{
 		"GET /databases/db1": {http.StatusOK, `{"object":"database","id":"db1"}`},
 	})
 	defer srv.Close()
 
-	code, _, stderr := run(t, srv, "db", "query", "db1")
+	code, _, stderr := run(t, srv, "data-source", "query", "db1")
 	if code != 2 {
 		t.Fatalf("exit code = %d, want 2 for a database id", code)
 	}
@@ -93,14 +93,14 @@ func TestDBQuery_RejectsDatabaseID(t *testing.T) {
 	}
 }
 
-func TestDBQuery_Pagination_All(t *testing.T) {
+func TestDataSourceQuery_Pagination_All(t *testing.T) {
 	var reqs []capturedRequest
 	srv := newMux(t, &reqs, map[string]stub{
 		"POST /data_sources/ds1/query": {http.StatusOK, `{"object":"list","results":[{"id":"r1"}],"has_more":false,"next_cursor":null}`},
 	})
 	defer srv.Close()
 
-	code, stdout, _ := run(t, srv, "db", "query", "ds1", "--all")
+	code, stdout, _ := run(t, srv, "data-source", "query", "ds1", "--all")
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
@@ -125,7 +125,7 @@ func TestDataSourceUpdate_Happy(t *testing.T) {
 	if p == nil {
 		t.Fatalf("PATCH /data_sources/ds1 was not sent; reqs=%v", reqs)
 	}
-	assertAuth(t, *p, markdownVersion)
+	assertAuth(t, *p, notionVersion)
 	body := bodyMap(t, p.Body)
 	// --name is mapped to the rich-text `title` array; there is no `name` field
 	// on PATCH /v1/data_sources.
@@ -172,7 +172,7 @@ func TestViewCreate_Happy(t *testing.T) {
 	if got.Method != http.MethodPost || got.Path != "/views" {
 		t.Errorf("request = %s %s, want POST /views", got.Method, got.Path)
 	}
-	assertAuth(t, got, markdownVersion)
+	assertAuth(t, got, notionVersion)
 	body := bodyMap(t, got.Body)
 	// POST /v1/views requires database_id + data_source_id + name + type.
 	if body["type"] != "table" || body["database_id"] != "db1" || body["data_source_id"] != "ds1" || body["name"] != "Recent" {
@@ -567,5 +567,22 @@ func TestFetch_Probe_DataSourceWins(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"data_source"`) {
 		t.Errorf("stdout = %q, want the data-source JSON after the probe fell through", stdout)
+	}
+}
+
+func TestDBQuery_Removed(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{}`, &got)
+	defer srv.Close()
+
+	code, _, stderr := run(t, srv, "db", "query", "ds1")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2 for removed db query", code)
+	}
+	if !strings.Contains(stderr, "unknown command") {
+		t.Errorf("stderr = %q, want unknown command", stderr)
+	}
+	if got.Path != "" {
+		t.Errorf("no request must be sent, got %s", got.Path)
 	}
 }

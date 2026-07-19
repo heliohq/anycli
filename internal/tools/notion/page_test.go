@@ -27,7 +27,7 @@ func TestPageCreate_Happy(t *testing.T) {
 	if got.Method != http.MethodPost || got.Path != "/pages" {
 		t.Errorf("request = %s %s, want POST /pages", got.Method, got.Path)
 	}
-	assertAuth(t, got, markdownVersion)
+	assertAuth(t, got, notionVersion)
 	// The element's fields are spread at the top level (parent required by the
 	// endpoint), NOT wrapped in a "pages" batch envelope.
 	body := bodyMap(t, got.Body)
@@ -154,7 +154,7 @@ func TestPageUpdate_ReplaceContent(t *testing.T) {
 	if got.Method != http.MethodPatch || got.Path != "/pages/p1/markdown" {
 		t.Errorf("request = %s %s, want PATCH /pages/p1/markdown", got.Method, got.Path)
 	}
-	assertAuth(t, got, markdownVersion)
+	assertAuth(t, got, notionVersion)
 	body := bodyMap(t, got.Body)
 	// CLI --command maps to the REST field `type`; the op params nest under an
 	// object keyed by that type value (the markdown endpoint rejects a flat body).
@@ -622,7 +622,7 @@ func TestPageMove_Happy(t *testing.T) {
 	if move == nil {
 		t.Fatalf("POST /pages/p1/move was not sent; reqs=%v", reqs)
 	}
-	assertAuth(t, *move, markdownVersion)
+	assertAuth(t, *move, notionVersion)
 	body := bodyMap(t, move.Body)
 	parent, ok := body["parent"].(map[string]any)
 	if !ok || parent["type"] != "page_id" || parent["page_id"] != "par1" {
@@ -734,7 +734,7 @@ func TestPageDuplicate_WithNewParent(t *testing.T) {
 	if got.Method != http.MethodPost || got.Path != "/pages" {
 		t.Errorf("request = %s %s, want POST /pages", got.Method, got.Path)
 	}
-	assertAuth(t, got, markdownVersion)
+	assertAuth(t, got, notionVersion)
 	body := bodyMap(t, got.Body)
 	tmpl, ok := body["template"].(map[string]any)
 	// template.type must be "template_id" or the endpoint defaults to "none"

@@ -71,7 +71,7 @@ func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 
 // newCommentListCmd is `comment list <page-id>` (GET /v1/comments?block_id=…).
 // A page is itself a block, so the page id is passed as the block_id query
-// param. Paginated like search / db query. Output JSON.
+// param. Paginated like search / data-source query. Output JSON.
 func (s *Service) newCommentListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list <page-id>",
