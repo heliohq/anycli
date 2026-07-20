@@ -285,5 +285,58 @@ func TestLoadBundled_DirectSourcesAreComplete(t *testing.T) {
 				t.Errorf("%s: sha256[%s] = %q, want a 64-hex digest", def.Name, platform, digest)
 			}
 		}
+
+		// Every sha256 platform key must be reachable by URL expansion: some
+		// Go OS/arch must map (via os_map/arch_map, defaulting to identity)
+		// onto the key, and ext_map must cover that Go OS when the template
+		// uses {ext}. Otherwise the pinned digest is dead weight and install
+		// on that platform fails only at runtime with an empty {ext} URL.
+		goosSet := []string{"darwin", "linux", "windows"}
+		goarchSet := []string{"amd64", "arm64"}
+		mapOS := func(goos string) string {
+			if m, ok := src.OsMap[goos]; ok {
+				return m
+			}
+			return goos
+		}
+		mapArch := func(goarch string) string {
+			if m, ok := src.ArchMap[goarch]; ok {
+				return m
+			}
+			return goarch
+		}
+		for platform := range src.SHA256 {
+			osName, arch, ok := strings.Cut(platform, "-")
+			if !ok {
+				t.Errorf("%s: sha256 platform key %q is not <os>-<arch>", def.Name, platform)
+				continue
+			}
+			var matchedGoos []string
+			for _, goos := range goosSet {
+				if mapOS(goos) == osName {
+					matchedGoos = append(matchedGoos, goos)
+				}
+			}
+			if len(matchedGoos) == 0 {
+				t.Errorf("%s: sha256 pins %q but no Go OS maps to %q via os_map", def.Name, platform, osName)
+			}
+			archMatched := false
+			for _, goarch := range goarchSet {
+				if mapArch(goarch) == arch {
+					archMatched = true
+					break
+				}
+			}
+			if !archMatched {
+				t.Errorf("%s: sha256 pins %q but no Go arch maps to %q via arch_map", def.Name, platform, arch)
+			}
+			if strings.Contains(src.URLTemplate, "{ext}") {
+				for _, goos := range matchedGoos {
+					if src.ExtMap[goos] == "" {
+						t.Errorf("%s: sha256 pins %q but ext_map has no entry for Go OS %q — the expanded URL would have an empty {ext}", def.Name, platform, goos)
+					}
+				}
+			}
+		}
 	}
 }
