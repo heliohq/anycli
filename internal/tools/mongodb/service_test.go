@@ -207,33 +207,65 @@ func TestExtraPositionalArgsRejected(t *testing.T) {
 	}
 }
 
-func TestAuthenticationFailedStderrRejectsCredential(t *testing.T) {
+// TestAuthenticationFailedRejectsCredential pins the production error
+// channel: mongosh --json prints a thrown error as a relaxed-EJSON object on
+// STDOUT (stderr stays empty), so auth classification must read stdout. A
+// stderr-text case remains as the belt for output bypassing the JSON reporter.
+func TestAuthenticationFailedRejectsCredential(t *testing.T) {
 	cases := []struct {
 		name   string
+		stdout string
 		stderr string
 	}{
-		{"server auth failure", "MongoServerError: Authentication failed."},
-		{"atlas bad auth", "MongoServerSelectionError: bad auth : authentication failed"},
-		{"handshake auth error", "connection() error occurred during connection handshake: auth error: sasl conversation error"},
+		{
+			name: "server auth failure (stdout JSON, codeName)",
+			stdout: `{
+  "message": "Authentication failed.",
+  "stack": "MongoServerError: Authentication failed.\n    at ...",
+  "name": "MongoServerError",
+  "ok": 0,
+  "code": 18,
+  "codeName": "AuthenticationFailed"
+}`,
+		},
+		{
+			name: "atlas bad auth (stdout JSON, no codeName)",
+			stdout: `{
+  "message": "bad auth : authentication failed",
+  "stack": "MongoServerSelectionError: bad auth : authentication failed\n    at ...",
+  "name": "MongoServerSelectionError"
+}`,
+		},
+		{
+			name:   "handshake auth error on stderr (non-JSON belt)",
+			stderr: "connection() error occurred during connection handshake: auth error: sasl conversation error",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			fake := &fakeRun{exitCode: 1, stderr: c.stderr}
-			res, _, errOut := run(t, fake, testDSN, "ping")
+			fake := &fakeRun{exitCode: 1, stdout: c.stdout, stderr: c.stderr}
+			res, out, errOut := run(t, fake, testDSN, "ping")
 			if res.ExitCode != 1 || !res.CredentialRejected {
 				t.Errorf("result = %+v, want exit 1 with credential rejection", res)
 			}
-			if !strings.Contains(strings.ToLower(errOut), "auth") {
-				t.Errorf("stderr = %q, want provider message passthrough", errOut)
+			if !strings.Contains(strings.ToLower(out+errOut), "auth") {
+				t.Errorf("output = %q %q, want provider message passthrough", out, errOut)
 			}
 		})
 	}
 }
 
 // TestUnauthorizedDoesNotRejectCredential pins the driver-era distinction:
-// Unauthorized (permission) failures must NOT invalidate the credential.
+// Unauthorized (permission) failures must NOT invalidate the credential. The
+// server's codeName on the stdout JSON error object is authoritative.
 func TestUnauthorizedDoesNotRejectCredential(t *testing.T) {
-	fake := &fakeRun{exitCode: 1, stderr: "MongoServerError: not authorized on shop to execute command { find: \"users\" }"}
+	fake := &fakeRun{exitCode: 1, stdout: `{
+  "message": "not authorized on shop to execute command { find: \"users\" }",
+  "name": "MongoServerError",
+  "ok": 0,
+  "code": 13,
+  "codeName": "Unauthorized"
+}`}
 	res, _, _ := run(t, fake, testDSN, "eval", "db.users.find()")
 	if res.ExitCode != 1 || res.CredentialRejected {
 		t.Errorf("result = %+v, want plain failure (permission != credential rejection)", res)
@@ -241,10 +273,42 @@ func TestUnauthorizedDoesNotRejectCredential(t *testing.T) {
 }
 
 func TestOrdinaryFailureDoesNotRejectCredential(t *testing.T) {
-	fake := &fakeRun{exitCode: 1, stderr: "MongoNetworkError: connect ECONNREFUSED 127.0.0.1:27017"}
+	fake := &fakeRun{exitCode: 1, stdout: `{
+  "message": "connect ECONNREFUSED 127.0.0.1:27017",
+  "stack": "MongoNetworkError: connect ECONNREFUSED 127.0.0.1:27017\n    at ...",
+  "name": "MongoNetworkError"
+}`}
 	res, _, _ := run(t, fake, testDSN, "ping")
 	if res.ExitCode != 1 || res.CredentialRejected {
 		t.Errorf("result = %+v, want plain failure", res)
+	}
+}
+
+func TestLastJSONErrorObject(t *testing.T) {
+	cases := []struct {
+		name      string
+		stdout    string
+		wantFound bool
+		wantName  string
+	}{
+		{"empty", "", false, ""},
+		{"non-JSON text", "some plain output\n", false, ""},
+		{"success result without error shape", `{"ok": 1}`, false, ""},
+		{"single error object", `{"message": "boom", "name": "Error"}`, true, "Error"},
+		{
+			"error object after earlier JSON value",
+			`{"ok": 1}` + "\n" + `{"message": "Authentication failed.", "name": "MongoServerError", "codeName": "AuthenticationFailed"}`,
+			true, "MongoServerError",
+		},
+		{"trailing garbage stops the scan", `{"message": "boom", "name": "Error"}` + "\nnot-json", true, "Error"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, found := lastJSONErrorObject([]byte(c.stdout))
+			if found != c.wantFound || got.Name != c.wantName {
+				t.Errorf("lastJSONErrorObject = (%+v, %t), want name %q found %t", got, found, c.wantName, c.wantFound)
+			}
+		})
 	}
 }
 

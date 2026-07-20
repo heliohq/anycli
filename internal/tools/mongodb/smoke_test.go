@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/heliohq/anycli/definitions"
+	"github.com/heliohq/anycli/internal/exec/binresolve"
 )
 
 // realMongosh returns the PATH-resolved mongosh or skips the test. Smoke
@@ -79,14 +85,43 @@ func TestSmokeMongoshShellFlagAsScriptDoesNotOpenShell(t *testing.T) {
 	}
 }
 
+// pinRealMongosh symlinks the PATH-resolved mongosh into the pinned level-①
+// path under the (test-scoped) HELIO_BIN_DIR, so binresolve deterministically
+// resolves at level ① and level ③ — a real ~55MB download — is unreachable no
+// matter how the machine's PATH is laid out (e.g. the only mongosh sitting in
+// the skipped shim directory).
+func pinRealMongosh(t *testing.T, bin string) {
+	t.Helper()
+	def, err := definitions.LoadBundled("mongodb")
+	if err != nil {
+		t.Fatalf("LoadBundled(mongodb): %v", err)
+	}
+	name := def.Binary
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	pinned := filepath.Join(binresolve.PinRoot(), "versions", def.Name, def.Source.Version,
+		binresolve.Platform(def.Source), name)
+	if err := os.MkdirAll(filepath.Dir(pinned), 0o755); err != nil {
+		t.Fatalf("create pinned dir: %v", err)
+	}
+	if err := os.Symlink(bin, pinned); err != nil {
+		t.Skipf("cannot pin real mongosh (%v); skipping smoke test", err)
+	}
+}
+
 // TestSmokeServiceEvalUnreachableHost runs the full service pipeline (connect
 // prelude + env injection + redaction + classification) against the real
 // mongosh with an unreachable host: the invocation must fail fast, must NOT
-// reject the credential (network != auth), and must not leak the DSN.
+// reject the credential (network != auth), must not leak the DSN, and must
+// report the error as a relaxed-EJSON object on STDOUT — the channel auth
+// classification reads.
 func TestSmokeServiceEvalUnreachableHost(t *testing.T) {
-	realMongosh(t)
-	// Keep resolution hermetic: an empty pin root forces the PATH level.
+	bin := realMongosh(t)
+	// Hermetic resolution: pin the PATH-resolved mongosh into a test-scoped
+	// pin root so level ① hits and lazy install can never run.
 	t.Setenv("HELIO_BIN_DIR", t.TempDir())
+	pinRealMongosh(t, bin)
 
 	dsn := "mongodb://smokeuser:smokepw@127.0.0.1:1/?connectTimeoutMS=2000&serverSelectionTimeoutMS=2000&directConnection=true"
 	var out, errOut bytes.Buffer
@@ -106,5 +141,13 @@ func TestSmokeServiceEvalUnreachableHost(t *testing.T) {
 	combined := out.String() + errOut.String()
 	if strings.Contains(combined, "smokepw") || strings.Contains(combined, dsn) {
 		t.Errorf("output leaked the DSN or password:\n%s", combined)
+	}
+	// The thrown error must land on stdout as a JSON error object — this is
+	// the contract classifyFailure depends on (stderr stays empty in --json
+	// mode, so stderr-only classification would never fire).
+	errObj, found := lastJSONErrorObject(out.Bytes())
+	if !found || errObj.Name == "" {
+		t.Errorf("stdout carries no JSON error object (found=%t, %+v)\nstdout: %s\nstderr: %s",
+			found, errObj, out.String(), errOut.String())
 	}
 }

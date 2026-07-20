@@ -125,16 +125,20 @@ The `mongodb` service is a thin wrapper around the official MongoDB Shell
 (`mongodb://` or `mongodb+srv://`) resolved into `MONGODB_CONNECTION_STRING`.
 It exposes exactly two commands: `eval '<mongosh JS>'` and `ping`. Database
 selection happens in the script (`db.getSiblingDB(...)`); `db` is
-pre-connected via a `connect(process.env.MONGODB_CONNECTION_STRING)` prelude,
-so the DSN never appears on the command line. mongosh flags are fixed
+pre-connected via a `connect(process.env.MONGODB_CONNECTION_STRING)` prelude
+(which then deletes the variable from `process.env`), so the DSN never appears
+on the command line. mongosh flags are fixed
 (`--nodb --quiet --norc --json=relaxed`) and not passed through — the script
 travels as a fused `--eval=` token, so `--shell` and other flags are
 unreachable. Output is relaxed extended JSON. The first invocation lazily
 installs mongosh from downloads.mongodb.com (sha256-verified, file-locked)
-into the pinned-versions directory unless a mongosh is already on PATH.
-"authentication failed" stderr rejects the credential; permission errors
-("not authorized") and transport failures do not. Output redacts the
-connection string and its password.
+into the pinned-versions directory unless a mongosh is already on PATH (in
+which case the PATH mongosh is used as-is). In `--json` mode mongosh reports a
+thrown error as a JSON error object on stdout; a `codeName` of
+`AuthenticationFailed` (or auth-failure message text) rejects the credential,
+while permission errors (`Unauthorized` / "not authorized") and transport
+failures do not. Output redacts the connection string and its password as a
+guard against accidental echo (not deliberate exfiltration by the script).
 
 ## Documentation
 
