@@ -133,6 +133,20 @@ pipelines are extended JSON; output is relaxed extended JSON. Server
 (code 13) and transport failures do not. Error output redacts the connection
 string and its password.
 
+## Dev harness
+
+`cmd/anycli` builds a standalone binary for tool-definition development. It is
+NOT the product (the library is); it exists so a definition can be exercised
+against the real provider API before any host integration:
+
+    make build-harness
+    ANYCLI_CRED_ACCESS_TOKEN=xoxb-... ./bin/anycli slack -- chat send --channel C1 --text hi
+    ./bin/anycli list
+
+Credentials come from `ANYCLI_CRED_<FIELD>` environment variables (suffix
+lowercased = credential field name). Everything after `--` goes to the tool
+verbatim.
+
 ## Documentation
 
 - [Why AnyCLI](WHY_ANY_CLI.md) — CLI vs MCP for agents
