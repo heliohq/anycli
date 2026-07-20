@@ -108,7 +108,7 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 	}
 
 	// 5. Resolve the real binary path.
-	binaryPath, err := resolveBinary(ctx, def)
+	binaryPath, err := ResolveBinary(ctx, def)
 	if err != nil {
 		return 1, fmt.Errorf("cannot find %q binary: %w", tool, err)
 	}
@@ -160,12 +160,12 @@ func (e *Engine) markCredentialsStale(tool, account string) {
 	fmt.Fprintf(os.Stderr, "[anycli] credentials for %q may be stale. retry the same command to fetch fresh credentials.\n", tool)
 }
 
-// resolveBinary finds the real binary path. An explicit absolute Resolve wins;
+// ResolveBinary finds the real binary path. An explicit absolute Resolve wins;
 // otherwise the shared three-level resolution runs: pinned-versions dir, PATH
 // (skipping the anycli shim directory), then lazy install for definitions with
 // an official direct-download source. Definitions without one (e.g. lark-cli)
 // keep the historical PATH-only behavior and error.
-func resolveBinary(ctx context.Context, def *registry.Definition) (string, error) {
+func ResolveBinary(ctx context.Context, def *registry.Definition) (string, error) {
 	if def.Resolve != "" && def.Resolve != "which" {
 		// Absolute path provided
 		if _, err := os.Stat(def.Resolve); err != nil {

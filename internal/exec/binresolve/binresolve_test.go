@@ -554,3 +554,28 @@ func TestResolveBinaryEntryMissingFromArchive(t *testing.T) {
 		t.Fatalf("err = %v, want entry-missing failure", err)
 	}
 }
+
+func TestLazyInstallable(t *testing.T) {
+	platform := Platform(&registry.SourceConfig{}) // identity maps: "<goos>-<goarch>"
+	cases := []struct {
+		name string
+		src  *registry.SourceConfig
+		want bool
+	}{
+		{"nil source", nil, false},
+		{"declarative github-release", &registry.SourceConfig{Type: "github-release", Version: "1.0.0"}, false},
+		{"direct without sha256 for platform", &registry.SourceConfig{
+			Type: "direct", URLTemplate: "https://example.com/{version}", Version: "1.0.0",
+			SHA256: map[string]string{"some-other-platform": "aa"},
+		}, false},
+		{"direct with sha256 for platform", &registry.SourceConfig{
+			Type: "direct", URLTemplate: "https://example.com/{version}", Version: "1.0.0",
+			SHA256: map[string]string{platform: "aa"},
+		}, true},
+	}
+	for _, tc := range cases {
+		if got := LazyInstallable(tc.src); got != tc.want {
+			t.Errorf("%s: LazyInstallable = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

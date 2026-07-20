@@ -474,7 +474,7 @@ func TestResolveBinary_AbsolutePath(t *testing.T) {
 	truePath := trueBinary(t)
 	def := &registry.Definition{Name: "test", Binary: "true", Resolve: truePath}
 
-	got, err := resolveBinary(context.Background(), def)
+	got, err := ResolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -485,7 +485,7 @@ func TestResolveBinary_AbsolutePath(t *testing.T) {
 
 func TestResolveBinary_AbsolutePath_Missing(t *testing.T) {
 	def := &registry.Definition{Name: "test", Binary: "missing", Resolve: "/nonexistent/path/to/binary"}
-	if _, err := resolveBinary(context.Background(), def); err == nil {
+	if _, err := ResolveBinary(context.Background(), def); err == nil {
 		t.Fatal("expected error for missing absolute path")
 	}
 }
@@ -507,7 +507,7 @@ func TestResolveBinary_Which(t *testing.T) {
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+filepath.Join(home, "bin"))
 
 	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: ""}
-	got, err := resolveBinary(context.Background(), def)
+	got, err := ResolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -538,7 +538,7 @@ func TestResolveBinary_SkipsShimDir(t *testing.T) {
 	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+realDir)
 
 	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: ""}
-	got, err := resolveBinary(context.Background(), def)
+	got, err := ResolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -564,7 +564,7 @@ func TestResolveBinary_WhichResolveValue(t *testing.T) {
 	t.Setenv("PATH", binDir)
 
 	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: "which"}
-	got, err := resolveBinary(context.Background(), def)
+	got, err := ResolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -668,12 +668,12 @@ func TestResolveBinary_GitHubDefinitionPinThenPATH(t *testing.T) {
 		t.Fatalf("write fake gh: %v", err)
 	}
 	t.Setenv("PATH", binDir)
-	got, err := resolveBinary(context.Background(), def)
+	got, err := ResolveBinary(context.Background(), def)
 	if err != nil {
-		t.Fatalf("resolveBinary: %v", err)
+		t.Fatalf("ResolveBinary: %v", err)
 	}
 	if got != fakeGh {
-		t.Errorf("resolveBinary = %q, want PATH hit %q", got, fakeGh)
+		t.Errorf("ResolveBinary = %q, want PATH hit %q", got, fakeGh)
 	}
 
 	// Pinned gh present: level ① wins over the same PATH entry.
@@ -684,11 +684,11 @@ func TestResolveBinary_GitHubDefinitionPinThenPATH(t *testing.T) {
 	if err := os.WriteFile(pinned, []byte("#!/bin/sh\n"), 0755); err != nil {
 		t.Fatalf("write pinned gh: %v", err)
 	}
-	got, err = resolveBinary(context.Background(), def)
+	got, err = ResolveBinary(context.Background(), def)
 	if err != nil {
-		t.Fatalf("resolveBinary with pin: %v", err)
+		t.Fatalf("ResolveBinary with pin: %v", err)
 	}
 	if got != pinned {
-		t.Errorf("resolveBinary = %q, want pinned %q", got, pinned)
+		t.Errorf("ResolveBinary = %q, want pinned %q", got, pinned)
 	}
 }

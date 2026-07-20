@@ -173,6 +173,15 @@ func directInstallable(src *registry.SourceConfig) bool {
 	return src != nil && src.Type == "direct" && src.URLTemplate != "" && src.Version != ""
 }
 
+// LazyInstallable reports whether level ③ can actually complete for src on
+// the current platform: a direct-download source with a pinned version AND a
+// sha256 digest declared for this platform's key (install fails closed
+// without one). It is the eligibility predicate behind the exported
+// anycli.WarmEligibleTools surface.
+func LazyInstallable(src *registry.SourceConfig) bool {
+	return directInstallable(src) && src.SHA256[Platform(src)] != ""
+}
+
 // expand substitutes {version}, {os}, {arch}, {ext}, and {exe} in a template.
 // src must be non-nil — callers gate on directInstallable first.
 func expand(template string, src *registry.SourceConfig) string {
