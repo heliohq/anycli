@@ -1,21 +1,33 @@
-// Package mongodb is the built-in MongoDB service: a non-interactive cobra
-// tree over database/collection operations, connected through a host-resolved
-// connection string. It is the first non-HTTP service tool — auth failures
-// come from the driver as command errors, not HTTP status codes.
+// Package mongodb is the built-in MongoDB tool: a thin wrapper around the
+// official MongoDB Shell (mongosh). It exposes exactly two arms — eval (run a
+// mongosh JavaScript snippet) and ping — instead of a hand-rolled verb subset:
+// models are fluent in mongosh JS, and any verb list would forever chase it.
+//
+// The subprocess is spawned with an execve-style argv (no shell interpolation)
+// over a fixed flag set; the connection string travels only through the child
+// environment (MONGODB_CONNECTION_STRING), never through argv, so `ps` never
+// shows it. mongosh itself is lazily installed from the official download
+// host on first use (see internal/exec/binresolve).
 package mongodb
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/heliohq/anycli/definitions"
+	"github.com/heliohq/anycli/internal/config"
+	"github.com/heliohq/anycli/internal/exec/binresolve"
 	"github.com/heliohq/anycli/internal/tools/execution"
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	"github.com/spf13/cobra"
 )
 
 // EnvConnectionString is the env var the credential binding injects
@@ -23,17 +35,30 @@ import (
 // standard MongoDB DSN (mongodb:// or mongodb+srv://).
 const EnvConnectionString = "MONGODB_CONNECTION_STRING"
 
-// authenticationFailedCode is MongoDB's AuthenticationFailed server error
-// code: the provider explicitly rejected the credential. Code 13
-// (Unauthorized) is a permission failure and must NOT reject the credential.
-const authenticationFailedCode = 18
+// connectPrelude is the first --eval: it dials the connection string from the
+// child environment. The argv contains only this variable-name literal — the
+// DSN value itself never appears on the command line.
+const connectPrelude = "db = connect(process.env." + EnvConnectionString + ")"
+
+// pingScript is the second --eval for the ping arm.
+const pingScript = "db.runCommand({ ping: 1 })"
+
+// defaultTimeout bounds one mongosh invocation when the engine context has no
+// deadline of its own.
+const defaultTimeout = 2 * time.Minute
+
+// Runner executes one mongosh subprocess: args is the full mongosh argv (after
+// the binary), env is the complete child environment. Tests inject a fake; the
+// zero-value Service resolves the pinned mongosh (lazy-installing on first
+// use) and runs it with no TTY.
+type Runner func(ctx context.Context, args []string, env []string) (exitCode int, stdout, stderr []byte, err error)
 
 // Service implements the built-in MongoDB tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {
-	// Connect overrides the driver constructor; nil uses the real mongo
-	// driver. Tests inject a fake Client.
-	Connect func(ctx context.Context, uri string) (Client, error)
+	// Run overrides subprocess execution; nil resolves and executes the real
+	// mongosh binary.
+	Run Runner
 	// Out / Err override stdout / stderr; nil = the process streams.
 	Out io.Writer
 	Err io.Writer
@@ -46,14 +71,215 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 		fmt.Fprintln(s.stderr(), "MONGODB_CONNECTION_STRING is not set")
 		return execution.Result{ExitCode: 1}, nil
 	}
-	root := s.newRoot(dsn)
+	inv := &invocation{}
+	root := s.newRoot(dsn, inv)
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(s.stderr(), redactSecret(err.Error(), dsn))
-		return execution.Failure(err), nil
+		exitCode := inv.exitCode
+		if exitCode <= 0 {
+			exitCode = 1
+		}
+		return execution.Result{
+			ExitCode:           exitCode,
+			CredentialRejected: execution.IsCredentialRejected(err),
+		}, nil
 	}
 	return execution.Result{}, nil
 }
+
+// invocation carries the mongosh exit code from the command RunE back to
+// Execute so the service propagates it instead of flattening to 1.
+type invocation struct {
+	exitCode int
+}
+
+func (s *Service) newRoot(dsn string, inv *invocation) *cobra.Command {
+	pin := pinnedMongoshVersion()
+	root := &cobra.Command{
+		Use:   "mongodb",
+		Short: fmt.Sprintf("MongoDB via the official MongoDB Shell (wraps mongosh %s)", pin),
+		Long: fmt.Sprintf(`MongoDB via the official MongoDB Shell — wraps mongosh %[1]s.
+
+The first invocation downloads mongosh %[1]s from downloads.mongodb.com
+(sha256-verified) if it is not already installed; later invocations reuse it.
+
+Two commands:
+  eval <script>   Run a mongosh JavaScript snippet against the connected
+                  deployment. "db" is pre-connected from the configured
+                  connection string; use standard mongosh JS, e.g.
+                    eval 'db.getSiblingDB("shop").users.find({age: {$gt: 30}}).toArray()'
+                  Output is relaxed extended JSON (mongosh --json=relaxed).
+                  Scripts starting with "-" need a "--" separator: eval -- '<script>'.
+  ping            Verify connectivity and authentication.
+
+There is no --db flag: select databases in the script (db.getSiblingDB(...)).
+mongosh flags are fixed and not passed through.`, pin),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+	root.SetOut(s.stdout())
+	root.SetErr(s.stderr())
+	timeout := root.PersistentFlags().Duration("timeout", defaultTimeout, "mongosh execution timeout")
+
+	evalCmd := &cobra.Command{
+		Use:   "eval <script>",
+		Short: "Run a mongosh JavaScript snippet",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return s.runMongosh(cmd.Context(), args[0], dsn, *timeout, inv)
+		},
+	}
+	pingCmd := &cobra.Command{
+		Use:   "ping",
+		Short: "Verify connectivity and authentication",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return s.runMongosh(cmd.Context(), pingScript, dsn, *timeout, inv)
+		},
+	}
+	root.AddCommand(evalCmd, pingCmd)
+	return root
+}
+
+// mongoshArgs assembles the full execve argv (after the binary) for one
+// script. The flag set is fixed; the prelude and the script are fused into
+// --eval= tokens so script content can never occupy a flag position (there is
+// no reachable path to --shell or any other mongosh flag).
+func mongoshArgs(script string) []string {
+	return []string{
+		"--nodb",
+		"--quiet",
+		"--norc",
+		"--json=relaxed",
+		"--eval=" + connectPrelude,
+		"--eval=" + script,
+	}
+}
+
+// runMongosh executes one mongosh invocation: fixed argv, credential and
+// scoped HOME in the child env, redacted output, auth classification, and a
+// context deadline.
+func (s *Service) runMongosh(ctx context.Context, script, dsn string, timeout time.Duration, inv *invocation) error {
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
+	scopedHome, err := os.MkdirTemp("", "anycli-mongosh-home-")
+	if err != nil {
+		return fmt.Errorf("create scoped mongosh home: %w", err)
+	}
+	defer os.RemoveAll(scopedHome)
+
+	run := s.Run
+	if run == nil {
+		run = execMongosh
+	}
+	exitCode, stdout, stderrOut, runErr := run(ctx, mongoshArgs(script), childEnv(dsn, scopedHome))
+	inv.exitCode = exitCode
+
+	if len(stdout) > 0 {
+		s.stdout().Write([]byte(redactSecret(string(stdout), dsn)))
+	}
+	if len(stderrOut) > 0 {
+		s.stderr().Write([]byte(redactSecret(string(stderrOut), dsn)))
+	}
+
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return fmt.Errorf("mongosh timed out after %s", timeout)
+	}
+	if runErr != nil {
+		return classifyStderr(runErr, stderrOut)
+	}
+	if exitCode != 0 {
+		return classifyStderr(fmt.Errorf("mongosh exited with code %d", exitCode), stderrOut)
+	}
+	return nil
+}
+
+// childEnv builds the subprocess environment: the parent env with HOME (and
+// USERPROFILE) redirected to a scoped temp dir and the connection string
+// injected. The DSN exists only here — never in argv.
+func childEnv(dsn, scopedHome string) []string {
+	parent := os.Environ()
+	env := make([]string, 0, len(parent)+3)
+	for _, kv := range parent {
+		key, _, _ := strings.Cut(kv, "=")
+		switch key {
+		case "HOME", "USERPROFILE", EnvConnectionString:
+			continue
+		}
+		env = append(env, kv)
+	}
+	return append(env,
+		"HOME="+scopedHome,
+		"USERPROFILE="+scopedHome,
+		EnvConnectionString+"="+dsn,
+	)
+}
+
+// execMongosh is the production Runner: it resolves the pinned mongosh
+// (lazy-installing from the official source on first use) and runs it with
+// stdin closed (no TTY).
+func execMongosh(ctx context.Context, args []string, env []string) (int, []byte, []byte, error) {
+	def, err := definitions.LoadBundled("mongodb")
+	if err != nil {
+		return 1, nil, nil, err
+	}
+	binary, err := binresolve.Resolve(ctx, def.Name, def.Binary, def.Source, binresolve.Options{
+		SkipPATHDir: config.BinDir(),
+	})
+	if err != nil {
+		return 1, nil, nil, fmt.Errorf("resolve mongosh: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd.Env = env
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	runErr := cmd.Run()
+
+	exitCode := 1
+	if cmd.ProcessState != nil {
+		exitCode = cmd.ProcessState.ExitCode()
+	}
+	var exitErr *exec.ExitError
+	if errors.As(runErr, &exitErr) {
+		// Non-zero exit is reported through exitCode + stderr, not as an
+		// exec-level error.
+		runErr = nil
+	}
+	return exitCode, stdout.Bytes(), stderr.Bytes(), runErr
+}
+
+// classifyStderr wraps explicit provider credential rejections with
+// execution.RejectCredential based on mongosh stderr text. Permission errors
+// ("not authorized" / Unauthorized) and ordinary failures pass through
+// unchanged — same semantics as the retired driver implementation, now judged
+// from the shell's error text instead of server error codes.
+func classifyStderr(err error, stderr []byte) error {
+	if isAuthStderr(string(stderr)) {
+		return execution.RejectCredential(err)
+	}
+	return err
+}
+
+func isAuthStderr(stderr string) bool {
+	msg := strings.ToLower(stderr)
+	return strings.Contains(msg, "authentication failed") || strings.Contains(msg, "auth error")
+}
+
+// pinnedMongoshVersion reads the mongosh pin from the embedded definition once.
+var pinnedMongoshVersion = sync.OnceValue(func() string {
+	def, err := definitions.LoadBundled("mongodb")
+	if err != nil || def.Source == nil {
+		return "(unpinned)"
+	}
+	return def.Source.Version
+})
 
 func (s *Service) stdout() io.Writer {
 	if s.Out != nil {
@@ -69,77 +295,8 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
-// withClient connects, runs fn, disconnects, and classifies provider auth
-// rejections so the engine can invalidate the credential.
-func (s *Service) withClient(ctx context.Context, dsn string, fn func(Client) error) error {
-	connect := s.Connect
-	if connect == nil {
-		connect = driverConnect
-	}
-	c, err := connect(ctx, dsn)
-	if err != nil {
-		return classify(err)
-	}
-	defer func() { _ = c.Disconnect(context.Background()) }()
-	return classify(fn(c))
-}
-
-// classify wraps explicit provider credential rejections with
-// execution.RejectCredential; ordinary failures pass through unchanged.
-func classify(err error) error {
-	if err == nil {
-		return nil
-	}
-	if isAuthError(err) {
-		return execution.RejectCredential(err)
-	}
-	return err
-}
-
-func isAuthError(err error) bool {
-	var cmdErr mongo.CommandError
-	if errors.As(err, &cmdErr) {
-		return cmdErr.Code == authenticationFailedCode
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "authentication failed") || strings.Contains(msg, "auth error")
-}
-
-// emit writes one relaxed extended-JSON document to stdout.
-func (s *Service) emit(doc any) error {
-	b, err := bson.MarshalExtJSON(doc, false, false)
-	if err != nil {
-		return fmt.Errorf("mongodb: encode output: %w", err)
-	}
-	_, err = s.stdout().Write(append(b, '\n'))
-	return err
-}
-
-// resolveDB picks the target database: the per-invocation --db flag wins; the
-// connection string's path component is the optional default. The Atlas
-// "Connect your application" DSN has no path — --db is required then.
-func resolveDB(flagDB, dsn string) (string, error) {
-	if flagDB != "" {
-		return flagDB, nil
-	}
-	if db := defaultDatabase(dsn); db != "" {
-		return db, nil
-	}
-	return "", errors.New("no database selected: pass --db (the connection string has no default database)")
-}
-
-// defaultDatabase extracts the auth-database path from a MongoDB DSN. An
-// unparsable DSN yields no default; the driver reports the real error.
-func defaultDatabase(dsn string) string {
-	u, err := url.Parse(dsn)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimPrefix(u.Path, "/")
-}
-
 // redactSecret removes the connection string (and its password component)
-// from provider error text before it reaches stderr.
+// from subprocess output and error text before it reaches the caller.
 func redactSecret(value, dsn string) string {
 	if dsn == "" {
 		return value

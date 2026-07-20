@@ -203,3 +203,87 @@ func TestLoadBundled_GitHubCliShape(t *testing.T) {
 		t.Errorf("inject = %+v, want env GH_TOKEN", b.Inject)
 	}
 }
+
+// TestLoadBundled_MongoDBShape pins the mongodb definition's mongosh-wrapper
+// shape: a service-type tool whose underlying binary is the official mongosh
+// with a pinned direct-download source (mandatory per-platform sha256), and
+// the unchanged connection-string env binding (the provider.yaml wire
+// contract — a drifted env var name means no injection).
+func TestLoadBundled_MongoDBShape(t *testing.T) {
+	def, err := LoadBundled("mongodb")
+	if err != nil {
+		t.Fatalf("LoadBundled(mongodb) failed: %v", err)
+	}
+	if def.Type != "service" {
+		t.Errorf("Type = %q, want service", def.Type)
+	}
+	if def.Binary != "mongosh" {
+		t.Errorf("Binary = %q, want mongosh", def.Binary)
+	}
+	src := def.Source
+	if src == nil {
+		t.Fatal("Source missing — the mongosh lazy-install source must be declared")
+	}
+	if src.Type != "direct" {
+		t.Errorf("Source.Type = %q, want direct", src.Type)
+	}
+	if src.Version != "2.9.2" {
+		t.Errorf("Source.Version = %q, want pinned 2.9.2", src.Version)
+	}
+	if src.URLTemplate == "" || src.BinaryPath == "" {
+		t.Errorf("Source url_template/binary_path missing: %+v", src)
+	}
+	for _, platform := range []string{"darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"} {
+		digest, ok := src.SHA256[platform]
+		if !ok {
+			t.Errorf("sha256 missing for platform %s", platform)
+			continue
+		}
+		if len(digest) != 64 {
+			t.Errorf("sha256[%s] = %q, want a 64-hex digest", platform, digest)
+		}
+	}
+	if def.Auth == nil || len(def.Auth.Credentials) != 1 {
+		t.Fatalf("credentials = %+v, want one binding", def.Auth)
+	}
+	binding := def.Auth.Credentials[0]
+	if binding.Source.Field != "connection_string" {
+		t.Errorf("field = %q, want connection_string", binding.Source.Field)
+	}
+	if binding.Inject.Type != "env" || binding.Inject.EnvVar != "MONGODB_CONNECTION_STRING" {
+		t.Errorf("inject = %+v, want env MONGODB_CONNECTION_STRING", binding.Inject)
+	}
+}
+
+// TestLoadBundled_DirectSourcesAreComplete validates every direct-download
+// source shipped in the definitions: lazy install requires a url template, a
+// pinned version, an archive binary path, and a non-empty sha256 table.
+func TestLoadBundled_DirectSourcesAreComplete(t *testing.T) {
+	bundled, err := ListBundled()
+	if err != nil {
+		t.Fatalf("ListBundled failed: %v", err)
+	}
+	for _, def := range bundled {
+		if def.Source == nil || def.Source.Type != "direct" {
+			continue
+		}
+		src := def.Source
+		if src.URLTemplate == "" {
+			t.Errorf("%s: direct source has no url_template", def.Name)
+		}
+		if src.Version == "" {
+			t.Errorf("%s: direct source has no pinned version", def.Name)
+		}
+		if src.BinaryPath == "" {
+			t.Errorf("%s: direct source has no binary_path", def.Name)
+		}
+		if len(src.SHA256) == 0 {
+			t.Errorf("%s: direct source has no sha256 table — lazy install would have nothing to verify", def.Name)
+		}
+		for platform, digest := range src.SHA256 {
+			if len(digest) != 64 {
+				t.Errorf("%s: sha256[%s] = %q, want a 64-hex digest", def.Name, platform, digest)
+			}
+		}
+	}
+}
