@@ -1,7 +1,8 @@
 .PHONY: build vet test lint all build-harness
 
-# AnyCLI is an embeddable library (design 002): there is no main package and no
-# standalone binary to produce. These targets compile and check the packages.
+# AnyCLI is an embeddable library (design 002). The library itself produces no
+# binary; the only main package is the standalone dev harness under cmd/anycli
+# (see build-harness).
 
 build:
 	go build ./...
