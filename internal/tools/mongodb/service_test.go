@@ -301,6 +301,16 @@ func TestLastJSONErrorObject(t *testing.T) {
 			true, "MongoServerError",
 		},
 		{"trailing garbage stops the scan", `{"message": "boom", "name": "Error"}` + "\nnot-json", true, "Error"},
+		{
+			"user document with name/message fields is not an error object",
+			`{"name": "job-import", "message": "authentication failed for worker 3", "ts": 1}`,
+			false, "",
+		},
+		{
+			"non-Error name with codeName still counts (server error shape)",
+			`{"name": "MongoServerFault", "message": "x", "codeName": "Unauthorized"}`,
+			true, "MongoServerFault",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -309,6 +319,22 @@ func TestLastJSONErrorObject(t *testing.T) {
 				t.Errorf("lastJSONErrorObject = (%+v, %t), want name %q found %t", got, found, c.wantName, c.wantFound)
 			}
 		})
+	}
+}
+
+// TestUserDocumentEchoDoesNotRejectCredential pins the isErrorShape guard:
+// a printed user document that merely has name/message fields (e.g. a row from
+// an error-log collection whose message says "authentication failed") followed
+// by a non-zero exit must not invalidate the credential.
+func TestUserDocumentEchoDoesNotRejectCredential(t *testing.T) {
+	fake := &fakeRun{exitCode: 1, stdout: `{
+  "name": "job-import",
+  "message": "authentication failed for upstream worker",
+  "level": "error"
+}`}
+	res, _, _ := run(t, fake, testDSN, "eval", "printjson(db.errorlog.findOne()); quit(1)")
+	if res.ExitCode != 1 || res.CredentialRejected {
+		t.Errorf("result = %+v, want plain failure (user document is not an auth report)", res)
 	}
 }
 
@@ -381,7 +407,14 @@ func TestHelpMentionsWrappedPinAndLazyDownload(t *testing.T) {
 	if fake.called {
 		t.Error("help must not spawn mongosh")
 	}
-	for _, want := range []string{"wraps mongosh 2.9.2", "downloads.mongodb.com", "first invocation downloads"} {
+	for _, want := range []string{
+		"wraps mongosh 2.9.2",
+		"downloads.mongodb.com",
+		"first invocation downloads",
+		// PATH is only used while no pinned install exists — the help must not
+		// claim unconditional PATH precedence (pin level ① resolves first).
+		"only while no pinned",
+	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("help output missing %q\n%s", want, out)
 		}
@@ -393,5 +426,39 @@ func TestRedactSecret(t *testing.T) {
 	got := redactSecret(in, testDSN)
 	if strings.Contains(got, "s3cr3t-pw") || strings.Contains(got, testDSN) {
 		t.Errorf("redactSecret = %q, secrets survived", got)
+	}
+}
+
+// TestRedactSecretPercentEncodedPassword pins that both the decoded password
+// (as url.Parse reports it) and the percent-encoded literal spelled inside the
+// DSN are redacted — output may echo either form.
+func TestRedactSecretPercentEncodedPassword(t *testing.T) {
+	dsn := "mongodb://appuser:p%40ss%2Fw0rd@db.example.com:27017/shop?authSource=admin"
+	in := "bad literal p%40ss%2Fw0rd and decoded p@ss/w0rd in output"
+	got := redactSecret(in, dsn)
+	for _, leak := range []string{"p%40ss%2Fw0rd", "p@ss/w0rd"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("redactSecret = %q, leaked %q", got, leak)
+		}
+	}
+	if !strings.Contains(got, "[REDACTED]") {
+		t.Errorf("redactSecret = %q, want [REDACTED] marker", got)
+	}
+}
+
+func TestLiteralDSNPassword(t *testing.T) {
+	cases := []struct {
+		dsn  string
+		want string
+	}{
+		{"mongodb://user:p%40ss@host:27017/db", "p%40ss"},
+		{"mongodb+srv://user:plain@cluster0.example.mongodb.net/?retryWrites=true", "plain"},
+		{"mongodb://user@host/db", ""},
+		{"mongodb://host:27017/db", ""},
+	}
+	for _, c := range cases {
+		if got := literalDSNPassword(c.dsn); got != c.want {
+			t.Errorf("literalDSNPassword(%q) = %q, want %q", c.dsn, got, c.want)
+		}
 	}
 }

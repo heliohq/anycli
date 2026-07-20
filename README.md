@@ -131,9 +131,14 @@ on the command line. mongosh flags are fixed
 (`--nodb --quiet --norc --json=relaxed`) and not passed through — the script
 travels as a fused `--eval=` token, so `--shell` and other flags are
 unreachable. Output is relaxed extended JSON. The first invocation lazily
-installs mongosh from downloads.mongodb.com (sha256-verified, file-locked)
-into the pinned-versions directory unless a mongosh is already on PATH (in
-which case the PATH mongosh is used as-is). In `--json` mode mongosh reports a
+installs mongosh from downloads.mongodb.com (sha256-verified, file-locked,
+bounded by its own install timeout) into the pinned-versions directory unless
+a mongosh is already on PATH, in which case the PATH mongosh is used as-is —
+but only while no pinned install exists yet; once the pin lands it wins over
+PATH. Lazy install extracts the `mongosh` binary only, not the
+`mongosh_crypt_v1` shared library, so automatic client-side field-level
+encryption (CSFLE) is unavailable through a lazily-installed mongosh (a PATH
+mongosh from a full distribution keeps it). In `--json` mode mongosh reports a
 thrown error as a JSON error object on stdout; a `codeName` of
 `AuthenticationFailed` (or auth-failure message text) rejects the credential,
 while permission errors (`Unauthorized` / "not authorized") and transport

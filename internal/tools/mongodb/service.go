@@ -113,7 +113,9 @@ func (s *Service) newRoot(dsn string, inv *invocation) *cobra.Command {
 
 The first invocation downloads mongosh %[1]s from downloads.mongodb.com
 (sha256-verified) if it is not already installed; later invocations reuse it.
-A mongosh already on PATH takes precedence and is used as-is (no download).
+A mongosh already on PATH is used as-is (no download) only while no pinned
+install exists yet; once a pinned mongosh %[1]s has been installed, it wins
+over PATH.
 
 Two commands:
   eval <script>   Run a mongosh JavaScript snippet against the connected
@@ -341,11 +343,24 @@ func lastJSONErrorObject(stdout []byte) (mongoshError, bool) {
 		if err := dec.Decode(&candidate); err != nil {
 			break
 		}
-		if candidate.Name != "" && candidate.Message != "" {
+		if candidate.isErrorShape() {
 			last, found = candidate, true
 		}
 	}
 	return last, found
+}
+
+// isErrorShape reports whether the decoded value looks like a mongosh error
+// object rather than an ordinary result document. mongosh error names always
+// end in "Error" (MongoServerError, MongoNetworkError, TypeError, ...), and
+// server errors additionally carry codeName — requiring either keeps a user
+// document that merely has name/message fields (e.g. a row from an error-log
+// collection) from being classified as an auth report.
+func (e mongoshError) isErrorShape() bool {
+	if e.Message == "" || e.Name == "" {
+		return false
+	}
+	return strings.HasSuffix(e.Name, "Error") || e.CodeName != ""
 }
 
 func isAuthText(text string) bool {
@@ -376,17 +391,59 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
-// redactSecret removes the connection string (and its password component)
+// redactSecret removes the connection string (and its password component, in
+// both its decoded form and the percent-encoded form spelled inside the DSN)
 // from subprocess output and error text before it reaches the caller.
 func redactSecret(value, dsn string) string {
 	if dsn == "" {
 		return value
 	}
 	value = strings.ReplaceAll(value, dsn, "[REDACTED]")
-	if u, err := url.Parse(dsn); err == nil && u.User != nil {
-		if pw, ok := u.User.Password(); ok && pw != "" {
-			value = strings.ReplaceAll(value, pw, "[REDACTED]")
-		}
+	for _, pw := range dsnPasswordForms(dsn) {
+		value = strings.ReplaceAll(value, pw, "[REDACTED]")
 	}
 	return value
+}
+
+// dsnPasswordForms returns the DSN's password both as url.Parse decodes it and
+// as it is literally spelled (percent-encoded) inside the DSN, deduplicated.
+// Output echoing only the encoded fragment (e.g. a truncated URI in an error
+// message) must be redacted too.
+func dsnPasswordForms(dsn string) []string {
+	u, err := url.Parse(dsn)
+	if err != nil || u.User == nil {
+		return nil
+	}
+	pw, ok := u.User.Password()
+	if !ok || pw == "" {
+		return nil
+	}
+	forms := []string{pw}
+	if lit := literalDSNPassword(dsn); lit != "" && lit != pw {
+		forms = append(forms, lit)
+	}
+	return forms
+}
+
+// literalDSNPassword extracts the password component exactly as it appears in
+// the DSN text (percent-encoded, uninterpreted). Empty when the DSN has no
+// userinfo password.
+func literalDSNPassword(dsn string) string {
+	rest := dsn
+	if i := strings.Index(rest, "://"); i >= 0 {
+		rest = rest[i+3:]
+	}
+	authority := rest
+	if i := strings.IndexAny(authority, "/?"); i >= 0 {
+		authority = authority[:i]
+	}
+	at := strings.LastIndex(authority, "@")
+	if at < 0 {
+		return ""
+	}
+	_, pw, ok := strings.Cut(authority[:at], ":")
+	if !ok {
+		return ""
+	}
+	return pw
 }

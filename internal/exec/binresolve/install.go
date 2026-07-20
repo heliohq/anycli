@@ -51,6 +51,11 @@ func install(ctx context.Context, toolName, binaryName string, src *registry.Sou
 		return pinned, nil
 	}
 
+	// Sweep partials orphaned by a crashed (SIGKILL / power-loss) earlier
+	// install: their temp names are unique, so without this they accumulate
+	// forever. Safe under the exclusive lock — no live installer owns them.
+	sweepStalePartials(versionDir, pinned)
+
 	url := DownloadURL(src)
 	fmt.Fprintf(opts.notice(), "[anycli] installing %s %s (%s) from %s ...\n", binaryName, src.Version, platform, url)
 
@@ -74,6 +79,18 @@ func install(ctx context.Context, toolName, binaryName string, src *registry.Sou
 		return "", fmt.Errorf("finalize binary: %w", err)
 	}
 	return pinned, nil
+}
+
+// sweepStalePartials removes leftover download temp files in the version dir
+// and a leftover extraction partial next to the pinned path. Best-effort:
+// removal errors are ignored (the fresh install proceeds regardless).
+func sweepStalePartials(versionDir, pinned string) {
+	if stale, err := filepath.Glob(filepath.Join(versionDir, "download-*.partial")); err == nil {
+		for _, f := range stale {
+			os.Remove(f)
+		}
+	}
+	os.Remove(pinned + ".partial")
 }
 
 // downloadVerified streams the archive to a temp file next to its final

@@ -23,9 +23,18 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/heliohq/anycli/internal/registry"
 )
+
+// installTimeout bounds one lazy install (download + verify + extract) when
+// the caller's context has no tighter deadline. Install deliberately runs
+// outside the per-invocation --timeout budget, so without this bound a stalled
+// download (TCP established, server stops sending) would hang forever. It also
+// transitively bounds a concurrent installer waiting on the file lock: the
+// holder releases within this window.
+const installTimeout = 10 * time.Minute
 
 // Downloader fetches one URL and returns the response body. Tests inject
 // fixture bytes; production uses plain HTTPS against the official host.
@@ -76,6 +85,8 @@ func Resolve(ctx context.Context, toolName, binaryName string, src *registry.Sou
 	if !directInstallable(src) {
 		return "", fmt.Errorf("%s not found in PATH", binaryName)
 	}
+	ctx, cancel := context.WithTimeout(ctx, installTimeout)
+	defer cancel()
 	installed, err := install(ctx, toolName, binaryName, src, opts)
 	if err != nil {
 		return "", fmt.Errorf("install %s %s: %w", binaryName, src.Version, err)

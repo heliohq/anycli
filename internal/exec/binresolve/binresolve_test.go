@@ -399,6 +399,59 @@ func TestResolveConcurrentInstallDownloadsOnce(t *testing.T) {
 	}
 }
 
+// TestResolveInstallContextHasDeadline pins the install bound: the lazy
+// install deliberately runs outside the per-invocation --timeout budget, so
+// Resolve must impose its own deadline — otherwise a stalled download (TCP
+// established, server silent) would hang the tool call forever.
+func TestResolveInstallContextHasDeadline(t *testing.T) {
+	setupPinRoot(t)
+	t.Setenv("PATH", "")
+	src, archive, _ := installFixture(t, "tgz")
+
+	var sawDeadline bool
+	dl := func(ctx context.Context, url string) (io.ReadCloser, error) {
+		_, sawDeadline = ctx.Deadline()
+		return io.NopCloser(bytes.NewReader(archive)), nil
+	}
+	if _, err := Resolve(context.Background(), "mongodb", "mongosh", src, Options{Downloader: dl, Notice: io.Discard}); err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if !sawDeadline {
+		t.Error("download context has no deadline; a stalled download would hang forever")
+	}
+}
+
+// TestInstallSweepsStalePartials pins the crash-orphan cleanup: partial files
+// stranded by a SIGKILL mid-install are removed by the next install instead of
+// accumulating forever.
+func TestInstallSweepsStalePartials(t *testing.T) {
+	root := setupPinRoot(t)
+	t.Setenv("PATH", "")
+	src, archive, _ := installFixture(t, "tgz")
+
+	versionDir := filepath.Join(root, "versions", "mongodb", src.Version)
+	platformDir := filepath.Join(versionDir, Platform(src))
+	if err := os.MkdirAll(platformDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	staleDownload := filepath.Join(versionDir, "download-123456.partial")
+	staleBinary := filepath.Join(platformDir, "mongosh"+exeSuffix()+".partial")
+	for _, f := range []string{staleDownload, staleBinary} {
+		if err := os.WriteFile(f, []byte("stale"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := Resolve(context.Background(), "mongodb", "mongosh", src, Options{Downloader: bytesDownloader(archive, nil), Notice: io.Discard}); err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	for _, f := range []string{staleDownload, staleBinary} {
+		if _, err := os.Stat(f); !os.IsNotExist(err) {
+			t.Errorf("stale partial %q survived the install", f)
+		}
+	}
+}
+
 func TestResolveBinaryEntryMissingFromArchive(t *testing.T) {
 	setupPinRoot(t)
 	t.Setenv("PATH", "")
