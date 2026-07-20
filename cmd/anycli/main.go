@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	anycli "github.com/heliohq/anycli"
@@ -32,7 +31,7 @@ func run(args, environ []string) int {
 	if args[0] == "list" {
 		return runList(os.Stdout)
 	}
-	tool, account, toolArgs, err := parseInvocation(args)
+	tool, toolArgs, err := parseInvocation(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "anycli:", err)
 		usage(os.Stderr)
@@ -45,7 +44,7 @@ func run(args, environ []string) int {
 		fmt.Fprintln(os.Stderr, "anycli:", err)
 		return 1
 	}
-	exit, err := engine.ExecuteWith(ctx, anycli.Tool(tool), toolArgs, newEnvResolver(environ), anycli.ExecOptions{Account: account})
+	exit, err := engine.ExecuteWith(ctx, anycli.Tool(tool), toolArgs, newEnvResolver(environ), anycli.ExecOptions{})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "anycli:", err)
 		if exit == 0 {
@@ -55,33 +54,22 @@ func run(args, environ []string) int {
 	return exit
 }
 
-// parseInvocation splits `<tool> [--account <name>] -- <args…>`. Everything
-// after `--` passes to the tool verbatim (same end-of-options convention as
-// heliox tool); the separator is mandatory so tool flags can never collide
-// with harness flags.
-func parseInvocation(args []string) (tool, account string, toolArgs []string, err error) {
+// parseInvocation splits `<tool> -- <args…>`. Everything after `--` passes
+// to the tool verbatim (same end-of-options convention as heliox tool); the
+// separator is mandatory so tool flags can never collide with harness flags.
+func parseInvocation(args []string) (tool string, toolArgs []string, err error) {
 	if len(args) == 0 {
-		return "", "", nil, fmt.Errorf("no tool named")
+		return "", nil, fmt.Errorf("no tool named")
 	}
 	tool = args[0]
 	rest := args[1:]
 	for i := 0; i < len(rest); i++ {
-		switch {
-		case rest[i] == "--":
-			return tool, account, rest[i+1:], nil
-		case rest[i] == "--account":
-			if i+1 >= len(rest) {
-				return "", "", nil, fmt.Errorf("--account requires a value")
-			}
-			i++
-			account = rest[i]
-		case strings.HasPrefix(rest[i], "--account="):
-			account = strings.TrimPrefix(rest[i], "--account=")
-		default:
-			return "", "", nil, fmt.Errorf("unexpected argument %q before `--` (tool args go after `--`)", rest[i])
+		if rest[i] == "--" {
+			return tool, rest[i+1:], nil
 		}
+		return "", nil, fmt.Errorf("unexpected argument %q before `--` (tool args go after `--`)", rest[i])
 	}
-	return "", "", nil, fmt.Errorf("missing `--` separator: anycli %s [--account <name>] -- <args…>", tool)
+	return "", nil, fmt.Errorf("missing `--` separator: anycli %s -- <args…>", tool)
 }
 
 func runList(w *os.File) int {
@@ -105,7 +93,7 @@ func usage(w *os.File) {
 
 Usage:
   anycli list
-  anycli <tool> [--account <name>] -- <args…>
+  anycli <tool> -- <args…>
 
 Credentials come from ANYCLI_CRED_* environment variables; the suffix
 (lowercased) is the credential field name, e.g.
