@@ -35,10 +35,14 @@ func WarmEligibleTools() ([]WarmTool, error) {
 	}
 	var eligible []WarmTool
 	for _, def := range bundled {
-		if def.Type != "" && def.Type != string(ToolKindCLI) {
+		// kindOf owns the kind discriminator (manifest.go). A malformed
+		// definition (unknown type, cli without binary) is skipped here, not
+		// surfaced: warm eligibility is best-effort enumeration, and the
+		// authoritative validation gate is ListTools/manifestFor.
+		if kind, err := kindOf(def); err != nil || kind != ToolKindCLI {
 			continue
 		}
-		if def.Binary == "" || !binresolve.LazyInstallable(def.Source) {
+		if !binresolve.LazyInstallable(def.Source) {
 			continue
 		}
 		eligible = append(eligible, WarmTool{Name: Tool(def.Name), Binary: def.Binary})
@@ -57,7 +61,11 @@ func ResolveToolBinary(ctx context.Context, tool Tool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if def.Type == string(ToolKindService) {
+	kind, err := kindOf(def)
+	if err != nil {
+		return "", err
+	}
+	if kind != ToolKindCLI {
 		return "", fmt.Errorf("tool %q is a service tool; its binary is resolved in-process only", tool)
 	}
 	path, err := exec.ResolveBinary(ctx, def)
