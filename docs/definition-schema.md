@@ -41,8 +41,13 @@ definitions. It never exposes injection details or credential values.
 }
 ```
 
-`source` is declarative provisioning metadata. The embeddable engine does not
-download binaries; the host image or installation workflow provisions them.
+For `github-release` and `npm` sources, `source` is declarative provisioning
+metadata: the engine does not download those binaries; the host image or
+installation workflow provisions them. A `direct` source additionally enables
+lazy install — the engine resolves the binary through the pinned-versions
+directory, then PATH, then downloads the pinned archive from the official
+`url_template` URL, verifies the mandatory per-platform `sha256`, and unpacks
+the single `binary_path` entry (see `internal/exec/binresolve`).
 
 ## Service example
 
@@ -84,13 +89,16 @@ incomplete.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `type` | string | `github-release` or `npm`. |
-| `repo` | string | Release repository or package name. |
-| `asset_pattern` | string | Release asset template. |
-| `binary_path` | string | Executable path inside the artifact. |
-| `version` | string | Optional pinned version. |
+| `type` | string | `github-release`, `npm`, or `direct` (lazy install). |
+| `repo` | string | Release repository or package name (`github-release` / `npm`). |
+| `asset_pattern` | string | Release asset template (`github-release`). |
+| `binary_path` | string | Executable path inside the artifact; `{version}`/`{os}`/`{arch}`/`{exe}` expand. |
+| `version` | string | Pinned version (required for `direct`; optional otherwise). |
 | `os_map` | object | Go OS name to upstream release name. |
-| `ext_map` | object | Go OS name to archive extension. |
+| `arch_map` | object | Go arch name to upstream release name (e.g. `amd64` -> `x64`). |
+| `ext_map` | object | Go OS name to archive extension (`.tgz` / `.zip`). |
+| `url_template` | string | `direct` only: full official download URL template. |
+| `sha256` | object | `direct` only: `<os>-<arch>` platform key to hex digest; mandatory per platform, mismatch aborts the install. |
 
 ## Credential bindings
 

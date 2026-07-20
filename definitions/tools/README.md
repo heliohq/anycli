@@ -10,4 +10,8 @@ wrapping the official `gh` and `lark-cli` binaries).
 
 The `mongodb` definition is the first non-HTTP service tool: its single
 resolver field is `connection_string` (a full MongoDB DSN, injected as
-`MONGODB_CONNECTION_STRING`) rather than an access token.
+`MONGODB_CONNECTION_STRING`) rather than an access token. It is also the
+first `source.type: "direct"` definition: the service wraps the official
+mongosh binary, pinned by version with a mandatory per-platform sha256 table,
+lazily installed from downloads.mongodb.com on first use (see
+`internal/exec/binresolve`).

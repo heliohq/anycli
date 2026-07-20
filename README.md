@@ -120,18 +120,21 @@ Every list/search command retrieves one explicit page; callers pass the
 returned token with `--next-token`. XChat and chunked video/GIF uploads are not
 part of this surface.
 
-The `mongodb` service connects with a standard MongoDB connection string
-(`mongodb://` or `mongodb+srv://`) resolved into `MONGODB_CONNECTION_STRING`
-— the first non-HTTP service tool. It exposes `ping`, `databases list`,
-`collections list`, `indexes list`, `find`, `count`, `aggregate`, `insert`,
-`update`, and `delete`. Database and collection are per-invocation flags
-(`--db` / `--collection`); the DSN's path component only serves as the
-default database when `--db` is omitted, so an Atlas "Connect your
-application" string works as-is. Filters, sorts, projections, documents, and
-pipelines are extended JSON; output is relaxed extended JSON. Server
-`AuthenticationFailed` (code 18) rejects the credential; permission errors
-(code 13) and transport failures do not. Error output redacts the connection
-string and its password.
+The `mongodb` service is a thin wrapper around the official MongoDB Shell
+(wraps mongosh 2.9.2) connecting with a standard connection string
+(`mongodb://` or `mongodb+srv://`) resolved into `MONGODB_CONNECTION_STRING`.
+It exposes exactly two commands: `eval '<mongosh JS>'` and `ping`. Database
+selection happens in the script (`db.getSiblingDB(...)`); `db` is
+pre-connected via a `connect(process.env.MONGODB_CONNECTION_STRING)` prelude,
+so the DSN never appears on the command line. mongosh flags are fixed
+(`--nodb --quiet --norc --json=relaxed`) and not passed through — the script
+travels as a fused `--eval=` token, so `--shell` and other flags are
+unreachable. Output is relaxed extended JSON. The first invocation lazily
+installs mongosh from downloads.mongodb.com (sha256-verified, file-locked)
+into the pinned-versions directory unless a mongosh is already on PATH.
+"authentication failed" stderr rejects the credential; permission errors
+("not authorized") and transport failures do not. Output redacts the
+connection string and its password.
 
 ## Documentation
 
