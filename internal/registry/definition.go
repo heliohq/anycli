@@ -13,17 +13,27 @@ type Definition struct {
 	After       []Rule        `json:"after,omitempty"`
 }
 
-// SourceConfig defines how to download the real CLI binary. It is retained as
-// declarative metadata on a definition; in embedded use the host/pod image
-// provisions the underlying binaries rather than AnyCLI fetching them.
+// SourceConfig defines how to obtain the real CLI binary.
+//
+// Types "github-release" and "npm" are declarative metadata only: the host/pod
+// image provisions those binaries, AnyCLI never fetches them (the gh pin is
+// intentionally decoupled from what the image installs).
+//
+// Type "direct" additionally enables lazy install: the engine downloads the
+// pinned archive from the official URL computed by URLTemplate, verifies the
+// mandatory per-platform SHA256, and unpacks it under the pinned-versions
+// directory. There is no CDN mirror and no fallback source.
 type SourceConfig struct {
-	Type         string            `json:"type"`              // "github-release" or "npm"
-	Repo         string            `json:"repo"`              // e.g. "cli/cli"
-	AssetPattern string            `json:"asset_pattern"`     // e.g. "gh_{version}_{os}_{arch}{ext}"
-	BinaryPath   string            `json:"binary_path"`       // path inside archive
-	Version      string            `json:"version,omitempty"` // pinned version, empty = latest
-	OsMap        map[string]string `json:"os_map,omitempty"`  // Go GOOS -> release naming
-	ExtMap       map[string]string `json:"ext_map,omitempty"` // Go GOOS -> file extension
+	Type         string            `json:"type"`                    // "github-release", "npm", or "direct"
+	Repo         string            `json:"repo,omitempty"`          // e.g. "cli/cli" (github-release)
+	AssetPattern string            `json:"asset_pattern,omitempty"` // e.g. "gh_{version}_{os}_{arch}{ext}"
+	BinaryPath   string            `json:"binary_path,omitempty"`   // path inside archive; {version}/{os}/{arch}/{exe} expand
+	Version      string            `json:"version,omitempty"`       // pinned version, empty = latest
+	OsMap        map[string]string `json:"os_map,omitempty"`        // Go GOOS -> release naming
+	ArchMap      map[string]string `json:"arch_map,omitempty"`      // Go GOARCH -> release naming (e.g. amd64 -> x64)
+	ExtMap       map[string]string `json:"ext_map,omitempty"`       // Go GOOS -> archive extension (".tgz" / ".zip")
+	URLTemplate  string            `json:"url_template,omitempty"`  // "direct" type: full download URL with {version}/{os}/{arch}/{ext}
+	SHA256       map[string]string `json:"sha256,omitempty"`        // "direct" type: "<os>-<arch>" platform key -> hex digest (mandatory)
 }
 
 // AuthConfig defines how to authenticate for a tool.

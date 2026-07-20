@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/heliohq/anycli/definitions"
 	"github.com/heliohq/anycli/internal/credential"
 	"github.com/heliohq/anycli/internal/registry"
 	"github.com/heliohq/anycli/internal/tools"
@@ -472,7 +473,7 @@ func TestResolveBinary_AbsolutePath(t *testing.T) {
 	truePath := trueBinary(t)
 	def := &registry.Definition{Name: "test", Binary: "true", Resolve: truePath}
 
-	got, err := resolveBinary(def)
+	got, err := resolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -483,7 +484,7 @@ func TestResolveBinary_AbsolutePath(t *testing.T) {
 
 func TestResolveBinary_AbsolutePath_Missing(t *testing.T) {
 	def := &registry.Definition{Name: "test", Binary: "missing", Resolve: "/nonexistent/path/to/binary"}
-	if _, err := resolveBinary(def); err == nil {
+	if _, err := resolveBinary(context.Background(), def); err == nil {
 		t.Fatal("expected error for missing absolute path")
 	}
 }
@@ -505,7 +506,7 @@ func TestResolveBinary_Which(t *testing.T) {
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+filepath.Join(home, "bin"))
 
 	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: ""}
-	got, err := resolveBinary(def)
+	got, err := resolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -536,7 +537,7 @@ func TestResolveBinary_SkipsShimDir(t *testing.T) {
 	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+realDir)
 
 	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: ""}
-	got, err := resolveBinary(def)
+	got, err := resolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -562,7 +563,7 @@ func TestResolveBinary_WhichResolveValue(t *testing.T) {
 	t.Setenv("PATH", binDir)
 
 	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: "which"}
-	got, err := resolveBinary(def)
+	got, err := resolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -637,5 +638,44 @@ func TestExecute_StaleMarkHitsOnlyFailingAccount(t *testing.T) {
 	a2, ok := cache.Get(credential.CacheKey("test-multi-acct", "a2"))
 	if !ok || a2.Stale {
 		t.Error("the other account's entry (a2) must NOT be marked stale")
+	}
+}
+
+// TestResolveBinary_GitHubDefinitionPATHEquivalence pins that the real gh
+// definition (declarative github-release source, no direct-download support)
+// resolves exactly as before the three-level resolver existed: a PATH hit
+// returns the PATH entry, a miss returns the historical error text, and the
+// pinned-versions level never interferes (gh is provisioned by the host).
+func TestResolveBinary_GitHubDefinitionPATHEquivalence(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows")
+	}
+	setupHome(t)
+	t.Setenv("HELIO_BIN_DIR", t.TempDir()) // empty pin root
+
+	def, err := definitions.LoadBundled("github")
+	if err != nil {
+		t.Fatalf("LoadBundled(github) failed: %v", err)
+	}
+
+	// Miss: identical error to the historical PATH-only resolution.
+	t.Setenv("PATH", t.TempDir())
+	if _, err := resolveBinary(context.Background(), def); err == nil || err.Error() != "gh not found in PATH" {
+		t.Fatalf("err = %v, want \"gh not found in PATH\"", err)
+	}
+
+	// Hit: resolves to the PATH entry.
+	binDir := t.TempDir()
+	fakeGh := filepath.Join(binDir, "gh")
+	if err := os.WriteFile(fakeGh, []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatalf("write fake gh: %v", err)
+	}
+	t.Setenv("PATH", binDir)
+	got, err := resolveBinary(context.Background(), def)
+	if err != nil {
+		t.Fatalf("resolveBinary: %v", err)
+	}
+	if got != fakeGh {
+		t.Errorf("resolveBinary = %q, want %q", got, fakeGh)
 	}
 }
