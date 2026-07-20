@@ -1,0 +1,13 @@
+{
+  "name": "mongodb",
+  "type": "service",
+  "description": "MongoDB database operations via connection string",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "connection_string"},
+        "inject": {"type": "env", "env_var": "MONGODB_CONNECTION_STRING"}
+      }
+    ]
+  }
+}

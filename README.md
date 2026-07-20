@@ -83,8 +83,9 @@ tools, err := anycli.ListTools()
 
 `Tool` is `type Tool string`; pass a raw `anycli.Tool("…")` whose name matches
 an embedded definition. The built-in service tools are `slack`, `notion`,
-`gmail`, `discord`, `linkedin`, `x`, and `figma`; `github` wraps the `gh`
-binary. An unknown tool is an error from `Execute`, not a compile error.
+`gmail`, `discord`, `linkedin`, `x`, `figma`, and `mongodb`; `github` wraps
+the `gh` binary. An unknown tool is an error from `Execute`, not a compile
+error.
 
 The Figma service uses personal access tokens and exposes every PAT-compatible
 operation in the pinned official OpenAPI catalog: 47 operations across files,
@@ -118,6 +119,33 @@ JPEG/PNG/WebP uploads for posts or DMs, alt text, and legacy Direct Messages.
 Every list/search command retrieves one explicit page; callers pass the
 returned token with `--next-token`. XChat and chunked video/GIF uploads are not
 part of this surface.
+
+The `mongodb` service connects with a standard MongoDB connection string
+(`mongodb://` or `mongodb+srv://`) resolved into `MONGODB_CONNECTION_STRING`
+— the first non-HTTP service tool. It exposes `ping`, `databases list`,
+`collections list`, `indexes list`, `find`, `count`, `aggregate`, `insert`,
+`update`, and `delete`. Database and collection are per-invocation flags
+(`--db` / `--collection`); the DSN's path component only serves as the
+default database when `--db` is omitted, so an Atlas "Connect your
+application" string works as-is. Filters, sorts, projections, documents, and
+pipelines are extended JSON; output is relaxed extended JSON. Server
+`AuthenticationFailed` (code 18) rejects the credential; permission errors
+(code 13) and transport failures do not. Error output redacts the connection
+string and its password.
+
+## Dev harness
+
+`cmd/anycli` builds a standalone binary for tool-definition development. It is
+NOT the product (the library is); it exists so a definition can be exercised
+against the real provider API before any host integration:
+
+    make build-harness
+    ANYCLI_CRED_ACCESS_TOKEN=xoxb-... ./bin/anycli slack -- chat send --channel C1 --text hi
+    ./bin/anycli list
+
+Credentials come from `ANYCLI_CRED_<FIELD>` environment variables (suffix
+lowercased = credential field name). Everything after `--` goes to the tool
+verbatim.
 
 ## Documentation
 
