@@ -173,8 +173,10 @@ func TestLoadBundled_LarkCliShape(t *testing.T) {
 }
 
 // TestLoadBundled_GitHubCliShape pins the github definition's cli-type shape:
-// it wraps the gh binary from a pinned github-release source and injects the
-// minted token as GH_TOKEN.
+// it wraps the gh binary from a pinned official direct-download source (lazy
+// install with mandatory per-platform sha256) and injects the minted token as
+// GH_TOKEN. gh's windows zip lays bin/gh.exe at the archive root (no versioned
+// top dir), so the definition must carry the binary_path_map override.
 func TestLoadBundled_GitHubCliShape(t *testing.T) {
 	def, err := LoadBundled("github")
 	if err != nil {
@@ -186,14 +188,31 @@ func TestLoadBundled_GitHubCliShape(t *testing.T) {
 	if def.Binary != "gh" {
 		t.Errorf("Binary = %q, want gh", def.Binary)
 	}
-	if def.Source == nil {
-		t.Fatal("Source missing — the gh provisioning metadata must be declared")
+	src := def.Source
+	if src == nil {
+		t.Fatal("Source missing — the gh lazy-install source must be declared")
 	}
-	if def.Source.Type != "github-release" || def.Source.Repo != "cli/cli" {
-		t.Errorf("Source = %+v, want github-release cli/cli", def.Source)
+	if src.Type != "direct" {
+		t.Errorf("Source.Type = %q, want direct", src.Type)
 	}
-	if def.Source.Version != "2.63.0" {
-		t.Errorf("Source.Version = %q, want pinned 2.63.0", def.Source.Version)
+	if src.Version != "2.96.0" {
+		t.Errorf("Source.Version = %q, want pinned 2.96.0", src.Version)
+	}
+	if src.URLTemplate == "" || src.BinaryPath == "" {
+		t.Errorf("Source url_template/binary_path missing: %+v", src)
+	}
+	if src.BinaryPathMap["windows"] == "" {
+		t.Error("binary_path_map lacks the windows override — gh's windows zip has no versioned top dir")
+	}
+	for _, platform := range []string{"macOS-arm64", "macOS-amd64", "linux-arm64", "linux-amd64", "windows-amd64"} {
+		digest, ok := src.SHA256[platform]
+		if !ok {
+			t.Errorf("sha256 missing for platform %s", platform)
+			continue
+		}
+		if len(digest) != 64 {
+			t.Errorf("sha256[%s] = %q, want a 64-hex digest", platform, digest)
+		}
 	}
 	b := def.Auth.Credentials[0]
 	if b.Source.Field != "access_token" {

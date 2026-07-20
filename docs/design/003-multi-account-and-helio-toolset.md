@@ -86,7 +86,7 @@ Six definitions ship embedded under `definitions/tools/`:
 | `google` | service | `GOOGLE_ACCESS_TOKEN` | Gmail / Calendar / Drive minimal verbs; 401/403 append a missing-scope hint |
 | `discord` | service | `DISCORD_BOT_TOKEN` | `Authorization: Bot` (not Bearer) |
 | `linkedin` | service | `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_PERSON_URN` | two bindings; posting requires the person URN |
-| `github` | cli | `GH_TOKEN` | wraps `gh` (github-release source, pinned version) |
+| `github` | cli | `GH_TOKEN` | wraps `gh` (pinned official direct source, lazy install) |
 
 `msgraph` (MS365) is explicitly gated out of this round.
 

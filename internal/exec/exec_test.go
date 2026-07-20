@@ -11,6 +11,7 @@ import (
 
 	"github.com/heliohq/anycli/definitions"
 	"github.com/heliohq/anycli/internal/credential"
+	"github.com/heliohq/anycli/internal/exec/binresolve"
 	"github.com/heliohq/anycli/internal/registry"
 	"github.com/heliohq/anycli/internal/tools"
 )
@@ -641,30 +642,26 @@ func TestExecute_StaleMarkHitsOnlyFailingAccount(t *testing.T) {
 	}
 }
 
-// TestResolveBinary_GitHubDefinitionPATHEquivalence pins that the real gh
-// definition (declarative github-release source, no direct-download support)
-// resolves exactly as before the three-level resolver existed: a PATH hit
-// returns the PATH entry, a miss returns the historical error text, and the
-// pinned-versions level never interferes (gh is provisioned by the host).
-func TestResolveBinary_GitHubDefinitionPATHEquivalence(t *testing.T) {
+// TestResolveBinary_GitHubDefinitionPinThenPATH pins the real gh definition's
+// resolution order now that it carries a direct-download source: a PATH hit
+// (level ②) resolves without engaging lazy install, and a pinned gh (level ①)
+// wins over the same PATH entry. The lazy-install miss path itself downloads
+// from github.com and is covered by the env-guarded TestE2ERealGhLazyInstall
+// in binresolve, not here.
+func TestResolveBinary_GitHubDefinitionPinThenPATH(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("skipping on windows")
 	}
 	setupHome(t)
-	t.Setenv("HELIO_BIN_DIR", t.TempDir()) // empty pin root
+	pinRoot := t.TempDir()
+	t.Setenv("HELIO_BIN_DIR", pinRoot)
 
 	def, err := definitions.LoadBundled("github")
 	if err != nil {
 		t.Fatalf("LoadBundled(github) failed: %v", err)
 	}
 
-	// Miss: identical error to the historical PATH-only resolution.
-	t.Setenv("PATH", t.TempDir())
-	if _, err := resolveBinary(context.Background(), def); err == nil || err.Error() != "gh not found in PATH" {
-		t.Fatalf("err = %v, want \"gh not found in PATH\"", err)
-	}
-
-	// Hit: resolves to the PATH entry.
+	// PATH hit with an empty pin root: resolves to the PATH entry.
 	binDir := t.TempDir()
 	fakeGh := filepath.Join(binDir, "gh")
 	if err := os.WriteFile(fakeGh, []byte("#!/bin/sh\n"), 0755); err != nil {
@@ -676,6 +673,22 @@ func TestResolveBinary_GitHubDefinitionPATHEquivalence(t *testing.T) {
 		t.Fatalf("resolveBinary: %v", err)
 	}
 	if got != fakeGh {
-		t.Errorf("resolveBinary = %q, want %q", got, fakeGh)
+		t.Errorf("resolveBinary = %q, want PATH hit %q", got, fakeGh)
+	}
+
+	// Pinned gh present: level ① wins over the same PATH entry.
+	pinned := filepath.Join(pinRoot, "versions", "github", def.Source.Version, binresolve.Platform(def.Source), "gh")
+	if err := os.MkdirAll(filepath.Dir(pinned), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pinned, []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatalf("write pinned gh: %v", err)
+	}
+	got, err = resolveBinary(context.Background(), def)
+	if err != nil {
+		t.Fatalf("resolveBinary with pin: %v", err)
+	}
+	if got != pinned {
+		t.Errorf("resolveBinary = %q, want pinned %q", got, pinned)
 	}
 }

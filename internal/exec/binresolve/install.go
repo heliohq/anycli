@@ -65,7 +65,7 @@ func install(ctx context.Context, toolName, binaryName string, src *registry.Sou
 	}
 	defer os.Remove(archivePath)
 
-	entry := expand(src.BinaryPath, src)
+	entry := expand(binaryPathTemplate(src), src)
 	tmpBin := pinned + ".partial"
 	if err := os.MkdirAll(filepath.Dir(pinned), 0o755); err != nil {
 		return "", fmt.Errorf("create platform dir: %w", err)
@@ -124,6 +124,16 @@ func downloadVerified(ctx context.Context, url, wantSHA256, dir string, opts Opt
 		return "", err
 	}
 	return tmp.Name(), nil
+}
+
+// binaryPathTemplate returns the archive-entry template for the current OS:
+// the binary_path_map override when the upstream ships a differently-shaped
+// archive for this platform, otherwise the shared binary_path.
+func binaryPathTemplate(src *registry.SourceConfig) string {
+	if p, ok := src.BinaryPathMap[runtime.GOOS]; ok && p != "" {
+		return p
+	}
+	return src.BinaryPath
 }
 
 // archiveExt picks the archive format extension from the ext map, falling

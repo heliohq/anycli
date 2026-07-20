@@ -163,8 +163,8 @@ func (e *Engine) markCredentialsStale(tool, account string) {
 // resolveBinary finds the real binary path. An explicit absolute Resolve wins;
 // otherwise the shared three-level resolution runs: pinned-versions dir, PATH
 // (skipping the anycli shim directory), then lazy install for definitions with
-// an official direct-download source. Definitions without one (e.g. gh) keep
-// the historical PATH-only behavior and error.
+// an official direct-download source. Definitions without one (e.g. lark-cli)
+// keep the historical PATH-only behavior and error.
 func resolveBinary(ctx context.Context, def *registry.Definition) (string, error) {
 	if def.Resolve != "" && def.Resolve != "which" {
 		// Absolute path provided

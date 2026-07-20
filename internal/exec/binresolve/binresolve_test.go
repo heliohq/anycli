@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/heliohq/anycli/definitions"
 	"github.com/heliohq/anycli/internal/registry"
 )
 
@@ -35,15 +36,15 @@ func mongoshSource(sha map[string]string) *registry.SourceConfig {
 	}
 }
 
-// ghSource mirrors definitions/tools/github.json: declarative metadata only,
-// no direct-download support.
-func ghSource() *registry.SourceConfig {
+// declarativeSource mirrors a github-release definition (e.g. lark.json):
+// declarative provisioning metadata only, no direct-download support.
+func declarativeSource() *registry.SourceConfig {
 	return &registry.SourceConfig{
 		Type:         "github-release",
-		Repo:         "cli/cli",
-		AssetPattern: "gh_{version}_{os}_{arch}{ext}",
-		BinaryPath:   "gh_{version}_{os}_{arch}/bin/gh",
-		Version:      "2.63.0",
+		Repo:         "larksuite/cli",
+		AssetPattern: "lark-cli_{version}_{os}_{arch}{ext}",
+		BinaryPath:   "lark-cli_{version}_{os}_{arch}/bin/lark-cli",
+		Version:      "1.0.71",
 	}
 }
 
@@ -178,6 +179,59 @@ func TestDownloadURLTable(t *testing.T) {
 	}
 }
 
+// TestGitHubDownloadURLTable pins the bundled github definition's expansion
+// against gh's official release asset naming (verified from the v2.96.0
+// checksums file): macOS/linux/windows OS names, native amd64/arm64 arches,
+// zip for macOS+windows and tar.gz for linux, and the windows zip's root-level
+// bin/gh.exe entry (no versioned top dir) via binary_path_map.
+func TestGitHubDownloadURLTable(t *testing.T) {
+	def, err := definitions.LoadBundled("github")
+	if err != nil {
+		t.Fatalf("load bundled github: %v", err)
+	}
+	src := def.Source
+	cases := []struct {
+		goos, goarch string
+		wantURL      string
+		wantEntry    string
+		wantPlatform string
+	}{
+		{"darwin", "arm64",
+			"https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_macOS_arm64.zip",
+			"gh_2.96.0_macOS_arm64/bin/gh", "macOS-arm64"},
+		{"darwin", "amd64",
+			"https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_macOS_amd64.zip",
+			"gh_2.96.0_macOS_amd64/bin/gh", "macOS-amd64"},
+		{"linux", "amd64",
+			"https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_linux_amd64.tar.gz",
+			"gh_2.96.0_linux_amd64/bin/gh", "linux-amd64"},
+		{"linux", "arm64",
+			"https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_linux_arm64.tar.gz",
+			"gh_2.96.0_linux_arm64/bin/gh", "linux-arm64"},
+		{"windows", "amd64",
+			"https://github.com/cli/cli/releases/download/v2.96.0/gh_2.96.0_windows_amd64.zip",
+			"bin/gh.exe", "windows-amd64"},
+	}
+	for _, c := range cases {
+		if got := expandFor(src.URLTemplate, src, c.goos, c.goarch); got != c.wantURL {
+			t.Errorf("url(%s/%s) = %q, want %q", c.goos, c.goarch, got, c.wantURL)
+		}
+		tmpl := src.BinaryPath
+		if m, ok := src.BinaryPathMap[c.goos]; ok && m != "" {
+			tmpl = m
+		}
+		if got := expandFor(tmpl, src, c.goos, c.goarch); got != c.wantEntry {
+			t.Errorf("entry(%s/%s) = %q, want %q", c.goos, c.goarch, got, c.wantEntry)
+		}
+		if got := platformFor(src, c.goos, c.goarch); got != c.wantPlatform {
+			t.Errorf("platform(%s/%s) = %q, want %q", c.goos, c.goarch, got, c.wantPlatform)
+		}
+		if src.SHA256[c.wantPlatform] == "" {
+			t.Errorf("sha256 missing for platform %s", c.wantPlatform)
+		}
+	}
+}
+
 func TestResolvePinnedPathWins(t *testing.T) {
 	root := setupPinRoot(t)
 	t.Setenv("PATH", "")
@@ -238,25 +292,28 @@ func TestResolveSkipsShimDir(t *testing.T) {
 	}
 }
 
-func TestResolveGhStylePATHOnlyEquivalence(t *testing.T) {
+// TestResolveDeclarativeSourcePATHOnlyEquivalence pins that definitions with a
+// declarative (github-release) source keep the historical PATH-only behavior:
+// lazy install never engages, and the miss error text is unchanged.
+func TestResolveDeclarativeSourcePATHOnlyEquivalence(t *testing.T) {
 	setupPinRoot(t)
 	t.Setenv("PATH", t.TempDir())
 
 	// Not in PATH and no direct source: identical error to the historical
 	// PATH-only resolution.
-	_, err := Resolve(context.Background(), "github", "gh", ghSource(), Options{Downloader: fatalDownloader(t)})
-	if err == nil || err.Error() != "gh not found in PATH" {
-		t.Fatalf("err = %v, want \"gh not found in PATH\"", err)
+	_, err := Resolve(context.Background(), "lark", "lark-cli", declarativeSource(), Options{Downloader: fatalDownloader(t)})
+	if err == nil || err.Error() != "lark-cli not found in PATH" {
+		t.Fatalf("err = %v, want \"lark-cli not found in PATH\"", err)
 	}
 
 	// In PATH: resolves to the PATH entry, no install involvement.
 	binDir := t.TempDir()
-	real := filepath.Join(binDir, "gh"+exeSuffix())
+	real := filepath.Join(binDir, "lark-cli"+exeSuffix())
 	if err := os.WriteFile(real, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", binDir)
-	got, err := Resolve(context.Background(), "github", "gh", ghSource(), Options{Downloader: fatalDownloader(t)})
+	got, err := Resolve(context.Background(), "lark", "lark-cli", declarativeSource(), Options{Downloader: fatalDownloader(t)})
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -333,6 +390,42 @@ func TestResolveLazyInstall(t *testing.T) {
 				t.Errorf("second Resolve = %q (downloads %d), want cached path with 1 download", got2, calls.Load())
 			}
 		})
+	}
+}
+
+// TestResolveLazyInstallBinaryPathMapOverride pins the per-OS archive-entry
+// override: when binary_path_map has an entry for the current OS (the gh
+// windows zip lays bin/gh.exe at the archive root), extraction uses it instead
+// of the shared binary_path template.
+func TestResolveLazyInstallBinaryPathMapOverride(t *testing.T) {
+	root := setupPinRoot(t)
+	t.Setenv("PATH", "")
+	src := mongoshSource(map[string]string{})
+	src.BinaryPathMap = map[string]string{runtime.GOOS: "bin/rootlevel{exe}"}
+	src.ExtMap = map[string]string{runtime.GOOS: ".zip"}
+	entry := expand(src.BinaryPathMap[runtime.GOOS], src)
+	sharedEntry := expand(src.BinaryPath, src)
+	content := []byte("#!/bin/sh\necho override\n")
+	archive := makeZip(t, map[string][]byte{
+		entry:       content,
+		sharedEntry: []byte("wrong entry — the override must win"),
+	})
+	src.SHA256[Platform(src)] = sha256Hex(archive)
+
+	got, err := Resolve(context.Background(), "mongodb", "mongosh", src, Options{Downloader: bytesDownloader(archive, nil), Notice: io.Discard})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	wantPath := filepath.Join(root, "versions", "mongodb", src.Version, Platform(src), "mongosh"+exeSuffix())
+	if got != wantPath {
+		t.Errorf("installed path = %q, want %q", got, wantPath)
+	}
+	data, err := os.ReadFile(got)
+	if err != nil {
+		t.Fatalf("read installed binary: %v", err)
+	}
+	if string(data) != string(content) {
+		t.Errorf("installed content = %q, want the binary_path_map entry body", data)
 	}
 }
 

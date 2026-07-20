@@ -8,8 +8,8 @@
 // Lazy install (level ③) only runs for definitions whose SourceConfig declares
 // type "direct" with a url_template and a pinned version; the per-platform
 // sha256 is mandatory and a mismatch discards the download (fail fast — no
-// mirror, no fallback source). Tools without a direct source (e.g. gh) keep
-// today's PATH-only behavior and error text.
+// mirror, no fallback source). Tools without a direct source (e.g. lark-cli)
+// keep today's PATH-only behavior and error text.
 package binresolve
 
 import (

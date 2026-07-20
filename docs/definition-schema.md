@@ -23,12 +23,15 @@ definitions. It never exposes injection details or credential values.
   "binary": "gh",
   "resolve": "which",
   "source": {
-    "type": "github-release",
-    "repo": "cli/cli",
-    "asset_pattern": "gh_{version}_{os}_{arch}{ext}",
+    "type": "direct",
+    "url_template": "https://github.com/cli/cli/releases/download/v{version}/gh_{version}_{os}_{arch}{ext}",
     "binary_path": "gh_{version}_{os}_{arch}/bin/gh",
-    "os_map": {"darwin": "macOS"},
-    "ext_map": {"darwin": ".zip"}
+    "binary_path_map": {"windows": "bin/gh{exe}"},
+    "version": "2.96.0",
+    "os_map": {"darwin": "macOS", "linux": "linux", "windows": "windows"},
+    "arch_map": {"amd64": "amd64", "arm64": "arm64"},
+    "ext_map": {"darwin": ".zip", "linux": ".tar.gz", "windows": ".zip"},
+    "sha256": {"macOS-arm64": "<64-hex digest>", "...": "..."}
   },
   "auth": {
     "credentials": [
@@ -47,7 +50,10 @@ installation workflow provisions them. A `direct` source additionally enables
 lazy install — the engine resolves the binary through the pinned-versions
 directory, then PATH, then downloads the pinned archive from the official
 `url_template` URL, verifies the mandatory per-platform `sha256`, and unpacks
-the single `binary_path` entry (see `internal/exec/binresolve`).
+the single `binary_path` entry (see `internal/exec/binresolve`). When an
+upstream ships differently-shaped archives per platform (gh's windows zip has
+`bin/gh.exe` at the root, no versioned top dir), `binary_path_map` overrides
+`binary_path` for specific Go OS names.
 
 ## Service example
 
@@ -93,6 +99,7 @@ incomplete.
 | `repo` | string | Release repository or package name (`github-release` / `npm`). |
 | `asset_pattern` | string | Release asset template (`github-release`). |
 | `binary_path` | string | Executable path inside the artifact; `{version}`/`{os}`/`{arch}`/`{exe}` expand. |
+| `binary_path_map` | object | Per-Go-OS override of `binary_path` for platforms whose archive layout differs. |
 | `version` | string | Pinned version (required for `direct`; optional otherwise). |
 | `os_map` | object | Go OS name to upstream release name. |
 | `arch_map` | object | Go arch name to upstream release name (e.g. `amd64` -> `x64`). |
