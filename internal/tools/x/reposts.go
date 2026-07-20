@@ -1,7 +1,6 @@
 package x
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -20,7 +19,7 @@ func (s *Service) newRepostCreateCmd(token, userID string) *cobra.Command {
 		Short: "Repost a post",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := requireRepostIDs(userID, args[0]); err != nil {
+			if err := requireConnectedUserAndPostID(userID, args[0]); err != nil {
 				return err
 			}
 			path := "/2/users/" + url.PathEscape(userID) + "/retweets"
@@ -41,7 +40,7 @@ func (s *Service) newRepostDeleteCmd(token, userID string) *cobra.Command {
 		Short: "Undo a repost",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := requireRepostIDs(userID, args[0]); err != nil {
+			if err := requireConnectedUserAndPostID(userID, args[0]); err != nil {
 				return err
 			}
 			path := "/2/users/" + url.PathEscape(userID) + "/retweets/" + url.PathEscape(args[0])
@@ -52,14 +51,4 @@ func (s *Service) newRepostDeleteCmd(token, userID string) *cobra.Command {
 			return s.emit(body)
 		},
 	}
-}
-
-func requireRepostIDs(userID, postID string) error {
-	if userID == "" {
-		return fmt.Errorf("X_USER_ID is not set — reconnect X")
-	}
-	if err := requireNumericID("connected user id", userID); err != nil {
-		return err
-	}
-	return requireNumericID("post id", postID)
 }

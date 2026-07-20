@@ -24,9 +24,14 @@ func (s *Service) newMeCmd(token string) *cobra.Command {
 	}
 }
 
-func (s *Service) newUserCmd(token string) *cobra.Command {
+func (s *Service) newUserCmd(token, userID string) *cobra.Command {
 	cmd := &cobra.Command{Use: "user", Short: "Users"}
-	cmd.AddCommand(s.newUserGetCmd(token), s.newUserSearchCmd(token))
+	cmd.AddCommand(
+		s.newUserGetCmd(token),
+		s.newUserSearchCmd(token),
+		s.newUserConnectionsCmd(token, userID, "followers", "Followers of a user", "followers"),
+		s.newUserConnectionsCmd(token, userID, "following", "Users a user follows", "following"),
+	)
 	return cmd
 }
 

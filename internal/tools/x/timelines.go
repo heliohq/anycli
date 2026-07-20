@@ -25,7 +25,7 @@ func (s *Service) newTimelineCmd(token, connectedUserID string) *cobra.Command {
 
 func (s *Service) newTimelineLeafCmd(token, connectedUserID, use, short string, pathFor func(string) string) *cobra.Command {
 	userID := connectedUserID
-	var nextToken string
+	var nextToken, sinceID string
 	var limit int
 	cmd := &cobra.Command{
 		Use:   use,
@@ -41,7 +41,10 @@ func (s *Service) newTimelineLeafCmd(token, connectedUserID, use, short string, 
 			if err := requireLimit(limit, 5, 100); err != nil {
 				return err
 			}
-			values := timelineQuery(limit, nextToken)
+			if err := requireOptionalNumericID("since id", sinceID); err != nil {
+				return err
+			}
+			values := timelineQuery(limit, nextToken, sinceID)
 			body, err := s.call(cmd.Context(), token, http.MethodGet, pathFor(userID), values, nil)
 			if err != nil {
 				return err
@@ -52,11 +55,12 @@ func (s *Service) newTimelineLeafCmd(token, connectedUserID, use, short string, 
 	cmd.Flags().StringVar(&userID, "user-id", connectedUserID, "X user id (defaults to the connected user)")
 	cmd.Flags().IntVar(&limit, "limit", 10, "maximum posts in this page (5-100)")
 	cmd.Flags().StringVar(&nextToken, "next-token", "", "provider token for the next page")
+	cmd.Flags().StringVar(&sinceID, "since-id", "", "only posts newer than this post id")
 	return cmd
 }
 
 func (s *Service) newHomeTimelineCmd(token, connectedUserID string) *cobra.Command {
-	var nextToken string
+	var nextToken, sinceID string
 	var limit int
 	cmd := &cobra.Command{
 		Use:   "home",
@@ -72,8 +76,11 @@ func (s *Service) newHomeTimelineCmd(token, connectedUserID string) *cobra.Comma
 			if err := requireLimit(limit, 1, 100); err != nil {
 				return err
 			}
+			if err := requireOptionalNumericID("since id", sinceID); err != nil {
+				return err
+			}
 			path := "/2/users/" + url.PathEscape(connectedUserID) + "/timelines/reverse_chronological"
-			body, err := s.call(cmd.Context(), token, http.MethodGet, path, timelineQuery(limit, nextToken), nil)
+			body, err := s.call(cmd.Context(), token, http.MethodGet, path, timelineQuery(limit, nextToken, sinceID), nil)
 			if err != nil {
 				return err
 			}
@@ -82,16 +89,20 @@ func (s *Service) newHomeTimelineCmd(token, connectedUserID string) *cobra.Comma
 	}
 	cmd.Flags().IntVar(&limit, "limit", 10, "maximum posts in this page (1-100)")
 	cmd.Flags().StringVar(&nextToken, "next-token", "", "provider token for the next page")
+	cmd.Flags().StringVar(&sinceID, "since-id", "", "only posts newer than this post id")
 	return cmd
 }
 
-func timelineQuery(limit int, nextToken string) url.Values {
+func timelineQuery(limit int, nextToken, sinceID string) url.Values {
 	values := url.Values{
 		"max_results":  {strconv.Itoa(limit)},
 		"tweet.fields": {defaultPostFields},
 	}
 	if nextToken != "" {
 		values.Set("pagination_token", nextToken)
+	}
+	if sinceID != "" {
+		values.Set("since_id", sinceID)
 	}
 	return values
 }

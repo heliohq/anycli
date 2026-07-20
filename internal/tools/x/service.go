@@ -63,10 +63,12 @@ func (s *Service) newRoot(token, userID string) *cobra.Command {
 
 	root.AddCommand(
 		s.newMeCmd(token),
-		s.newUserCmd(token),
+		s.newUserCmd(token, userID),
 		s.newPostCmd(token),
 		s.newTimelineCmd(token, userID),
 		s.newRepostCmd(token, userID),
+		s.newLikeCmd(token, userID),
+		s.newFollowCmd(token, userID),
 		s.newMediaCmd(token),
 		s.newDMCmd(token),
 	)
