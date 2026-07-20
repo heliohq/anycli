@@ -48,3 +48,38 @@ func requireLimit(value, min, max int) error {
 	}
 	return nil
 }
+
+func requireOptionalNumericID(name, value string) error {
+	if value == "" {
+		return nil
+	}
+	return requireNumericID(name, value)
+}
+
+func requireConnectedUserAndPostID(userID, postID string) error {
+	if err := requireConnectedUserID(userID); err != nil {
+		return err
+	}
+	return requireNumericID("post id", postID)
+}
+
+func requireConnectedUserAndTargetID(userID, targetID string) error {
+	if err := requireConnectedUserID(userID); err != nil {
+		return err
+	}
+	return requireNumericID("target user id", targetID)
+}
+
+func requireConnectedUserID(userID string) error {
+	if userID == "" {
+		return fmt.Errorf("X_USER_ID is not set — reconnect X")
+	}
+	return requireNumericID("connected user id", userID)
+}
+
+func requireSortOrder(value string) error {
+	if value != "" && value != "recency" && value != "relevancy" {
+		return fmt.Errorf(`sort order must be "recency" or "relevancy"`)
+	}
+	return nil
+}
