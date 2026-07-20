@@ -130,7 +130,11 @@ func downloadVerified(ctx context.Context, url, wantSHA256, dir string, opts Opt
 // the binary_path_map override when the upstream ships a differently-shaped
 // archive for this platform, otherwise the shared binary_path.
 func binaryPathTemplate(src *registry.SourceConfig) string {
-	if p, ok := src.BinaryPathMap[runtime.GOOS]; ok && p != "" {
+	return binaryPathTemplateFor(src, runtime.GOOS)
+}
+
+func binaryPathTemplateFor(src *registry.SourceConfig, goos string) string {
+	if p, ok := src.BinaryPathMap[goos]; ok && p != "" {
 		return p
 	}
 	return src.BinaryPath

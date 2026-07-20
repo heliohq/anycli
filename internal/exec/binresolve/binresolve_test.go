@@ -216,11 +216,7 @@ func TestGitHubDownloadURLTable(t *testing.T) {
 		if got := expandFor(src.URLTemplate, src, c.goos, c.goarch); got != c.wantURL {
 			t.Errorf("url(%s/%s) = %q, want %q", c.goos, c.goarch, got, c.wantURL)
 		}
-		tmpl := src.BinaryPath
-		if m, ok := src.BinaryPathMap[c.goos]; ok && m != "" {
-			tmpl = m
-		}
-		if got := expandFor(tmpl, src, c.goos, c.goarch); got != c.wantEntry {
+		if got := expandFor(binaryPathTemplateFor(src, c.goos), src, c.goos, c.goarch); got != c.wantEntry {
 			t.Errorf("entry(%s/%s) = %q, want %q", c.goos, c.goarch, got, c.wantEntry)
 		}
 		if got := platformFor(src, c.goos, c.goarch); got != c.wantPlatform {
