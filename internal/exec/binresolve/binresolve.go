@@ -106,19 +106,28 @@ func Platform(src *registry.SourceConfig) string {
 }
 
 func platformFor(src *registry.SourceConfig, goos, goarch string) string {
-	osName, arch := goos, goarch
-	if src != nil {
-		if m, ok := src.OsMap[goos]; ok {
-			osName = m
-		}
-		if m, ok := src.ArchMap[goarch]; ok {
-			arch = m
-		}
-	}
+	osName, arch := mappedPlatform(src, goos, goarch)
 	return osName + "-" + arch
 }
 
+// mappedPlatform applies the source's os/arch maps to a Go platform pair,
+// defaulting to the Go names. A nil source maps identically.
+func mappedPlatform(src *registry.SourceConfig, goos, goarch string) (osName, arch string) {
+	osName, arch = goos, goarch
+	if src == nil {
+		return osName, arch
+	}
+	if m, ok := src.OsMap[goos]; ok {
+		osName = m
+	}
+	if m, ok := src.ArchMap[goarch]; ok {
+		arch = m
+	}
+	return osName, arch
+}
+
 // DownloadURL expands the source's url_template for the current platform.
+// src must be non-nil — callers gate on directInstallable first.
 func DownloadURL(src *registry.SourceConfig) string {
 	return expand(src.URLTemplate, src)
 }
@@ -154,18 +163,13 @@ func directInstallable(src *registry.SourceConfig) bool {
 }
 
 // expand substitutes {version}, {os}, {arch}, {ext}, and {exe} in a template.
+// src must be non-nil — callers gate on directInstallable first.
 func expand(template string, src *registry.SourceConfig) string {
 	return expandFor(template, src, runtime.GOOS, runtime.GOARCH)
 }
 
 func expandFor(template string, src *registry.SourceConfig, goos, goarch string) string {
-	osName, arch := goos, goarch
-	if m, ok := src.OsMap[goos]; ok {
-		osName = m
-	}
-	if m, ok := src.ArchMap[goarch]; ok {
-		arch = m
-	}
+	osName, arch := mappedPlatform(src, goos, goarch)
 	r := strings.NewReplacer(
 		"{version}", src.Version,
 		"{os}", osName,
