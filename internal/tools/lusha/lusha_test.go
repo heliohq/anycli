@@ -106,7 +106,3 @@ func TestUsageErrorExitCode2(t *testing.T) {
 		t.Errorf("usage error should not reach the API, got %s %s", got.Method, got.Path)
 	}
 }
-
-// strings_Builder is a tiny alias so the missing-key test can use a value type
-// without importing strings.Builder under a colliding name.
-type strings_Builder = strings.Builder
