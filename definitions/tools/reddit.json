@@ -1,0 +1,13 @@
+{
+  "name": "reddit",
+  "type": "service",
+  "description": "Reddit as a tool (OAuth 2.0 user token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "REDDIT_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
