@@ -46,10 +46,19 @@ generic catalog row does not capture.
     `references/integration-testing.md` "picking a token per provider class");
     there is no refresh path to exercise — the recommended short-`expires_at`
     refresh drill does not apply and must not be faked.
-- **Revocation**: `POST https://acuityscheduling.com/oauth2/disconnect` with
-  form fields `access_token`, `client_id`, `client_secret`. This fits the
-  declarative revoker: `disconnect_mode: provider_revoke` +
-  `auth.oauth.revoke {url, client_auth: form, token: access_token}`.
+- **Revocation (capability gap — see §5.2)**: the official contract is
+  `POST https://acuityscheduling.com/oauth2/disconnect` with form fields
+  literally named `access_token`, `client_id`, `client_secret` (official
+  OAuth2 doc's curl example: `-d access_token=… -d client_id=… -d
+  client_secret=…`). This does **not** fit the declarative revoker as-is:
+  `declarativeOAuthRevoker.Revoke`
+  (`go-services/integration-service/service/revoke.go`) always sends the
+  token in an RFC-7009-style form field named `token`
+  (`form := url.Values{"token": {token}}`); the bundle's `revoke.token:
+  access_token` is a stored-token *selector* (validate.go oneOf
+  `access_token|refresh_token`), not the wire field name. As the wire
+  contract stands, the declarative revoker would send `token=…` and per the
+  official docs Acuity would not revoke. Resolution path in §5.2.
 - **API auth**: `Authorization: Bearer <access_token>` against
   `https://acuityscheduling.com/api/v1/…`. (Basic auth with user-id/API-key
   also exists but is the single-account path; the shipped integration is
@@ -59,9 +68,11 @@ generic catalog row does not capture.
   cursor. The CLI exposes `--max` and the date window instead of inventing
   pagination. Re-check empirically at L2.
 
-**Divergence from catalog/audit: none.** The audit verdict (high confidence,
-single scope `api-v1`, self-serve registration) matches the official docs
-exactly.
+**Divergence from catalog/audit: none** on the auth lane itself — the audit
+verdict (high confidence, single scope `api-v1`, self-serve registration)
+matches the official docs exactly. The §5.2 revoke-field-name mismatch is a
+Helio-internal capability gap (declarative revoker dialect vs Acuity's
+non-RFC-7009 disconnect), not a lane divergence.
 
 ## 3. What an AI teammate does with Acuity → wrapped API surface
 
@@ -169,12 +180,13 @@ form. `--admin` maps to `?admin=true`, `--no-email` to `?noEmail=true`.
   `acuity` → integration-service `standard_oauth` runtime strategy performs
   authorize + `form_secret` code exchange → identity via userinfo `GET /me` →
   token stored; token gateway serves it non-expiring (no refresh lease).
-  Disconnect calls the declarative revoker against `/oauth2/disconnect`.
+  Disconnect: see §5.2 — the declarative revoker's wire contract does not
+  match Acuity's documented disconnect field name as-is.
 - No adapter (`service/adapter_*.go`) is needed — everything fits the
-  declarative `standard_oauth` capability set, **except one generic gap**
-  (next section).
+  declarative `standard_oauth` capability set, **except two generic gaps**
+  (§5.1 numeric identity, §5.2 revoke field name).
 
-### Finding: numeric userinfo id vs declarative identity resolver
+### 5.1 Finding: numeric userinfo id vs declarative identity resolver
 
 `GET /me` returns `{"id": 12345, "email": …, "name": …, "timezone": …,
 "schedulingPage": …}` — `id` is a JSON **number**. Helio's
@@ -196,6 +208,51 @@ the same label candidates, and file the numeric-stringify change separately.
 The `/me` field shape itself must be re-confirmed live at L2 (the official
 reference page does not render the full schema; shape corroborated from
 secondary sources + the official OAuth doc's `GET /api/v1/me` example).
+
+### 5.2 Finding: revoke form field name — `access_token` vs RFC-7009 `token`
+
+Verified in code and against official docs (2026-07-21):
+
+- Acuity's documented disconnect contract requires the form field to be
+  literally named `access_token` (plus `client_id`, `client_secret`); no
+  RFC-7009 `token` field is documented.
+- Helio's `declarativeOAuthRevoker.Revoke`
+  (`go-services/integration-service/service/revoke.go`) unconditionally
+  builds `form := url.Values{"token": {token}}`; the bundle's `revoke.token`
+  key only selects *which stored token* is sent
+  (`cmd/provider-gen/validate.go` restricts it to
+  `access_token|refresh_token`). There is no knob for the wire field name.
+
+So a `provider_revoke` bundle as originally drafted would POST `token=…` and,
+per the official contract, Acuity would not revoke — and the L5 check
+("`/me` with the old token starts 401ing") would fail.
+
+**Resolution path** (decide with the batch lead before the bundle rides the
+batch-end merge):
+
+1. **Empirically test at L2** whether `/oauth2/disconnect` also accepts the
+   RFC-7009 `token` field name. This is undocumented — do not assume; test
+   with a throwaway token: POST `token=…&client_id=…&client_secret=…`, then
+   confirm `/me` with that token 401s. If it revokes, the existing
+   declarative revoker fits unchanged and the bundle keeps
+   `disconnect_mode: provider_revoke` (record the empirical result in the
+   provider sub-doc).
+2. **If it does not**, either:
+   - grow the generic capability with a reviewed enum — e.g. a
+     `token_field: token|access_token` policy knob on `auth.oauth.revoke`
+     (default `token`), threaded through validate.go, the revoker, and unit
+     tests — same "grow the generic, not an adapter" rationale as the §5.1
+     numeric-stringify fix; numeric ids and non-RFC-7009 revoke dialects are
+     both likely to recur across upcoming providers; or
+   - ship with `disconnect_mode: local_only` and **no** `revoke` block (the
+     generator forbids a revoke block with `local_only` —
+     validate.go: "standard_oauth with disconnect_mode local_only forbids
+     auth.oauth.revoke"), matching the notion/bitly precedent for providers
+     the declarative dialect can't reach, and document the divergence.
+
+Until resolved, the §6 draft below carries the conservative `local_only`
+shape; flipping to `provider_revoke` (+ revoke block) is a two-line bundle
+change once path 1 or 2 lands.
 
 ## 6. Helio provider bundle plan (hidden-first)
 
@@ -226,20 +283,25 @@ auth:
     scopes: [api-v1]
     single_active_token: false
     refresh_lease: none
-    revoke:
-      url: https://acuityscheduling.com/oauth2/disconnect
-      client_auth: form
-      token: access_token
+    # No revoke block while disconnect_mode is local_only (generator forbids
+    # the pair). If §5.2 path 1 or 2 resolves in favor of provider revoke,
+    # add:
+    #   revoke:
+    #     url: https://acuityscheduling.com/oauth2/disconnect
+    #     client_auth: form
+    #     token: access_token        # stored-token selector, not wire field
+    #     token_field: access_token  # only if the §5.2 capability knob lands
+    # and flip disconnect_mode to provider_revoke.
 
 identity:
   source: userinfo
   url: https://acuityscheduling.com/api/v1/me
-  stable_key: /id           # requires numeric-stringify fix (§5); else /email
+  stable_key: /id           # requires numeric-stringify fix (§5.1); else /email
   label_candidates: [/email, /name]
 
 connection:
   mode: isolated
-  disconnect_mode: provider_revoke
+  disconnect_mode: local_only   # conservative default pending §5.2 resolution
   runtime_strategy: standard_oauth
 
 resources:
@@ -273,16 +335,22 @@ land before L5. Local builds of helio-cli use an uncommitted `go.mod`
 | Layer | What runs for acuity | External credentials needed |
 |---|---|---|
 | L1 | anycli `go test ./...`: httptest fakes asserting request paths/queries/bodies for every subcommand, `Authorization: Bearer` injection, provider-JSON passthrough, error envelope (401 vs generic non-2xx), exit codes, `--field id=value` parsing, `--admin`/`--no-email` query mapping. TDD: tests first. | none |
-| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<real token> anycli acuity -- me`, then `type list`, `availability times`, an `appointment create --admin` + `cancel` round-trip on the test account. Also confirms `/me` field shape (§5) and undocumented rate/pagination behavior. | **yes** — a real Acuity test account (lane 2) AND the lane-1 dev OAuth app: the only token shape the tool speaks is a Bearer OAuth token, so L2 needs one manual code→token exchange (curl) against the dev app to mint `ANYCLI_CRED_ACCESS_TOKEN`. |
-| L3 | Local `go run ./cmd/provider-gen` + `--check` against the branch bundle (projections not committed; branch CI expected red on `--check` until batch-end regen); anycli + helio-cli + integration-service unit suites. If the §5 numeric-stringify change lands, its unit test rides integration-service's suite here. | none |
+| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<real token> anycli acuity -- me`, then `type list`, `availability times`, an `appointment create --admin` + `cancel` round-trip on the test account. Also confirms `/me` field shape (§5.1), the §5.2 revoke-field-name probe (`/oauth2/disconnect` with `token=` on a throwaway token), and undocumented rate/pagination behavior. | **yes** — a real Acuity test account (lane 2) AND the lane-1 dev OAuth app: the only token shape the tool speaks is a Bearer OAuth token, so L2 needs one manual code→token exchange (curl) against the dev app to mint `ANYCLI_CRED_ACCESS_TOKEN`. |
+| L3 | Local `go run ./cmd/provider-gen` + `--check` against the branch bundle (projections not committed; branch CI expected red on `--check` until batch-end regen); anycli + helio-cli + integration-service unit suites. If the §5.1 numeric-stringify and/or §5.2 `token_field` changes land, their unit tests ride integration-service's suite here. | none |
 | L4 | Singleton, `POST /internal/test-only/connections/seed` with provider `acuity` and **`access_token` only** (non-expiring class — no `refresh_token`/`expires_at`, no refresh drill), then `heliox tool acuity -- appointment list` reaching the live API through the real token gateway. helio-cli built with the local `replace`. | **yes** — same real token as L2 (minted from the lane-1 dev app). |
-| L5 | Human-in-the-loop (oauth lane 3), post-batch-merge, pre-flip: `heliox tool acuity auth` → connect link → real Acuity login/consent (`scope=api-v1`) → `oauth_connected` event → one unseeded live run; verify identity label (email/name) in the integrations UI; verify disconnect actually revokes at the provider (`/me` with the old token starts 401ing). | **yes** — lane-1 config append landed (client id/secret in integration-service config) + the lane-2 test account, human consent session. |
+| L5 | Human-in-the-loop (oauth lane 3), post-batch-merge, pre-flip: `heliox tool acuity auth` → connect link → real Acuity login/consent (`scope=api-v1`) → `oauth_connected` event → one unseeded live run; verify identity label (email/name) in the integrations UI. If the bundle ships `provider_revoke` (§5.2 resolved), verify disconnect actually revokes at the provider (`/me` with the old token starts 401ing); if it ships `local_only`, verify local disconnect only and record the documented divergence. | **yes** — lane-1 config append landed (client id/secret in integration-service config) + the lane-2 test account, human consent session. |
 
 ## 8. Open items / risks
 
-1. **Numeric stable key** (§5) — decide fix-in-generic vs `/email` fallback
+1. **Numeric stable key** (§5.1) — decide fix-in-generic vs `/email` fallback
    with the batch lead before the bundle rides the batch-end merge.
-2. `/me` response schema and the `PUT /appointments/:id` allowed field set are
+2. **Revoke form field name** (§5.2) — the declarative revoker sends RFC-7009
+   `token=`; Acuity documents `access_token=`. L2 probes whether the
+   RFC-7009 name is also accepted; otherwise grow the generic
+   (`token_field` enum) or ship `local_only` (notion/bitly precedent).
+   Decision recorded with the batch lead before the batch-end merge; the §6
+   draft carries `local_only` until then.
+3. `/me` response schema and the `PUT /appointments/:id` allowed field set are
    verified live at L2/implementation (official reference pages do not render
    full schemas; machine index `llms.txt` omits them).
 3. Non-expiring tokens mean a revoked-at-provider token is only discovered on
