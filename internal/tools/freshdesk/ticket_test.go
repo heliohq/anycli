@@ -110,6 +110,34 @@ func TestTicketCreate_Body(t *testing.T) {
 	}
 }
 
+func TestTicketCreate_RequesterOnly(t *testing.T) {
+	// Per the Freshdesk v2 API, only a requester identifier is required on
+	// create; status defaults to 2 (Open), priority to 1 (Low), and
+	// subject/description are optional. A create with just --email must
+	// succeed and must not smuggle empty status/priority/subject/description
+	// into the body.
+	var got capturedRequest
+	srv := newServer(t, http.StatusCreated, `{"id":10}`, &got)
+	defer srv.Close()
+
+	code, _, _ := run(t, srv, "ticket", "create", "--email", "jane@acme.com")
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 (requester-only create is valid)", code)
+	}
+	if got.Method != http.MethodPost || got.Path != "/tickets" {
+		t.Errorf("request = %s %s, want POST /tickets", got.Method, got.Path)
+	}
+	body := decodeBody(t, got.Body)
+	if body["email"] != "jane@acme.com" {
+		t.Errorf("email = %v, want jane@acme.com", body["email"])
+	}
+	for _, k := range []string{"status", "priority", "subject", "description"} {
+		if _, ok := body[k]; ok {
+			t.Errorf("body[%s] present (%v); optional fields must be omitted when unset", k, body[k])
+		}
+	}
+}
+
 func TestTicketUpdate_Method(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"id":9}`, &got)

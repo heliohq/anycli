@@ -95,10 +95,13 @@ func (s *Service) newTicketCreateCmd(c *client) *cobra.Command {
 		Use:   "create",
 		Short: "Create a ticket (POST /tickets)",
 		Long: "Create a ticket (POST /tickets).\n\n" +
-			"Freshdesk requires both --status and --priority on create (as well as\n" +
-			"--subject, --description and a requester via --email or --requester-id);\n" +
-			"omitting status or priority returns a 400. Status: 2 Open|3 Pending|4\n" +
-			"Resolved|5 Closed. Priority: 1 Low|2 Medium|3 High|4 Urgent.",
+			"The only field the API requires is a requester identifier — pass\n" +
+			"--email or --requester-id. Status, priority, subject, and description\n" +
+			"are optional: Freshdesk defaults status to 2 (Open) and priority to 1\n" +
+			"(Low) when they are omitted. Passing explicit --status and --priority\n" +
+			"is still good practice so the ticket lands in the state you intend.\n" +
+			"Status: 2 Open|3 Pending|4 Resolved|5 Closed. Priority: 1 Low|2\n" +
+			"Medium|3 High|4 Urgent.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
