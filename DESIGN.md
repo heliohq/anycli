@@ -275,7 +275,24 @@ the five provider-gen projections, `providerIcons.ts` append, plugin publish —
 none committed from this branch. The one exception is the anycli `register.go`
 entry, which **is** committed here (see §2 Registration: it is required for
 on-branch L2–L4 binary dispatch); the batch lead re-merges it and resolves the
-expected conflict at batch-end. On-branch validation uses locally run
+expected conflict at batch-end.
+
+**Batch-end service-test coupling (not a §2-listed shared surface — flag it).**
+Committing the regenerated `provider_catalog.gen.go` at batch-end trips a
+hand-maintained tripwire test: `go-services/integration-service/service/provider_registry_test.go`
+`TestDefaultProviderRegistryIsComplete` enumerates every catalog provider in a
+hardcoded `wantStrategies` map and asserts `len(catalog) == len(wantStrategies)`.
+Adding Pipedrive makes the catalog 24 while the map still lists 23, so the batch
+lead MUST add `model.ProviderPipedrive: model.RuntimeStrategyStandardOAuth` to
+that map **in the same commit as the projection regen** — committing it earlier
+(without the regen) or omitting it (with the regen) both turn main red. This is
+the one integration-service Go change a `standard_oauth` provider needs; it does
+not contradict "zero service *code*" (no new adapter — the generic
+`composeProviderRegistration` path handles standard_oauth), only the "no new Go"
+shorthand in L3 below. On-branch, this branch stays green because the projection
+is not committed; the failure surfaces only when the regen is applied locally.
+
+On-branch validation uses locally run
 `provider-gen` (+ `--check`) and a locally uncommitted
 `replace github.com/heliohq/anycli => <this worktree>` in `helio-cli/go.mod`;
 neither is committed, and this branch is expected to fail `provider-gen
@@ -287,7 +304,7 @@ neither is committed, and this branch is expected to fail `provider-gen
 |---|---|---|
 | L1 | anycli `go test ./...`: httptest fakes assert `Authorization: Bearer` header injection, base URL taken verbatim from the `api_domain` credential, `/api/v2` paths + `PATCH` for updates, v1 paths for leads/notes/users, `cursor`/`limit` passthrough, verbatim success envelope, `{"success":false,...}` error rendering (plain + `--json`), missing/malformed `api_domain` or `access_token` → exit 1, usage errors → exit 2. TDD: tests first, per anycli AGENTS.md | none |
 | L2 | Dev harness against the real API: `ANYCLI_CRED_ACCESS_TOKEN=<real Bearer> ANYCLI_CRED_API_DOMAIN=https://<company>.pipedrive.com anycli pipedrive -- deal list` (+ person search, activity create/done, note add, itemSearch). The Bearer token is minted by hand-driving the dev app's authorize URL + a curl token exchange — the tool speaks OAuth Bearer only; the personal `api_token` path is deliberately not implemented, so L2 cannot shortcut through it | **YES** — lane-1 dev app client id/secret + lane-2 test Pipedrive account |
-| L3 | Local `go run ./cmd/provider-gen` + `--check` against the branch bundle (run only, projections NOT committed); `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/` with the local `replace`; integration-service unit suite (synthetic standard_oauth coverage applies — no new Go) | none |
+| L3 | Local `go run ./cmd/provider-gen` + `--check` against the branch bundle (run only, projections NOT committed); `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/` with the local `replace`; integration-service unit suite (synthetic standard_oauth coverage applies; the only Go change is the batch-end `wantStrategies` map entry in `service/provider_registry_test.go` — see the batch-end service-test coupling note in §3) | none |
 | L4 | Singleton + `POST /internal/test-only/connections/seed` with provider `pipedrive`, real `access_token` + `refresh_token` and a deliberately short `expires_at`, so `heliox tool pipedrive -- deal list` is forced through the token gateway's refresh-and-write-back path (form_basic refresh against the live token URL; Pipedrive's ~60-min expiry makes this the steady-state path, so it must be exercised). Note the seed payload has no `api_domain` field — `account_key` in the seed request must be set to the real `https://<company>.pipedrive.com` value since the credential projection reads it as the base URL. Real seeded org/assistant identities per the skill's L4 notes | **YES** — dev app client id/secret in local uncommitted `config/cloud.yaml` + real token pair from the test account |
 | L5 | Human-in-the-loop (oauth lane, lane 3): `heliox tool pipedrive auth` → connect link → real Pipedrive consent on the test account → `oauth_connected` event on the originating channel → one unseeded live run. Gates the visible flip; runs in the post-merge batch sweep | **YES** — human consent session + test account |
 
