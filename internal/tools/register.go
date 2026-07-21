@@ -15,6 +15,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
 	"github.com/heliohq/anycli/internal/tools/microsoftonedrive"
 	"github.com/heliohq/anycli/internal/tools/microsoftoutlook"
+	"github.com/heliohq/anycli/internal/tools/missive"
 	"github.com/heliohq/anycli/internal/tools/mongodb"
 	"github.com/heliohq/anycli/internal/tools/notion"
 	"github.com/heliohq/anycli/internal/tools/sheets"
@@ -50,5 +51,6 @@ func init() {
 	RegisterService("microsoft-outlook", &microsoftoutlook.Service{})
 	RegisterService("microsoft-calendar", &microsoftcalendar.Service{})
 	RegisterService("microsoft-onedrive", &microsoftonedrive.Service{})
+	RegisterService("missive", &missive.Service{})
 	RegisterService("mongodb", &mongodb.Service{})
 }
