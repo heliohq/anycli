@@ -4,7 +4,8 @@ Branch: `tool/rocketreach` (both repos). Scratch design file; batch lead strips 
 
 - **Catalog row** (008 §4, row 67): Product RocketReach · anycli id `rocketreach` · provider key `rocketreach` · auth `api_key` · Wave 2 · Sales Engagement.
 - **Audit verdict** (oauth-audit.md row 69): *"no viable multi-tenant path → api_key. Stays api_key per rubric."*
-- **Independent verification of the auth lane** (official docs, below): CONFIRMED `api_key`. RocketReach exposes a single per-user API key sent in an `Api-Key` request header. There is **no** authorization-code OAuth flow, no app-registration/consent surface, no partner client model. RocketReach ships an official **MCP server**, but the master plan explicitly scopes the Figma-style MCP path OUT of this pipeline; we wrap the REST API as an AnyCLI passthrough. No divergence from the catalog/audit to record.
+- **Independent verification of the auth lane** (official docs, below): CONFIRMED `api_key`. RocketReach exposes a single per-user API key; there is **no** authorization-code OAuth flow, no app-registration/consent surface, no partner client model. RocketReach ships an official **MCP server** (`https://mcp.rocketreach.co`, OAuth2.1 Bearer), but the master plan explicitly scopes the Figma-style MCP path OUT of this pipeline; we wrap the REST API as an AnyCLI passthrough. No divergence from the catalog/audit to record.
+- **Header caveat.** The REST key is widely documented as the `Api-Key` request header and that is what this design injects, but the *exact header string* is **not literally named** on the reachable official pages — the People Lookup reference exposes only a generic "Header" credential control, and `docs.rocketreach.co/reference/mcp-auth` documents the MCP server's `Authorization: Bearer` flow, not the REST v2 header. `Api-Key` is RocketReach's long-standing REST header so the risk is low, but the string is **pinned at the L2 harness (mandatory before the pin bump)** rather than treated as doc-confirmed.
 
 ---
 
@@ -12,13 +13,13 @@ Branch: `tool/rocketreach` (both repos). Scratch design file; batch lead strips 
 
 **Product intent driving the surface.** RocketReach is a contact-enrichment / prospecting database. What an AI teammate actually does with it: (a) *enrich* a known person (name+company, or a LinkedIn URL, or a stored profile id) into verified emails/phones; (b) *find* people by role/company/location to build a prospect list; (c) *look up / find* companies (firmographics); (d) *check remaining credits* before spending, because lookups burn a finite credit balance. The tool wraps exactly the endpoints that serve those jobs and nothing that needs out-of-band infrastructure (webhooks) or a different credit/billing model.
 
-**Base:** `https://api.rocketreach.co`, path prefix `/api/v2`. **Auth:** `Api-Key: <key>` header on every request (query-param `?api_key=` is also accepted but the header is the documented/canonical form and the only one we inject).
+**Base:** `https://api.rocketreach.co`, path prefix `/api/v2`. **Auth:** `Api-Key: <key>` header on every request (query-param `?api_key=` is also accepted but the header is the canonical form and the only one we inject). Header string to be pinned at L2 (see the header caveat above).
 
 **Endpoints wrapped (classic v2):**
 
 | Job | Method + path | Notes |
 |---|---|---|
-| Account / credits (also the **verify** endpoint) | `GET /api/v2/account/` | Returns the `UserModel`: `id` (int), `first_name`, `last_name`, `email`, `state`, `credit_usage[]` (`credit_type`/`allocated`/`used`/`remaining`, `"inf"` when unlimited), `rate_limits[]`. Cheap, non-consuming — the teammate calls it to check budget before lookups. |
+| Account / credits (also the **verify** endpoint) | `GET /api/v2/account/` | Returns the `UserModel`: `id` (JSON integer), `first_name`, `last_name`, `email` (string), `state`, `credit_usage[]` (`credit_type`/`allocated`/`used`/`remaining`, `"inf"` when unlimited), `rate_limits[]`. Cheap, non-consuming — the teammate calls it to check budget before lookups. Note `id` decodes as a JSON number; the connect-time re-identify key is `email` (string) — see §4. |
 | Person lookup (enrich) | `GET /api/v2/person/lookup` | Query by `name`+`current_employer`, or `linkedin_url`, or `id` (profile id from a prior search). **Asynchronous**: returns a lookup object with `status` ∈ `complete`/`searching`/`waiting`/`progress`/`failed`. Emails/phones populate as `status` reaches `complete`. Credits are only charged on a match. |
 | Person lookup status | `GET /api/v2/person/checkStatus?ids=<id>[,<id>…]` | Poll the async lookups above. (RocketReach recommends webhooks over polling, but webhooks need an inbound endpoint the runtime does not have, so polling is the agent-usable path.) |
 | Person search | `POST /api/v2/person/search` | JSON body `{"query":{…}, "start":N, "page_size":M}`. Returns matching profiles (name/title/employer/**profile id**) but **no contact info** — the agent then `person lookup --id <profileId>` to enrich a chosen result. |
@@ -109,8 +110,8 @@ auth:
 identity:
   source: userinfo
   url: https://api.rocketreach.co/api/v2/account/
-  stable_key: /id                                  # immutable numeric account id (numeric stable_key already supported on main)
-  label_candidates: [/email, /first_name]
+  stable_key: /email                               # string re-identify key; /id decodes as a JSON number and the declarative path only reads string values (see below)
+  label_candidates: [/first_name, /last_name]
 
 connection:
   mode: isolated
@@ -132,7 +133,7 @@ tool:
   kind: api-key
 ```
 
-- **No integration-service capability growth required.** `manual_api_token` + `identity.source: userinfo` + header verify is the existing golden path (`service/manual_token_verifier.go`); numeric `stable_key` (`/id`) is already supported on main (hubspot precedent). No adapter — RocketReach's response/lifecycle sits inside the closed capability set. Zero service Go.
+- **No integration-service capability growth required — and specifically because we do NOT depend on numeric stable keys.** `manual_api_token` + `identity.source: userinfo` + header verify is the existing golden path (`service/manual_token_verifier.go`). The declarative identity path (`service/declarative_identity.go` → `jsonPointerString`, and the manual verifier at `manual_token_verifier.go:53-60`) extracts the account key with `value.(string)` and rejects any non-string value — verified against `main` at HEAD `8bc7ff6571`, where the only `strconv.FormatInt` coercion lives in the unrelated compiled `github.go` adapter, and all shipped bundles use **string** stable keys (`/sub`, `/login`, `/team/id`, `/data/id`, `/workspace_id`, `/guild/id`). RocketReach `/account/` returns `id` as a JSON integer, so `/id` would decode as `float64` and `Verify` would fail connect with *"identity has no string value at stable key /id"* — the connection could never reach connected/configured. We therefore use the **string** `stable_key: /email` (RocketReach `/account/` returns `email`), matching the bitly `/login` precedent. Email is the accepted re-identify key for an individual `api_key` account. This keeps the design inside the existing closed capability set — no `jsonPointerString` numeric coercion, no adapter, **zero service Go**.
 - **No client id/secret config** — manual-token providers need none; nothing lands in `config/`/`deploy/` for this provider (no human lane-1 OAuth-app work). This is a pure api_key tool.
 - **Icon:** `ui/helio-app/src/integrations/icons/rocketreach.svg` + hand-register in `providerIcons.ts` (manual, never generated).
 - **Docs:** provider sub-doc under `agents/plugins/heliox/skills/tool/`; plugin version bump + marketplace publish ride the batch-end merge.
