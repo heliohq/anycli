@@ -30,12 +30,28 @@ credentials:
   ingests customer events. Auth = a per-**source** *write key* over HTTP Basic
   (`base64(writeKey:)`). This is a data-plane firehose, one credential per
   source.
-- **Public API** (`https://api.segmentapis.com`): the modern unified
+- **Public API** (US: `https://api.segmentapis.com`): the modern unified
   **management / observability** plane — CRUD over Sources, Destinations,
   Warehouses, Tracking Plans, Functions, Spaces, IAM, plus usage/delivery
   metrics. Auth = one workspace-scoped **Bearer token**.
   (Refs: <https://docs.segmentapis.com/>, Public API overview
   <https://segment.com/docs/api/public-api/>.)
+
+**Data residency — US-scoped in v1 (documented limitation).** Verified against
+the official docs (<https://docs.segmentapis.com/tag/Getting-Started/>): the
+Public API is served from **region-specific hosts by workspace data residency**
+— **US** workspaces use `api.segmentapis.com`, **EU** workspaces use
+`eu1.api.segmentapis.com`. The SAME workspace-scoped token only works against
+its own region's root; a token from an EU workspace 401s/404s against the US
+root at BOTH connect-time identity verification (§3/§4) and every runtime call.
+v1 **scopes to US-resident workspaces** and hardcodes the US host. This strands
+the (GDPR-driven) EU cohort with a bare 401/404 and no in-band cause, so it is
+called out as an **owed follow-up capability**, not a silent gap:
+**region-aware connections** — a per-connection base URL selected at connect
+time (a `region: us|eu` connect-form field → dual identity URL + a
+region-stamped `SEGMENT_BASE_URL` injected alongside the token). Named here so
+the batch tracks it; not smuggled in as "no capability growth owed." Until it
+lands, the L2/L4/L5 test workspace **must be US-resident** (§6).
 
 **This tool wraps the Public API.** Rationale driven by what an AI teammate
 actually does with a CDP:
@@ -58,7 +74,7 @@ one credential (the Public API workspace token).
 The Public API is **Team/Business-tier only** — recorded here because it gates
 the L2/L5 test account (§6), not because it changes the design.
 
-### Endpoints wrapped (all under `https://api.segmentapis.com`)
+### Endpoints wrapped (all under the region host, US `https://api.segmentapis.com` in v1)
 
 REST, cursor-paginated. List responses are `{"data": {...}, "pagination":
 {"current","next","totalEntries"}}`; the query params are `pagination[count]`
@@ -76,8 +92,13 @@ verbatim (see §2). Concretely wrapped:
 - `GET /functions`
 - `GET /spaces`, `GET /spaces/{spaceId}/audiences`
 - `GET /iam/users`, `GET /iam/groups`
-- Delivery/usage: `GET /sources/{id}/events-volume` and the delivery-metrics
-  surface (`.../metrics` / delivery-overview) — path & query shape pinned at L2.
+- Delivery/usage (**PROVISIONAL — L2-gated**): `GET /sources/{id}/events-volume`
+  and the delivery-metrics surface (`.../metrics` / delivery-overview). These
+  two paths are **not confirmed Public API paths** — the exact path names and
+  query shape are pinned at L2 against the live API. An implementer MUST NOT
+  hardcode `events-volume`/`metrics` before L2 confirms them; if a path does not
+  exist, drop the dedicated subcommand and leave the surface reachable via the
+  raw `request` verb.
 - **Raw escape hatch**: `segment request` (see §2). The Public API has 100+
   endpoints; hand-wiring all is neither in the 2–3h budget nor necessary. A
   generic passthrough (bearer-injected, JSON-through) keeps the whole surface
@@ -120,7 +141,10 @@ envelope).
 The service reads `SEGMENT_TOKEN` and sends `Authorization: Bearer
 <SEGMENT_TOKEN>` on every request (the Bearer scheme is built by the anycli
 service itself — independent of the integration-service verifier scheme in §3).
-Base URL constant `https://api.segmentapis.com`, overridable in tests.
+Base URL default `https://api.segmentapis.com` (US), overridable in tests. When
+the region follow-up (§1) lands, this default is overridden per-connection by an
+injected `SEGMENT_BASE_URL` (US `api.segmentapis.com` / EU
+`eu1.api.segmentapis.com`); v1 ships the US default only.
 
 ### Subcommand tree (verbs)
 
@@ -141,6 +165,7 @@ segment space list [--count N] [--cursor C]
 segment space audiences --space-id <id> [--count N] [--cursor C]
 segment iam user list [--count N] [--cursor C]
 segment iam group list [--count N] [--cursor C]
+# PROVISIONAL / L2-gated — path names unconfirmed; do not hardcode until L2 pins them:
 segment delivery events-volume --source-id <id> [--start ... --end ...]
 segment delivery metrics --source-id <id> --destination-config-id <id> [...]
 segment request --method GET --path /sources [--query 'pagination[count]=100'] [--body @file]
@@ -186,14 +211,19 @@ verifier (`service/manual_token_verifier.go`,
 bundle-declared header and derives the account key + label from the response via
 JSON Pointer.
 
-- **Header value needs the `Bearer` scheme prefix.** The base verifier does
-  `req.Header.Set(definition.APIKey.Header, token)` — the *raw* token. Segment's
-  root endpoint 401s without `Bearer `. This is handled by the reviewed
-  **`auth.api_key.scheme: bearer`** capability (`APIKeyPolicy.Scheme` +
-  `HeaderValue(token)` → `"Bearer "+token`; enum `raw`|`bearer`) **already
-  introduced by the Instantly api_key batch**. Segment simply declares
-  `scheme: bearer` and reuses it — **no capability growth owed by this tool**
-  (dependency note in §5).
+- **Header value needs the `Bearer` scheme prefix.** Verified in the current
+  repo: the base verifier does `req.Header.Set(definition.APIKey.Header, token)`
+  — the *raw* token (`service/manual_token_verifier.go:34`) — and `APIKeyPolicy`
+  today has only `Header` + `SetupURL`, no scheme field
+  (`model/catalog.go:167`). Segment's root endpoint 401s without `Bearer `. So
+  Segment **depends on** an `auth.api_key.scheme` capability (a `scheme:
+  bearer`-style field that makes the verifier send `"Bearer "+token`) that the
+  Instantly api_key batch is expected to introduce. That capability is **not yet
+  merged in this repo**, and its exact field name / shape
+  (`APIKeyPolicy.Scheme`? `HeaderValue()`? enum values?) is **assumed, not
+  settled** — **verify the actually-merged API at integration time** and adjust
+  this bundle if Instantly names or implements it differently (dependency note
+  in §5).
 - **Identity endpoint.** `GET https://api.segmentapis.com/` returns
   `{"data":{"workspace":{"id","name","slug"}}}`. Stable account key =
   `/data/workspace/id` (immutable workspace id); label candidates =
@@ -232,7 +262,9 @@ presentation:
 # third-party OAuth exists for arbitrary customer workspaces, so this is an
 # api_key / manual_api_token provider. Segment requires "Authorization: Bearer
 # <token>", so scheme: bearer makes the connect-time verifier send the Bearer
-# prefix (the raw default would 401). The token is verified against GET / (Get
+# prefix (the raw default would 401). NOTE: the api_key.scheme field depends on
+# the (not-yet-merged) Instantly capability — confirm its real name/shape before
+# authoring this bundle (§3/§5). The token is verified against GET / (Get
 # Workspace) before any Vault write.
 auth:
   type: api_key
@@ -243,7 +275,11 @@ auth:
     setup_url: https://docs.segmentapis.com/tag/Getting-Started/
 
 # Get Workspace resolves the workspace from the token itself and returns a
-# stable id + human-readable name/slug.
+# stable id + human-readable name/slug. url is the US root; v1 is US-scoped
+# (§1 data residency). When the region follow-up lands, this becomes a
+# region-selected pair (US https://api.segmentapis.com/ | EU
+# https://eu1.api.segmentapis.com/) — an EU token verified against the US root
+# 401s/404s, so an EU cohort is unsupported until then.
 identity:
   source: userinfo
   url: https://api.segmentapis.com/
@@ -288,15 +324,20 @@ Companion artifacts (batch-end merge, per master plan §2):
   publish (one per batch).
 - **No `experiment` gate** (GA on flip; leave field empty).
 
-## 5. Integration-service capability dependency (no growth owed)
+## 5. Integration-service capability dependency (v1: none owed; region deferred)
 
 This tool writes **zero** integration-service Go code. Its only non-default need
 — rendering `Authorization: Bearer <token>` in the connect-time verifier — is
-served by the existing reviewed **`auth.api_key.scheme: bearer`** capability
-(`APIKeyPolicy.Scheme` / `HeaderValue`, enum `raw|bearer`) introduced by the
-Instantly api_key batch. If Segment's batch somehow lands before that capability
-merges, Segment **depends on** it (it is a one-field, orthogonal growth, not a
-per-provider adapter) — flagged at stage 1 rather than mid-wave. No compiled
+served by an **`auth.api_key.scheme` bearer capability** that the Instantly
+api_key batch is expected to introduce. As verified in the current repo, that
+capability is **not yet merged**: `APIKeyPolicy` has only `Header` + `SetupURL`
+(`model/catalog.go:167`) and `declarativeManualTokenVerifier` sends the raw
+token (`service/manual_token_verifier.go:34`). Segment therefore **depends on**
+that cross-batch capability (a one-field, orthogonal growth, not a per-provider
+adapter) — flagged at stage 1 rather than mid-wave. **Verify the actually-merged
+field name and shape at integration time**; if the Instantly batch names or
+implements the scheme field differently than assumed (`APIKeyPolicy.Scheme` /
+`HeaderValue` / enum `raw|bearer`), this bundle must change to match. No compiled
 `service/adapter_*.go` and no new `runtime_strategy` are justified: the response
 shape (JSON, bearer header, single userinfo GET) sits fully inside the closed
 `manual_api_token` capability set.
@@ -313,6 +354,15 @@ shape (JSON, bearer header, single userinfo GET) sits fully inside the closed
 
 Externally-supplied credentials are needed for **L2, L4, L5** (one Public API
 token from a Team/Business-tier test workspace). L1/L3 need nothing.
+
+**Test workspace must be US-resident.** Because v1 hardcodes the US host (§1),
+the L2/L4/L5 workspace has to be a **US** data-residency workspace — a token
+from an EU workspace verifies against `eu1.api.segmentapis.com`, not the US root
+this build targets, so it **fails identity verification at connect (§3/§4) and
+every runtime call with a bare 401/404 and no in-band cause**. A tester handed
+an EU token would be left debugging that opaque failure; the region follow-up
+(§1) is what unblocks the EU cohort. Record this in the L2/L5 runbook so the
+account-pool token is provisioned from a US workspace.
 
 ## 7. Audit reconciliation (no divergence)
 
