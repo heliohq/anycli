@@ -278,7 +278,7 @@ The token gateway hands anycli `{api_key, instance_url}`, matching §2.5.
 
 ### 4.3 Required integration-service capability growth (the real work)
 
-The current `manual_credentials` contract forbids this bundle today. Three bounded
+The current `manual_credentials` contract forbids this bundle today. Four bounded
 changes, all in `go-services/integration-service`, gated by tests:
 
 1. **Relax D5 to "endpoint + secret".**
@@ -291,22 +291,64 @@ changes, all in `go-services/integration-service`, gated by tests:
    (it already permits N fields at the YAML layer; the count/secret rule is the
    model contract above).
 
-2. **Carry the non-secret field through Connect.**
+2. **Carry the non-secret field through Connect — this is a shared-interface change, not a localized edit.**
    `service/manual_credential.go` `resolveManualSecret` returns only the secret
-   today. Extend it (or add a sibling) to also return the endpoint field's value,
-   and thread that value into the identity deriver + `account_key` on Create/Update.
-   The `values` map already arrives keyed by `credential_input.fields[].name`, so
-   `{instance_url, api_key}` is available — the change is selecting the secret by
-   `Secret==true` and passing the endpoint field on, instead of asserting exactly
-   one key.
+   today, and the identity step calls `runtime.verifier.Verify(ctx, httpClient,
+   definition, token)` (`manual_credential.go:79`). That `Verify` is the
+   `manualTokenVerifier` interface (`service/manual_token_verifier.go:16-17`):
+
+   ```go
+   Verify(ctx context.Context, client *http.Client, definition model.ProviderDef,
+          token string) (identity map[string]any, label, accountKey string, err error)
+   ```
+
+   It receives **only the single secret string** — there is no channel for a
+   second (non-secret) `instance_url` input. Threading the endpoint field into the
+   deriver is therefore a change to this **shared interface signature**, which is
+   implemented by **every manual deriver**: `declarativeManualTokenVerifier`
+   (`manual_token_verifier.go:24`) and `dsnHostIdentityDeriver`
+   (`manual_credentials_identity.go:25`). Two honest options, pick one and commit
+   to the ripple:
+   - **Extend the signature** to `Verify(ctx, client, definition, secret string,
+     endpoint string)` (empty `endpoint` for today's single-secret providers) —
+     touches both existing implementers plus the call site.
+   - **Add a parallel two-input path** (e.g. a sibling `EndpointVerify` on a new
+     interface, selected by strategy at `manual_credential.go:79`) so single-input
+     derivers keep the current signature untouched.
+
+   Either way, also extend `resolveManualSecret` (or add a sibling) to return the
+   endpoint field's value from the `values` map (already keyed by
+   `credential_input.fields[].name`, so `{instance_url, api_key}` is available —
+   select the secret by `Secret==true`, pass the endpoint field on), and thread it
+   into the deriver + `account_key` on Create/Update.
 
 3. **Instance identity deriver (+ optional verify).**
    `service/provider_registry.go` composes `manual_credentials` with
    `dsnHostIdentityDeriver` (parses the secret). Add an
-   `instanceIdentityDeriver` selected when the schema is endpoint+secret: it
-   normalizes the instance_url field → `account_key`/label, and (verify-first
-   variant, §3.3) issues the `sys_user?sysparm_limit=1` probe with `x-sn-apikey`
-   before the Vault write, mapping 401/403 → `invalid_provider_credential`.
+   `instanceIdentityDeriver` selected when the schema is endpoint+secret,
+   implementing the two-input contract from item 2: it normalizes the
+   instance_url field → `account_key`/label, and (verify-first variant, §3.3)
+   issues the `sys_user?sysparm_limit=1` probe with `x-sn-apikey` before the Vault
+   write, mapping 401/403 → `invalid_provider_credential`.
+
+4. **Relax the test-seed gate to accept `AuthCredentials` (L4 enabler).**
+   `service/test_seed.go:67-69` hard-rejects any provider whose `AuthType` is not
+   `AuthOAuth` or `AuthAPIKey` ("the seed endpoint can only preset user-token
+   (oauth/api_key) credentials"). ServiceNow is `AuthCredentials`, so the seed
+   returns `400` and L4 (§5) is unreachable — design 317 relaxed only the
+   **Connect-side** gate in `manual_credential.go` (`!= AuthAPIKey` →
+   `{AuthAPIKey, AuthCredentials}`), never this **separate** seed gate. The fix is
+   the mirror of that one: widen the seed gate to `{AuthOAuth, AuthAPIKey,
+   AuthCredentials}`. This is safe and minimal — the token gateway special-cases
+   **only** `AuthMinted` (`token_gateway.go:147`); every other auth type, including
+   `credentials`, is served through the same `writeUserTokenCredential` + vault
+   path the seed already writes. Storage stays single-secret: seed the api_key as
+   `access_token` and set `account_key` = the instance URL directly (both are
+   already fields on `SeedConnectionInput`), so the token gateway projects
+   `{api_key, instance_url}` with no schema change. Gate by a test: an
+   `AuthCredentials` provider seeds `201`, and a `github`/`AuthMinted` provider is
+   still rejected `400` (preserve the Codex PR-1917 intent). This generalizes to
+   mongodb and every future `manual_credentials` provider, which hit the same gate.
 
 This is the **same instance-scoped pattern** the OAuth side already took: zendesk
 (instance/subdomain-scoped OAuth) and salesforce (`instance_url` metadata capture).
@@ -314,7 +356,8 @@ ServiceNow brings it to the manual-credential side, and it **generalizes** to th
 master-plan OQ3 "self-hosted URL + token" providers (Jenkins, Metabase,
 Rocket.Chat, Mattermost) — build it as a reusable "endpoint + token" capability,
 not a `servicenow` special-case. No token-gateway or Vault schema change (single
-secret + existing `account_key` slot).
+secret + existing `account_key` slot); the only test-plumbing change is the seed
+gate (item 4).
 
 ### 4.4 Service side, config, icon, docs
 
@@ -323,6 +366,16 @@ secret + existing `account_key` slot).
   path. Nothing to Config-Sync.
 - **UI icon:** `ui/helio-app/src/integrations/icons/servicenow.svg` + register in
   `providerIcons.ts` (manual, never generated).
+- **i18n credential-field labels (all 9 locales).** The generic `CredentialForm`
+  renders each declared field's label via
+  ``t(`tools.credentialField.${field.label_key}`)`` (`CredentialForm.tsx:197`), so
+  the two-field form (`label_key: servicenow_instance_url` / `servicenow_api_key`,
+  §4.2) renders the raw keys as labels until those keys ship. Add
+  `tools.credentialField.servicenow_instance_url` and
+  `tools.credentialField.servicenow_api_key` to
+  `ui/helio-app/src/i18n/resources/<locale>/assistants.json` across **all 9
+  locales** (`en-US`, `zh-CN`, `zh-TW`, `de-DE`, `es-ES`, `fr-FR`, `ja-JP`,
+  `ko-KR`, `pt-BR`), matching the mongodb `mongodb_connection_string` precedent.
 - **AI-facing doc:** provider sub-doc under
   `agents/plugins/heliox/skills/tool/` covering: connect (instance URL + REST API
   Key), the API-Access-Policy lockout caveat (§3.1), `table`/`incident`/`api`
@@ -338,7 +391,7 @@ secret + existing `account_key` slot).
 | **L1** | anycli `go test ./...`: `internal/tools/servicenow/` unit tests against an `httptest` fake Table API — asserts method/path/`sysparm_*` query, injected `x-sn-apikey`, derived base URL from `instance_url`, `{result}` unwrapping, number→sys_id lookup, incident sugar, `api` auth-header-override rejection, and 0/1/2 exit codes + `--json` error envelope. | **No** |
 | **L2** | `anycli servicenow -- table query incident --limit 1` (and create/update/whoami) via the dev harness against a **real ServiceNow Personal Developer Instance** (developer.servicenow.com PDI — free, self-serve), creds from `ANYCLI_CRED_INSTANCE_URL` + `ANYCLI_CRED_API_KEY`. Proves field names, `x-sn-apikey` injection, and request shape match the live API. | **Yes** — PDI + configured REST API Key |
 | **L3** | `provider-gen --check` + both repos' unit suites, **including** the new integration-service capability-growth tests (§4.3: endpoint+secret schema accepted, secret selected by `Secret==true`, `account_key` = instance URL, verify 401→reject). | No |
-| **L4** | singleton + `POST /internal/test-only/connections/seed` with `{provider:"servicenow", account_key:"https://<pdi>.service-now.com", access_token:"<api key>"}` (non-expiring secret → seed `access_token` only, omit refresh/expiry), then `heliox tool servicenow -- table query incident --limit 1`. Seed sets `account_key` directly, so the token gateway projects `{api_key, instance_url}` and the run reaches the live PDI. | **Yes** — same PDI + key reused for the seeded token to reach the live API |
+| **L4** | **Requires the §4.3 item-4 seed-gate relaxation to be landed first** — until then `POST /internal/test-only/connections/seed` returns `400` for `AuthCredentials` (`test_seed.go:67-69`), so this row is a definition-of-done gate on that change, not just on the bundle. Once landed: singleton + `POST /internal/test-only/connections/seed` with `{provider:"servicenow", account_key:"https://<pdi>.service-now.com", access_token:"<api key>"}` (non-expiring secret → seed `access_token` only, omit refresh/expiry), then `heliox tool servicenow -- table query incident --limit 1`. Seed sets `account_key` directly, so the token gateway projects `{api_key, instance_url}` and the run reaches the live PDI. | **Yes** — same PDI + key reused for the seeded token to reach the live API |
 | **L5** | api_key key-entry path (master plan §2): `heliox tool servicenow auth` → open connect link → enter **instance URL + API key** in the two-field form → connection shows connected/configured in `GET /connections` → one **unseeded** live command succeeds. Agent-drivable (agent-browser), human fallback. This is the only layer that exercises the **new two-field connect form + instance-URL→account_key derivation + verify-first** — the L4 seed bypasses all of it. Run once while still hidden, then flip `visible: true` + regenerate. | **Yes** — PDI + key from the account pool |
 
 **Externally-supplied credentials needed:** a ServiceNow **Personal Developer
