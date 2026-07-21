@@ -317,3 +317,48 @@ row bills).
 Definition of done follows the master plan: L1–L5 green, docs published, icon
 registered, then the visible flip (`presentation.visible: true` + regen) as
 the single go-live change after the 3-hold pre-verify and L5 pass.
+
+## 6. Implementation divergences from this design (verified against repo code)
+
+Two parts of §2–§4 were overridden during implementation after checking the
+actual repo contracts. Recorded here per the pipeline's "record the
+divergence" rule.
+
+1. **Bundle auth shape: `credentials` + `manual_credentials`, not `api_key` +
+   a new `moz_api_token` strategy.** §3/§4 proposed `auth.type: api_key` with
+   `identity.source: strategy` behind a new named strategy `moz_api_token`.
+   That combination is **invalid under the current runtime model**:
+   `model.ValidateRuntimeContract` unconditionally requires
+   `identity.source: userinfo` for every `AuthAPIKey` provider (there is no GET
+   userinfo on Moz), and `validateConfigContract`'s default arm would force
+   `oauth.client_id/secret` on any unrecognized strategy. Adding a whole new
+   runtime strategy + relaxing the AuthAPIKey branch is far more surface than
+   needed. The shipped semrush tool (same 3-hold SEO batch, same "paid API,
+   POST verifier, no userinfo" shape) already established the reviewed pattern:
+   `auth.type: credentials` + the existing `manual_credentials` strategy +
+   `identity.source: strategy` + a compiled verifier selected by a new
+   `manualCredentialsVerifier(provider)` dispatch in
+   `manual_credentials_identity.go`. Moz converges on that exact pattern
+   (reuse over fork) rather than growing a bespoke strategy. The verify-first
+   `quota.lookup` probe and the `account_id` account key from §3 are preserved
+   — only the mechanism changed. The verifier also falls back to a
+   non-reversible token tail when `account_id` is absent (it could not be
+   corroborated outside the SPA schema, so the token-validation guarantee does
+   not hinge on it).
+
+2. **`--scope` values are `page|subdomain|root_domain`, not `url|subdomain|
+   domain`.** The §2 subcommand sketch used `url|subdomain|domain`; the live
+   Moz `site_query.scope` enum (verified against the official getting-started
+   docs and a real `data.site.metrics.fetch` example) is
+   `page|subdomain|root_domain`. The anycli service validates against the real
+   values.
+
+3. **Added a generic `moz call --method --data` escape hatch.** The exact
+   `params.data` shapes for the link/keyword/ranking methods could not be
+   fully corroborated (the Moz docs are a client-rendered SPA and were not
+   fetchable). The typed subcommands build the documented
+   `site_query`/`target_query`/`serp_query` wrappers, and `moz call` exposes
+   any method with a raw body so a wrong-shape typed command is never a
+   blocker and the correct body can be sent verbatim at L2. Pending L2
+   confirmation against a real token, the non-corroborated typed shapes are the
+   documented Moz wrapper conventions.
