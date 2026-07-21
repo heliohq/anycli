@@ -158,7 +158,10 @@ identity:
 connection:
   mode: isolated
   disconnect_mode: local_only
-  runtime_strategy: standard_oauth   # golden path; no adapter
+  runtime_strategy: standard_oauth   # generic path, no per-provider adapter — but needs ONE
+                                     # reviewed capability-set growth first: standard_oauth must
+                                     # admit refresh_lease: credential (see §3a). Not a golden
+                                     # zero-code drop-in until that lands.
 
 resources:
   selection: none
@@ -189,7 +192,14 @@ Decisions worth recording:
 - **`refresh_lease: credential`.** Keap refresh tokens are single-use and rotate on every
   refresh ("you must use the newly provided refresh_token... store it every time");
   concurrent refresh across replicas would orphan the credential. `credential` scope (not
-  X's global `provider` scope — Keap has no cross-connection token cap).
+  X's global `provider` scope — Keap has no cross-connection token cap). The lease *runtime*
+  already implements this scope — `service/token_refresh.go` `acquireRefreshLease` keys the
+  Mongo lease on `refresh:<provider>:<credentialID>` when scope is `OAuthLeaseCredential`, so
+  concurrent refreshes of the same credential serialize and A3 strict write-back persists the
+  rotated token before it is served. What is **missing** is the compiled contract admitting
+  this pairing under `standard_oauth`; see §3a — this bundle does **not** pass `provider-gen`
+  until that lands, and must never be downgraded to `refresh_lease: none` (that is precisely the
+  orphaned-credential risk this decision avoids).
 - **`form_secret` with one documented asymmetry to verify at L4/L5.** Official docs show the
   code exchange with `client_id`/`client_secret` in the form body, but the refresh example
   with HTTP Basic client auth. Helio applies one style to both legs; with `form_secret` the
@@ -207,6 +217,51 @@ Decisions worth recording:
   + `deploy/` Helm Secret together); dev-mode values arrive as uncommitted local
   `config/cloud.yaml` entries for L4. Redirect URI must be HTTPS (Keap rejects non-HTTPS).
 
+### 3a. Prerequisite Helio-side capability change (blocks L3)
+
+The compiled runtime contract currently pins `standard_oauth` to a **single** allowed refresh
+lease scope, `none`:
+
+- `go-services/integration-service/model/runtime_contract.go` — `RuntimeStrategyStandardOAuth`
+  declares `oauth: &oauthRuntimeContract{singleActiveToken: false, refreshLeaseScope: OAuthLeaseNone}`,
+  and `ValidateRuntimeContract` rejects any bundle whose `auth.oauth.refresh_lease` differs from
+  that one value.
+- `provider-gen` runs the same validation: `cmd/provider-gen/generator_test.go`'s
+  "standard OAuth refresh lease" case asserts that a standard_oauth bundle with
+  `refresh_lease: "credential"` is rejected with `refresh_lease "none"`.
+
+So Keap's bundle (correctly `refresh_lease: credential`) **fails `provider-gen` / `provider-gen --check`**
+— the design's own L3 gate — with no code change. There is no adapter escape hatch and no way to
+express the correct decision under the current contract. The fix is a small, orthogonal
+integration-service **compiled-capability growth**, per `provider-yaml.md`'s guidance to "grow the
+generic `standard_oauth` capability set" with one more reviewed enum value rather than fork an
+adapter:
+
+1. Turn the contract's single `refreshLeaseScope` into an **allowed-set** of lease scopes
+   (mirroring how `disconnectModes []DisconnectMode` is already a list validated with
+   `slices.Contains`). Set `standard_oauth`'s allowed set to `{OAuthLeaseNone, OAuthLeaseCredential}`
+   — `none` stays the default/only requirement for the existing standard providers; `credential`
+   becomes admissible for rotating-refresh-token providers like Keap. X's narrow strategy keeps its
+   own exact `{OAuthLeaseProvider}` set — this change does not widen X, and `single_active_token`
+   stays `false` (the lease is orthogonal to single-active activation).
+2. Update `ValidateRuntimeContract`'s lease check (scalar `!=` → set membership) and the
+   `manifestOAuthLease` error rendering to list the allowed set.
+3. Update the provider-gen validation tests: the `generator_test.go` "standard OAuth refresh lease"
+   case must flip from *expecting rejection* to *accepting* `credential` under standard_oauth (X's
+   "X refresh lease" case is unchanged), plus a positive contract-level test in
+   `model` for the newly-admitted pairing.
+
+**Merge ordering.** This is an integration-service source change, **not** one of the seven
+batch-end shared surfaces (§2 of the master plan) — it does not touch `register.go`, the anycli
+pin, the five `provider-gen` projections, `toolToProvider`, `providerIcons.ts`, the plugin publish,
+or the OAuth config appends. It is a per-tool compiled-capability prerequisite, in the same class as
+this batch's other integration-service capability items (e.g. dataforseo's query-param api_key,
+hubspot's numeric stable-key). It must be **reviewed and merged on its own** (it can land mid-batch,
+ahead of the batch-end bundle merge) so that when the batch lead runs the single canonical
+`provider-gen`, Keap's bundle validates. Until it lands, this branch's local L3 (`provider-gen --check`
+against the branch bundle) is expected to fail on the lease pairing — that failure is the signal the
+prerequisite is still outstanding, distinct from the ordinary batch-end regen red noted in §4.
+
 Also riding the batch-end merge: UI icon `ui/helio-app/src/integrations/icons/keap.svg` +
 `providerIcons.ts` registration; provider sub-doc under `agents/plugins/heliox/skills/tool/`
 + plugin version bump/publish; the single canonical `provider-gen` run (five projections).
@@ -218,6 +273,10 @@ runs locally for validation only, and CI on this branch is expected red on
 
 - Mid-batch (this branch, conflict-free): `internal/tools/keap/` + tests,
   `definitions/tools/keap.json`, icon SVG (unregistered), provider sub-doc (unpublished).
+- Mid-batch, separately reviewed (Helio side, prerequisite for L3): the §3a
+  `standard_oauth` lease-scope-set growth in `integration-service/model/runtime_contract.go`
+  + provider-gen validation tests. Not a batch-end shared surface; must merge before the
+  batch-end bundle regen so Keap's bundle validates.
 - Batch end (batch lead): `register.go` entry, anycli tag + `helio-cli/go.mod` pin bump,
   `integrations/providers/keap/provider.yaml`, one `provider-gen` run (five projections),
   `providerIcons.ts` append, plugin publish. Local-only during dev: `helio-cli/go.mod`
@@ -230,7 +289,7 @@ runs locally for validation only, and CI on this branch is expected red on
 |---|---|---|
 | L1 | anycli `go test ./...`: httptest fakes for every subcommand asserting method/path/query/body shape, `Authorization: Bearer` injection from `KEAP_ACCESS_TOKEN`, pagination param passthrough, plain + `--json` error rendering, 401 → exit 1, missing-credential → exit 1. TDD: tests first per AGENTS.md. | No |
 | L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<real OAuth token> anycli keap -- contact list ...` against the live API (contact CRUD roundtrip, tag apply/remove, task create, userinfo). Token minted through the dev app's OAuth flow (one manual consent on the sandbox tenant; any local HTTPS redirect catcher works). Not a PAT — must exercise the exact injected header semantics. Mandatory before the pin bump. | **Yes** — lane-1 dev app (client id/secret) + lane-2 Keap sandbox tenant login |
-| L3 | Local `go run ./cmd/provider-gen` + `--check` against the branch bundle (validation only, not committed); helio-cli build/tests with the local `replace`; both repos' unit suites. | No |
+| L3 | Local `go run ./cmd/provider-gen` + `--check` against the branch bundle (validation only, not committed); helio-cli build/tests with the local `replace`; both repos' unit suites. **Gated on §3a**: `provider-gen` rejects `refresh_lease: credential` under `standard_oauth` until the compiled-contract growth lands, so L3 passes only once the §3a change is merged (or applied locally to prove L3 on-branch). | No |
 | L4 | Singleton + `POST /internal/test-only/connections/seed` with the real `access_token` **and** `refresh_token` and a deliberately short `expires_at`, forcing the very next `heliox tool keap -- contact list` through the refresh-and-write-back path (A3) — this is also the `form_secret`-on-refresh checkpoint and the rotating-refresh-token persistence check (run twice: second run must refresh again off the *rotated* token). Dev client id/secret in uncommitted local `config/cloud.yaml`. | **Yes** — same dev app + a real token pair from the sandbox tenant |
 | L5 | Human-in-the-loop (lane 3, post-batch-merge, pre-flip): `heliox tool keap auth` → connect link → Keap consent on the sandbox tenant → `oauth_connected` event on the channel → one unseeded live command. Verifies authorize URL params (`scope=full`, HTTPS redirect), identity extraction (`/scope` → account key), and the exchange leg under the final style. | **Yes** — sandbox tenant login; human consent (oauth lane) |
 
@@ -239,11 +298,17 @@ Definition of done per master plan §2: L1–L5 green, docs published, icon regi
 
 ## 6. Open items / risks
 
-1. **Connection label cosmetics** — `/scope` label shows `full|<tenant>.infusionsoft.com`;
+1. **`standard_oauth` must admit `refresh_lease: credential` (blocks L3)** — the compiled
+   contract in `integration-service/model/runtime_contract.go` currently allows only
+   `refresh_lease: none` for `standard_oauth`, so Keap's (correct) `credential` bundle fails
+   `provider-gen`. Resolution is the reviewed compiled-capability growth in §3a, merged on its own
+   ahead of the batch-end bundle merge. Owner: whoever lands this tool's Helio-side prerequisite;
+   status: pending, not optional.
+2. **Connection label cosmetics** — `/scope` label shows `full|<tenant>.infusionsoft.com`;
    acceptable for launch, candidate for a generic label-transform capability later.
-2. **Refresh client-auth style** — resolved empirically at L4 (see §3 checkpoint);
+3. **Refresh client-auth style** — resolved empirically at L4 (see §3 checkpoint);
    fallback is `form_basic`.
-3. **Dev-app key count** — Keap generally grants 2 keys/developer (extra via ticket); lane 1
+4. **Dev-app key count** — Keap generally grants 2 keys/developer (extra via ticket); lane 1
    should decide dev/prod split at registration time.
-4. **v1 sunset watch** — nothing here uses v1, but the `/v2/oauth/connect/userinfo` and
+5. **v1 sunset watch** — nothing here uses v1, but the `/v2/oauth/connect/userinfo` and
    token endpoints are shared infrastructure and unaffected by the XML-RPC 2026 sunset.
