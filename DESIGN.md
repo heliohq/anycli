@@ -1,7 +1,7 @@
 # Tool design: Moz (`moz`)
 
 Scratch per-tool design for the 300-integrations rollout (master plan
-`docs/design/008-300-integrations-rollout-plan.md`, catalog row 267). Batch:
+`docs/design/008-300-integrations-rollout-plan.md`, catalog row 265). Batch:
 **3-hold** (account-procurement risk). Committed on `tool/moz`; the batch lead
 strips this file at batch end.
 
@@ -151,8 +151,11 @@ error rendering; never hit the real API from unit tests. Registration in
 
 ## 3. Credential fields and auth flow (audit verified)
 
-**Lane: `api_key` — confirmed against official docs**; catalog row 267 and the
-oauth-audit verdict ("no viable multi-tenant path — stays api_key") both hold.
+**Lane: `api_key` — confirmed against official docs**; master-plan catalog row
+265 and the oauth-audit verdict (audit row 267 — the pre-renumber id; "no
+viable multi-tenant path — stays api_key") both hold. (The row numbers differ
+because the 2026-07-22 OpenAI/Anthropic removal renumbered the master plan;
+Moz is master-plan row 265, still audit row 267.)
 The Moz API has **no OAuth surface at all**: registration model is Moz account
 → API subscription (free tier ok) → dashboard-generated bearer-style token in
 a custom header. No scopes exist — a token grants the account's full API
@@ -175,18 +178,53 @@ the API is POST-only JSON-RPC. The existing alternative,
 **Recommendation: keep verify-first, add a narrow compiled verifier** —
 `quota.lookup` is the purpose-built probe: costs zero quota, requires a valid
 token, and returns `result.quota.account_id`, a stable numeric account
-identity. Wire a small `manualTokenVerifier` implementation (POST
-`quota.lookup` with `path: api.limits.data.rows`; 2xx → accountKey =
-`account_id` as string, label `"Moz account <id>"`; 401/403 → invalid token)
-selected via a named runtime strategy (the LinkedIn/X named-strategy
-precedent), e.g. `moz_api_token`. This is the **one integration-service code
-item** for this tool — flagged here at stage 1 per master plan §5, and small
-by design (verifier facet only; exchanger/revoker stay no-op).
+identity.
+
+**Auditable evidence for `account_id` (verified 2026-07-22 against the live
+official schema).** The Moz docs SPA embeds the method's typed schema in its
+`__NEXT_DATA__` JSON. For `quota.lookup` (`actionName.dotNotation ==
+"quota.lookup"`), the response definition at JSON path
+`props.pageProps.dataParsed.responseDefinition` declares
+`properties.quota.properties.account_id`, verbatim:
+
+```json
+"account_id": {
+  "key": "account_id",
+  "description": "The account ID.",
+  "type": ["number"],
+  "nullable": false,
+  "optional": false
+}
+```
+
+`account_id` is a required (`optional: false`), non-nullable numeric sibling of
+`path`/`allotted`/`used`/`reset` inside `result.quota`, and the API schema's
+`QuotaObject`/`QuotaUsageObject` definitions both list `account_id` in their
+`required` arrays. So the connection's stable account key is the JSON path
+`result.quota.account_id`. (The earlier search-only pass could not corroborate
+this because the docs are a client-rendered SPA — the schema is not in the
+server-rendered HTML body; it lives only in the `__NEXT_DATA__` blob.)
+
+Wire a small `manualTokenVerifier` implementation (POST `quota.lookup` with
+`path: api.limits.data.rows`; 2xx → accountKey = `account_id` as string, label
+`"Moz account <id>"`; 401/403 → invalid token) selected via a named runtime
+strategy, e.g. `moz_api_token`. The on-point precedent is **mongodb's
+`manual_credentials` → `dsnHostIdentityDeriver`** (`provider_registry.go`
+binds it in the `RuntimeStrategyManualCredentials` case, then the registry
+selects it via `registration.manual`): a named runtime strategy that binds a
+compiled manual verifier on the `AuthCredentials`/`AuthAPIKey` path, exactly
+the shape the moz verifier follows. Moz differs only in that its compiled
+verifier *does* perform a provider-side POST probe (verify-first) rather than
+mongodb's no-verify DSN-host derivation — a verifier facet, not a new
+mechanism. This is the **one integration-service code item** for this tool —
+flagged here at stage 1 per master plan §5, and small by design (verifier
+facet only; exchanger/revoker stay no-op).
 
 Fallback if the batch lead rejects service code for a 3-hold tool: mongodb's
 OQ1 no-verify shape (`credentials` + `manual_credentials`) with a generalized
-no-op identity deriver — but that loses connect-time token validation *and* a
-real account key, so it is second choice.
+no-op identity deriver — but with `account_id` now schema-confirmed, this
+fallback loses connect-time token validation *and* the real, stable account
+key that is the sole cited advantage of the verifier, so it is second choice.
 
 ## 4. Helio provider bundle plan
 
