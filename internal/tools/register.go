@@ -4,6 +4,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/bitly"
 	"github.com/heliohq/anycli/internal/tools/calendar"
 	"github.com/heliohq/anycli/internal/tools/contacts"
+	"github.com/heliohq/anycli/internal/tools/delighted"
 	"github.com/heliohq/anycli/internal/tools/discord"
 	"github.com/heliohq/anycli/internal/tools/docs"
 	"github.com/heliohq/anycli/internal/tools/drive"
@@ -31,6 +32,7 @@ import (
 // create an import cycle.
 func init() {
 	RegisterService("bitly", &bitly.Service{})
+	RegisterService("delighted", &delighted.Service{})
 	RegisterService("slack", &slack.Service{})
 	RegisterService("notion", &notion.Service{})
 	RegisterService("sheets", &sheets.Service{})

@@ -1,0 +1,13 @@
+{
+  "name": "delighted",
+  "type": "service",
+  "description": "Delighted NPS/CSAT/CES survey platform (metrics, responses, people, suppression, autopilot)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "DELIGHTED_API_KEY"}
+      }
+    ]
+  }
+}

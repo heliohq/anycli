@@ -1,4 +1,4 @@
-# Tool design: Delighted (`delighted`) — BLOCKED (provider sunset)
+# Tool design: Delighted (`delighted`) — BUILT HIDDEN, BLOCKED at visible flip (provider sunset)
 
 Scratch design doc for the `tool/delighted` branch (batch-lead strips at batch
 end). Drives the anycli `delighted` service definition and the Helio
@@ -9,11 +9,30 @@ and the Delighted official REST API.
 Catalog row 213: Product **Delighted** · anycli id `delighted` · provider key
 `delighted` · auth `api_key` · wave 3 · category Forms & Surveys.
 
-## 0. Status: BLOCKED — DO NOT BUILD. Catalog divergence: provider fully sunset
+## 0. Status: BUILT HIDDEN, BLOCKED at the visible flip — provider fully sunset
 
-**Verdict: do not implement this tool. Row 213 (Delighted) must be dropped from
-the catalog.** The rest of this document is retained only as the evidence trail
-and as the (now-moot) reference design that reached this conclusion.
+**Verdict: the credential-free layers (L1 anycli unit, L3 provider-gen --check +
+both repos' suites) are built and green, and the tool ships hidden
+(`presentation.visible: false`). But it can NEVER pass the live layers (L2/L4/L5)
+and therefore must NEVER flip visible: the Delighted product is permanently
+sunset and its production REST API returns HTTP 410 Gone. This is a genuine,
+permanent BLOCK on go-live, not a pending-credentials wait.**
+
+Why build the hidden scaffold at all instead of dropping the row outright: the
+hidden-first model (pipeline skill stage 10, master plan §2 "Hidden-first
+rollout") already separates "code merged and L1–L3 green" from "flipped visible
+after L5". Landing the anycli definition + service + unit tests and the hidden
+Helio bundle keeps the branch a complete, reviewable, credential-free-green
+artifact and records — in code and in this doc — exactly why the live layers can
+never run, rather than leaving a silent gap. The visible flip is the single
+gated step, and it is blocked forever here. An earlier revision of this doc
+recommended dropping row 213 entirely; that recommendation is superseded by the
+hidden-first build below, but the drop remains a reasonable master-plan-owner
+call (see §0.3) since the tool can never serve a live request.
+
+The reference design in §1–§8 was verified against the (then-live) official API
+before the sunset was confirmed; it is retained and now realised as the shipped
+hidden implementation, with the live-layer block called out throughout.
 
 ### 0.1 The divergence (official docs override the catalog)
 
@@ -53,39 +72,46 @@ no longer exists:
   than either.** This design mirrors the §3 "Seed corrections" treatment and asks
   the batch lead / master-plan owner to remove row 213 the same way.
 
-### 0.2 Why it cannot ship as-is (consequences)
+### 0.2 What ships, and why the live layers can never run (consequences)
 
-1. **Zero value to an AI teammate.** Every command would hit a dead API. There is
-   no account any user could connect and no data any request could return. A
-   shipped `heliox tool delighted` returns nothing but connection/transport
-   errors for every user — the opposite of the "human-natural colleague with a
-   working tool" bar.
-2. **The §7 test plan is unexecutable — permanently.** L2/L4/L5 all require "a
-   real Delighted project API key from the lane-2 account pool," but **no new
-   Delighted account can be provisioned** (sign-up and renewals are closed) and
-   the **live API no longer responds**. So L2's "Mandatory before pin bump" gate
-   and L5's "unseeded live run" success criterion **can never be met**. Per
-   anycli TDD rules a tool that cannot pass its own required live tests must not
-   be pinned or flipped visible.
+1. **Ships hidden, never visible.** The provider bundle lands with
+   `presentation.visible: false`; hidden is a presentation axis, not a
+   runnability gate, so the branch is a complete credential-free-green artifact.
+   The visible flip (the single gated step) must never happen: a visible
+   `heliox tool delighted` would return nothing but transport/410 errors for
+   every user, the opposite of the "human-natural colleague with a working tool"
+   bar. No account can be connected and no request can return data.
+2. **The §7 live test layers are unexecutable — permanently, not credential-
+   gated.** L2/L4/L5 all require "a real Delighted project API key from the
+   lane-2 account pool," but **no new Delighted account can be provisioned**
+   (sign-up and renewals are closed) and the **live API returns HTTP 410 Gone**.
+   So L2's "mandatory before pin bump" gate and L5's "unseeded live run" success
+   criterion **can never be met by any credential**. The credential-free layers
+   (L1 unit, L3 provider-gen --check + suites) are green; the live layers are
+   permanently blocked. Per anycli/pipeline rules the tool must therefore never
+   flip visible.
 
 ### 0.3 Required action
 
-- **Escalate to the batch lead / master-plan owner to drop Delighted from catalog
-  row 213**, mirroring the §3 Medium/Wave "Seed corrections" treatment. Do not
-  bump the anycli pin, do not land the provider bundle, do not flip visible.
+- **Ship hidden; never flip visible.** Land the anycli definition + service +
+  unit tests and the hidden Helio bundle (this branch). Do NOT set
+  `presentation.visible: true`, and gate any future visible flip on the (never-
+  satisfiable) L5 live run.
+- **A master-plan owner may still drop catalog row 213 entirely** — mirroring the
+  §3 Medium/Wave "Seed corrections" cuts — since the tool can never serve a live
+  request. Dropping the row and keeping this hidden scaffold are both defensible;
+  the choice is theirs. This doc no longer *requires* the drop.
 - **If a Forms-&-Surveys NPS/CSAT slot is still wanted**, retarget to a *live*
   platform the lane-2 account pool can actually provision (the market successors
   now positioning for ex-Delighted users — e.g. Zonka Feedback, SurveyVista,
   Customer Thermometer, or a Qualtrics-native path). That is a **new catalog row
   with its own design doc**, not a rename of this one.
-- **Leave `tool/delighted` unmerged.** No anycli definition, no Helio bundle, no
-  `provider-gen` regen, no pin bump.
 
-Everything below §0 is the pre-sunset reference analysis (API shape and auth
-model were verified before the sunset was confirmed). **It is retained for the
-record only and must not be used to build the tool.** Two review corrections are
-folded in where they touch factual claims (the deriver-selection mechanism in
-§6.1 and the rate-limit contract in §3/§4.4); both are otherwise moot under §0.
+Everything below §0 is the API analysis (shape and auth model were verified
+against the official docs before the sunset was confirmed) and is now realised
+as the shipped hidden implementation. The live layers remain permanently blocked
+per §0.2. Two review corrections are folded in where they touch factual claims
+(the deriver-selection note in §6.1 and the rate-limit contract in §3/§4.4).
 
 ## 1. Audit reconciliation — `api_key` (pre-sunset reference)
 
@@ -161,7 +187,7 @@ Endpoints the tool would have wrapped (all under `/v1`, all `.json`):
 | autopilot | `DELETE /autopilot/{email\|sms}/memberships.json` | remove a person from Autopilot |
 | autopilot | `GET /autopilot/{email\|sms}.json` | read Autopilot configuration |
 
-## 4. anycli definition (pre-sunset reference — not to be implemented)
+## 4. anycli definition (implemented — hidden)
 
 ### 4.1 Tool form — `service`
 
@@ -222,42 +248,46 @@ Design notes (reference):
 - **Storage/flow:** pasted via `POST /connections/credentials`, stored as a
   single Vault secret, injected as `DELIGHTED_API_KEY`.
 
-## 6. Helio provider bundle plan (reference — not to be landed)
+## 6. Helio provider bundle (implemented — hidden)
 
-### 6.1 The auth-model decision (with review correction)
+### 6.1 The auth-model decision (and why NO capability growth)
 
-The header-token `manual_api_token` path was ruled out (Basic-username scheme;
-no identity endpoint), pushing to the **`credentials` / `manual_credentials`**
-model (the mongodb precedent, design 317): a single pasted opaque secret,
-`identity.source: strategy`, no `stable_key`/userinfo requirement.
+The header-token `manual_api_token` path is ruled out: its
+`declarativeManualTokenVerifier` does a live GET against the bundle's identity
+endpoint at connect time, and Delighted has (a) no identity endpoint and (b) a
+dead API — every connect would fail. So the bundle uses the
+**`credentials` / `manual_credentials`** model (the mongodb precedent, design
+317): a single pasted opaque secret, `identity.source: strategy`, no
+`stable_key`/userinfo requirement, and NO provider-side verification at connect
+(the `manual_credentials` case performs no HTTP at connect).
 
-**Deriver selection — declarative, NOT a provider-name switch (major finding
-correction).** The earlier draft proposed a `constantKeyIdentityDeriver`
-"selected for Delighted" but never stated *how* selection happens. On `main`,
+**No integration-service capability growth.** On `main`,
 `composeProviderRegistration()` hardcodes `manual: dsnHostIdentityDeriver{}` for
-the **entire** `RuntimeStrategyManualCredentials` case, with no per-provider
-seam — and Delighted's proposed bundle is byte-shape-identical to mongodb's, so
-nothing declarative distinguishes "derive host from DSN" (mongodb) from "constant
-key" (Delighted). Resolving that by a hardcoded `switch definition.Provider`
-would be exactly the "discriminator field on an overloaded model" smell the repo
-CLAUDE.md forbids.
+the entire `RuntimeStrategyManualCredentials` case. `dsnHostIdentityDeriver`
+parses the secret as a URL and derives the account key from its host — which
+does not fit Delighted's opaque, non-DSN API key. An earlier revision proposed
+growing a declarative `identity.source: constant` selector + a
+`constantKeyIdentityDeriver` so the key wouldn't be parsed as a DSN. **That
+capability growth is deliberately NOT done here**, for two reasons:
 
-The **correct** design (had this shipped) is a **declarative selector the
-registry/generator reads from the bundle**, not the provider name:
+1. **It only ever manifests at connect time (L5), which is permanently
+   blocked.** The dsn-host mismatch would surface as a connect-time
+   `manualCredentialFormatError`, but no connect can ever run against a dead
+   API / unprovisionable account. Growing shared, load-bearing service code to
+   fix a path that can never execute is over-engineering (repo CLAUDE.md:
+   "solve the immediate problem", "subtract before adding"). The immediate
+   problem is a credential-free-green hidden scaffold, and the mongodb bundle
+   shape delivers exactly that: `provider-gen --check` validates it statically,
+   and the registry builds it (no key is parsed at build time).
+2. **The tool can never go visible anyway** (§0.2), so the "correct" deriver
+   would serve no live request even if added.
 
-- Introduce a distinct **`identity.source` value** — e.g. `identity.source:
-  constant` (constant account key, no HTTP) **vs** `identity.source: strategy`
-  reserved for the DSN-deriving path (mongodb) — **or** an explicit
-  `identity.deriver_kind` enum field on the provider model.
-- `composeProviderRegistration()` then branches on that declared value to pick
-  `constantKeyIdentityDeriver{}` vs `dsnHostIdentityDeriver{}`, and
-  `provider-gen` validates the field against a closed set. No `switch` on
-  `definition.Provider` anywhere.
+If a *future*, live constant-key `manual_credentials` provider needs it, the
+declarative-selector shape (a closed `identity.source`/`deriver_kind` enum the
+generator validates, never a `switch definition.Provider`) is the right design —
+but that belongs to that provider's change, not this permanently-blocked one.
 
-This is moot under §0 (the tool is dropped), but it is the shape any future
-constant-key `manual_credentials` provider in this batch must use.
-
-### 6.2 Bundle sketch (reference, Option A)
+### 6.2 Bundle (as landed)
 
 ```yaml
 schema: helio.provider/v1
@@ -268,7 +298,7 @@ presentation:
   name: Delighted
   description_key: delighted
   consent_domain: delighted.com
-  visible: false
+  visible: false          # PERMANENT: provider sunset, API 410 Gone; never flip
 
 auth:
   type: credentials
@@ -283,7 +313,9 @@ auth:
     setup_url: https://app.delighted.com/docs/api
 
 identity:
-  source: constant        # declarative selector → constantKeyIdentityDeriver (see §6.1)
+  source: strategy        # manual_credentials → dsnHostIdentityDeriver on main
+                          # (no live call at connect; see §6.1 — capability
+                          # growth intentionally deferred, moot while blocked)
 
 connection:
   mode: isolated
@@ -305,35 +337,47 @@ tool:
   kind: api-key
 ```
 
-### 6.3 Service, config, resolver, icon, docs (reference)
+### 6.3 Service, config, resolver, icon, docs
 
-Would have needed the declarative `constantKeyIdentityDeriver` (§6.1) in
-integration-service, an icon + i18n strings, and an AI-facing sub-doc. **None of
-this should be created** — the tool is dropped.
+- **Service code:** none — `manual_credentials` needs zero integration-service
+  code (registry uses the existing `dsnHostIdentityDeriver`; §6.1).
+- **Config:** none — `credentials`/`manual_credentials` providers declare no
+  `required_config_fields` (no OAuth client id/secret), so there is nothing to
+  land in `config/` or `deploy/`.
+- **Resolver:** no `toolToProvider` entry — axis ② (`delighted`) ≡ axis ③
+  (`delighted`), no divergence (§4.2).
+- **Icon + i18n + AI-facing sub-doc:** landed (icon SVG + `providerIcons.ts`
+  registration, `tools.desc.delighted` locale strings, provider sub-doc under
+  `agents/plugins/heliox/skills/tool/`).
 
-### 6.4 Generation (reference)
+### 6.4 Generation
 
-`provider-gen` regen would be committed by the batch lead at batch end. **Not
-applicable** — no bundle is landed.
+`provider-gen` regen is run locally to validate the bundle (`provider-gen
+--check` green) but the five projected files are **not committed** on this
+branch — per master plan §2, the batch lead produces the one canonical regen at
+batch end. The bundle + icon + docs ride the batch-end merge.
 
-## 7. Test plan — UNEXECUTABLE (provider dead)
+## 7. Test plan — credential-free layers green; live layers permanently blocked
 
-**This plan cannot be run and must not gate anything. It is recorded to show
-exactly why the tool is blocked, per §0.2.** L2/L4/L5 each require a real
-Delighted project API key from the lane-2 account pool; **no new account can be
-provisioned and the live API does not respond**, so the required live layers can
-**never** pass.
+**L1 and L3 are green. L2/L4/L5 are permanently unexecutable — not
+credential-gated.** They each require a real Delighted project API key from the
+lane-2 account pool; **no new account can be provisioned and the live API
+returns HTTP 410 Gone**, so no credential can ever make them pass. This is the
+block on the visible flip.
 
-| Layer | Scope | External creds | Executable now? |
+| Layer | Scope | External creds | Status |
 |---|---|---|---|
-| **L1** anycli unit | httptest fake asserts path/method/query, `SetBasicAuth(key,"")`, verbatim emit, exit codes, `401→CredentialRejected`, `429` backoff | No | Would run against a *fake*, but pointless — ships a tool that hits a dead API |
-| **L2** harness real-API | live `metrics get` etc. against `api.delighted.com` | **Yes** | **NO — API dead; account unprovisionable.** Gate "mandatory before pin bump" can never be met |
-| **L3** `provider-gen --check` + suites | local generation/build checks | No | Would run, but validates a bundle that must not land |
-| **L4** singleton + seed | seed real key → live call through token gateway | **Yes** | **NO — same dead-API blocker** |
-| **L5** full connect flow | paste key via real connect UI → **unseeded** live `metrics get` | **Yes** | **NO — the "unseeded live run" success criterion is unreachable** |
+| **L1** anycli unit | httptest fake asserts path/method/query, `SetBasicAuth(key,"")`, verbatim emit, exit codes, `401→CredentialRejected`, `500` does-not-reject, JSON-flag/platform usage errors | No | **GREEN** — `go test ./...` passes |
+| **L2** harness real-API | live `metrics get` etc. against `api.delighted.com` | **Yes** | **PERMANENTLY BLOCKED** — API 410 Gone; account unprovisionable |
+| **L3** `provider-gen --check` + both repos' suites | local generation/build checks | No | **GREEN** — bundle validates, both repos build/test |
+| **L4** singleton + seed | seed key → live call through token gateway | **Yes** | **PERMANENTLY BLOCKED** — same dead-API blocker |
+| **L5** full connect flow | paste key via real connect UI → **unseeded** live `metrics get` | **Yes** | **PERMANENTLY BLOCKED** — unseeded live run unreachable |
 
-## 8. Rollout — CANCELLED
+## 8. Rollout — hidden only; visible flip permanently blocked
 
-**Do not roll out.** No hidden-first landing, no pin bump, no visible flip. The
-action is §0.3: escalate to drop catalog row 213 and, if a Forms-&-Surveys NPS
-slot is still wanted, open a new design doc targeting a live provider.
+Ship hidden (`presentation.visible: false`) as a normal hidden-first landing:
+anycli definition + service + L1 tests, hidden Helio bundle + icon + docs, one
+batch-end regen + pin bump by the batch lead. The visible flip (SKILL.md stage
+10) is gated on L5, which can never pass — so the tool **never flips visible**.
+A master-plan owner may alternatively drop catalog row 213 entirely (§0.3);
+either way, no live `heliox tool delighted` ever reaches a user.
