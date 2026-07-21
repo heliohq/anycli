@@ -1,0 +1,13 @@
+{
+  "name": "hunter",
+  "type": "service",
+  "description": "Hunter.io email finding, verification, and lead enrichment (API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "HUNTER_API_KEY"}
+      }
+    ]
+  }
+}
