@@ -7,10 +7,6 @@
       {
         "source": {"field": "access_token"},
         "inject": {"type": "env", "env_var": "POSTHOG_ACCESS_TOKEN"}
-      },
-      {
-        "source": {"field": "api_host"},
-        "inject": {"type": "env", "env_var": "POSTHOG_API_HOST"}
       }
     ]
   }

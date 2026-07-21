@@ -156,24 +156,24 @@ client). `service` type, like 21/23 existing definitions.
       {
         "source": {"field": "access_token"},
         "inject": {"type": "env", "env_var": "POSTHOG_ACCESS_TOKEN"}
-      },
-      {
-        "source": {"field": "api_host"},
-        "inject": {"type": "env", "env_var": "POSTHOG_API_HOST"}
       }
     ]
   }
 }
 ```
 
-`api_host` is **optional**: `ApplyBindings` skips empty values and
-`ResolveBindings` maps a missing resolver field to `""` (verified in
-`internal/credential/inject.go` / `resolve.go`), so the Helio bundle can keep sourcing
-only `access_token` + `account_key` while the harness (or a future
-`connection.metadata.*` credential source) can pin a host explicitly — including
-self-hosted instances in dev. (Known nuance: a declared-but-absent field defeats the
-in-memory credential cache's `hasAllFields` check; harmless under heliox's
-per-invocation resolution.)
+`access_token` is the **only** credential binding. A binding's `Source.Field` is
+projected into the public `ToolManifest.CredentialFields` unconditionally
+(`manifest.go`), and helio-cli's `TestGeneratedToolProvidersMatchPinnedAnyCLI`
+requires every manifest field to be projected by the Helio provider bundle — so
+declaring an "optional" `api_host` binding would force a Helio-side projection
+that has no source (§2: nothing in the closed `CredentialSource` set carries a
+region today). The region host is therefore resolved at runtime (§4.5, US→EU
+probe), not supplied as a credential. `POSTHOG_API_HOST` remains an
+**environment override** the service reads directly from its env
+(`posthog.go`) — used by the httptest/`client_test.go` seam and reachable by a
+self-hosted runtime that sets the raw env var — but it is not an anycli
+credential and not projected by Helio.
 
 ### 4.3 Package layout (`internal/tools/posthog/`, notion/bitly shape)
 
@@ -206,8 +206,10 @@ resolution + typed `apiError`), `query.go`, `project.go`, `insight_dashboard.go`
 ### 4.5 Region resolution (the one PostHog-specific mechanism)
 
 Order per invocation:
-1. `POSTHOG_API_HOST` env, if set (harness override, self-hosted, future metadata
-   source) — used as-is, no probe.
+1. `POSTHOG_API_HOST` env, if set (an environment override read directly from the
+   process env — httptest/`client_test.go` seam, or a self-hosted runtime that
+   sets the raw var; it is not an anycli credential binding, see §4.2) — used
+   as-is, no probe.
 2. Probe `GET https://us.posthog.com/api/users/@me` with the Bearer token: any
    response **except 401** (200, 403 scope-denied, …) proves the token is known to
    that region → use it. On 401, probe EU the same way. Both 401 → explicit
@@ -396,7 +398,7 @@ This lands as a normal integration-service change reviewed with the batch — no
 | Layer | What runs | External credentials needed |
 |---|---|---|
 | L1 | anycli `go test ./...`: httptest fakes asserting request paths (`/api/projects/1/query/` etc.), Bearer header injection, HogQL body wrapping, pagination param mapping, exit codes 0/1/2, `--json` error envelope, region-probe logic (fake us 401 → eu 200), `POSTHOG_API_HOST` override, BaseURL-disables-probe | none |
-| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=phx_… anycli posthog -- whoami / project list / query run --project <id> --hogql "select event, count() from events group by event limit 5" / flag list / annotation create` against the **real** US cloud; repeat one read with `ANYCLI_CRED_API_HOST=https://us.posthog.com` to prove the override | **yes** — a personal API key (`phx_`) from the lane-2 test account, scoped to the §5.1 scope list (proves the wire scopes are the right ones) |
+| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=phx_… anycli posthog -- whoami / project list / query run --project <id> --hogql "select event, count() from events group by event limit 5" / flag list / annotation create` against the **real** US cloud (the US→EU probe resolves the region; use an EU-region token to exercise the EU branch — `api_host` is no longer a credential binding) | **yes** — a personal API key (`phx_`) from the lane-2 test account, scoped to the §5.1 scope list (proves the wire scopes are the right ones) |
 | L3 | local-only `go run ./cmd/provider-gen && … --check` against the branch bundle (projections NOT committed — batch lead owns the canonical regen); helio-cli built against this anycli worktree via a **local, uncommitted** `go.mod` `replace`; both repos' unit suites; new provider-gen tests for `form_public` | none |
 | L4 | singleton + `POST /internal/test-only/connections/seed` (provider `posthog`). Two passes: (a) seed the `phx_` personal key as `access_token`, no expiry — proves token-gateway→anycli→live-API on the real command path (`heliox tool posthog -- query run …`); (b) after §5.3 lands: mint a real `pha_`/`phr_` pair once via a scratch CIMD flow, seed with short `expires_at` to force the refresh-and-write-back path and verify the **rotated** refresh token is persisted (rotation makes a stale write-back a session-killing bug, so this pass is mandatory here, not optional polish) | **yes** — same personal key; plus one manual OAuth grant for pass (b) |
 | L5 | Human lane 3, after batch-end merge, still hidden: `heliox tool posthog auth` → connect link → real PostHog consent (expect the "unverified application" notice) → `oauth_connected` event on the channel → unseeded live `query run`. Prereqs: CIMD doc deployed with this env's redirect_uri; `oauth.client_id` config landed; §5.3 shipped | **yes** — lane-2 PostHog account (US cloud), human completes consent |
