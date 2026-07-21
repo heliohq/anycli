@@ -1,7 +1,10 @@
 package freshservice
 
 import (
+	"fmt"
 	"net/url"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -88,6 +91,54 @@ func TestTicketSearchSendsQuotedQueryNoPerPage(t *testing.T) {
 	m := decodeJSON(t, out)
 	if m["per_page"].(float64) != 30 {
 		t.Fatalf("search per_page should report the fixed 30: %v", m["per_page"])
+	}
+	// The filter endpoint's body `total` must surface so the agent can page
+	// deterministically (there is no Link header on /tickets/filter).
+	if m["total"].(float64) != 1 {
+		t.Fatalf("search must surface the body total: %v", m["total"])
+	}
+}
+
+// TestTicketSearchNextPageFromTotal proves search derives next_page from the
+// body `total` (GET /tickets/filter sends no Link header): it advances while the
+// total still has rows on a later page, and stops both when the total is
+// exhausted and at the hard 10-page cap. A Link-header-only projection would
+// return next_page=null here and silently cap the agent at the first 30 rows.
+func TestTicketSearchNextPageFromTotal(t *testing.T) {
+	cases := []struct {
+		name     string
+		total    int
+		page     int
+		wantNext any
+	}{
+		{name: "more results remain", total: 65, page: 1, wantNext: float64(2)},
+		{name: "middle page advances", total: 65, page: 2, wantNext: float64(3)},
+		{name: "last partial page has no next", total: 65, page: 3, wantNext: nil},
+		{name: "exact page boundary has no next", total: 60, page: 2, wantNext: nil},
+		{name: "hard cap at page 10", total: 350, page: 10, wantNext: nil},
+		{name: "page before cap advances", total: 350, page: 9, wantNext: float64(10)},
+		{name: "single result no next", total: 1, page: 1, wantNext: nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			captured := map[string]capturedRequest{}
+			srv := newFakeServer(t, map[string]routeReply{
+				"/tickets/filter": {body: fmt.Sprintf(`{"tickets":[{"id":9}],"total":%d}`, tc.total)},
+			}, captured)
+			defer srv.Close()
+
+			code, out, errStr := run(t, srv, "ticket", "search", "--query", "status:2", "--page", strconv.Itoa(tc.page))
+			if code != 0 {
+				t.Fatalf("exit = %d, want 0 (stderr: %s)", code, errStr)
+			}
+			m := decodeJSON(t, out)
+			if m["total"].(float64) != float64(tc.total) {
+				t.Fatalf("total = %v, want %d", m["total"], tc.total)
+			}
+			if !reflect.DeepEqual(m["next_page"], tc.wantNext) {
+				t.Fatalf("next_page = %v (%T), want %v", m["next_page"], m["next_page"], tc.wantNext)
+			}
+		})
 	}
 }
 

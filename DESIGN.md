@@ -105,8 +105,14 @@ Pagination (standard list endpoints, e.g. `GET /tickets`): `page` (1-based) + `p
 (default 30, max 100); next-page URL in the `link` response header — surface
 `next_page`/`link` in JSON output. **`GET /tickets/filter` is the exception** and does
 **not** share this contract: it returns **30/page fixed (`per_page` is ignored),
-`page` must be 1–10 (hard cap 300 results), and only tickets created in the last 30 days
-are returned by default**. Because the paging semantics genuinely differ, filtered
+`page` must be 1–10 (hard cap 300 results), and — unlike the standard list — it sends
+NO `link` header**; instead the body carries a `total` count. `ticket search` therefore
+derives `next_page` from `total` (page+1 while `page < 10` and `page*30 < total`) and
+surfaces `total` in the output, so an agent pages the full result set deterministically
+rather than being silently capped at the first 30 by an absent `link` header. (The
+30-day-window default belongs to the standard `GET /tickets` list endpoint, not to
+`/tickets/filter`; the official filter-tickets reference documents no such default, so
+it is not claimed here.) Because the paging semantics genuinely differ, filtered
 listing is a **separate `ticket search` subcommand** (§2) rather than a `--filter` flag on
 `ticket list`, so a paging flag never silently changes meaning. Rate limits: on
 `429`, surface a typed API error including `Retry-After` and the `X-RateLimit-*`
@@ -179,7 +185,7 @@ mid-batch).
 
 ```
 freshservice ticket list    [--updated-since T] [--per-page N] [--page N]          # GET /tickets     — per_page ≤100, walks full set
-freshservice ticket search  --query "status:2 AND priority:1" [--page N]           # GET /tickets/filter — 30/page fixed, page 1–10, 30-day window
+freshservice ticket search  --query "status:2 AND priority:1" [--page N]           # GET /tickets/filter — 30/page fixed, page 1–10, next_page from body total
 freshservice ticket get     <id> [--conversations]
 freshservice ticket create  --subject S --description D --email E [--status ST] [--priority P] [--group-id G] [--agent-id A] [--type T]
 freshservice ticket update  <id> [--status ST] [--priority P] [--group-id G] [--agent-id A] [--tags a,b]
@@ -215,26 +221,33 @@ field the account requires. (Also: pass no `responder_id` to leave a ticket unas
 full dataset via the `link` header. `ticket search` → `GET /tickets/filter`: the endpoint
 **fixes 30 results/page and ignores `per_page`**, so `ticket search` deliberately exposes
 **no `--per-page`**; `--page` is validated to **1–10** (hard cap 300 results) and the CLI
-errors on out-of-range rather than silently returning nothing, and the default 30-day
-created-window is documented. This split (not one `list --filter`) is the fail-fast /
-no-silent-behavior-divergence resolution required by the Helio hard rules — a flag never
-silently no-ops depending on another flag.
+errors on out-of-range rather than silently returning nothing. Because the filter
+endpoint also sends **no `link` header** (it returns a body `total` instead), `ticket
+search` derives `next_page` from `total` and surfaces `total` — never from an absent
+`link` header, which would silently cap the agent at the first page. This split (not one
+`list --filter`) is the fail-fast / no-silent-behavior-divergence resolution required by
+the Helio hard rules — a flag never silently no-ops depending on another flag.
 
 **JSON output shape (provider-neutral, agent-tuned — the 003 §3 convention):** every
-command prints a single JSON object to stdout. List commands:
+command prints a single JSON object to stdout. Standard list commands:
 `{"items": [...], "page": N, "per_page": N, "next_page": N|null}` (`next_page` derived
-from the `link` header, so the agent paginates without parsing Freshservice's raw
-envelope). Get/create/update: the bare resource object `{"ticket": {...}}` unwrapped to
+from the `link` header). `ticket search` adds `total` and derives `next_page` from it
+(`{"items": [...], "page": N, "per_page": 30, "total": N, "next_page": N|null}`), since
+`/tickets/filter` sends no `link` header. Either way the agent paginates without parsing
+Freshservice's raw envelope. Get/create/update: the bare resource object
+`{"ticket": {...}}` unwrapped to
 the resource fields. Errors: `{"error": {"status": <http>, "message": "...",
 "provider_code": "..."}}` on stderr, carrying Freshservice's `description`/`errors[]`
 body and, on 429, `retry_after`. Exit codes: `0` success · `1` runtime/API failure
 (typed `apiError` with HTTP status + body) · `2` usage/missing-credential.
 
 Unit tests (TDD, httptest fakes): base-URL + Basic-header construction from a blob;
-each command's request shaping; pagination `link`→`next_page`; `ticket create` injects the
-`status=2`/`priority=2` defaults when the flags are omitted (and honours overrides);
-`ticket search` sends no `per_page` and rejects `--page` outside 1–10; 401→typed auth
-error; 429→`retry_after`; malformed-blob→exit 2. No real network in L1.
+each command's request shaping; standard-list pagination `link`→`next_page`; `ticket
+search` `total`→`next_page` (advances within the total, null at the 10-page cap and when
+exhausted); `ticket create` injects the `status=2`/`priority=2` defaults when the flags
+are omitted (and honours overrides); `ticket search` sends no `per_page` and rejects
+`--page` outside 1–10; 401→typed auth error; 429→`retry_after`; malformed-blob→exit 2.
+No real network in L1.
 
 ## 3. Credential fields and the exact auth flow
 
@@ -361,7 +374,7 @@ key, and the eventual D8 two-field schema) rather than three divergent ones.
 
 | Layer | What runs for Freshservice | Needs external creds? |
 |---|---|---|
-| **L1** anycli unit | `go test ./...` in anycli: httptest fakes cover blob→BaseURL+Basic-header, every subcommand's request/response shaping, `link`→`next_page` pagination, 401 auth error, 429 `retry_after`, malformed-blob→exit 2. TDD, no network. | No |
+| **L1** anycli unit | `go test ./...` in anycli: httptest fakes cover blob→BaseURL+Basic-header, every subcommand's request/response shaping, standard-list `link`→`next_page` and `ticket search` `total`→`next_page` pagination, 401 auth error, 429 `retry_after`, malformed-blob→exit 2. TDD, no network. | No |
 | **L2** harness real-API | `anycli freshservice -- ticket list --per-page 1` etc. with `ANYCLI_CRED_*` set to a real blob; hit a real Freshservice trial and confirm real tickets/requesters/agents/assets return, pagination advances, and a bad key yields a clean typed 401. No Helio services. | **Yes** — a real Freshservice account + API key (test-account pool lane 2). Free 14-day trial suffices. |
 | **L3** generation + suites | `provider-gen` + `provider-gen --check` (five projections regenerate clean; strict decode passes with only reviewed fields); anycli unit suite + `helio-cli`/integration-service suites green. Validate on-branch with local regen + `go.mod` `replace` → anycli branch (regen and replace **not committed**; batch lead produces the canonical regen). | No |
 | **L4** singleton + seed | `make run-singleton` + `POST /internal/test-only/connections/seed` seeding the URL blob, then `heliox tool freshservice -- ticket list` through the real token gateway (hidden tool runs as a cobra-hidden command — no visible flip needed). Success = the seeded blob reaches the live Freshservice API and returns real data. **This is the layer that verifies the cross-repo field-name join** (§2): the bundle projects `credential.fields: freshservice_url`, the resolver returns that map verbatim, and the anycli `source: {field: freshservice_url}` selects it → a non-empty `FRESHSERVICE_URL` reaches the service. A field-name mismatch (e.g. `access_token`) passes L1–L3 self-consistently and only breaks here, as an empty inject → exit 2. | **Yes** — same real blob as L2 (seed bypasses the connect UI). |

@@ -221,3 +221,49 @@ func (s *Service) emitListResult(cmd *cobra.Command, c *client, path, resourceKe
 	}
 	return s.emitList(body, hdr, resourceKey, page, perPage)
 }
+
+// emitSearchResult runs the GET /tickets/filter request and projects it. The
+// filter endpoint does NOT share the standard list contract: it returns a body
+// `total` instead of a Link header, fixes 30 results per page, and caps at
+// maxPage pages. Deriving next_page from a (never-present) Link header here would
+// always yield null and silently cap the agent at the first 30 of up to 300
+// matches, so the projection is driven by `total`.
+func (s *Service) emitSearchResult(cmd *cobra.Command, c *client, path, resourceKey string, query url.Values, page, maxPage int) error {
+	body, _, err := c.call(cmd.Context(), http.MethodGet, path, query, nil)
+	if err != nil {
+		return err
+	}
+	return s.emitSearchList(body, resourceKey, page, maxPage)
+}
+
+// emitSearchList projects a Freshservice filter envelope
+// ({"tickets":[...],"total":N}) into
+// {"items":[...],"page":N,"per_page":30,"total":N,"next_page":N|null}.
+// next_page advances (page+1) while another page is both within the maxPage cap
+// and backed by the reported total; otherwise it is null.
+func (s *Service) emitSearchList(body []byte, resourceKey string, page, maxPage int) error {
+	var env struct {
+		Total int `json:"total"`
+	}
+	_ = json.Unmarshal(body, &env)
+
+	items := json.RawMessage("[]")
+	var full map[string]json.RawMessage
+	if err := json.Unmarshal(body, &full); err == nil {
+		if inner, ok := full[resourceKey]; ok {
+			items = inner
+		}
+	}
+	out := map[string]any{
+		"items":    items,
+		"page":     page,
+		"per_page": searchPerPage,
+		"total":    env.Total,
+	}
+	if page < maxPage && page*searchPerPage < env.Total {
+		out["next_page"] = page + 1
+	} else {
+		out["next_page"] = nil
+	}
+	return s.emitValue(out)
+}

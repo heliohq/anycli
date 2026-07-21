@@ -22,6 +22,10 @@ const (
 	defaultPerPage = 30
 	maxPerPage     = 100
 
+	// searchPerPage is the fixed page size GET /tickets/filter always uses;
+	// per_page is ignored by that endpoint, so it is a constant, not a flag.
+	searchPerPage = 30
+
 	// searchMaxPage is the hard page cap on GET /tickets/filter (30/page × 10
 	// pages = 300 results). per_page is ignored by that endpoint.
 	searchMaxPage = 10
@@ -71,14 +75,15 @@ func (s *Service) newTicketListCmd(c *client) *cobra.Command {
 
 // newTicketSearchCmd → GET /tickets/filter. The endpoint fixes 30 results/page
 // and ignores per_page, so no --per-page flag is exposed; --page is validated
-// to 1–10 (hard cap 300 results). Default window is tickets from the last 30
-// days.
+// to 1–10 (hard cap 300 results). Unlike GET /tickets, the filter endpoint sends
+// no Link header — next_page is derived from the body `total` (see
+// emitSearchResult).
 func (s *Service) newTicketSearchCmd(c *client) *cobra.Command {
 	var query string
 	var page int
 	cmd := &cobra.Command{
 		Use:   "search",
-		Short: "Filter tickets by query (GET /tickets/filter — 30/page fixed, page 1-10, last 30 days by default)",
+		Short: "Filter tickets by query (GET /tickets/filter — 30/page fixed, page 1-10)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if page < 1 || page > searchMaxPage {
@@ -89,7 +94,7 @@ func (s *Service) newTicketSearchCmd(c *client) *cobra.Command {
 			// quotes: query="status:2 AND priority:1".
 			q.Set("query", `"`+query+`"`)
 			q.Set("page", strconv.Itoa(page))
-			return s.emitListResult(cmd, c, "/tickets/filter", "tickets", q, page, defaultPerPage)
+			return s.emitSearchResult(cmd, c, "/tickets/filter", "tickets", q, page, searchMaxPage)
 		},
 	}
 	cmd.Flags().StringVar(&query, "query", "", `filter expression, e.g. "status:2 AND priority:1"`)
