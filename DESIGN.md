@@ -39,7 +39,8 @@ Help Center article (https://support.typefully.com/en/articles/8718287-typefully
 
 The 2026-07-21 OAuth audit row (209) and older third-party integrations (Zapier,
 Pipedream, Nango) describe a **v1** surface: base `https://api.typefully.com/v1`,
-header **`X-API-KEY`**, endpoints `/drafts/create/`, `/drafts/recently-published/`,
+header **`x-api-key: Bearer <key>`** (the header value itself carried the
+`Bearer` prefix), endpoints `/drafts/create/`, `/drafts/recently-published/`,
 `/drafts/recently-scheduled/`, `/notifications/`. Per the official v1→v2
 migration guide (https://support.typefully.com/en/articles/13133296):
 
@@ -47,9 +48,11 @@ migration guide (https://support.typefully.com/en/articles/13133296):
   is a **v2** key.
 - v1 endpoints keep working only until **15 June 2026** (past by the time this
   ships in a 2026-H2 wave).
-- v2 (released Dec 2025) changes the auth header from `X-API-KEY` to
-  **`Authorization: Bearer <key>`**, is **social-set-scoped**, and replaces the
-  `threadify` flag with explicit `posts` arrays.
+- v2 (released Dec 2025) **renames** the auth header from `x-api-key` to
+  `Authorization` while keeping the `Bearer` scheme (v1 `x-api-key: Bearer <key>`
+  → v2 **`Authorization: Bearer <key>`**), is **social-set-scoped**, and replaces
+  the `threadify` flag with explicit `posts` arrays. v1 keys cannot be used with
+  v2.
 
 **Recorded divergence:** we build against **v2 + `Authorization: Bearer`**, not
 the v1 shape any stale reference implies. This does **not** change the audit's
@@ -91,10 +94,26 @@ next reader does not "restore" a v1 parity that v2 dropped.
 ### Async publish nuance (must surface to the agent)
 
 `publish_at: "now"` returns `201` immediately but publishes **asynchronously**:
-the response `publish_state` starts non-terminal and the caller polls
-`GET .../drafts/{draft_id}` until `publish_state == "finished"`. The service
-does **not** hide this behind a blocking wait (would fight the non-interactive,
-one-call-one-result contract); the AI-facing doc (§5) tells the agent to poll.
+the response `publish_state` starts non-terminal (`null` → `in_progress` →
+`finished`) and the caller polls `GET .../drafts/{draft_id}` until
+`publish_state == "finished"`. The service does **not** hide this behind a
+blocking wait (would fight the non-interactive, one-call-one-result contract);
+the AI-facing doc (§5) tells the agent to poll.
+
+**`finished` is not success.** The official v2 reference is explicit:
+`publish_state == "finished"` means the job is *done*, not that it *succeeded*.
+`publish_state` is a distinct axis from `status` — `status` does not flip to
+`publishing` while an immediate publish is in flight. So after `finished`, the
+agent must read the draft's **`status`** (a `published` vs. `error` outcome) and
+the **per-platform published URLs** (`x_published_url`, `linkedin_published_url`,
+`mastodon_published_url`, …; `null` on a platform that did not post) to
+distinguish full success from a partial/failed publish, and report the real
+outcome — *which* platform(s) failed — rather than treating `finished` as
+success. Reporting a silently-failed X/LinkedIn post as published would violate
+Helio's hard rule against silent-success paths (fail fast, surface the real
+cause). The service already returns `status`/`publish_state` from
+`GET .../drafts/{draft_id}` and filters lists by `status`, so this is a
+doc/guidance fix, not a new API surface. §5 carries it into the shipped sub-doc.
 
 ## 2. anycli definition (stage 1–2)
 
@@ -299,9 +318,14 @@ the two load-bearing gotchas spelled out:
 1. **Discover the social set first** — call `social-set list`, take `/results/0/id`
    (or the one matching the user's account), pass it as `--social-set` to
    everything else.
-2. **Publish-now is async** — `draft create --publish-at now` returns `201` with
-   a non-terminal `publish_state`; poll `draft get --id <draft>` until
-   `publish_state == "finished"` before reporting success. `next-free-slot` and
+2. **Publish-now is async, and `finished` ≠ success** — `draft create
+   --publish-at now` returns `201` with a non-terminal `publish_state`; poll
+   `draft get --id <draft>` until `publish_state == "finished"`. `finished` only
+   means the job is done, **not** that it succeeded: then read the draft's
+   `status` (`published` vs. `error`) and the per-platform published URLs
+   (`x_published_url`, `linkedin_published_url`, …; `null` = that platform did
+   not post) to tell full success from a partial/failed publish, and report
+   which platform(s) failed instead of assuming success. `next-free-slot` and
    ISO datetimes schedule instead (no poll needed).
 
 ## 6. Test plan — five layers (SKILL.md §"Testing layers")
