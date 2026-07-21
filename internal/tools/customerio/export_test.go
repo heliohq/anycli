@@ -31,24 +31,29 @@ func TestExportGet_DownloadFollowsURLAndWritesFile(t *testing.T) {
 	out := filepath.Join(dir, "deliveries.csv")
 	payload := "id,state\n1,delivered\n"
 
-	// The metadata route carries a download_url pointing back at this server's
-	// /signed route, which serves the file bytes.
+	// Real two-step contract: GET /v1/exports/{id}/download (bearer-authed)
+	// returns {"url":"…"} — a signed link — and that link's /signed route
+	// serves the file bytes without any App API bearer header.
 	var srvURL string
 	routes := map[string]routeHandler{}
 	srv := newMultiServer(t, routes, captured)
 	defer srv.Close()
 	srvURL = srv.URL
-	routes["/v1/exports/e1"] = routeHandler{status: http.StatusOK,
-		response: `{"export":{"id":"e1","download_url":"` + srvURL + `/signed"}}`}
+	routes["/v1/exports/e1/download"] = routeHandler{status: http.StatusOK,
+		response: `{"url":"` + srvURL + `/signed"}`}
 	routes["/signed"] = routeHandler{status: http.StatusOK, response: payload}
 
 	exit, stdout, stderr := run(t, srv, "export", "get", "--id", "e1", "--download", "--out", out)
 	if exit != 0 {
 		t.Fatalf("exit = %d, stderr = %q", exit, stderr)
 	}
+	// The download-link request hits the dedicated endpoint with the bearer.
+	if got := captured["/v1/exports/e1/download"]; got.Auth != "Bearer key-123" {
+		t.Errorf("download-link Authorization = %q, want %q", got.Auth, "Bearer key-123")
+	}
 	// The signed download must NOT carry the App API bearer header.
 	if got := captured["/signed"]; got.Auth != "" {
-		t.Errorf("download Authorization = %q, want empty (pre-signed URL)", got.Auth)
+		t.Errorf("signed download Authorization = %q, want empty (pre-signed URL)", got.Auth)
 	}
 	data, err := os.ReadFile(out)
 	if err != nil {
@@ -72,7 +77,7 @@ func TestExportGet_DownloadFollowsURLAndWritesFile(t *testing.T) {
 
 func TestExportGet_DownloadRequiresOut(t *testing.T) {
 	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"export":{"download_url":"https://x/y"}}`, &got)
+	srv := newServer(t, http.StatusOK, `{"url":"https://x/y"}`, &got)
 	defer srv.Close()
 
 	exit, _, _ := run(t, srv, "export", "get", "--id", "e1", "--download")
@@ -83,11 +88,16 @@ func TestExportGet_DownloadRequiresOut(t *testing.T) {
 
 func TestExportGet_DownloadNoURLIsAPIError(t *testing.T) {
 	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"export":{"id":"e1","status":"in_progress"}}`, &got)
+	// A not-yet-ready export: the /download endpoint answers 200 with an empty
+	// body (no signed url), which must surface as a runtime apiError.
+	srv := newServer(t, http.StatusOK, `{}`, &got)
 	defer srv.Close()
 
 	exit, _, stderr := run(t, srv, "export", "get", "--id", "e1", "--download", "--out", filepath.Join(t.TempDir(), "f"))
 	if exit != 1 {
-		t.Errorf("exit = %d, want 1 when no download_url yet; stderr=%q", exit, stderr)
+		t.Errorf("exit = %d, want 1 when no signed url yet; stderr=%q", exit, stderr)
+	}
+	if got.Path != "/v1/exports/e1/download" {
+		t.Errorf("path = %q, want /v1/exports/e1/download", got.Path)
 	}
 }

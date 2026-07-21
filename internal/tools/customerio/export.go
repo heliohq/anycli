@@ -97,18 +97,24 @@ func (s *Service) newExportGetCmd(key string) *cobra.Command {
 	var download bool
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Get an export (GET /v1/exports/{id}); with --download, follow its download_url and save the file",
+		Short: "Get an export (GET /v1/exports/{id}); with --download, fetch its signed link (GET /v1/exports/{id}/download) and save the file",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			resp, err := s.call(cmd, key, http.MethodGet, "/v1/exports/"+url.PathEscape(id), nil, nil)
-			if err != nil {
-				return err
-			}
 			if !download {
+				resp, err := s.call(cmd, key, http.MethodGet, "/v1/exports/"+url.PathEscape(id), nil, nil)
+				if err != nil {
+					return err
+				}
 				return s.emit(resp)
 			}
 			if out == "" {
 				return &usageError{msg: "--out is required with --download"}
+			}
+			// The export object itself carries no link — only a signed URL from
+			// the dedicated /download endpoint (expires after 15 minutes).
+			resp, err := s.call(cmd, key, http.MethodGet, "/v1/exports/"+url.PathEscape(id)+"/download", nil, nil)
+			if err != nil {
+				return err
 			}
 			downloadURL, err := extractDownloadURL(resp)
 			if err != nil {
@@ -122,32 +128,26 @@ func (s *Service) newExportGetCmd(key string) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&id, "id", "", "export id")
-	cmd.Flags().BoolVar(&download, "download", false, "follow the export's download_url and save the file")
+	cmd.Flags().BoolVar(&download, "download", false, "fetch the export's signed download link and save the file")
 	cmd.Flags().StringVar(&out, "out", "", "output file path (required with --download)")
 	_ = cmd.MarkFlagRequired("id")
 	return cmd
 }
 
-// extractDownloadURL reads the export object's download_url. Customer.io nests
-// the export under {"export":{…}} and also accepts a bare object; a missing
-// URL means the export is not finished yet.
+// extractDownloadURL reads the signed link from GET /v1/exports/{id}/download,
+// whose body is {"url":"…"}. The link expires 15 minutes after it is issued; an
+// empty url means the export is not ready to download yet (still processing).
 func extractDownloadURL(body []byte) (string, error) {
 	var env struct {
-		DownloadURL string `json:"download_url"`
-		Export      struct {
-			DownloadURL string `json:"download_url"`
-		} `json:"export"`
+		URL string `json:"url"`
 	}
 	if err := json.Unmarshal(body, &env); err != nil {
-		return "", &apiError{msg: fmt.Sprintf("customer-io: decode export: %v", err), err: err}
+		return "", &apiError{msg: fmt.Sprintf("customer-io: decode export download: %v", err), err: err}
 	}
-	if env.DownloadURL != "" {
-		return env.DownloadURL, nil
+	if env.URL != "" {
+		return env.URL, nil
 	}
-	if env.Export.DownloadURL != "" {
-		return env.Export.DownloadURL, nil
-	}
-	return "", &apiError{msg: "customer-io: export has no download_url yet (still processing?)"}
+	return "", &apiError{msg: "customer-io: export has no download url yet (still processing?)"}
 }
 
 // downloadFile GETs an absolute (pre-signed) URL without the App API bearer
