@@ -1,0 +1,13 @@
+{
+  "name": "moz",
+  "type": "service",
+  "description": "Moz SEO data API (Domain Authority, backlinks, keyword metrics; JSON-RPC v2 token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "MOZ_API_TOKEN"}
+      }
+    ]
+  }
+}
