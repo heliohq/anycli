@@ -1,0 +1,13 @@
+{
+  "name": "customer-io",
+  "type": "service",
+  "description": "Customer.io messaging automation as a tool (App API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "CUSTOMERIO_APP_API_KEY"}
+      }
+    ]
+  }
+}
