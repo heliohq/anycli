@@ -1,0 +1,13 @@
+{
+  "name": "lemlist",
+  "type": "service",
+  "description": "Lemlist as a tool (cold outreach: campaigns, leads, activities, unsubscribes)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "LEMLIST_API_KEY"}
+      }
+    ]
+  }
+}
