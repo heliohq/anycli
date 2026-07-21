@@ -1,0 +1,17 @@
+{
+  "name": "pipedrive",
+  "type": "service",
+  "description": "Pipedrive CRM as a tool (OAuth)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "PIPEDRIVE_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "api_domain"},
+        "inject": {"type": "env", "env_var": "PIPEDRIVE_API_DOMAIN"}
+      }
+    ]
+  }
+}
