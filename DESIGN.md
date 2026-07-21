@@ -71,14 +71,19 @@ A resource-grouped cobra tree (notion's shape). `project_id` is injected from th
 | `mixpanel retention` | `GET /api/query/retention` | `--from`, `--to`, `--born-event`, `--event`, `--retention-type`, `--interval`, `--unit` |
 | `mixpanel retention-frequency` | `GET /api/query/retention/addiction` | frequency ("addiction") view |
 | `mixpanel insights` | `GET /api/query/insights` | `--bookmark-id` (req) — fetch a saved Insights report |
-| `mixpanel cohorts list` | `GET /api/query/cohorts/list` | list saved cohorts (id + name) |
-| `mixpanel engage` | `GET /api/query/engage` | `--where`, `--output-properties`, `--page` — query People/user profiles |
+| `mixpanel cohorts list` | `POST /api/query/cohorts/list` | list saved cohorts (id + name) |
+| `mixpanel engage` | `POST /api/query/engage` | `--where`, `--output-properties`, `--page` — query People/user profiles |
 | `mixpanel lexicon list` | `GET /api/app/projects/{project_id}/schemas` | list event/property data definitions |
 | `mixpanel export` | `GET /api/2.0/export` (export host) | `--from`, `--to` (req), `--event`, `--where`, `--limit` — bounded raw JSONL event export |
 | `mixpanel me` | `GET /api/app/me` | account/verification echo (also the connect verifier, §4) |
 
+**HTTP method is not uniform — verified against the official OpenAPI (`docs.mixpanel.com/reference/*`).** Most of the Query surface is `GET` with all parameters in the query string, but **`engage` and `cohorts/list` are `POST`** endpoints whose analytical parameters travel in a request **body**, not the query string. `project_id` (and optional `workspace_id`) stay in the query string even for the POST endpoints — only the analytical params move to the body. The two families:
+
+- **GET query-string endpoints** — `segmentation`, `events`, `events-names`, `funnels`, `funnels/list`, `retention`, `retention/addiction`, `insights`, `lexicon` (schemas), `export`, `me`. Every parameter (including `project_id`) is a URL query-string parameter; the service builds a `GET` with no body. (`insights` is `GET` — re-confirmed against `docs.mixpanel.com/reference/insights-query`; `bookmark_id` and `project_id` are query-string params.)
+- **POST request-body endpoints** — `engage` (`POST /api/query/engage`) and `cohorts/list` (`POST /api/query/cohorts/list`). For `engage`, `project_id` stays in the query string while `--where` / `--output-properties` / `--page` are assembled into a form-encoded (`application/x-www-form-urlencoded`) request **body** per the official spec (`output_properties` as a JSON-array field, `page` as an integer). For `cohorts/list`, `project_id` is a query-string param and the request is issued as `POST` (Mixpanel defines it POST even though the current surface exposes no body params). The service selects `GET` vs `POST` and body assembly per command; it is **not** a uniform GET query-string pass-through.
+
 ### 2.4 JSON output shape
-Pass Mixpanel's JSON response through on stdout verbatim + newline (notion/bitly convention) — Query API responses are already structured JSON. `mixpanel export` streams JSONL (one event object per line) as Mixpanel returns it; the caller is told in help text that this is line-delimited and unbounded-by-default, hence the required date window. Errors use notion's typed envelope: a non-2xx Mixpanel response maps to `apiError` → exit **1** with `{"error":{...}}` (and `--json` renders the structured envelope); usage/parse errors exit **2**; success exits **0**. A `401`/`403` is surfaced distinctly so the host can treat it as a credential-rejection signal.
+Pass Mixpanel's JSON response through on stdout verbatim + newline (notion/bitly convention) — Query API responses are already structured JSON, regardless of whether the request was `GET` (query-string) or `POST` (request-body, per the method split above). `mixpanel export` streams JSONL (one event object per line) as Mixpanel returns it; the caller is told in help text that this is line-delimited and unbounded-by-default, hence the required date window. Errors use notion's typed envelope: a non-2xx Mixpanel response maps to `apiError` → exit **1** with `{"error":{...}}` (and `--json` renders the structured envelope); usage/parse errors exit **2**; success exits **0**. A `401`/`403` is surfaced distinctly so the host can treat it as a credential-rejection signal.
 
 ## 3. Credential fields & exact auth flow
 
