@@ -57,7 +57,7 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	if token == "" {
 		// The token check runs before cobra parses flags, so detect --json in
 		// the raw args to honor the structured error-envelope contract.
-		s.renderError(hasJSONArg(args), &usageError{msg: EnvToken + " is not set"})
+		s.renderError(hasJSONArg(args), &credentialError{msg: EnvToken + " is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(token)
@@ -94,7 +94,8 @@ func hasJSONArg(args []string) bool {
 }
 
 // renderError writes err to stderr. Under --json the shape is
-// {"error":{"message":…,"kind":"usage|api","status":<HTTP or omitted>}}.
+// {"error":{"message":…,"kind":"usage|credential|api","status":<HTTP or omitted>}}.
+// kind mirrors the exit-code contract: usage=2, credential/api=1.
 func (s *Service) renderError(jsonMode bool, err error) {
 	if !jsonMode {
 		fmt.Fprintln(s.stderr(), err)
@@ -102,11 +103,15 @@ func (s *Service) renderError(jsonMode bool, err error) {
 	}
 	payload := map[string]any{"message": err.Error(), "kind": "usage"}
 	var apiErr *apiError
-	if errors.As(err, &apiErr) {
+	var credErr *credentialError
+	switch {
+	case errors.As(err, &apiErr):
 		payload["kind"] = "api"
 		if apiErr.status != 0 {
 			payload["status"] = apiErr.status
 		}
+	case errors.As(err, &credErr):
+		payload["kind"] = "credential"
 	}
 	b, mErr := json.Marshal(map[string]any{"error": payload})
 	if mErr != nil {

@@ -18,6 +18,14 @@ type usageError struct{ msg string }
 
 func (e *usageError) Error() string { return e.msg }
 
+// credentialError is a missing/failed credential (e.g. the access-token env var
+// is unset). It maps to exit code 1 — a runtime credential failure, not a
+// caller usage mistake — and kind "credential", so the JSON error kind stays
+// aligned with the exit-code contract (usage=2, runtime=1).
+type credentialError struct{ msg string }
+
+func (e *credentialError) Error() string { return e.msg }
+
 // apiError is a runtime / API error: a Zoho non-2xx response or a transport
 // failure. It maps to exit code 1 and kind "api". status is the HTTP status
 // (0 for transport/network failures). It wraps the underlying cause so

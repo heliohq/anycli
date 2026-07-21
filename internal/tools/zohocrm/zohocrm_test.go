@@ -42,8 +42,11 @@ func TestMissingTokenJSONError(t *testing.T) {
 	if err := json.Unmarshal([]byte(strings.TrimSpace(got.stderr)), &env); err != nil {
 		t.Fatalf("stderr is not a JSON error envelope: %v (%s)", err, got.stderr)
 	}
-	if env.Error.Kind != "usage" || !strings.Contains(env.Error.Message, "not set") {
-		t.Errorf("error envelope = %+v", env.Error)
+	// A missing credential is a runtime credential failure (exit 1), not a
+	// caller usage mistake (exit 2) — so the envelope kind must be "credential",
+	// keeping the JSON kind aligned with the exit-code contract.
+	if env.Error.Kind != "credential" || !strings.Contains(env.Error.Message, "not set") {
+		t.Errorf("error envelope = %+v, want kind=credential", env.Error)
 	}
 }
 
