@@ -30,7 +30,7 @@ Endpoints the tool wraps, and why:
 |---|---|
 | `GET /users/me` | whoami: user URI, org URI, `scheduling_url`, timezone — the URI bootstrap every other call needs |
 | `GET /event_types?user=…\|organization=…`, `GET /event_types/{uuid}` | discover bookable meeting kinds + their `scheduling_url` to share |
-| `GET /event_type_available_times?event_type=…&start_time=…&end_time=…` | open slots for an event type (range ≤ 31 days, must be future) |
+| `GET /event_type_available_times?event_type=…&start_time=…&end_time=…` | open slots for an event type — range ≤ ~1 week per the API reference, must be future (see the range-cap note below) |
 | `GET /user_busy_times?user=…&start_time=…&end_time=…` | calendar busy view (range ≤ 7 days) |
 | `GET /user_availability_schedules?user=…` | working-hours schedules + date overrides |
 | `GET /scheduled_events?user=…\|organization=…` (+`min_start_time`/`max_start_time`/`status`/`invitee_email`), `GET /scheduled_events/{uuid}` | list/inspect booked meetings |
@@ -40,6 +40,22 @@ Endpoints the tool wraps, and why:
 | `POST /scheduling_links` | mint a single-use booking link (`max_event_count: 1`, `owner_type: EventType`) |
 | `POST /invitees` (Scheduling API, 2026) | direct booking: `event_type`, UTC `start_time`, invitee `{name,email,timezone}`, `location` rules; **requires the Calendly account to be on a paid plan** — surface the 403 clearly, do not hide it |
 | `GET /organization_memberships?organization=…` | resolve teammates' user URIs (needed for availability/busy on colleagues) |
+
+**Range-cap note (Calendly's own docs are internally inconsistent — verified).**
+For `event_type_available_times` the current *guide* pages say 31 days
+(`/schedule-events-with-ai-agents`: "up to 31 days of available times per
+request"; `/view-event-type-and-user-calendar-availability-data`: "cannot be a
+range greater than 31 days"), but the **API reference** (Stoplight
+`api-docs` "List Event Type Available Times") and Calendly support/community
+consistently state the span **"can be no greater than 1 week"** (7 days). The
+guide and the reference contradict each other; the reference is the endpoint
+contract, so the tool and docs treat **~7 days as the effective cap** for this
+endpoint and let the live API's own validation be authoritative. `user_busy_times`
+is unambiguously ≤ 7 days. The tool enforces **nothing** client-side beyond
+passing params through — it never rejects a range locally — but the AI-facing
+doc (§5) tells the assistant to chunk into ≤ ~1-week windows so it does not emit
+31-day ranges that the API rejects. L2 records the **observed live cap for both
+endpoints** (see §6).
 
 Deliberately out of scope for v1: webhook subscription CRUD (Helio has no
 per-connection receiver in this tool model), event-type/availability writes,
@@ -78,31 +94,53 @@ Verified on official pages (`/creating-an-oauth-app`, `/authentication`,
   **single-use** and rotate on every `grant_type=refresh_token` call;
   Calendly enforces this for all integrations by **August 31, 2026**. Reuse
   of a spent token → `invalid_grant` (400/401), unrecoverable without
-  re-authorization. Two distinct mechanisms guard the rotating token, and
-  they cover **different** failures — the design does not conflate them:
-  - **A3 strict write-back** (`token_refresh.go`: write-back failure returns
-    an error rather than handing out an unpersisted token) guarantees that
-    after any *successful* refresh the persisted pair is the rotated one; a
-    losing refresh never overwrites a good token with a stale one it failed
-    to persist. A3 alone does **not** serialize the *reads*.
-  - **`refresh_lease: credential`** (`OAuthLeaseCredential`) serializes
-    refreshes per credential across replicas, so two parallel `heliox tool`
-    calls cannot both read the same live refresh token, both POST it, and
-    race Calendly into issuing two rotations whose write-backs interleave
-    destructively (persisting the already-spent one last → permanent brick).
-    That race is exactly what A3 alone leaves open for a single-use rotating
-    token: under `refresh_lease: none`, `acquireRefreshLease` returns `nil`
-    and there is zero per-credential serialization
-    (`service/token_refresh.go:79-118`).
-  Google / Notion / etc. ship `refresh_lease: none` correctly because their
-  refresh tokens are durable and reusable — concurrent refreshes off the same
-  token don't burn it. Calendly's single-use rotation is the reason it needs
-  the credential lease. **This is a real, owned service-side dependency, not
-  free** — the `standard_oauth` runtime contract pins `refresh_lease: none`
-  today and provider-gen hard-rejects `credential`, so shipping Calendly
-  requires the one-tuple contract relaxation detailed in §5 (the token-gateway
-  refresh path already *implements* the credential lease; only the contract
-  boundary forbids it).
+  re-authorization. **This does not require any Calendly-specific service code
+  and does not change the `standard_oauth` bundle shape** — the shared refresh
+  path already handles single-use rotation correctly for a
+  `refresh_lease: none` provider, which is what Calendly ships (see the
+  concurrency analysis below).
+
+  **Why `refresh_lease: none` is correct here (and matches the whole
+  rotating-refresh class).** Two facts settle it:
+  - **A3 strict write-back** (`service/token_refresh.go:60-66`): a successful
+    refresh is not returned to a caller until the rotated pair is persisted;
+    write-back failure returns an error rather than handing out an
+    unpersisted token. So after any *successful* refresh, the persisted pair
+    is always the rotated one — a losing refresh can never overwrite a good
+    token with a stale one it failed to persist.
+  - **Transient/permanent classification** (`service/token_refresh.go:165`):
+    `invalid_grant` is classified permanent → surfaced as "reconnect
+    required"; anything else is transient → retry.
+
+  Put together, the *only* residual failure under `refresh_lease: none` is a
+  genuine **concurrent** refresh: two parallel `heliox tool` calls both read
+  the same live refresh token, both POST it, one wins (rotates + persists via
+  A3), and the **loser POSTs the now-spent token → `invalid_grant` → one
+  spurious "reconnect required"** for that single call. This is **not a
+  permanent brick**: the winner's rotated token is persisted and valid, so the
+  connection self-heals (or, at worst, the user re-connects once). A true
+  unrecoverable brick would require Calendly to additionally perform
+  OAuth-2.1/BCP (RFC 9700) **refresh-token-reuse detection with family
+  revocation** — revoking the *winner's* freshly issued token when it sees the
+  spent one replayed. That behavior is plausible given Calendly's 2026
+  single-use enforcement, but **it is not stated or cited in Calendly's
+  official docs**, so this design does not assert it and does not size a
+  service change against it.
+
+  This residual concurrent-refresh risk is **identical for every rotating-refresh
+  provider in this program** — Pennylane (audit row 184, "refresh-token
+  rotation"), Airtable (row 13, refresh tokens + PKCE), PandaDoc (row 44),
+  Google/Notion, etc. — and all of them ship `standard_oauth` with
+  `refresh_lease: none`. `refresh_lease: none` is the **program default for
+  the whole class**, not a "durable-token" special case; Calendly matches its
+  siblings rather than becoming a lone exception. A per-credential refresh
+  *serialization* lease (`OAuthLeaseCredential`) *would* close the
+  concurrent-race window for the entire rotating class, but that is a
+  program-wide capability decision the batch lead / master plan owns — **not a
+  change a single tool branch should make to the shared `standard_oauth`
+  runtime contract** (which governs ~140 providers and which master-plan §5
+  pins to "zero service code"). It is recorded as a master-plan open question
+  in §7, not shipped here.
 - **Scopes are wire-level AND app-level** (verified on `/scopes`): the official
   Scopes page documents a **space-separated `scope` param on the authorize
   request** (example: `…/oauth/authorize?…&scope=scheduled_events:read
@@ -167,7 +205,7 @@ Cobra tree (`heliox tool calendly -- …`):
 
 - `me` — current user (+ org URI, scheduling_url)
 - `event-type list [--user me|<uri>] [--org]` / `event-type get <id>`
-- `availability slots --event-type <id> --from <ts> --to <ts>` (≤31 days)
+- `availability slots --event-type <id> --from <ts> --to <ts>` (chunk to ≤ ~1 week; no client-side enforcement — the API validates)
 - `availability busy [--user me|<uri>] --from <ts> --to <ts>` (≤7 days)
 - `availability schedule list [--user me|<uri>]`
 - `event list [--user me|<uri>] [--org] [--status active|canceled] [--invitee-email e] [--from ts] [--to ts]`
@@ -210,17 +248,16 @@ auth:
     pkce: s256                         # OAuth 2.1; Calendly directs S256 for all apps
     authorize_params: {}
     # Official /scopes documents a space-separated wire `scope` param and a
-    # granular-scopes model (new apps have zero API access until scopes are
-    # requested/approved). Send scopes on the wire (google_calendar precedent)
-    # AND tick the identical set at app registration; display_scopes is
-    # consent-page disclosure only.
+    # granular-scopes "no access until approved" model. Send scopes on the wire
+    # (google_calendar precedent) AND tick the identical set at app
+    # registration; display_scopes is consent-page disclosure only.
     scopes: [users:read, event_types:read, availability:read,
              scheduled_events:write, scheduling_links:write, organizations:read]
     display_scopes: [users:read, event_types:read, availability:read,
                      scheduled_events:write, scheduling_links:write,
                      organizations:read]
     single_active_token: false
-    refresh_lease: credential          # single-use rotating refresh tokens (enforced 2026-08-31); needs the standard_oauth contract relaxation noted below
+    refresh_lease: none                # program default for standard_oauth, incl. the rotating-refresh class (Pennylane/Airtable/PandaDoc); single-use rotation is handled by A3 strict write-back — see §3
     revoke:
       url: https://auth.calendly.com/oauth/revoke   # officially documented (Revoke Access/Refresh Token)
       client_auth: form                # revoke body carries client_id + client_secret
@@ -237,7 +274,7 @@ identity:
 connection:
   mode: isolated
   disconnect_mode: provider_revoke     # Calendly documents OAuth token revoke (see auth.oauth.revoke)
-  runtime_strategy: standard_oauth     # generic exchanger + userinfo identity; no provider adapter — but refresh_lease: credential needs the one-tuple contract relaxation described below
+  runtime_strategy: standard_oauth     # generic exchanger + userinfo identity; no provider adapter, no service-code change
 
 resources:
   selection: none
@@ -254,58 +291,45 @@ tool:
   kind: oauth
 ```
 
-**One deliberate service-side dependency — stated honestly, not hidden.**
-Calendly needs **no provider adapter** (no `adapter_*.go`, no special
-exchange/identity dialect): the generic exchanger, RFC 6901 declarative
-identity, and declarative revoke cover it end to end. It does, however, carry
-**one** required service-side change, and this design does not pretend
-otherwise. The `standard_oauth` runtime contract
-(`go-services/integration-service/model/runtime_contract.go:37-42`) currently
-pins `refreshLeaseScope: OAuthLeaseNone`, and `ValidateRuntimeContract` (same
-file, lines 224-232, run by `provider-gen --check` at
-`cmd/provider-gen/validate.go:405`) **hard-rejects** any `standard_oauth`
-bundle whose `refresh_lease != none` with
-`provider "calendly" strategy "standard_oauth" requires
-auth.oauth.refresh_lease "none", got "credential"`. So `refresh_lease:
-credential` cannot pass L3 as the contract stands today.
-
-Shipping Calendly therefore includes relaxing that one tuple, reviewed and
-landed together with this bundle (not deferred): change the `standard_oauth`
-oauth contract's single pinned `refreshLeaseScope` into an allow-set
-`{OAuthLeaseNone, OAuthLeaseCredential}` — google/notion/… keep `none`,
-Calendly declares `credential`, and `OAuthLeaseProvider` stays rejected (that
-scope is reserved for X's exclusive-grant strategy) — and turn the `!=`
-equality check on that field (lines 224-232) into a membership check, plus a
-`model` contract test asserting `standard_oauth` now accepts `credential` and
-still rejects `provider`. That field is read **only** at this validation
-boundary (the runtime reads `def.OAuth.RefreshLeaseScope`, not the contract's),
-so the change is contained. **No new runtime code is required** — the
-token-gateway refresh path already implements `OAuthLeaseCredential`
-(`service/token_refresh.go:79-118`, the per-credential `refresh:<provider>:<credentialID>`
-lease key); only the contract boundary forbids selecting it. This is the sole
-non-generated, committed service edit Calendly carries (distinct from the
-batch's generated-catalog default, and separate from the un-committed
-provider-gen projections per master plan §2).
+**Zero service-side code — Calendly is a pure `standard_oauth` bundle.**
+The generic exchanger, RFC 6901 declarative identity, and declarative revoke
+cover it end to end: no provider adapter (`adapter_*.go`), no exchange/identity
+dialect, **and no edit to the shared `standard_oauth` runtime contract**. The
+contract (`go-services/integration-service/model/runtime_contract.go:37-42`)
+pins `refreshLeaseScope: OAuthLeaseNone` for `standard_oauth`, and Calendly
+declares exactly that — so `provider-gen --check` passes as-is. Single-use
+refresh-token rotation needs no new tuple: the shared refresh path's A3 strict
+write-back (`service/token_refresh.go:60-66`) already persists the rotated pair
+before returning it, and `invalid_grant` already classifies as
+"reconnect required" (`:165`). This keeps Calendly on the master-plan §5
+invariant — *"`standard_oauth` bundles need zero service code"* — exactly like
+its rotating-refresh siblings (Pennylane, Airtable, PandaDoc). The
+per-credential refresh lease that would harden the whole rotating class against
+the concurrent-race window is deliberately **not** selected here; it is
+escalated to the master plan as an open question (§7) so the batch lead owns
+the shared-surface decision program-wide.
 
 Other Helio artifacts (all batch-end shared surfaces except the yaml itself,
 which also rides batch end): icon `ui/helio-app/src/integrations/icons/calendly.svg`
 + `providerIcons.ts` entry; AI docs `agents/plugins/heliox/skills/tool/calendly.md`
 (must cover URI-vs-UUID, the no-reschedule-endpoint rule, the paid-plan gate
-on `book create`, and range limits) + plugin bump/publish; client id/secret
-appended by lane 1 to integration-service config in `config/` + `deploy/`
-Helm Secret together. `provider-gen` is run **locally only for validation**
-on this branch (projections not committed, per master plan §2); L4 builds
-helio-cli with a local, uncommitted `go.mod` `replace` pointing at this
-anycli worktree.
+on `book create`, and the range cap: **tell the assistant `availability slots`
+takes up to ~7 days per request — the API reference caps it at 1 week even
+though a guide page says 31 — so it chunks longer windows; `availability busy`
+is ≤7 days**) + plugin bump/publish; client id/secret appended by lane 1 to
+integration-service config in `config/` + `deploy/` Helm Secret together.
+`provider-gen` is run **locally only for validation** on this branch
+(projections not committed, per master plan §2); L4 builds helio-cli with a
+local, uncommitted `go.mod` `replace` pointing at this anycli worktree.
 
 ## 6. Test plan (five layers)
 
 | Layer | What runs here | External credentials needed |
 |---|---|---|
-| L1 | anycli `go test ./...`: httptest fakes asserting Bearer header, request paths/query (URI expansion, `me` resolution, range params), pagination passthrough, cancel/no-show/link/book request bodies, 401-rejected mapping, plain + `--json` error rendering | none |
-| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli calendly -- me` then each verb family against the live API | **yes** — a Calendly **Personal Access Token** from the lane-2 test account, created with the §3 scope set (new PATs are scoped; an unscoped PAT has no access). PAT suffices because anycli only sees a bearer token |
-| L3 | local `go run ./cmd/provider-gen` + `--check` against this branch's bundle — **passes only once the §5 `standard_oauth` refresh-lease contract relaxation has landed**; without it `--check` fails `provider "calendly" strategy "standard_oauth" requires auth.oauth.refresh_lease "none", got "credential"`. Also run the integration-service `model` contract test (the new `standard_oauth`-accepts-`credential` / still-rejects-`provider` case) + helio-cli + integration-service unit suites with the local `replace` | none |
-| L4 | singleton + `POST /internal/test-only/connections/seed` with `provider: "calendly"`, real `access_token` **and** `refresh_token` from the lane-1 **sandbox app**, deliberately short `expires_at` → forces the A3 refresh; then `heliox tool calendly -- me`. Run the tool **twice**: the second call proves the rotated (single-use) refresh token was persisted — this is the Calendly-specific L4 assertion, not optional | **yes** — lane-1 sandbox app client id/secret (uncommitted local `config/cloud.yaml`) + a token pair minted from it on the lane-2 test account |
+| L1 | anycli `go test ./...`: httptest fakes asserting Bearer header, request paths/query (URI expansion, `me` resolution, range params **passed through unmodified — no client-side range rejection**), pagination passthrough, cancel/no-show/link/book request bodies, 401-rejected mapping, plain + `--json` error rendering | none |
+| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli calendly -- me` then each verb family against the live API. **Record the observed live range cap for both `availability slots` (event_type_available_times) and `availability busy` (user_busy_times)** — resolve the guide-vs-reference 31d/7d contradiction against the live API and note it | **yes** — a Calendly **Personal Access Token** from the lane-2 test account, created with the §3 scope set (new PATs are scoped; an unscoped PAT has no access). PAT suffices because anycli only sees a bearer token |
+| L3 | local `go run ./cmd/provider-gen` + `--check` against this branch's bundle — **passes as-is** (`refresh_lease: none` satisfies the `standard_oauth` contract; no contract edit, no new contract test). Also run helio-cli + integration-service unit suites with the local `replace` | none |
+| L4 | singleton + `POST /internal/test-only/connections/seed` with `provider: "calendly"`, real `access_token` **and** `refresh_token` from the lane-1 **sandbox app**, deliberately short `expires_at` → forces the A3 refresh; then `heliox tool calendly -- me`. Run the tool **twice**: the second call proves the rotated (single-use) refresh token was persisted by A3 strict write-back — this is the Calendly-specific L4 assertion, not optional | **yes** — lane-1 sandbox app client id/secret (uncommitted local `config/cloud.yaml`) + a token pair minted from it on the lane-2 test account |
 | L5 | `heliox tool calendly auth` → connect link → real consent on the test account → `oauth_connected` event → unseeded `heliox tool calendly -- me` and one write (e.g. `link create`); confirm the consent screen shows the §3 scope set | **yes** — human-in-the-loop (lane 3), production-app config landed in `config/` + `deploy/` |
 
 ## 7. Open questions / divergences
@@ -318,35 +342,57 @@ anycli worktree.
    rule). If the lane-2 test account is free-tier, L2/L4 for this one verb
    are consent-blocked and it is exercised in L5 or with a paid test
    account.
-3. **Range limits — re-verified, not drifting**: the current official guides
-   (`/schedule-events-with-ai-agents`: "can retrieve up to 31 days of available
-   times per request"; `/view-event-type-and-user-calendar-availability-data`:
-   `event_type_available_times` "cannot be a range greater than 31 days",
-   `user_busy_times` "cannot be a range greater than 7 days") both confirm
-   **≤31 days for `event_type_available_times`** and **≤7 days for
-   `user_busy_times`**. A review pass claimed both endpoints share a 7-day cap;
-   that is **not** what the official pages say and is rejected here. §2/§4 keep
-   31/7. The tool enforces nothing client-side beyond passing params through;
-   let the API's own validation error surface, and re-confirm the live caps at
-   L2. Recorded as a divergence-from-review per the "official docs win" rule.
+3. **Range cap — guide vs. API reference contradiction (divergence recorded)**:
+   for `event_type_available_times` the *guide* pages say 31 days but the *API
+   reference* (Stoplight `api-docs`) and Calendly support/community say the span
+   **"can be no greater than 1 week"** (7 days). Per the "official docs win /
+   endpoint contract is authoritative" rule, the tool and the AI-facing doc
+   treat **~7 days** as the effective cap for this endpoint (and ≤7 days for
+   `user_busy_times`), the tool enforces nothing client-side, and **L2 records
+   the observed live cap for both endpoints** to settle the contradiction
+   empirically. (This reverses an earlier draft that took the guide's 31-day
+   figure at face value.)
+4. **Per-credential refresh lease for the rotating-refresh class — escalate to
+   the master plan (§6 open question), do NOT ship on this branch.** Calendly,
+   Pennylane, Airtable, PandaDoc (and any other single-use rotating provider)
+   share one residual failure under `refresh_lease: none`: a genuinely
+   *concurrent* refresh burns the loser's token → one spurious "reconnect
+   required" (§3). Selecting `OAuthLeaseCredential` on the shared
+   `standard_oauth` contract would serialize refreshes per credential and close
+   that window **for the whole class at once** — but it is a program-wide edit
+   to a contract governing ~140 providers, and master-plan §5 pins
+   `standard_oauth` to "zero service code". So it belongs to the batch lead as
+   a master-plan amendment/open-question covering the entire rotating class,
+   **not** to a single tool branch. Calendly ships `none` (matching every
+   sibling) today; if the program later adopts the class-wide lease, Calendly
+   flips its one field along with the rest of the class. Recommendation: raise
+   this in the master plan's §6 before Wave 1's rotating-provider batches flip
+   visible.
 
 ### Resolved during review revision
 
-- **Refresh-lease vs. `standard_oauth` contract (blocker from review)**: the
-  prior draft asserted `runtime_strategy: standard_oauth` + `refresh_lease:
-  credential` while claiming "no service-side change" — an un-shippable
-  contradiction, since `ValidateRuntimeContract` pins `standard_oauth` to
-  `refresh_lease: none` and `provider-gen --check` (L3) hard-fails
-  `credential`. Verified against the code
-  (`runtime_contract.go:37-42`, `224-232`; `validate.go:405`;
-  `token_refresh.go:79-118`). Resolved by **owning** the required service-side
-  change: keep `refresh_lease: credential` (correct for Calendly's single-use
-  rotating tokens, which A3 strict write-back alone does not fully protect
-  against concurrent-refresh burn) and relax the `standard_oauth` contract's
-  refresh-lease pin to the allow-set `{none, credential}` with a `model`
-  contract test — the runtime already implements the credential lease, so no
-  new runtime code is needed. §3/§5/§6 now state this dependency explicitly
-  and no longer claim "zero service code". No longer contradictory.
+- **Refresh-lease vs. `standard_oauth` contract (major finding from review)**:
+  an earlier draft made Calendly the **first-ever** selector of
+  `refresh_lease: credential` and, to ship it, relaxed the shared
+  `standard_oauth` runtime contract — a committed, non-generated service edit
+  changing refresh-validation semantics for ~140 providers, justified by an
+  **unsubstantiated "permanent brick" claim**. Three problems (all verified):
+  (a) *Necessity* — under plain single-use rotation + A3 strict write-back a
+  concurrent race yields **one spurious `invalid_grant`/reconnect**, not a
+  brick; a true brick needs OAuth-2.1/BCP reuse-detection *family revocation*
+  that Calendly's official docs never state, so the load-bearing mechanism was
+  missing. (b) *Consistency* — sibling rotating providers in the same catalog
+  (Pennylane row 184 "refresh-token rotation", Airtable row 13, PandaDoc row
+  44) all ship `standard_oauth` with `refresh_lease: none`; Calendly was framed
+  as a lone exception without reconciling them. (c) *Process* — master-plan §5
+  states `standard_oauth` bundles need **zero** service code, which a
+  shared-contract edit violates. **Resolved by adopting the minimal orthogonal
+  design (reviewer option A)**: Calendly ships `refresh_lease: none` like every
+  sibling, relies on A3 strict write-back (`token_refresh.go:60-66`) +
+  transient/permanent classification (`:165`), and the contract edit is
+  **dropped entirely**. The class-wide per-credential-lease idea is escalated
+  to the master plan (§7 open question 4), not shipped here. §3/§5/§6 now claim
+  zero service code honestly.
 - **Scopes (was OQ "wire `scope` param")**: `/scopes` documents a wire-level
   space-separated `scope` param and a granular-scopes "no access until
   approved" model, so scopes ship **on the wire** (`auth.oauth.scopes`) plus
