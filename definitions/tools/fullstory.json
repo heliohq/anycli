@@ -1,0 +1,13 @@
+{
+  "name": "fullstory",
+  "type": "service",
+  "description": "FullStory digital-experience analytics: user sessions, profiles, and events via the Server API v2",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "FULLSTORY_API_KEY"}
+      }
+    ]
+  }
+}
