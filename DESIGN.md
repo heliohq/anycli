@@ -273,3 +273,75 @@ bump (batch-end), L1–L4 green while hidden, run the L5 key-entry sweep, then
 flip `presentation.visible: true` + regenerate as the single go-live change
 (SKILL.md stage 10). No review clock (api_key), so the flip trails L5 only, not
 any provider-review gate.
+
+## 8. Implementation divergences (verified against official docs 2026-07-22)
+
+The scratch design above was written before reading the live API and the
+current Helio integration-service schema. Verified against FullStory's official
+developer docs (developer.fullstory.com/server) and the shipped
+`go-services/integration-service` model, the following corrections apply — the
+implementation follows THIS section where it conflicts with §1–§7.
+
+1. **List Sessions path corrected: `GET /v2/sessions`, not `/sessions/v2`.**
+   `/sessions/v2` was the v1 List Sessions endpoint, **deprecated 2022-01-28
+   and sunset 2022-06-30**. The current, still-published endpoint is
+   `GET https://api.fullstory.com/v2/sessions?uid=|email=&limit=`, returning
+   `{"results":[...]}` (confirmed by FullStory's own Help Center curl example).
+   The raw-`Basic <key>` header (§1) is confirmed correct.
+
+2. **`session events` dropped from v1 of the tool.**
+   `GET /v2/sessions/{session_id}/events` is documented as **part of the paid
+   "Anywhere: Activation" product** — the same entitlement gate as the AI
+   Session Summary / Session Context endpoints §2 already excluded. It is not
+   reachable with the standard (non-Enterprise) account-pool key, so L2/L5
+   cannot validate it. Wrapping an endpoint we cannot exercise against the live
+   API violates the master-plan L2 requirement, so it is deferred (revisit if a
+   test account gains the Activation entitlement). The "killer flow" —
+   `session list` → replay URLs — is unaffected and stays.
+
+3. **User-read permission caveat.** FullStory's permission hierarchy
+   (Standard → Architect → Admin) puts **send-data + list-sessions at
+   Standard**, but **viewing user data (Get/List User) at Architect**
+   (Enterprise). `user get`/`user list` are still wrapped (they degrade to a
+   clean exit-1 error on a `403`), but the guaranteed-on-Standard surface is
+   `session list`, `user upsert` (send), `event create` (send), and `me`.
+
+4. **No provider-side verification; `identity.source: strategy`, not a
+   `basic_raw` verifier.** `/me` reliably returns only `role`
+   (USER/ARCHITECT/ADMIN) — **not** an account-scoped stable identifier (every
+   Standard key returns `USER`), so it cannot key a connection. The shipped
+   `declarativeManualTokenVerifier` also sets the header value *verbatim* (no
+   `Basic ` scheme prefix) and requires a string stable-key from the response —
+   FullStory satisfies neither. Following the shipped mongodb precedent
+   (`manual_credentials`, OQ1 no-verify: a bad secret surfaces at first use via
+   AnyCLI's `CredentialRejected`), FullStory uses **`identity.source: strategy`
+   with no HTTP verification and a constant, single-connection-per-assistant
+   account key**. The `Basic <key>` header (no base64) is emitted only by the
+   AnyCLI runtime service, which Helio fully controls.
+
+5. **Bundle uses the real `auth.type: api_key` schema, not the §5 sketch.**
+   `manual_credentials`/`verify_header`/`basic_raw`/`account_key` in §5 were
+   indicative. The real bundle is `auth.type: api_key`,
+   `auth.api_key: {header: Authorization, setup_url: …}`,
+   `identity.source: strategy`, `connection.runtime_strategy: manual_api_token`,
+   `credential.fields: {api_key: token.access_token}`, `tool.kind: api-key`.
+
+6. **Minimal, additive integration-service capability growth.** The shipped
+   `manual_api_token` strategy hard-requires `identity.source: userinfo` (HTTP
+   verify). This grows by one reviewed axis: `manual_api_token` also accepts
+   `identity.source: strategy`, in which case a no-HTTP constant-account-key
+   deriver runs instead of the declarative verifier — the api-key sibling of
+   mongodb's no-verify `manual_credentials` path. This is the FullStory
+   analogue of the per-tool verifier/deriver growth other api_key tools in this
+   wave carry; the batch lead reconciles overlapping growth at batch end.
+
+Command surface actually implemented (all non-interactive, `--json` default):
+
+```
+fullstory session list  --uid <id> | --email <e> [--limit N]
+fullstory user get       --id <fsid> [--include-schema]
+fullstory user list      [--uid <id>] [--email <e>]
+fullstory user upsert    --uid <id> [--display-name ..] [--email ..] [--prop k=v ...]
+fullstory event create   --name <e> (--uid <id> | --session-id <s> | --use-recent) [--prop k=v ...] [--timestamp <ts>]
+fullstory me
+```
