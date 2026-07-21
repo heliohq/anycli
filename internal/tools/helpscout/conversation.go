@@ -194,7 +194,9 @@ func (s *Service) newConversationUpdateCmd(token string) *cobra.Command {
 		Short: "Update status / assignee / subject (PATCH /conversations/{id})",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := enumValidator("status", "active", "closed", "pending", "spam")(status); err != nil {
+			// Matches the reply status set (Errors doc: active|spam|open|closed|
+			// pending); create is intentionally narrower per its own endpoint.
+			if err := enumValidator("status", "active", "closed", "open", "pending", "spam")(status); err != nil {
 				return err
 			}
 			if assignTo != "" && unassign {
@@ -229,7 +231,7 @@ func (s *Service) newConversationUpdateCmd(token string) *cobra.Command {
 			return s.emitReceipt(args[0], "updated")
 		},
 	}
-	cmd.Flags().StringVar(&status, "status", "", "new status: active|closed|pending|spam")
+	cmd.Flags().StringVar(&status, "status", "", "new status: active|closed|open|pending|spam")
 	cmd.Flags().StringVar(&assignTo, "assign-to", "", "assignee user id")
 	cmd.Flags().BoolVar(&unassign, "unassign", false, "remove the assignee")
 	cmd.Flags().StringVar(&subject, "subject", "", "new subject")
@@ -246,11 +248,9 @@ func (s *Service) newConversationTagCmd(token string) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{"tags": splitCSV(tags)}
-			resp, err := s.call(cmd.Context(), token, http.MethodPut, "/conversations/"+url.PathEscape(args[0])+"/tags", nil, body)
-			if err != nil {
+			if _, err := s.call(cmd.Context(), token, http.MethodPut, "/conversations/"+url.PathEscape(args[0])+"/tags", nil, body); err != nil {
 				return err
 			}
-			_ = resp
 			return s.emitReceipt(args[0], "tagged")
 		},
 	}

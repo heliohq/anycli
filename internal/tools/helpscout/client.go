@@ -21,6 +21,14 @@ type usageError struct{ msg string }
 
 func (e *usageError) Error() string { return e.msg }
 
+// credentialError is a credential/runtime precondition: the required access
+// token is absent from the environment. It maps to exit code 1 (a runtime
+// condition, not a flag-usage error) and kind "credential" in the JSON
+// envelope.
+type credentialError struct{ msg string }
+
+func (e *credentialError) Error() string { return e.msg }
+
 // apiError is a runtime / API error: a Help Scout non-2xx response or a
 // transport failure. It maps to exit code 1 and kind "api". status is the HTTP
 // status (0 for transport/network failures). It wraps the underlying cause so

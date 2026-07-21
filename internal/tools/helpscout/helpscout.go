@@ -9,7 +9,8 @@
 //
 // Exit codes follow the built-in-service contract: 0 success; 2 usage/param
 // errors (bad flags, bad enums, invalid JSON, missing required flags, unknown
-// subcommands); 1 runtime/API errors (Help Scout non-2xx, transport failure).
+// subcommands); 1 runtime/API errors (Help Scout non-2xx, transport failure) and
+// the missing-credential precondition (kind "credential").
 // Errors render to stderr — JSON under --json, plain text otherwise. A 401
 // rejects the resolved credential; a 429 surfaces X-RateLimit-Retry-After.
 package helpscout
@@ -53,8 +54,10 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	token := env[EnvAccessToken]
 	if token == "" {
 		// The token check runs before cobra parses flags, so detect --json in
-		// the raw args to honor the structured error-envelope contract.
-		s.renderError(hasJSONArg(args), &usageError{msg: "HELPSCOUT_ACCESS_TOKEN is not set"})
+		// the raw args to honor the structured error-envelope contract. A missing
+		// credential is a runtime precondition (exit 1, kind "credential"), not a
+		// flag-usage error.
+		s.renderError(hasJSONArg(args), &credentialError{msg: "HELPSCOUT_ACCESS_TOKEN is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(token)
@@ -91,7 +94,9 @@ func hasJSONArg(args []string) bool {
 }
 
 // renderError writes err to stderr. Under --json the shape is
-// {"error":{"message":…,"kind":"usage|api","status":<HTTP or omitted>}}.
+// {"error":{"message":…,"kind":"usage|api|credential","status":<HTTP or
+// omitted>}}. usage is the default; an apiError is kind "api" (with status), a
+// credentialError is kind "credential".
 func (s *Service) renderError(jsonMode bool, err error) {
 	if !jsonMode {
 		fmt.Fprintln(s.stderr(), err)
@@ -99,11 +104,15 @@ func (s *Service) renderError(jsonMode bool, err error) {
 	}
 	payload := map[string]any{"message": err.Error(), "kind": "usage"}
 	var apiErr *apiError
-	if errors.As(err, &apiErr) {
+	var credErr *credentialError
+	switch {
+	case errors.As(err, &apiErr):
 		payload["kind"] = "api"
 		if apiErr.status != 0 {
 			payload["status"] = apiErr.status
 		}
+	case errors.As(err, &credErr):
+		payload["kind"] = "credential"
 	}
 	b, mErr := json.Marshal(map[string]any{"error": payload})
 	if mErr != nil {

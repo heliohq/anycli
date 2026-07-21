@@ -24,6 +24,33 @@ func TestMissingToken(t *testing.T) {
 	}
 }
 
+// TestMissingTokenJSONKind asserts the missing-credential error is classified
+// as kind "credential" (exit 1) in the --json envelope — a credential/runtime
+// condition, not a flag-usage error.
+func TestMissingTokenJSONKind(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	svc := &Service{Out: &out, Err: &errBuf}
+	result, err := svc.Execute(context.Background(), []string{"user", "me", "--json"}, map[string]string{})
+	if err != nil {
+		t.Fatalf("Execute error: %v", err)
+	}
+	if result.ExitCode != 1 {
+		t.Errorf("exit = %d, want 1", result.ExitCode)
+	}
+	var env struct {
+		Error struct {
+			Message string `json:"message"`
+			Kind    string `json:"kind"`
+		} `json:"error"`
+	}
+	if e := json.Unmarshal([]byte(strings.TrimSpace(errBuf.String())), &env); e != nil {
+		t.Fatalf("stderr not JSON envelope: %v (%s)", e, errBuf.String())
+	}
+	if env.Error.Kind != "credential" {
+		t.Errorf("kind = %q, want credential", env.Error.Kind)
+	}
+}
+
 func TestUnauthorizedRejectsCredential(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusUnauthorized, `{"message":"Access token invalid"}`, &got)

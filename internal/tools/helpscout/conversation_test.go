@@ -172,6 +172,25 @@ func TestConversationUpdate_CompilesJSONPatchOps(t *testing.T) {
 	}
 }
 
+// TestConversationUpdate_AcceptsOpenStatus locks in that `update --status open`
+// is accepted client-side — the JSON-Patch /status set matches the reply set
+// (Errors doc), so it compiles to a /status replace op rather than being
+// rejected as a bad enum.
+func TestConversationUpdate_AcceptsOpenStatus(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusNoContent, ``, &got)
+	defer srv.Close()
+
+	code, _, stderr := run(t, srv, "conversation", "update", "7", "--status", "open")
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%s", code, stderr)
+	}
+	body := decodeBody(t, got.Body)
+	if body["op"] != "replace" || body["path"] != "/status" || body["value"] != "open" {
+		t.Errorf("op = %v, want replace /status=open", body)
+	}
+}
+
 func TestConversationUpdate_UnassignRemoveOp(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusNoContent, ``, &got)
