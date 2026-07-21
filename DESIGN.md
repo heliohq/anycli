@@ -159,8 +159,14 @@ usage/parse errors exit 2. No re-shaping of provider payloads.
 ### Registration
 
 `RegisterService("pipedrive", &pipedrive.Service{})` in
-`internal/tools/register.go` — **held to the batch-end merge** (shared
-surface, master plan §2). The definition JSON and `internal/tools/pipedrive/`
+`internal/tools/register.go` — `register.go` is one of the seven shared
+surfaces the master plan (§2) serializes to batch-end. It is nonetheless
+**committed on this isolated tool branch on purpose**: L2–L4 all run the real
+`anycli pipedrive -- …` binary, and without this line the built binary does not
+dispatch `pipedrive` at all, so on-branch harness testing is impossible. The
+batch lead re-merges this one-line addition (alongside the sibling tool
+branches' entries) at batch-end and resolves the expected conflict there — flag
+it in the batch-end sweep. The definition JSON and `internal/tools/pipedrive/`
 are generation-inert and merge freely on this branch.
 
 ## 3. Helio provider bundle plan (stages 4–8)
@@ -264,13 +270,16 @@ manual `providerIcons.ts` registration (batch-end shared surface).
 pagination, deal stage/status semantics, leads-vs-deals guidance); plugin
 version bump + marketplace publish ride the batch-end merge.
 
-**Batch-end shared surfaces recap** (not committed from this branch): anycli
-`register.go` entry, anycli tag + `helio-cli/go.mod` pin bump, the five
-provider-gen projections, `providerIcons.ts` append, plugin publish. On-branch
-validation uses locally run `provider-gen` (+ `--check`) and a locally
-uncommitted `replace github.com/heliohq/anycli => <this worktree>` in
-`helio-cli/go.mod`; neither is committed, and this branch is expected to fail
-`provider-gen --check` in CI until batch end.
+**Batch-end shared surfaces recap**: anycli tag + `helio-cli/go.mod` pin bump,
+the five provider-gen projections, `providerIcons.ts` append, plugin publish —
+none committed from this branch. The one exception is the anycli `register.go`
+entry, which **is** committed here (see §2 Registration: it is required for
+on-branch L2–L4 binary dispatch); the batch lead re-merges it and resolves the
+expected conflict at batch-end. On-branch validation uses locally run
+`provider-gen` (+ `--check`) and a locally uncommitted
+`replace github.com/heliohq/anycli => <this worktree>` in `helio-cli/go.mod`;
+neither is committed, and this branch is expected to fail `provider-gen
+--check` in CI until batch end.
 
 ## 4. Test plan (five layers)
 
