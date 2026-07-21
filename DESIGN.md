@@ -171,9 +171,28 @@ config value (Helio registers no Snov app).
 
 **Helio does not manage the bearer token** — there is no Helio-side refresh
 lease, no `expires_at` on the stored credential; the two secrets are long-lived
-and the 3600s bearer is anycli's ephemeral concern. This is the `mongodb`
-manual-secret model extended to two fields, which already exists on main
-(multi-field `manual_credentials`, confirmed via the mixpanel/amplitude work).
+and the 3600s bearer is anycli's ephemeral concern. This extends the `mongodb`
+manual-secret model to **two** fields — a capability that does **NOT** exist on
+main today, and this design does not pretend it does. Verified against main:
+
+- `model/runtime_contract.go` `validateCredentialInputSchema` (~L316) hard-fails
+  ANY `credential_input` whose `fields` is not exactly one required field
+  ("single-secret storage, design 317 D5"); its own comment says the multi-field
+  case is deferred ("Relax this together with the D8 multi-field vault face").
+  This check runs in **both** `provider-gen` and the runtime registry validation.
+- `service/manual_credential.go` `resolveManualSecret` (~L176) collapses input to
+  a single string and returns `herr.Internal "credential schema is not
+  single-secret"` for >1 field; the write stores one `AccessToken` string.
+- `model/catalog.go` `CredentialSource` allowlist has only `token.access_token`,
+  `connection.account_key`, `connection.metadata.person_urn`, `credential.app_id`,
+  `credential.brand` — **no** `token.client_id` / `token.client_secret`.
+
+So snov's two-field bundle **depends on** the design-317 **D8** multi-field vault
+face landing first. mixpanel is the two-field sibling in this same batch; it is
+not merged (absent from `integrations/providers/`, and `provider_catalog.gen.go`
+carries no `token.client_id`). The exact growth is scoped in §6
+"Integration-service capability growth" — this design does NOT claim it "already
+landed."
 
 ---
 
@@ -211,6 +230,9 @@ identity:
   source: strategy          # no HTTPS endpoint that verifies the raw secrets
                             # (verification needs the client_credentials
                             # exchange first) — derive account_key = client_id
+  deriver: client_id        # NEW selector field — see capability growth §6.
+                            # main hardcodes dsnHostIdentityDeriver for every
+                            # manual_credentials provider; no selection exists.
 
 connection:
   mode: isolated
@@ -224,8 +246,8 @@ resources:
 
 credential:
   fields:
-    client_id: token.client_id
-    client_secret: token.client_secret
+    client_id: token.client_id          # NEW CredentialSource (not on main)
+    client_secret: token.client_secret  # NEW CredentialSource (not on main)
     account_key: connection.account_key
 
 tool:
@@ -238,31 +260,81 @@ no `toolToProvider` entry and no `toolGroups` membership. This is a flat,
 ungrouped provider.
 
 **Identity / account_key = `client_id`.** The `client_id` is a stable,
-human-recognizable, **non-secret** account identifier (unlike the connection
-string, it is not sensitive on its own) — the right stable key + label, derived
-by a `strategy` deriver (precedent: mongodb host deriver, crisp keypair
-deriver, amplitude first-colon-split deriver). It avoids storing a hash and
-avoids a wasted verify round-trip.
+human-recognizable, **non-secret** account identifier (unlike a connection
+string, it is not sensitive on its own) — the right stable key + label. But the
+deriver that produces it does **NOT** exist on main. Verified against
+`service/provider_registry.go` (~L88): the `RuntimeStrategyManualCredentials`
+case hardcodes `manual: dsnHostIdentityDeriver{}` for **every**
+manual_credentials provider — there is exactly one deriver, no
+selection mechanism, and no `client_id` deriver. `dsnHostIdentityDeriver.Verify`
+(`service/manual_credentials_identity.go`) `url.Parse`s the secret and derives a
+host; run against a `client_id` it yields an empty host → a
+`manualCredentialFormatError`, not a usable `account_key`. The crisp keypair and
+amplitude first-colon-split derivers cited in earlier drafts are **not** in this
+tree (those tools are unmerged) — do not treat them as existing precedent. This
+tool therefore needs a new `client_id` passthrough deriver **plus** the
+deriver-selection field, scoped below.
 
-**Verification — Option A (recommended, hidden-first): no-verify**, exactly
-like mongodb. Bad secrets are stored and surface at first use via anycli's
-`client_credentials` rejection → the token-gateway feedback path. Zero new
-integration-service code.
+**Verification — Option A (recommended, hidden-first): no-verify**, like
+mongodb. Bad secrets are stored and surface at first use via anycli's
+`client_credentials` rejection → the token-gateway feedback path. Option A adds
+**no verifier round-trip**, but it is NOT "zero integration-service code": the
+multi-field storage face and the `client_id` identity deriver below must land
+regardless of verify choice.
 
 **Option B (follow-up, not blocking): a `client_credentials` verifier
 capability** — integration-service does the token exchange (+ a cheap
 `account balance` GET) at connect time to validate before storing, mirroring
 the semrush/moz/fullstory verifier-capability precedents. Deferred: it adds a
-provider-specific exchange path in integration-service for marginal connect-time
-UX; the no-verify path is sufficient to reach `visible`. **Decision: ship
-Option A; open Option B only if connect-time validation is required for the
-flip.**
+provider-specific exchange path for marginal connect-time UX; the no-verify path
+is sufficient to reach `visible`. **Decision: ship Option A; open Option B only
+if connect-time validation is required for the flip.**
 
-**Capability dependency (must exist on main before the bundle merges):**
-multi-field `manual_credentials` with two `secret` fields projecting to
-`token.<field>` — already landed (task set around mixpanel #233). No new
-capability growth is required for Option A. If it were somehow absent, this
-tool would block on it exactly as mixpanel did; flagged here per stage-1.
+**Integration-service capability growth (must land before the bundle
+`provider-gen`s clean).** This is real capability-growth scope, mirroring how
+servicenow/dataforseo/crisp scoped theirs — not a pre-existing capability. Two
+tracks:
+
+*Multi-field vault face (design-317 D8) — shared with the mixpanel two-field
+track:*
+1. `model/runtime_contract.go` `validateCredentialInputSchema`: relax the
+   `len(Fields) != 1` hard-fail to allow N≥1 required fields for
+   `manual_credentials` (the D5 comment already earmarks this as the D8 relax).
+   Runs in both provider-gen and the runtime registry.
+2. `service/manual_credential.go` `resolveManualSecret` + the write path: resolve
+   each declared field to its value and persist a **per-field secret map**, not a
+   single `AccessToken` string.
+3. `model/catalog.go`: add `CredentialSourceTokenClientID = "token.client_id"`
+   and `CredentialSourceTokenClientSecret = "token.client_secret"` to the closed
+   `CredentialSource` allowlist.
+4. `service/token_gateway.go` `projectCredential`: add switch cases for the two
+   new sources, backed by the multi-secret vault read (`TokenResult` must carry
+   the per-field secrets, not just one `AccessToken`).
+5. The vault-side multi-field secret storage + read-back the gateway projects
+   from (the D8 face proper).
+
+*Identity deriver selection:*
+6. `service/provider_registry.go` `RuntimeStrategyManualCredentials` case: replace
+   the hardcoded `dsnHostIdentityDeriver{}` with a bundle-driven selection on the
+   new `identity.deriver` field (default stays `dsn_host` for mongodb).
+7. A new `clientIDIdentityDeriver`: passthrough that sets
+   `account_key = label = client_id` with **no** provider request and a
+   secret-free identity map. `dsnHostIdentityDeriver` cannot be reused (see above).
+
+If the mixpanel track lands (1)–(5) first, snov consumes them and only needs
+(6)–(7); if not, snov's bundle blocks on the D8 face exactly as mixpanel does.
+Either way, this design owns the identity-deriver half.
+
+**Redesign alternative considered — single composite secret (rejected).** Store
+`client_id:client_secret` as ONE secret (fits main's single-secret face
+untouched) and split on the first colon inside anycli. Rejected because (a) it
+still needs a new identity deriver (`dsnHostIdentityDeriver` would `url.Parse`
+`client_id:client_secret` — `client_id` becomes a URL scheme, host empty → error)
+**and** deriver-selection, so it does not actually reach "zero capability
+growth"; (b) it rewrites §4's clean two-env-var injection into a colon-split that
+breaks if a secret ever contains `:`; and (c) it forks the drawer UX away from
+the two-labeled-field model the anycli definition already assumes. The D8
+multi-field face is the correct long-term shape and is shared with mixpanel.
 
 **Also required (not generated):**
 - UI icon `ui/helio-app/src/integrations/icons/snov.svg` + register in
@@ -286,8 +358,8 @@ tool would block on it exactly as mixpanel did; flagged here per stage-1.
 |---|---|---|
 | **L1** anycli `go test ./...` | httptest fakes for: the `/v1/oauth/access_token` exchange (asserts form body + Bearer injection on downstream calls), each wrapped endpoint's request shape, the **async start→poll→result loop** (fake returns `in progress` then `completed`), and both plain + `--json` error rendering incl. `client_credentials` rejection | No |
 | **L2** dev harness vs REAL API | `ANYCLI_CRED_CLIENT_ID=… ANYCLI_CRED_CLIENT_SECRET=… anycli snov -- email verify --email …` returns real data — proves field names, env injection, live token exchange, and real async timing all match | **Yes** (paid Snov account: client_id + client_secret) |
-| **L3** `provider-gen --check` + both repos' suites | bundle strict-decodes; five projections regenerate clean; helio-cli + integration-service unit suites green | No |
-| **L4** singleton + seed + `heliox tool snov -- …` | seed BOTH secrets via `POST /internal/test-only/connections/seed` (multi-field manual-credential user-token row is seedable), then run through the real token gateway → anycli → live Snov API | **Yes** (same paid creds, seeded) |
+| **L3** `provider-gen --check` + both repos' suites | bundle strict-decodes; five projections regenerate clean; helio-cli + integration-service unit suites green. **Gated on §6 capability growth**: on current main the two-field `credential_input` fails `validateCredentialInputSchema` and `token.client_id`/`token.client_secret` are not valid `CredentialSource`s, so `provider-gen --check` **rejects** the bundle until the D8 multi-field face + new sources land. L3 passes only once §6 (1)–(7) are merged | No |
+| **L4** singleton + seed + `heliox tool snov -- …` | seed BOTH secrets via `POST /internal/test-only/connections/seed` (multi-field manual-credential row — itself part of the §6 D8 growth, not seedable on current main), then run through the real token gateway → anycli → live Snov API | **Yes** (same paid creds, seeded) |
 | **L5** api_key key-entry connect path | open connect link → paste client_id + client_secret in the real drawer → `GET /connections` shows connected/configured → one **unseeded** live `heliox tool snov` run succeeds. Agent-drivable (agent-browser); human lane 3 fallback | **Yes** (same paid creds) |
 
 **Layers needing externally supplied credentials: L2, L4, L5** — all satisfied
