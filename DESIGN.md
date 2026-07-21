@@ -71,15 +71,39 @@ different credential class that does not fit the one-token `api_key` lane. Mixin
 both planes into one tool would force two credential kinds — a smell. One tool,
 one credential (the Public API workspace token).
 
-The Public API is **Team/Business-tier only** — recorded here because it gates
-the L2/L5 test account (§6), not because it changes the design.
+The Public API is **Team/Business-tier only** — the official Twilio observability
+recipe states plainly that "Public API is available for Team and all Business
+plans" (<https://www.twilio.com/en-us/recipes/observability-public-api>).
+Recorded here because it gates the L2/L5 test account (§6), not because it
+changes the design.
 
 ### Endpoints wrapped (all under the region host, US `https://api.segmentapis.com` in v1)
 
 REST, cursor-paginated. List responses are `{"data": {...}, "pagination":
-{"current","next","totalEntries"}}`; the query params are `pagination[count]`
-(1–200) and `pagination[cursor]`. The tool passes provider JSON through
-verbatim (see §2). Concretely wrapped:
+{"current","next","previous","totalEntries"}}` — the response object also carries
+`previous`, per the official Pagination reference
+(<https://docs.segmentapis.com/tag/Pagination/>). Pagination is supplied as a
+`count` (integer **1–1000**; **200 is the DEFAULT applied when the param is
+omitted, not the maximum**) plus a `cursor` (the base64 `current`/`next` value
+returned by a prior response).
+
+**The exact query-string ENCODING is not settled and MUST be pinned at L2 — it is
+deliberately NOT asserted here, in either notation.** Segment's own official
+materials conflict:
+
+- The OpenAPI reference "Example" fields use **dot** notation —
+  `.../warehouses?pagination.count=3&pagination.cursor=Mw%3D%3D`
+  (<https://docs.segmentapis.com/tag/Pagination/>).
+- Segment's official observability recipe uses **bracket** notation with
+  `curl --globoff` — `.../sources?pagination[count]=200&pagination[cursor]=current`
+  (<https://www.twilio.com/en-us/recipes/observability-public-api>).
+
+A prior review asked to correct this to dot notation and state it as fact; that
+is **rejected and recorded as a divergence** here, because the two official
+sources disagree and a `deepObject` query param can serialize either way. The L2
+harness pins whichever encoding the live API actually accepts (§6) before the L1
+fakes hardcode any shape. The tool passes provider JSON through verbatim
+(see §2). Concretely wrapped:
 
 - `GET /` — **Get Workspace** (also the identity/verify endpoint, §3).
   Confirmed against the official Go SDK: `getWorkspace` → `localVarPath =
@@ -92,13 +116,24 @@ verbatim (see §2). Concretely wrapped:
 - `GET /functions`
 - `GET /spaces`, `GET /spaces/{spaceId}/audiences`
 - `GET /iam/users`, `GET /iam/groups`
-- Delivery/usage (**PROVISIONAL — L2-gated**): `GET /sources/{id}/events-volume`
-  and the delivery-metrics surface (`.../metrics` / delivery-overview). These
-  two paths are **not confirmed Public API paths** — the exact path names and
-  query shape are pinned at L2 against the live API. An implementer MUST NOT
-  hardcode `events-volume`/`metrics` before L2 confirms them; if a path does not
-  exist, drop the dedicated subcommand and leave the surface reachable via the
-  raw `request` verb.
+- Delivery/usage (**PROVISIONAL — L2-gated, but the resource axes are now
+  known**): per the live docs
+  (<https://www.twilio.com/en-us/recipes/observability-public-api>) these two are
+  scoped **differently**, and NEITHER is source-scoped as an earlier draft
+  guessed:
+  - **Events Volume is workspace-scoped** — it enumerates the whole workspace's
+    event volume over time (minute/hour granularity). The recipe calls it as
+    `.../events/volume?granularity=HOUR&startTime=...&endTime=...`
+    (rate-limited ~60/min). The query axis is time + granularity, **not**
+    `--source-id`.
+  - **Delivery Metrics Summary is destination-scoped** — "get a delivery metrics
+    summary from a Destination", parameterized by a Destination plus its
+    associated Source (rate-limited ~5/min).
+  The final path names + exact query field names are still pinned at L2 against
+  the live API. An implementer MUST NOT hardcode paths before L2 confirms them;
+  if a path does not resolve, drop the dedicated subcommand and leave the surface
+  reachable via the raw `request` verb. Start from the workspace / destination
+  axes above — not a source axis.
 - **Raw escape hatch**: `segment request` (see §2). The Public API has 100+
   endpoints; hand-wiring all is neither in the 2–3h budget nor necessary. A
   generic passthrough (bearer-injected, JSON-through) keeps the whole surface
@@ -165,13 +200,18 @@ segment space list [--count N] [--cursor C]
 segment space audiences --space-id <id> [--count N] [--cursor C]
 segment iam user list [--count N] [--cursor C]
 segment iam group list [--count N] [--cursor C]
-# PROVISIONAL / L2-gated — path names unconfirmed; do not hardcode until L2 pins them:
-segment delivery events-volume --source-id <id> [--start ... --end ...]
-segment delivery metrics --source-id <id> --destination-config-id <id> [...]
-segment request --method GET --path /sources [--query 'pagination[count]=100'] [--body @file]
+# PROVISIONAL / L2-gated — path names unconfirmed; do not hardcode until L2 pins them.
+# Resource axes ARE known (see §1): events-volume is WORKSPACE-scoped (time+granularity),
+# delivery-metrics is DESTINATION-scoped (destination + its source) — NOT --source-id.
+segment delivery events-volume [--granularity HOUR --start ... --end ...]
+segment delivery metrics --destination-id <id> --source-id <id> [...]
+segment request --method GET --path /sources [--query '<pagination encoding pinned at L2>'] [--body @file]
 ```
 
-`--count`/`--cursor` map to `pagination[count]`/`pagination[cursor]`.
+`--count`/`--cursor` map to Segment's `count`/`cursor` pagination params; the
+exact query-string encoding (dot vs bracket — see §1) is pinned at L2, so the
+service builds the query through a single pagination-query helper that the L1
+tests assert on, rather than baking a notation into the CLI surface.
 
 ### JSON output shape
 
@@ -346,8 +386,8 @@ shape (JSON, bearer header, single userinfo GET) sits fully inside the closed
 
 | Layer | What it proves for Segment | External creds? |
 |---|---|---|
-| **L1** anycli `go test ./...` | `internal/tools/segment/` cobra tree + `definitions/tools/segment.json` against `httptest` fakes: request path/method, `Authorization: Bearer` header injection, `pagination[...]` query encoding, `data`/`pagination` passthrough, `--json` error envelope, exit codes 0/1/2. Never hits the real API. | No |
-| **L2** `anycli segment -- <args>` harness | `ANYCLI_CRED_ACCESS_TOKEN=<real token> anycli segment -- workspace get` and `-- source list` return real workspace/sources from a live Team/Business workspace. Pins the exact identity path (`/`), delivery-metrics path/query, and pagination shape against the live API. | **Yes** — one Team/Business-tier Public API token (account pool) |
+| **L1** anycli `go test ./...` | `internal/tools/segment/` cobra tree + `definitions/tools/segment.json` against `httptest` fakes: request path/method, `Authorization: Bearer` header injection, the output of the single pagination-query helper (the fake asserts whatever that helper emits — it does **NOT** prescribe dot-vs-bracket; that encoding is pinned at L2, §1), `data`/`pagination` (incl. `previous`) passthrough, `--json` error envelope, exit codes 0/1/2. Never hits the real API. | No |
+| **L2** `anycli segment -- <args>` harness | `ANYCLI_CRED_ACCESS_TOKEN=<real token> anycli segment -- workspace get` and `-- source list` return real workspace/sources from a live Team/Business workspace. Pins, against the live API: the identity path (`/`); the **exact pagination query encoding (dot `pagination.count` vs bracket `pagination[count]`, §1) and accepted `count` range (1–1000)**; the **workspace-scoped** events-volume path/params and the **destination-scoped** delivery-metrics path/params (§1). | **Yes** — one Team/Business-tier Public API token (account pool) |
 | **L3** `provider-gen --check` + both repos' unit suites | Bundle strict-decodes; five projections regenerate clean; `helio-cli` builds (local `replace` → anycli branch) and `go test ./cmd/heliox/cmds/tool/` passes; the visible-tool CLI test skips the still-hidden `segment`. | No |
 | **L4** singleton + seed + `heliox tool segment -- …` | `POST /internal/test-only/connections/seed` with `provider":"segment","access_token":"<real token>"` (seedable — api_key user-token provider; no refresh, so `access_token` only). Then `heliox tool segment -- workspace get` reaches the live API through the real token gateway + anycli. Uses a real seeded org/assistant/owner identity. | **Yes** — same L2 token |
 | **L5** full connect flow (once, pre-flip) | api_key **key-entry** path (master plan §2, not the OAuth path): open connect link → paste token in the real connect UI → stored via `POST /connections/credentials`, verified against `GET /` → connection shows connected/configured in `GET /connections` → one **unseeded** `heliox tool segment -- workspace get` through the real token gateway succeeds. Agent-drivable (agent-browser), human fallback on UI breakage. | **Yes** — same token + connect UI |
