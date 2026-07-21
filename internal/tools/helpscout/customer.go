@@ -102,24 +102,32 @@ func (s *Service) newCustomerCreateCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// newCustomerUpdateCmd — PUT /customers/{id}. Overwrites the customer's core
-// fields; 204 → an "updated" receipt.
+// newCustomerUpdateCmd — PATCH /customers/{id}, the API's partial Update
+// Customer endpoint. Only the fields passed are changed; omitted fields are
+// preserved. This is deliberately NOT PUT /customers/{id} (Overwrite Customer),
+// which nulls every field not present in the request — a natural partial
+// invocation there silently wipes firstName/lastName/organization/etc. Flags
+// compile to a JSON-Patch array of replace ops (the shape Help Scout's Update
+// Customer requires); 204 → an "updated" receipt.
 func (s *Service) newCustomerUpdateCmd(token string) *cobra.Command {
 	var firstName, lastName, organization, jobTitle string
 	cmd := &cobra.Command{
 		Use:   "update <id>",
-		Short: "Update a customer's core fields (PUT /customers/{id})",
+		Short: "Partially update a customer's core fields (PATCH /customers/{id})",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			body := map[string]any{}
-			setBodyIf(body, "firstName", firstName)
-			setBodyIf(body, "lastName", lastName)
-			setBodyIf(body, "organization", organization)
-			setBodyIf(body, "jobTitle", jobTitle)
-			if len(body) == 0 {
+			ops := []map[string]any{}
+			addReplaceOp(&ops, "/firstName", firstName)
+			addReplaceOp(&ops, "/lastName", lastName)
+			addReplaceOp(&ops, "/organization", organization)
+			addReplaceOp(&ops, "/jobTitle", jobTitle)
+			if len(ops) == 0 {
 				return &usageError{msg: "nothing to update: pass at least one field"}
 			}
-			if _, err := s.call(cmd.Context(), token, http.MethodPut, "/customers/"+url.PathEscape(args[0]), nil, body); err != nil {
+			// Update Customer takes the whole JSON-Patch array in one PATCH; only
+			// the listed paths change, so unset flags never overwrite existing
+			// fields.
+			if _, err := s.call(cmd.Context(), token, http.MethodPatch, "/customers/"+url.PathEscape(args[0]), nil, ops); err != nil {
 				return err
 			}
 			return s.emitReceipt(args[0], "updated")
@@ -136,5 +144,13 @@ func (s *Service) newCustomerUpdateCmd(token string) *cobra.Command {
 func setBodyIf(body map[string]any, key, value string) {
 	if value != "" {
 		body[key] = value
+	}
+}
+
+// addReplaceOp appends a JSON-Patch replace op for path only when value is
+// non-empty, so an unset flag never overwrites the existing customer field.
+func addReplaceOp(ops *[]map[string]any, path, value string) {
+	if value != "" {
+		*ops = append(*ops, map[string]any{"op": "replace", "path": path, "value": value})
 	}
 }
