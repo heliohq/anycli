@@ -427,6 +427,41 @@ func TestAPI_NowShorthandPath(t *testing.T) {
 	}
 }
 
+func TestAPI_ForwardsCustomHeader(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"result":{}}`, &got)
+	defer srv.Close()
+
+	code, _, _ := run(t, srv, "api", "POST", "/api/now/import/u_imp_set",
+		"--body", `{"u_field":"v"}`, "--header", "X-no-response-body:true")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if got.Header.Get("X-No-Response-Body") != "true" {
+		t.Errorf("custom header not forwarded: X-no-response-body = %q, want true", got.Header.Get("X-No-Response-Body"))
+	}
+	// The injected auth header must still be present and unchanged.
+	if got.APIKey != testAPIKey {
+		t.Errorf("%s = %q, want %q", apiKeyHeader, got.APIKey, testAPIKey)
+	}
+}
+
+func TestAPI_InjectedHeadersWinOverCustom(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"result":{}}`, &got)
+	defer srv.Close()
+
+	// A custom Accept must not displace the fixed application/json the tool sets.
+	code, _, _ := run(t, srv, "api", "GET", "/api/now/table/incident",
+		"--header", "Accept:text/csv")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if got.Accept != "application/json" {
+		t.Errorf("Accept = %q, want application/json (injected header must win)", got.Accept)
+	}
+}
+
 func TestAPI_RejectsAuthHeaderOverride(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{}`, &got)

@@ -2,6 +2,7 @@ package servicenow
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -26,7 +27,8 @@ func (s *Service) newAPICmd(c *client) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := rejectReservedHeaders(headers); err != nil {
+			extraHeaders, err := parseAPIHeaders(headers)
+			if err != nil {
 				return err
 			}
 			q, err := parseQueryPairs(queries)
@@ -40,7 +42,7 @@ func (s *Service) newAPICmd(c *client) *cobra.Command {
 					return err
 				}
 			}
-			resp, err := c.do(cmd.Context(), method, path, q, payload)
+			resp, err := c.do(cmd.Context(), method, path, q, payload, extraHeaders)
 			if err != nil {
 				return err
 			}
@@ -79,19 +81,24 @@ func normalizeAPIPath(raw string) (string, error) {
 	return raw, nil
 }
 
-// rejectReservedHeaders fails when a caller tries to override the injected
-// x-sn-apikey auth header via a raw --header (the notion precedent).
-func rejectReservedHeaders(vals []string) error {
+// parseAPIHeaders turns repeatable name:value flags into a canonical header map
+// that is forwarded to the request. It rejects an attempt to override the
+// injected x-sn-apikey auth header (the notion precedent); the auth/content
+// headers are re-applied after these in client.do so they always win.
+func parseAPIHeaders(vals []string) (map[string]string, error) {
+	out := map[string]string{}
 	for _, h := range vals {
-		name, _, ok := strings.Cut(h, ":")
+		name, val, ok := strings.Cut(h, ":")
 		if !ok || strings.TrimSpace(name) == "" {
-			return &usageError{msg: fmt.Sprintf("servicenow api: --header must be name:value, got %q", h)}
+			return nil, &usageError{msg: fmt.Sprintf("servicenow api: --header must be name:value, got %q", h)}
 		}
-		if strings.EqualFold(strings.TrimSpace(name), apiKeyHeader) {
-			return &usageError{msg: fmt.Sprintf("servicenow api: %s is injected and cannot be overridden", apiKeyHeader)}
+		canonical := http.CanonicalHeaderKey(strings.TrimSpace(name))
+		if strings.EqualFold(canonical, apiKeyHeader) {
+			return nil, &usageError{msg: fmt.Sprintf("servicenow api: %s is injected and cannot be overridden", apiKeyHeader)}
 		}
+		out[canonical] = strings.TrimSpace(val)
 	}
-	return nil
+	return out, nil
 }
 
 // parseQueryPairs turns repeatable k=v flags into url.Values.

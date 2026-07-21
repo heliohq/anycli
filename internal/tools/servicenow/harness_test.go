@@ -21,6 +21,7 @@ type capturedRequest struct {
 	Accept      string
 	ContentType string
 	Query       url.Values
+	Header      http.Header
 	Body        []byte
 }
 
@@ -44,6 +45,7 @@ func newMux(t *testing.T, reqs *[]capturedRequest, routes map[string]stub) *http
 			Accept:      r.Header.Get("Accept"),
 			ContentType: r.Header.Get("Content-Type"),
 			Query:       r.URL.Query(),
+			Header:      r.Header.Clone(),
 			Body:        body,
 		})
 		w.Header().Set("Content-Type", "application/json")
@@ -70,6 +72,7 @@ func newServer(t *testing.T, status int, response string, got *capturedRequest) 
 			Accept:      r.Header.Get("Accept"),
 			ContentType: r.Header.Get("Content-Type"),
 			Query:       r.URL.Query(),
+			Header:      r.Header.Clone(),
 			Body:        body,
 		}
 		w.Header().Set("Content-Type", "application/json")

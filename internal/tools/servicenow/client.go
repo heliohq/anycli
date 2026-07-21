@@ -84,12 +84,13 @@ func (c *client) callTable(ctx context.Context, method, table, sysID string, que
 	if sysID != "" {
 		path += "/" + url.PathEscape(sysID)
 	}
-	return c.do(ctx, method, path, query, payload)
+	return c.do(ctx, method, path, query, payload, nil)
 }
 
-// do performs one request against <base><path> with the x-sn-apikey header and,
-// for a JSON payload, Accept/Content-Type application/json.
-func (c *client) do(ctx context.Context, method, path string, query url.Values, payload any) ([]byte, error) {
+// do performs one request against <base><path>. Any caller-supplied headers are
+// applied first, then the fixed x-sn-apikey auth header and Accept/Content-Type
+// (application/json) are set so the injected credential can never be overridden.
+func (c *client) do(ctx context.Context, method, path string, query url.Values, payload any, headers map[string]string) ([]byte, error) {
 	var reqBody io.Reader
 	if payload != nil {
 		b, err := json.Marshal(payload)
@@ -105,6 +106,11 @@ func (c *client) do(ctx context.Context, method, path string, query url.Values, 
 	req, err := http.NewRequestWithContext(ctx, method, full, reqBody)
 	if err != nil {
 		return nil, &apiError{msg: fmt.Sprintf("servicenow: build request: %v", err), err: err}
+	}
+	// Custom headers first; the fixed auth/content headers below overwrite any
+	// same-named value so the injected credential can't be displaced.
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 	req.Header.Set(apiKeyHeader, c.apiKey)
 	req.Header.Set("Accept", "application/json")
@@ -159,7 +165,7 @@ func parseSNError(body []byte) (message, detail string) {
 	return env.Error.Message, env.Error.Detail
 }
 
-// resultObject unwraps a Table API response envelope {"result": …} to the bare
+// unwrapResult unwraps a Table API response envelope {"result": …} to the bare
 // result value. Table API always wraps single-record reads/writes in an object.
 func unwrapResult(body []byte) (json.RawMessage, error) {
 	var env struct {
