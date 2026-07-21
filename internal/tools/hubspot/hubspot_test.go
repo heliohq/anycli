@@ -37,11 +37,46 @@ func TestMissingTokenFailsFast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A missing bound token is a credential problem, not a flag-usage error:
+	// exit 1 (never the usage exit 2) and CredentialRejected so the host
+	// prompts a reconnect.
 	if result.ExitCode != 1 {
 		t.Fatalf("exit = %d", result.ExitCode)
 	}
+	if !result.CredentialRejected {
+		t.Fatal("missing token should mark the credential rejected")
+	}
 	if !strings.Contains(errBuf.String(), EnvAccessToken) {
 		t.Fatalf("stderr = %q", errBuf.String())
+	}
+}
+
+func TestMissingTokenJSONEnvelopeKindIsCredential(t *testing.T) {
+	var out, errBuf strings.Builder
+	svc := &Service{Out: &out, Err: &errBuf}
+	result, err := svc.Execute(t.Context(), []string{"--json", "account"}, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExitCode != 1 {
+		t.Fatalf("exit = %d", result.ExitCode)
+	}
+	var env struct {
+		Error struct {
+			Message string `json:"message"`
+			Kind    string `json:"kind"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(errBuf.String())), &env); err != nil {
+		t.Fatalf("stderr not a JSON envelope: %v (%s)", err, errBuf.String())
+	}
+	// The envelope kind must agree with the exit code: exit 1 is never "usage"
+	// (that is exit 2). A missing credential renders as "credential".
+	if env.Error.Kind != "credential" {
+		t.Fatalf("envelope kind = %q, want credential", env.Error.Kind)
+	}
+	if !strings.Contains(env.Error.Message, EnvAccessToken) {
+		t.Fatalf("envelope message = %q", env.Error.Message)
 	}
 }
 

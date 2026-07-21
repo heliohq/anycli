@@ -55,10 +55,14 @@ type Service struct {
 func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvAccessToken]
 	if token == "" {
-		// The token check runs before cobra parses flags, so detect --json in
-		// the raw args to honor the structured error-envelope contract.
-		s.renderError(hasJSONArg(args), &usageError{msg: EnvAccessToken + " is not set"})
-		return execution.Result{ExitCode: 1}, nil
+		// A missing bound token is a credential problem, not a flag-usage error:
+		// classify it as a credential rejection so the exit code (1) and the
+		// --json envelope kind ("credential") agree and the host prompts a
+		// reconnect. The check runs before cobra parses flags, so detect --json
+		// in the raw args to honor the structured error-envelope contract.
+		credErr := execution.RejectCredential(errors.New(EnvAccessToken + " is not set"))
+		s.renderError(hasJSONArg(args), credErr)
+		return execution.Failure(credErr), nil
 	}
 	root := s.newRoot(token)
 	root.SetArgs(args)
@@ -94,7 +98,10 @@ func hasJSONArg(args []string) bool {
 }
 
 // renderError writes err to stderr. Under --json the shape is
-// {"error":{"message":…,"kind":"usage|api","status":<HTTP or omitted>}}.
+// {"error":{"message":…,"kind":"usage|api|credential","status":<HTTP or
+// omitted>}}. kind mirrors the exit code: "usage" → exit 2, "api"/"credential"
+// → exit 1. A 401 keeps kind "api" (it carries an HTTP status); a missing bound
+// token renders as the bare "credential" rejection.
 func (s *Service) renderError(jsonMode bool, err error) {
 	if !jsonMode {
 		fmt.Fprintln(s.stderr(), err)
@@ -102,11 +109,14 @@ func (s *Service) renderError(jsonMode bool, err error) {
 	}
 	payload := map[string]any{"message": err.Error(), "kind": "usage"}
 	var apiErr *apiError
-	if errors.As(err, &apiErr) {
+	switch {
+	case errors.As(err, &apiErr):
 		payload["kind"] = "api"
 		if apiErr.status != 0 {
 			payload["status"] = apiErr.status
 		}
+	case execution.IsCredentialRejected(err):
+		payload["kind"] = "credential"
 	}
 	b, mErr := json.Marshal(map[string]any{"error": payload})
 	if mErr != nil {
