@@ -78,12 +78,31 @@ Verified on official pages (`/creating-an-oauth-app`, `/authentication`,
   **single-use** and rotate on every `grant_type=refresh_token` call;
   Calendly enforces this for all integrations by **August 31, 2026**. Reuse
   of a spent token → `invalid_grant` (400/401), unrecoverable without
-  re-authorization. Helio's 227 A3 refresh path already persists the rotated
-  refresh token with strict write-back (`token_refresh.go`: write-back
-  failure returns an error rather than handing out an unpersisted token), and
-  `refresh_lease: credential` serializes concurrent refreshes per credential
-  so parallel `heliox tool` calls cannot burn the token — both are required
-  for Calendly, not optional.
+  re-authorization. Two distinct mechanisms guard the rotating token, and
+  they cover **different** failures — the design does not conflate them:
+  - **A3 strict write-back** (`token_refresh.go`: write-back failure returns
+    an error rather than handing out an unpersisted token) guarantees that
+    after any *successful* refresh the persisted pair is the rotated one; a
+    losing refresh never overwrites a good token with a stale one it failed
+    to persist. A3 alone does **not** serialize the *reads*.
+  - **`refresh_lease: credential`** (`OAuthLeaseCredential`) serializes
+    refreshes per credential across replicas, so two parallel `heliox tool`
+    calls cannot both read the same live refresh token, both POST it, and
+    race Calendly into issuing two rotations whose write-backs interleave
+    destructively (persisting the already-spent one last → permanent brick).
+    That race is exactly what A3 alone leaves open for a single-use rotating
+    token: under `refresh_lease: none`, `acquireRefreshLease` returns `nil`
+    and there is zero per-credential serialization
+    (`service/token_refresh.go:79-118`).
+  Google / Notion / etc. ship `refresh_lease: none` correctly because their
+  refresh tokens are durable and reusable — concurrent refreshes off the same
+  token don't burn it. Calendly's single-use rotation is the reason it needs
+  the credential lease. **This is a real, owned service-side dependency, not
+  free** — the `standard_oauth` runtime contract pins `refresh_lease: none`
+  today and provider-gen hard-rejects `credential`, so shipping Calendly
+  requires the one-tuple contract relaxation detailed in §5 (the token-gateway
+  refresh path already *implements* the credential lease; only the contract
+  boundary forbids it).
 - **Scopes are wire-level AND app-level** (verified on `/scopes`): the official
   Scopes page documents a **space-separated `scope` param on the authorize
   request** (example: `…/oauth/authorize?…&scope=scheduled_events:read
@@ -201,7 +220,7 @@ auth:
                      scheduled_events:write, scheduling_links:write,
                      organizations:read]
     single_active_token: false
-    refresh_lease: credential          # single-use rotating refresh tokens (enforced 2026-08-31)
+    refresh_lease: credential          # single-use rotating refresh tokens (enforced 2026-08-31); needs the standard_oauth contract relaxation noted below
     revoke:
       url: https://auth.calendly.com/oauth/revoke   # officially documented (Revoke Access/Refresh Token)
       client_auth: form                # revoke body carries client_id + client_secret
@@ -218,7 +237,7 @@ identity:
 connection:
   mode: isolated
   disconnect_mode: provider_revoke     # Calendly documents OAuth token revoke (see auth.oauth.revoke)
-  runtime_strategy: standard_oauth     # no adapter: standard token JSON + userinfo identity
+  runtime_strategy: standard_oauth     # generic exchanger + userinfo identity; no provider adapter — but refresh_lease: credential needs the one-tuple contract relaxation described below
 
 resources:
   selection: none
@@ -235,7 +254,39 @@ tool:
   kind: oauth
 ```
 
-No service-side adapter: token response and identity are fully standard.
+**One deliberate service-side dependency — stated honestly, not hidden.**
+Calendly needs **no provider adapter** (no `adapter_*.go`, no special
+exchange/identity dialect): the generic exchanger, RFC 6901 declarative
+identity, and declarative revoke cover it end to end. It does, however, carry
+**one** required service-side change, and this design does not pretend
+otherwise. The `standard_oauth` runtime contract
+(`go-services/integration-service/model/runtime_contract.go:37-42`) currently
+pins `refreshLeaseScope: OAuthLeaseNone`, and `ValidateRuntimeContract` (same
+file, lines 224-232, run by `provider-gen --check` at
+`cmd/provider-gen/validate.go:405`) **hard-rejects** any `standard_oauth`
+bundle whose `refresh_lease != none` with
+`provider "calendly" strategy "standard_oauth" requires
+auth.oauth.refresh_lease "none", got "credential"`. So `refresh_lease:
+credential` cannot pass L3 as the contract stands today.
+
+Shipping Calendly therefore includes relaxing that one tuple, reviewed and
+landed together with this bundle (not deferred): change the `standard_oauth`
+oauth contract's single pinned `refreshLeaseScope` into an allow-set
+`{OAuthLeaseNone, OAuthLeaseCredential}` — google/notion/… keep `none`,
+Calendly declares `credential`, and `OAuthLeaseProvider` stays rejected (that
+scope is reserved for X's exclusive-grant strategy) — and turn the `!=`
+equality check on that field (lines 224-232) into a membership check, plus a
+`model` contract test asserting `standard_oauth` now accepts `credential` and
+still rejects `provider`. That field is read **only** at this validation
+boundary (the runtime reads `def.OAuth.RefreshLeaseScope`, not the contract's),
+so the change is contained. **No new runtime code is required** — the
+token-gateway refresh path already implements `OAuthLeaseCredential`
+(`service/token_refresh.go:79-118`, the per-credential `refresh:<provider>:<credentialID>`
+lease key); only the contract boundary forbids selecting it. This is the sole
+non-generated, committed service edit Calendly carries (distinct from the
+batch's generated-catalog default, and separate from the un-committed
+provider-gen projections per master plan §2).
+
 Other Helio artifacts (all batch-end shared surfaces except the yaml itself,
 which also rides batch end): icon `ui/helio-app/src/integrations/icons/calendly.svg`
 + `providerIcons.ts` entry; AI docs `agents/plugins/heliox/skills/tool/calendly.md`
@@ -253,7 +304,7 @@ anycli worktree.
 |---|---|---|
 | L1 | anycli `go test ./...`: httptest fakes asserting Bearer header, request paths/query (URI expansion, `me` resolution, range params), pagination passthrough, cancel/no-show/link/book request bodies, 401-rejected mapping, plain + `--json` error rendering | none |
 | L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli calendly -- me` then each verb family against the live API | **yes** — a Calendly **Personal Access Token** from the lane-2 test account, created with the §3 scope set (new PATs are scoped; an unscoped PAT has no access). PAT suffices because anycli only sees a bearer token |
-| L3 | local `go run ./cmd/provider-gen` + `--check` against this branch's bundle; helio-cli + integration-service unit suites with the local `replace` | none |
+| L3 | local `go run ./cmd/provider-gen` + `--check` against this branch's bundle — **passes only once the §5 `standard_oauth` refresh-lease contract relaxation has landed**; without it `--check` fails `provider "calendly" strategy "standard_oauth" requires auth.oauth.refresh_lease "none", got "credential"`. Also run the integration-service `model` contract test (the new `standard_oauth`-accepts-`credential` / still-rejects-`provider` case) + helio-cli + integration-service unit suites with the local `replace` | none |
 | L4 | singleton + `POST /internal/test-only/connections/seed` with `provider: "calendly"`, real `access_token` **and** `refresh_token` from the lane-1 **sandbox app**, deliberately short `expires_at` → forces the A3 refresh; then `heliox tool calendly -- me`. Run the tool **twice**: the second call proves the rotated (single-use) refresh token was persisted — this is the Calendly-specific L4 assertion, not optional | **yes** — lane-1 sandbox app client id/secret (uncommitted local `config/cloud.yaml`) + a token pair minted from it on the lane-2 test account |
 | L5 | `heliox tool calendly auth` → connect link → real consent on the test account → `oauth_connected` event → unseeded `heliox tool calendly -- me` and one write (e.g. `link create`); confirm the consent screen shows the §3 scope set | **yes** — human-in-the-loop (lane 3), production-app config landed in `config/` + `deploy/` |
 
@@ -281,6 +332,21 @@ anycli worktree.
 
 ### Resolved during review revision
 
+- **Refresh-lease vs. `standard_oauth` contract (blocker from review)**: the
+  prior draft asserted `runtime_strategy: standard_oauth` + `refresh_lease:
+  credential` while claiming "no service-side change" — an un-shippable
+  contradiction, since `ValidateRuntimeContract` pins `standard_oauth` to
+  `refresh_lease: none` and `provider-gen --check` (L3) hard-fails
+  `credential`. Verified against the code
+  (`runtime_contract.go:37-42`, `224-232`; `validate.go:405`;
+  `token_refresh.go:79-118`). Resolved by **owning** the required service-side
+  change: keep `refresh_lease: credential` (correct for Calendly's single-use
+  rotating tokens, which A3 strict write-back alone does not fully protect
+  against concurrent-refresh burn) and relax the `standard_oauth` contract's
+  refresh-lease pin to the allow-set `{none, credential}` with a `model`
+  contract test — the runtime already implements the credential lease, so no
+  new runtime code is needed. §3/§5/§6 now state this dependency explicitly
+  and no longer claim "zero service code". No longer contradictory.
 - **Scopes (was OQ "wire `scope` param")**: `/scopes` documents a wire-level
   space-separated `scope` param and a granular-scopes "no access until
   approved" model, so scopes ship **on the wire** (`auth.oauth.scopes`) plus
