@@ -204,9 +204,20 @@ mutually exclusive (usage error, exit 2).
   50; analytics posts `limit` 25, max 100 — mirror provider defaults, do not
   re-cap).
 - Errors: non-2xx → structured error on stderr (JSON under `--json`, else text),
-  exit 1; usage/flag errors exit 2. `401`/`403` → `CredentialRejected`
-  classification (see §4). `429` is a rate-limit runtime error (exit 1); surface
-  the `X-RateLimit-*` reset info in the message, do not auto-retry.
+  exit 1; usage/flag errors exit 2. `401` (and unambiguously auth-related `403`,
+  e.g. "Missing or invalid authentication") → `CredentialRejected` classification
+  (see §4). **Permission-scoped `403` is not a credential rejection.** Typefully
+  API keys inherit the creating user's per-social-set access level (READ / WRITE /
+  PUBLISH / ADMIN, per the official create-draft / queue docs: creating needs
+  WRITE, scheduling/immediate publish needs PUBLISH, `PUT queue/schedule` needs
+  ADMIN). A `403` that says the key lacks the required level on that social set
+  (e.g. "Insufficient permissions" / "You do not have permission to access this
+  social set") is an otherwise-valid key hitting an operation it is not allowed to
+  perform — surface it as a **distinct non-credential runtime error** (exit 1)
+  whose message tells the agent it is a permissions problem, so the connection is
+  **not** wrongly marked as needing reconnect. `429` is a rate-limit runtime error
+  (exit 1); surface the `X-RateLimit-*` reset info in the message, do not
+  auto-retry.
 
 ## 3. Credential fields & auth flow
 
@@ -233,13 +244,39 @@ connect drawer → integration-service verifies it against `GET /v2/me`
 
 ## 4. Helio provider bundle plan (`integrations/providers/typefully/provider.yaml`)
 
-`api_key` / `manual_api_token` bundle — the `instantly` precedent almost exactly,
-with a **cleaner identity story** because `GET /v2/me` returns a stable
-account-scoped id (instantly needed `workspaces:read`; Typefully needs nothing
-extra). No integration-service Go adapter, no capability growth: the existing
-`manual_api_token` runtime strategy + `api_key` Bearer-scheme connect-time
-verifier + declarative userinfo identity resolver cover it. **Hidden-first**
-(`presentation.visible: false`).
+`api_key` / `manual_api_token` bundle — the `instantly` precedent almost exactly.
+Runtime strategy (`manual_api_token`) + `api_key` Bearer-scheme connect-time
+verifier + declarative userinfo identity resolver need no Typefully-specific Go
+adapter. **One capability is a hard prerequisite, not "nothing extra":** the
+stable account key comes from `GET /v2/me`'s `id`, and **the official v2 schema
+types `id` as a JSON integer** (required; not a string). The declarative identity
+resolver on `origin/main`
+(`go-services/integration-service/service/declarative_identity.go`) extracts the
+stable key via `jsonPointerString`, which does a plain `value.(string)` and
+returns `"identity has no string value at stable key"` for any non-string. So
+`stable_key: /id` **fails connect-time identity resolution on `origin/main`**,
+breaking the connection `account_key` and therefore L4/L5. This is the same
+numeric-id problem hubspot (task #102) and mixpanel (#233) hit; hubspot's branch
+(`origin/tool/hubspot`) fixed it by replacing that `value.(string)` with a
+`stringifyIdentityValue` scalar coercion (`string` verbatim; `json.Number` →
+`.String()`; integral `float64` → decimal string). **That coercion is NOT on
+`origin/main` yet** (confirmed via `git show origin/main:.../declarative_identity.go`
+— and `origin/tool/mixpanel` also still has the plain assertion), so Typefully has
+a real dependency:
+
+- **Prerequisite (chosen path):** the numeric-stable-key coercion capability (the
+  hubspot `stringifyIdentityValue` branch) MUST be merged to `origin/main` before
+  Typefully ships with `stable_key: /id`. This is tracked as an explicit
+  dependency, not treated as zero capability growth. Typefully adds no *new*
+  capability — it reuses hubspot's — but it inherits the prerequisite.
+- **Why not a string field instead:** `/email` is a guaranteed string but is
+  **mutable**, so it is a poor immutable account key (an email change would fork
+  the connection identity); `id` is the only stable, immutable account key. The
+  correct fix is the numeric-key capability, so we do not fall back to `/email`
+  as the stable key.
+
+Otherwise this is close to `instantly` (no wire scopes; `instantly` needed
+`workspaces:read`). **Hidden-first** (`presentation.visible: false`).
 
 ```yaml
 schema: helio.provider/v1
@@ -270,13 +307,20 @@ auth:
     scheme: bearer            # send "Authorization: Bearer <key>" at verify time
     setup_url: https://typefully.com/?settings=api
 
-# GET /v2/me takes no params, resolves the account from the key, and returns a
-# stable string id plus label fields. Verifies the key at connect time.
+# GET /v2/me takes no params, resolves the account from the key, and verifies it
+# at connect time. `id` is the immutable account key but is a JSON *integer* in
+# the official v2 schema -> requires the numeric-stable-key coercion capability
+# on origin/main (hubspot #102's stringifyIdentityValue) before this ships; see
+# the prose above. label_candidates lead with guaranteed-string fields: /name
+# and /email are required strings; /api_key_label is a nullable object in the
+# schema ("Null if no label was set"), so it is kept only as a trailing best-
+# effort candidate (jsonPointerString falls through non-strings, so a non-string
+# api_key_label is harmless, just not a leading choice).
 identity:
   source: userinfo
   url: https://api.typefully.com/v2/me
   stable_key: /id
-  label_candidates: [/api_key_label, /name, /email, /id]
+  label_candidates: [/name, /email, /api_key_label]
 
 connection:
   mode: isolated
@@ -332,7 +376,7 @@ the two load-bearing gotchas spelled out:
 
 | Layer | What | External creds? |
 |---|---|---|
-| **L1** anycli unit | `go test ./...` green. httptest fake asserts: `me`/`social-set`/`draft` route to correct v2 paths; `Authorization: Bearer` header sent; `publish_at`/`status`/`limit`/`offset` map to the right body/query; `--data` vs typed-flag exclusivity → exit 2; 401/403 → CredentialRejected + exit 1; 429 → exit 1 rate-limit message; `--json` vs text error rendering; list envelope passthrough. | No (fakes) |
+| **L1** anycli unit | `go test ./...` green. httptest fake asserts: `me`/`social-set`/`draft` route to correct v2 paths; `Authorization: Bearer` header sent; `publish_at`/`status`/`limit`/`offset` map to the right body/query; `--data` vs typed-flag exclusivity → exit 2; 401 (and auth-related 403) → CredentialRejected + exit 1; permission-scoped 403 (valid key, insufficient social-set access level) → distinct non-credential runtime error + exit 1 (NOT CredentialRejected); 429 → exit 1 rate-limit message; `--json` vs text error rendering; list envelope passthrough. | No (fakes) |
 | **L2** harness real-API | `TYPEFULLY_API_KEY=… ./bin/anycli typefully -- me` and `-- social-set list`, then a real `draft create`/`get`/`delete` round-trip against a live Typefully account. Confirms v2 auth + paths + async publish behavior. | **Yes** — a real Typefully API key (v2), from the test-account pool (lane 2). Needs a paid tier if the account requires it for API/scheduling. |
 | **L3** generation + suites | `provider-gen` + `provider-gen --check` (bundle projects into all five files, directory-key equality, HTTPS identity/setup URLs, reviewed `manual_api_token` strategy); helio-cli + integration-service unit suites green. `helio-cli/go.mod` local uncommitted `replace` → anycli branch; **no committed regen/pin** (batch-lead owns those). | No |
 | **L4** singleton + seed | `make run-singleton` + `POST /internal/test-only/connections/seed` a Typefully key, then `heliox tool typefully -- me` / `-- social-set list` through the real token gateway (hidden tool runs as cobra-hidden). Success = the seeded key reaches the live v2 API and returns the account. | **Yes** — same real key seeded (bypasses connect UI). |
@@ -362,3 +406,15 @@ passes and the icon/i18n/docs are in. No review-clearance gate (api_key lane).
 - **No resolver divergence, no config append.** id==key==`typefully`; api_key
   bundle carries no client id/secret → no `toolToProvider` entry and no
   integration-service config/deploy Secret work. §0, §4.
+- **Numeric stable-key is a hard prerequisite (corrects an earlier "no capability
+  growth" claim).** `GET /v2/me`'s `id` is a JSON **integer**, and `origin/main`'s
+  `jsonPointerString` rejects non-strings. Typefully depends on the numeric-
+  stable-key coercion (hubspot #102 `stringifyIdentityValue`) being merged to
+  `origin/main` before it ships. Typefully adds no new capability of its own but
+  is blocked on that prerequisite; `/email` is not an acceptable substitute
+  stable key because it is mutable. §4.
+- **403 is not always a rejected credential.** Typefully keys inherit the user's
+  per-social-set access level (READ/WRITE/PUBLISH/ADMIN). Only 401 and auth-
+  related 403 map to `CredentialRejected`; a permission-scoped 403 (valid key
+  lacking the required level) is surfaced as a distinct non-credential runtime
+  error so the connection is not wrongly flagged for reconnect. §2.
