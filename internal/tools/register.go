@@ -22,6 +22,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/slides"
 	"github.com/heliohq/anycli/internal/tools/tasks"
 	"github.com/heliohq/anycli/internal/tools/x"
+	"github.com/heliohq/anycli/internal/tools/zohocrm"
 )
 
 // Built-in service registration. internal/exec imports this package (for
@@ -51,4 +52,5 @@ func init() {
 	RegisterService("microsoft-calendar", &microsoftcalendar.Service{})
 	RegisterService("microsoft-onedrive", &microsoftonedrive.Service{})
 	RegisterService("mongodb", &mongodb.Service{})
+	RegisterService("zoho-crm", &zohocrm.Service{})
 }
