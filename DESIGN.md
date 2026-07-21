@@ -280,7 +280,7 @@ identity:
 
 connection:
   mode: isolated
-  disconnect_mode: local_only    # + remote revoke via the revoke block
+  disconnect_mode: provider_revoke   # PostHog-side revoke via the revoke block above
   runtime_strategy: standard_oauth
 
 resources:
@@ -298,12 +298,27 @@ tool:
   kind: oauth
 ```
 
-Notes: `refresh_lease: credential` is load-bearing — PostHog rotates refresh tokens
-with reuse protection (2-min grace, then full session revocation), so concurrent
-refreshes for one credential must be serialized and the rotated `phr_` must be written
-back (integration-service already writes back `newTok.RefreshToken`,
-`service/token_refresh.go`). Access-token expiry for CIMD clients is 7 days, so
-refreshes are rare in practice; correctness still demands the lease.
+Notes:
+
+- `disconnect_mode: provider_revoke` is required, not optional, given the design's
+  intent to revoke on the PostHog side (`https://oauth.posthog.com/oauth/revoke/`).
+  The generator contract couples the two fields: for `runtime_strategy: standard_oauth`,
+  `validateOAuthRevocation` (`go-services/integration-service/cmd/provider-gen/validate.go`,
+  the `switch m.Connection.DisconnectMode` block) **forbids** an `auth.oauth.revoke`
+  block when `disconnect_mode` is `local_only` and **requires** one when it is
+  `provider_revoke`. `local_only` means "do not call provider revoke," so pairing it
+  with a revoke block is incoherent and fails `provider-gen --check` — the exact L3 gate
+  the §6 test plan and master plan §2 rely on. We keep the `revoke:` block and set
+  `provider_revoke`; L3 must confirm `provider-gen --check` passes on the corrected
+  bundle before the batch-end merge. The revoke call itself is `client_auth: none`
+  (public client — no client secret to present), targeting the rotated `refresh_token`
+  with `access_token` as fallback.
+- `refresh_lease: credential` is load-bearing — PostHog rotates refresh tokens
+  with reuse protection (2-min grace, then full session revocation), so concurrent
+  refreshes for one credential must be serialized and the rotated `phr_` must be written
+  back (integration-service already writes back `newTok.RefreshToken`,
+  `service/token_refresh.go`). Access-token expiry for CIMD clients is 7 days, so
+  refreshes are rare in practice; correctness still demands the lease.
 
 ### 5.2 CIMD document (replaces app registration — human lane 1)
 
@@ -345,9 +360,18 @@ Add one reviewed capability to the `standard_oauth` closed set — **public clie
   (PostHog's DOT server registers third-party clients with auth method `none`).
 - provider-gen validation: `form_public` requires `pkce: s256` and relaxes
   `validateConfigContract` to require only `oauth.client_id`.
-- Refresh path (`service/token_refresh.go`): `form_public` bypasses the
-  Basic-auth credential check; `golang.org/x/oauth2` with empty `ClientSecret` and
-  `AuthStyleInParams` already omits the empty secret param.
+- Refresh path (`service/token_refresh.go`, `requestOAuthRefresh`): `form_public`
+  must **explicitly** set `endpoint.AuthStyle = oauth2.AuthStyleInParams` (client_id in
+  the form body, no `client_secret`, no `Authorization` header) in addition to bypassing
+  the Basic-auth credential check. This is not automatic today: the current code sets
+  `AuthStyleInHeader` only for Basic-auth styles (`UsesHTTPBasicClientAuth`) and
+  otherwise leaves `AuthStyleAuto`. Under `AuthStyleAuto` with an empty `ClientSecret`,
+  `golang.org/x/oauth2` may probe HTTP Basic first (client_id + empty password), which
+  PostHog's secretless public-client token endpoint (auth method `none`) can reject —
+  breaking the mandatory L4(b) rotation/write-back path. Selecting `AuthStyleInParams`
+  is what actually pins the secretless body form; the library does not choose it on its
+  own. Assert this with the synthetic-provider unit test below: the refresh request must
+  carry `client_id` in the form and no `Authorization` header.
 - `provider_configuration.go`: configured == `client_id` present for `form_public`
   providers.
 - Proven by a synthetic-provider unit test (the existing standard_oauth test pattern);
