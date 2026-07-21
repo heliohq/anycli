@@ -60,12 +60,43 @@ stored secret** (see §3 — `validateCredentialInputSchema` in
 **not shippable** — it fails `provider-gen` and there is no runtime path for a
 second typed field to reach the deriver anyway (the manual write path collapses
 the connect payload to one secret string). So region is **folded into the
-single secret**: the user supplies `<region>:<api_key>` (e.g.
-`us:1234abcd…`), the same "one field carries two facts, split downstream"
-shape MongoDB uses (a DSN carries host + credentials in one pasted secret and
-the Helio-side deriver extracts the host as the account key). This is the only
+single secret**, the same "one field carries two facts, split downstream" shape
+MongoDB uses (a DSN carries host + credentials in one pasted secret and the
+Helio-side deriver extracts the host as the account key). This is the only
 manual-credential precedent that actually exists on `main`; the region-prefix
 split is a small, reviewed extension of it (§3).
+
+### Region is NOT a per-connection-unique key (the account-key limitation)
+
+Region routes the request host, but it is **not** a unique per-connection
+identity. Iterable keys are **project-scoped**, and marketing/notifications
+teams routinely run several projects in **one** data center (staging +
+production, or one per brand) — all USDC keys, all region `us`. There is no
+cheap project id to key on without a verify call, and `GET /api/campaigns`
+(the only cheap probe) carries **no per-account identity field** (§4), so
+region genuinely cannot serve as a unique per-connection key.
+
+This matters because the manual-credential connect path resolves the
+connection by `FindByAccountKey(org, assistant, provider, accountKey)` and, on
+a hit, calls `UpdateCredential` — i.e. it treats the second connect as a
+**reconnect and overwrites the stored credential**
+(`go-services/integration-service/service/manual_credential.go:92-135`). If
+`accountKey` were the bare region, two same-DC project keys would both derive
+`accountKey="us"`, and connecting the second would **silently overwrite** the
+first project's key onto the same connection — data loss with no error, cutting
+against the repo's fail-fast / no-silent-fallback hard rule.
+
+So the single secret carries an **optional project alias** as the disambiguator:
+the user pastes `<region>:<alias>:<api_key>` (e.g. `us:staging:1234abcd…`) to
+run multiple same-DC projects as distinct connections, or `<region>:<api_key>`
+(e.g. `us:1234abcd…`) when a single connection per data center is enough.
+Region stays the **host-routing** axis; alias is the **account-identity** axis
+— two orthogonal facts, one stored secret. `account_key` becomes `region` (no
+alias) or `region:alias` (aliased), so a US and an EU key never collide, an
+aliased `us:staging` and `us:prod` are distinct, and two **un-aliased** US keys
+consciously collapse onto one per-DC connection (a re-key, documented — not a
+surprise, since the alias is the escape hatch). See §3 for the full
+account/label model and the honest multi-account boundary.
 
 ## 2. anycli definition & service (SKILL.md stage 1–2)
 
@@ -82,7 +113,8 @@ structured error envelope.
 
 ### Credential binding (`definitions/tools/iterable.json`)
 
-**One** binding — the single stored secret, which carries `<region>:<api_key>`:
+**One** binding — the single stored secret, which carries
+`<region>[:<alias>]:<api_key>`:
 
 ```json
 {
@@ -98,17 +130,22 @@ structured error envelope.
 }
 ```
 
-The service reads `ITERABLE_API_KEY`, **splits on the first colon**: the prefix
-is the region (`us` → `api.iterable.com`, `eu` → `api.eu.iterable.com`; any
-other prefix, or a missing colon, is a fail-fast exit 2 — no silent default),
-and the remainder is the raw project key sent as header `Api-Key: <key>` on
-every request. Iterable keys are hex-shaped and never contain a colon, so
-first-colon-split is unambiguous (same rationale as a MongoDB DSN carrying
-everything in one pasted string). Single-secret manual credentials are the
-established precedent — MongoDB is the one live `manual_credentials` provider
-on `main`, and it likewise packs multiple facts into one pasted secret and
-derives the readable account key from it. There is **no** multi-typed-field
-manual-credential precedent (the storage face is single-secret; §3).
+The service reads `ITERABLE_API_KEY` and **splits on `:` into 2 or 3 parts**:
+`parts[0]` is the region (`us` → `api.iterable.com`, `eu` →
+`api.eu.iterable.com`; any other region, a part count outside {2,3}, or an
+empty region/key is a fail-fast exit 2 — no silent default); the **last** part
+is the raw project key sent as header `Api-Key: <key>` on every request; a
+present middle part is the account alias, which anycli **ignores** (it is a
+Helio-side account-identity fact only — anycli needs region + key). Iterable
+keys are alphanumeric and never contain a colon, and the alias is colon-free by
+construction (a colon in the alias would push the part count past 3 → exit 2),
+so the split is unambiguous (same colon-free-key rationale a MongoDB DSN and
+Amplitude's `region:key` split already rely on). Single-secret manual
+credentials are the established precedent — MongoDB is the one live
+`manual_credentials` provider on `main`, and it likewise packs multiple facts
+into one pasted secret and derives the readable account key from it. There is
+**no** multi-typed-field manual-credential precedent (the storage face is
+single-secret; §3).
 
 ### Subcommands (driven by what a Marketing/Notifications teammate does)
 
@@ -172,11 +209,15 @@ presentation:
   visible: false        # flip only after L5 + docs + icon + pin (stage 10)
 
 # auth.type credentials (design 317 D5): ONE stored secret. The user pastes
-# "<region>:<api_key>" (e.g. us:1234abcd…). There is no HTTPS identity endpoint
-# scoped to the key, so connect stores it without provider-side verification
-# (OQ1 no-verify): a bad key surfaces at first use via AnyCLI's
-# CredentialRejected. The account key/label is the region prefix (OQ2 —
-# human-readable), derived Helio-side by the region_prefix deriver (see below).
+# "<region>:<alias>:<api_key>" (e.g. us:staging:1234abcd…) to run multiple
+# same-DC projects as distinct connections, or "<region>:<api_key>" (e.g.
+# us:1234abcd…) for one connection per data center. There is no HTTPS identity
+# endpoint scoped to the key, so connect stores it without provider-side
+# verification (OQ1 no-verify): a bad key surfaces at first use via AnyCLI's
+# CredentialRejected. The account key/label is region (no alias) or
+# region:alias (OQ2 — human-readable), derived Helio-side by the region_prefix
+# deriver (see below). Region is NOT a per-connection-unique key on its own
+# (§1) — the alias is the same-DC disambiguator.
 auth:
   type: credentials
   owner: individual
@@ -186,15 +227,15 @@ auth:
         label_key: iterable_api_key
         secret: true
         required: true
-        placeholder: "us:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        placeholder: "us:staging:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         # ONE required field only — the storage face is single-secret
-        # (validateCredentialInputSchema). Region is the "<region>:" prefix
-        # of this value, not a second field.
+        # (validateCredentialInputSchema). Region is the leading segment and the
+        # optional alias the middle segment of THIS value, not extra fields.
     setup_url: https://support.iterable.com/hc/en-us/articles/360043464871-API-Keys
 
 identity:
-  source: strategy      # no project-name endpoint; label derived from region
-  deriver: region_prefix  # NEW reviewed manual_credentials deriver (see below)
+  source: strategy      # no project-name endpoint; label derived from region[:alias]
+  deriver: region_prefix  # generic reviewed manual_credentials deriver (see below)
 
 connection:
   mode: isolated
@@ -207,9 +248,10 @@ resources:
   enforcement: none
 
 # Single secret through the existing UpsertUserToken write path (design 317 D5:
-# token.access_token). The stored value is the full "<region>:<api_key>" string;
-# anycli splits it. account_key is the region, projected for label/dedup only —
-# anycli does not need it separately (it splits the secret itself).
+# token.access_token). The stored value is the full "<region>[:<alias>]:<api_key>"
+# string; anycli splits it. account_key is region or region:alias, projected for
+# label/dedup only — anycli does not need it separately (it splits the secret
+# itself and ignores the alias segment).
 credential:
   fields:
     api_key: token.access_token
@@ -224,38 +266,79 @@ Axis notes: `key:` == directory name == `iterable` (generator enforces
 equality). `tool.name` == `iterable` == anycli id. No `tool.command` (flat,
 ungrouped). No `experiment:` (GA, not preview-gated).
 
-### Identity / account label — and the capability growth this OWNS
+### Identity / account label — the multi-account boundary (honest), and the capability growth this OWNS
 
 The API key is **project-scoped with no user or project-name endpoint**, so
 there is nothing to `GET` for a display name — same situation as MongoDB
-(`identity.source: strategy`). The account key/label is region-derived:
-"Iterable — US" / "Iterable — EU". Because `region` is the human-readable
-account key, a teammate connecting a US and an EU project produces two distinct
-connections under one provider (`mode: isolated` supports this) — with **one**
-stored field each, not two.
+(`identity.source: strategy`). Region alone is derivable without a verify call,
+but **region is not a per-connection-unique key** (§1): Iterable keys are
+project-scoped and one data center hosts many projects, so region-only identity
+would silently overwrite (`FindByAccountKey` → `UpdateCredential`,
+`manual_credential.go:92-135`) whenever a teammate connects a second same-DC
+project. This is **not** presented as a clean isolated-multi-account win.
+
+The honest boundary, resolved via the optional alias folded into the single
+secret (§1):
+
+- **Un-aliased** `<region>:<key>` → `accountKey = region` (`us`/`eu`),
+  label `Iterable — US`|`Iterable — EU`. This is **one connection per data
+  center** per assistant: a US and an EU key are two connections, but a second
+  **un-aliased** US key is a conscious **re-key** of the US connection
+  (standard manual-credential reconnect semantics), not a second isolated
+  project. Documented in the bundle + connect docs so it is a stated model, not
+  a surprise.
+- **Aliased** `<region>:<alias>:<key>` → `accountKey = region:alias`
+  (`us:staging`), label `Iterable — US (staging)`. Distinct alias → distinct
+  connection, so `mode: isolated` genuinely delivers multiple same-DC projects
+  (staging + production, per-brand) with **one** stored field each. `us:staging`
+  and `eu:staging` never collide (region is part of the key).
 
 This design **owns** the following non-narrow integration-service work — it is
 NOT zero-touch, and must be scoped and reviewed on its own:
 
-1. **A new `manual_credentials` identity deriver, `regionPrefixIdentityDeriver`**
-   (in `service/manual_credentials_identity.go`, alongside the existing
-   `dsnHostIdentityDeriver`). Its `Verify` performs no provider request
-   (OQ1 no-verify), first-colon-splits the stored secret, validates the prefix
-   against the closed set `{us, eu}`, and returns `accountKey = region`,
-   `label = "Iterable — US"|"Iterable — EU"`, `identity = {"region": region}`.
+1. **A generic, bundle-parameterized `regionPrefixIdentityDeriver`** (in
+   `service/manual_credentials_identity.go`, alongside the existing
+   `dsnHostIdentityDeriver`) — deliberately **not** Iterable-specific. Its
+   `Verify` performs no provider request (OQ1 no-verify), splits the stored
+   secret into 2–3 colon segments, validates the region segment against a small
+   **shared** region-label map (`{us: "US", eu: "EU"}`, package-level, reused by
+   every US/EU-residency provider), and returns:
+   - `accountKey` = `region` (no alias) or `region:alias` (aliased),
+   - `label` = `"<brand> — <REGION>"` or `"<brand> — <REGION> (<alias>)"`, where
+     **`<brand>` comes from `presentation.name`** (not a baked-in string), and
+     `<REGION>` from the shared map,
+   - `identity` = `{"region": region}` (+ `"alias"` when present).
    The secret (including the raw key) never enters the returned identity map,
-   keeping Connection metadata secret-free — same invariant `dsnHostIdentityDeriver`
-   holds. A missing/invalid prefix returns a `manualCredentialFormatError`
-   (surfaced as a 4xx "paste `<region>:<key>`" message), never a 5xx.
+   keeping Connection metadata secret-free — same invariant
+   `dsnHostIdentityDeriver` holds. A missing/invalid region, out-of-range part
+   count, or empty alias/key returns a `manualCredentialFormatError` (4xx
+   "paste `<region>[:<alias>]:<key>`" guidance), never a 5xx. The label prefix
+   and the `{us, eu}` set are thus **inputs**, not compiled-in Iterable
+   concerns — the deriver is a generic region/prefix split.
 2. **Per-provider deriver selection.** Today
-   `composeProviderRegistration` (`service/provider_registry.go`) hardwires
-   `manual: dsnHostIdentityDeriver{}` for *every* `manual_credentials` provider.
-   That single deriver `url.Parse`s the secret and requires a host, so it would
-   **reject** an Iterable key outright — this path cannot be reused as-is even
-   for a US-only bare key. Add a reviewed `identity.deriver` enum
-   (`dsn_host` (default) | `region_prefix`) to the bundle contract and switch
-   on it in the `manual_credentials` arm. This stays inside the closed-capability
+   `composeProviderRegistration` (`service/provider_registry.go:88-98`)
+   hardwires `manual: dsnHostIdentityDeriver{}` for *every* `manual_credentials`
+   provider. That single deriver `url.Parse`s the secret and requires a host, so
+   it would **reject** an Iterable key outright — this path cannot be reused
+   as-is even for a US-only bare key. Add a reviewed `identity.deriver` enum
+   (`dsn_host` (default) | `region_prefix`) to the bundle contract and switch on
+   it in the `manual_credentials` arm. This stays inside the closed-capability
    discipline (a named, compiled deriver — no arbitrary YAML expression).
+
+**Batch-lead reconciliation note (finding follow-up).** The Amplitude tool
+(same Wave-2/3 batch, also US/EU residency) already added a first-colon-split
+region identity deriver on its own branch, and Braze/Mixpanel are the other
+residency-shaped siblings. Because bundles + generation are batch-end-serialized
+(master plan §2), two near-identical region derivers and two competing
+`identity.deriver` enum additions would collide at the batch-end merge. The
+batch lead MUST reconcile these into **one** parameterized `regionPrefixIdentityDeriver`
++ **one** `region_prefix` enum value shared by Iterable and Amplitude (and any
+other US/EU provider), rather than shipping per-provider copies. The same
+reconciliation should evaluate whether the residency siblings need the optional
+**alias** escape hatch: any sibling that keys the connection on region **alone**
+(Amplitude, as shipped) carries the identical same-DC silent-overwrite exposure
+described in §1; siblings whose credential already carries a project/account id
+(e.g. Mixpanel's project id) derive a unique key and do not.
 
 This is the D5-single-secret path (unchanged storage face) — it does **not**
 require the deferred D8 multi-field vault face. It is strictly a new *deriver +
@@ -281,11 +364,11 @@ key-scoped identity endpoint; it is **not** a prerequisite for the visible flip.
 
 | Layer | What runs | Needs external creds? |
 |---|---|---|
-| L1 | `go test ./...` in anycli: httptest fake for `api.iterable.com`; assert `Api-Key` header injected, `<region>:<key>` split (us/eu → base URL; missing/invalid prefix → exit 2), request shapes for each verb, and both text + `--json` error rendering. No real API. | No |
-| L2 | `ANYCLI_CRED_API_KEY="us:<key>" anycli iterable -- list list` (and a `user get`, `event track`, `campaign list`) against the **real** Iterable API. Mandatory before pin bump. | **Yes** — one server-side API key from a real Iterable project (test-account pool). |
-| L3 | `provider-gen` + `provider-gen --check` (five projections) locally on-branch — **now passes** the single-required-field check (one field); `helio-cli` build via uncommitted `go.mod replace` → anycli branch; `go test ./...` both repos incl. `helio-cli/.../cmds/tool`, the new `regionPrefixIdentityDeriver` unit test, and the per-provider deriver-selection test in integration-service. | No |
-| L4 | singleton + `POST /internal/test-only/connections/seed` (provider `iterable`, seed `access_token`=`us:<key>`, `account_key`=`us`) → `heliox tool iterable -- list list` reaches the live API through the real token gateway. api_key is seedable (not a minted provider). | **Yes** — same real key as L2. |
-| L5 | Full connect path once before the visible flip: `heliox tool iterable auth` → connect link → **paste `<region>:<key>` as the single secret** in the real connect UI (`POST /connections/credentials`) → connection shows connected/configured with label "Iterable — US" (`GET /connections`) → one **unseeded** live `heliox tool iterable -- list list`. This is the **api_key key-entry L5 path** (master plan §2), not the OAuth consent path. | **Yes** — real key; agent-drivable via agent-browser, human fallback on UI breakage. |
+| L1 | `go test ./...` in anycli: httptest fake for `api.iterable.com`; assert `Api-Key` header injected, `<region>[:<alias>]:<key>` split (2/3 parts; `us`/`eu` → base URL; last part → key; middle alias ignored; invalid region, part count ∉ {2,3}, or empty region/key → exit 2), request shapes for each verb, and both text + `--json` error rendering. No real API. | No |
+| L2 | `ANYCLI_CRED_API_KEY="us:<key>" anycli iterable -- list list` (and a `user get`, `event track`, `campaign list`) against the **real** Iterable API; plus one aliased `ANYCLI_CRED_API_KEY="us:staging:<key>"` run to prove the alias segment is ignored by anycli. Mandatory before pin bump. | **Yes** — one server-side API key from a real Iterable project (test-account pool). |
+| L3 | `provider-gen` + `provider-gen --check` (five projections) locally on-branch — **now passes** the single-required-field check (one field); `helio-cli` build via uncommitted `go.mod replace` → anycli branch; `go test ./...` both repos incl. `helio-cli/.../cmds/tool`, the generic `regionPrefixIdentityDeriver` unit test (un-aliased → `accountKey=region`; aliased → `accountKey=region:alias`; brand from `presentation.name`; **two un-aliased same-DC keys derive the same `accountKey` → assert the re-key/overwrite path, not a second connection**), and the per-provider deriver-selection test in integration-service. | No |
+| L4 | singleton + `POST /internal/test-only/connections/seed` (provider `iterable`, seed `access_token`=`us:staging:<key>`, `account_key`=`us:staging`) → `heliox tool iterable -- list list` reaches the live API through the real token gateway. api_key is seedable (not a minted provider). | **Yes** — same real key as L2. |
+| L5 | Full connect path once before the visible flip: `heliox tool iterable auth` → connect link → **paste `<region>:<alias>:<key>` (or `<region>:<key>`) as the single secret** in the real connect UI (`POST /connections/credentials`) → connection shows connected/configured with label "Iterable — US (staging)" (`GET /connections`) → one **unseeded** live `heliox tool iterable -- list list`. This is the **api_key key-entry L5 path** (master plan §2), not the OAuth consent path. | **Yes** — real key; agent-drivable via agent-browser, human fallback on UI breakage. |
 
 L2/L4/L5 all consume the **same single server-side API key** from the account
 pool — no OAuth app, no lane-1 dev-app creation, no review clearance gates
@@ -304,9 +387,13 @@ integration-service deriver capability (§3) merged.
 - Stage 6 service + capability growth: manual_credentials needs **no OAuth
   service code** and no `config/`+`deploy/` secret landing (no
   `required_config_fields`), **but it is NOT zero-touch**: this design owns the
-  two integration-service items in §3 — (1) the new `regionPrefixIdentityDeriver`
-  with its unit test, and (2) the reviewed `identity.deriver` bundle enum +
-  per-provider deriver selection in `composeProviderRegistration`, with its test.
+  two integration-service items in §3 — (1) the generic, bundle-parameterized
+  `regionPrefixIdentityDeriver` (brand from `presentation.name`, region from a
+  shared map, optional alias) with its unit test, and (2) the reviewed
+  `identity.deriver` bundle enum + per-provider deriver selection in
+  `composeProviderRegistration`, with its test. Both are **shared** with the
+  US/EU-residency siblings — see the §3 batch-lead reconciliation note so
+  Iterable and Amplitude land one deriver + one enum value, not two.
   Run `make test-integration-service` for both. No `service/adapter_*.go`, no
   token-gateway change — the runtime path stays generic manual_credentials with
   the single-secret storage face.
@@ -314,6 +401,9 @@ integration-service deriver capability (§3) merged.
   `providerIcons.ts` (manual, batch-end).
 - Stage 8 docs: provider sub-doc under
   `agents/plugins/heliox/skills/tool/`, plugin version bump (batch-end
-  publish). Document the `<region>:<key>` paste format for the connect step.
+  publish). Document the `<region>[:<alias>]:<key>` paste format for the connect
+  step, including that omitting the alias means one connection per data center
+  (a re-key on the next un-aliased same-DC connect) and that a distinct alias is
+  how a teammate runs multiple same-DC projects as isolated connections.
 - Stage 10 rollout: deploy hidden → L5 → flip `visible: true` + regenerate as
   the single go-live change.
