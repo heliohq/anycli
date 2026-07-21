@@ -22,9 +22,11 @@ Typeform is a form/survey product. The realistic AI-teammate jobs are:
    Create API `GET /forms/{id}`.
 3. **Find the right form**: list/search forms across workspaces. →
    `GET /forms`.
-4. **Author or edit forms**: draft a new survey from a team request, tweak
-   questions/settings on an existing one. → `POST /forms`,
-   `PUT/PATCH /forms/{id}`, `DELETE /forms/{id}`.
+4. **Author or edit forms**: draft a new survey from a team request, edit an
+   existing one. → `POST /forms`; `PUT /forms/{id}` for full overwrite
+   (including any question/field change); `PATCH /forms/{id}` for
+   metadata-only tweaks (title/theme/workspace/settings — see §2);
+   `DELETE /forms/{id}`.
 5. **Organize**: list/inspect workspaces so form creation lands in the right
    place. → Workspaces endpoints.
 6. **Wire notifications**: attach a webhook so new responses reach some
@@ -34,9 +36,13 @@ Typeform is a form/survey product. The realistic AI-teammate jobs are:
 Deliberately **excluded** in v1: Themes and Images APIs (visual asset
 management — not teammate work), response **deletion** (`responses:write`,
 destructive respondent-data removal; add later only with an explicit ask),
-Insights (not part of the documented Create/Responses/Webhooks reference
-surface), file/audio-video download endpoints (deferred; large-binary
-handling has no precedent need yet).
+Insights (`GET /insights/{form_id}/summary` — **officially documented** under
+the Responses API reference; deferred as a scope choice: all-time summary
+metrics only with no date filter, and gated on the Business plan, which the
+lane-2 test-account pool is not guaranteed to carry, so it can't be
+L2-verified; natural v1.1 add as a read-only `form insights` command),
+file/audio-video download endpoints (deferred; large-binary handling has no
+precedent need yet).
 
 All endpoints are on base `https://api.typeform.com`, auth
 `Authorization: Bearer <token>` (personal access token and OAuth access token
@@ -92,11 +98,11 @@ typeform form list      [--search s] [--workspace-id id] [--page n] [--page-size
                         [--sort-by created_at|last_updated_at] [--order-by asc|desc]
 typeform form get       <form_id>
 typeform form create    --definition <json|@file>          # POST /forms
-typeform form update    <form_id> --definition <json|@file>  # PUT (full)
-typeform form patch     <form_id> --patch <json|@file>       # PATCH (partial)
+typeform form update    <form_id> --definition <json|@file>  # PUT (full overwrite; the ONLY way to edit fields/questions)
+typeform form patch     <form_id> --patch <json|@file>       # PATCH (JSON-Patch ops; metadata only)
 typeform form delete    <form_id>
 typeform response list  <form_id> [--page-size n] [--since t] [--until t]
-                        [--after tok] [--before tok] [--response-type completed|partial|started]
+                        [--after tok] [--before tok] [--response-type list]
                         [--query s] [--fields f1,f2] [--answered-fields f1,f2] [--sort spec]
 typeform workspace list [--page n] [--page-size n] [--search s]
 typeform workspace get  <workspace_id>
@@ -112,6 +118,26 @@ Verb conventions match the built-in service conventions (design 003 §3):
 `list/get/create/update/delete`; `webhook set` reflects the API's upsert-by-tag
 semantics. `--definition`/`--patch` accept inline JSON or `@file`, mirroring
 how other service tools pass large JSON bodies non-interactively.
+
+**`form patch` semantics (per the official Update Form PATCH reference):**
+`--patch` takes a **JSON-Patch operations array** (`[{op, path, value}]`),
+and the API restricts `path` to `/title`, `/theme`, `/workspace`, and
+`/settings/*` (e.g. `/settings/is_public`, `/settings/meta`) — there is **no
+path for fields/questions**. Success returns `204 No Content`. Question/field
+edits go through `form update` (PUT full overwrite). Help text says so
+explicitly ("metadata-only JSON-Patch; use 'form update' to change
+questions") so agents don't attempt to patch fields and hit 400s.
+
+**`response list` filter semantics (per the official Retrieve Responses
+reference):** `--response-type` is passed through as a **comma-separated
+list** (e.g. `partial,completed`; allowed members `started|partial|completed`,
+validated member-by-member; API default `completed`). The chosen type changes
+which timestamp `--since`/`--until` filter on: `submitted_at` (completed),
+`staged_at` (partial), `landed_at` (started) — agents must pick the type to
+match the date window they mean, especially for partials. The docs also state
+`--after`/`--before` cursors **cannot be combined with `--sort`** (cursors
+force processing order); v1 passes both through and fails fast on the API
+error rather than pre-validating.
 
 ### Output & error contract
 
@@ -188,7 +214,7 @@ presentation:
 
 auth:
   type: oauth
-  owner: assistant
+  owner: individual   # the provider sees a person (GET /me → alias/email); connection belongs to the assistant — gmail/bitly precedent
   required_config_fields: [oauth.client_id, oauth.client_secret]
   oauth:
     authorize_url: https://api.typeform.com/oauth/authorize
