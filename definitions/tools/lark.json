@@ -1,6 +1,6 @@
 {
   "name": "lark",
-  "description": "Feishu / Lark via the official lark-cli (tenant access token, bot identity)",
+  "description": "Feishu / Lark via the official lark-cli (bot identity by default; `lark-cli auth login` device-flow grants user identity for `--as user`)",
   "binary": "lark-cli",
   "source": {
     "type": "github-release",
@@ -27,11 +27,6 @@
     ]
   },
   "before": [
-    {
-      "name": "bot identity only",
-      "rule": "set_env",
-      "config": {"env_var": "LARKSUITE_CLI_STRICT_MODE", "value": "bot"}
-    },
     {
       "name": "no update notifier",
       "rule": "set_env",

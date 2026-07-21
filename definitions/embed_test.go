@@ -181,22 +181,19 @@ func TestLoadBundled_LarkCliShape(t *testing.T) {
 			t.Errorf("binding %d inject = %+v, want env %s", i, binding.Inject, want[i].envVar)
 		}
 	}
-	// Strict bot mode is THE identity invariant: it alone keeps the CLI on
-	// the bot identity even if a user access token leaks into the ambient
-	// env (verified against the real v1.0.71 binary).
-	strictBot := false
+	// Dual identity is deliberate: the CLI defaults to the injected bot
+	// (tenant) identity, and the agent may run `lark-cli auth login`
+	// (OAuth device flow) to add a user identity for `--as user` reads.
+	// Strict mode would lock out that user leg — pin its ABSENCE so a
+	// bot-only lock can't silently return.
 	for _, r := range def.Before {
 		if r.Rule != "set_env" {
 			continue
 		}
 		envVar, _ := r.Config["env_var"].(string)
-		value, _ := r.Config["value"].(string)
-		if envVar == "LARKSUITE_CLI_STRICT_MODE" && value == "bot" {
-			strictBot = true
+		if envVar == "LARKSUITE_CLI_STRICT_MODE" {
+			t.Errorf("before rules set LARKSUITE_CLI_STRICT_MODE — dual identity (bot default + device-flow user login) must stay open")
 		}
-	}
-	if !strictBot {
-		t.Error("before rules lack set_env LARKSUITE_CLI_STRICT_MODE=bot — the bot-identity invariant")
 	}
 }
 
