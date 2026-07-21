@@ -224,6 +224,27 @@ func TestSendEmail_Body(t *testing.T) {
 	}
 }
 
+func TestSendEmail_PlaintextBodyMapsToBodyPlain(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"delivery_id":"d1"}`, &got)
+	defer srv.Close()
+
+	exit, _, stderr := run(t, srv, "send", "email",
+		"--transactional-id", "3", "--to", "jane@example.com",
+		"--identifier", "email=jane@example.com", "--plaintext-body", "Hello in plain text")
+	if exit != 0 {
+		t.Fatalf("exit = %d, stderr = %q", exit, stderr)
+	}
+	body := decodeBody(t, got.Body)
+	// POST /v1/send/email's plaintext field is `body_plain`, not `plaintext_body`.
+	if body["body_plain"] != "Hello in plain text" {
+		t.Errorf("body_plain = %v, want the plaintext override", body["body_plain"])
+	}
+	if _, wrong := body["plaintext_body"]; wrong {
+		t.Errorf("unexpected `plaintext_body` key in body: %v", body)
+	}
+}
+
 func TestSendEmail_BadIdentifierIsUsageError(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{}`, &got)
@@ -254,11 +275,13 @@ func TestMessageList_Filters(t *testing.T) {
 	srv := newServer(t, http.StatusOK, `{"messages":[]}`, &got)
 	defer srv.Close()
 
-	if exit, _, _ := run(t, srv, "message", "list", "--state", "bounced", "--type", "email", "--limit", "10"); exit != 0 {
+	if exit, _, _ := run(t, srv, "message", "list", "--metric", "bounced", "--type", "email", "--limit", "10"); exit != 0 {
 		t.Fatalf("exit != 0")
 	}
 	q := parseQuery(t, got.Query)
-	want := map[string]string{"state": "bounced", "type": "email", "limit": "10"}
+	// Delivery outcome is filtered by the `metric` query param (GET /v1/messages
+	// has no `state` param); `type` filters the channel.
+	want := map[string]string{"metric": "bounced", "type": "email", "limit": "10"}
 	for k, v := range want {
 		if q.Get(k) != v {
 			t.Errorf("query[%s] = %q, want %q", k, q.Get(k), v)

@@ -8,6 +8,46 @@ import (
 	"testing"
 )
 
+func TestExportPeople_FiltersBodyKey(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"export":{"id":"e1"}}`, &got)
+	defer srv.Close()
+
+	exit, _, stderr := run(t, srv, "export", "people", "--filters", `{"segment":{"id":3}}`)
+	if exit != 0 {
+		t.Fatalf("exit = %d, stderr = %q", exit, stderr)
+	}
+	if got.Method != http.MethodPost || got.Path != "/v1/exports/customers" {
+		t.Errorf("got %s %s, want POST /v1/exports/customers", got.Method, got.Path)
+	}
+	body := decodeBody(t, got.Body)
+	// POST /v1/exports/customers requires the audience filter under `filters`
+	// (plural); `filter` singular belongs to the customer-search endpoint.
+	filters, ok := body["filters"].(map[string]any)
+	if !ok {
+		t.Fatalf("body.filters missing/wrong type: %v", body)
+	}
+	seg, ok := filters["segment"].(map[string]any)
+	if !ok || seg["id"].(float64) != 3 {
+		t.Errorf("filters.segment = %v, want {id:3}", filters["segment"])
+	}
+	if _, wrong := body["filter"]; wrong {
+		t.Errorf("unexpected singular `filter` key in body: %v", body)
+	}
+}
+
+func TestExportPeople_RequiresFilters(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{}`, &got)
+	defer srv.Close()
+
+	// `filters` is required by the spec; omitting it must be a usage error
+	// rather than a full-workspace export.
+	if exit, _, _ := run(t, srv, "export", "people"); exit != 2 {
+		t.Errorf("missing-filters exit = %d, want 2", exit)
+	}
+}
+
 func TestExportGet_MetadataOnly(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"export":{"id":"e1","status":"in_progress"}}`, &got)

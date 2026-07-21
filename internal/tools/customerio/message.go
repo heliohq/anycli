@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Service) newMessageListCmd(key string) *cobra.Command {
-	var state, msgType, start string
+	var metric, msgType, start string
 	var limit int
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -17,8 +17,8 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
-			if state != "" {
-				q.Set("state", state)
+			if metric != "" {
+				q.Set("metric", metric)
 			}
 			if msgType != "" {
 				q.Set("type", msgType)
@@ -36,7 +36,7 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 			return s.emit(resp)
 		},
 	}
-	cmd.Flags().StringVar(&state, "state", "", "delivery state filter (e.g. sent, delivered, bounced)")
+	cmd.Flags().StringVar(&metric, "metric", "", "delivery outcome filter (e.g. sent, delivered, opened, clicked, bounced, failed)")
 	cmd.Flags().StringVar(&msgType, "type", "", "message type filter (e.g. email, sms, push)")
 	cmd.Flags().StringVar(&start, "start", "", "pagination cursor")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max results per page (0 = provider default)")

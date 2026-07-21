@@ -35,7 +35,7 @@ func (s *Service) newSendEmailCmd(key string) *cobra.Command {
 			setIfPresent(payload, "from", from)
 			setIfPresent(payload, "subject", subject)
 			setIfPresent(payload, "body", body)
-			setIfPresent(payload, "plaintext_body", plaintextBody)
+			setIfPresent(payload, "body_plain", plaintextBody)
 			setIfPresent(payload, "bcc", bcc)
 			setIfPresent(payload, "reply_to", replyTo)
 			if disableRetention {

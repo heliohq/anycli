@@ -52,20 +52,19 @@ func (s *Service) newExportDeliveriesCmd(key string) *cobra.Command {
 }
 
 func (s *Service) newExportPeopleCmd(key string) *cobra.Command {
-	var filter string
+	var filters string
 	cmd := &cobra.Command{
 		Use:   "people",
 		Short: "Start a people export (POST /v1/exports/customers)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			body := map[string]any{}
-			if filter != "" {
-				v, err := decodeJSONFlag("filter", filter)
-				if err != nil {
-					return err
-				}
-				body["filter"] = v
+			// The App API requires the audience filter under `filters` (plural);
+			// omitting it would otherwise export the entire workspace.
+			v, err := decodeJSONFlag("filters", filters)
+			if err != nil {
+				return err
 			}
+			body := map[string]any{"filters": v}
 			resp, err := s.call(cmd, key, http.MethodPost, "/v1/exports/customers", nil, body)
 			if err != nil {
 				return err
@@ -73,7 +72,8 @@ func (s *Service) newExportPeopleCmd(key string) *cobra.Command {
 			return s.emit(resp)
 		},
 	}
-	cmd.Flags().StringVar(&filter, "filter", "", "segment/attribute filter as raw JSON (exports all people when omitted)")
+	cmd.Flags().StringVar(&filters, "filters", "", "audience filter as raw JSON (and/or/not over segment & attribute conditions); required")
+	_ = cmd.MarkFlagRequired("filters")
 	return cmd
 }
 

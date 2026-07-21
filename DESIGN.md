@@ -60,7 +60,7 @@ Wrapped endpoints (all present in the official spec):
 | `GET /v1/newsletters` · `GET /v1/newsletters/{id}` · `GET /v1/newsletters/{id}/metrics` (+`/links`) | newsletter reporting |
 | `GET /v1/transactional` · `GET /v1/transactional/{id}` · `GET /v1/transactional/{id}/metrics` | transactional template inventory + performance |
 | `POST /v1/send/email` | send a transactional email |
-| `GET /v1/messages` · `GET /v1/messages/{id}` | workspace-wide delivery search (filter by state/type/time) |
+| `GET /v1/messages` · `GET /v1/messages/{id}` | workspace-wide delivery search (filter by metric/type/time) |
 | `POST /v1/exports/customers` · `POST /v1/exports/deliveries` · `GET /v1/exports` · `GET /v1/exports/{id}` · `GET /v1/exports/{id}/download` | bulk people/delivery data for analysis |
 | `GET /v1/workspaces` | workspace listing; doubles as the `whoami`-style connectivity check |
 
@@ -122,10 +122,10 @@ customer-io transactional list
 customer-io transactional get  --id <transactional_id>
 customer-io transactional metrics --id <transactional_id> [--period …]
 customer-io send email         --transactional-id <id> --to <email> --identifier <id|email=…> [--message-data <json>] [--from <e>] [--subject <s>] [--body <html>] [--plaintext-body <t>] [--bcc <e>] [--reply-to <e>] [--disable-message-retention] [--queue-draft]
-customer-io message list       [--state <s>] [--type <t>] [--start <cursor>] [--limit N]
+customer-io message list       [--metric <m>] [--type <t>] [--start <cursor>] [--limit N]
 customer-io message get        --id <message_id>
 customer-io export deliveries  --newsletter <id> | --campaign <id> | --action <id> [--start <ts>] [--end <ts>] [--metric <m>]
-customer-io export people      [--filter <json>]
+customer-io export people      --filters <json>
 customer-io export list
 customer-io export get         --id <export_id> [--download --out <path>]
 customer-io workspace list
