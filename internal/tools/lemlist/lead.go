@@ -138,11 +138,16 @@ func (s *Service) newLeadUnsubscribeCmd(key string) *cobra.Command {
 func (s *Service) newLeadDeleteCmd(key string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <campaignId> <leadId>",
-		Short: "Delete (or unsubscribe) a lead by id (DELETE /campaigns/{campaignId}/leads/{leadId})",
+		Short: "Force-delete a lead by id from a campaign (DELETE /campaigns/{campaignId}/leads/{leadId}?action=remove)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Lemlist only force-deletes when action=remove is sent; without it
+			// the endpoint silently falls back to unsubscribing (and then expects
+			// an email, not a lead id). Always send action=remove so `delete`
+			// actually removes the lead.
+			q := url.Values{"action": {"remove"}}
 			path := "/campaigns/" + url.PathEscape(args[0]) + "/leads/" + url.PathEscape(args[1])
-			body, err := s.call(cmd.Context(), key, http.MethodDelete, path, nil, nil)
+			body, err := s.call(cmd.Context(), key, http.MethodDelete, path, q, nil)
 			if err != nil {
 				return err
 			}

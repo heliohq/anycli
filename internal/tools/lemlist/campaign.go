@@ -89,12 +89,8 @@ func (s *Service) newCampaignStatsCmd(key string) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
-			if startDate != "" {
-				q.Set("startDate", startDate)
-			}
-			if endDate != "" {
-				q.Set("endDate", endDate)
-			}
+			q.Set("startDate", startDate)
+			q.Set("endDate", endDate)
 			body, err := s.call(cmd.Context(), key, http.MethodGet, "/v2/campaigns/"+url.PathEscape(args[0])+"/stats", q, nil)
 			if err != nil {
 				return err
@@ -102,8 +98,12 @@ func (s *Service) newCampaignStatsCmd(key string) *cobra.Command {
 			return s.emit(body)
 		},
 	}
-	cmd.Flags().StringVar(&startDate, "start-date", "", "window start (Unix seconds or ISO 8601)")
-	cmd.Flags().StringVar(&endDate, "end-date", "", "window end (Unix seconds or ISO 8601)")
+	cmd.Flags().StringVar(&startDate, "start-date", "", "window start in ISO 8601 (required)")
+	cmd.Flags().StringVar(&endDate, "end-date", "", "window end in ISO 8601 (required)")
+	// Lemlist documents both startDate and endDate as required for
+	// GET /v2/campaigns/{id}/stats; a bare call returns HTTP 400.
+	_ = cmd.MarkFlagRequired("start-date")
+	_ = cmd.MarkFlagRequired("end-date")
 	return cmd
 }
 

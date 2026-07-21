@@ -78,7 +78,7 @@ func TestTeamAndCampaignRoutes(t *testing.T) {
 		{"team credits", []string{"team", "credits"}, "GET", "/team/credits", nil},
 		{"campaign list", []string{"campaign", "list", "--status", "running", "--limit", "50"}, "GET", "/campaigns", map[string]string{"version": "v2", "status": "running", "limit": "50"}},
 		{"campaign get", []string{"campaign", "get", "cam_9"}, "GET", "/campaigns/cam_9", nil},
-		{"campaign stats", []string{"campaign", "stats", "cam_9"}, "GET", "/v2/campaigns/cam_9/stats", nil},
+		{"campaign stats", []string{"campaign", "stats", "cam_9", "--start-date", "2024-01-01", "--end-date", "2024-01-31"}, "GET", "/v2/campaigns/cam_9/stats", map[string]string{"startDate": "2024-01-01", "endDate": "2024-01-31"}},
 		{"campaign start", []string{"campaign", "start", "cam_9"}, "POST", "/campaigns/cam_9/start", nil},
 		{"campaign pause", []string{"campaign", "pause", "cam_9"}, "POST", "/campaigns/cam_9/pause", nil},
 	}
@@ -186,6 +186,49 @@ func TestLeadGetQueryAndUpdateAndDisposition(t *testing.T) {
 				t.Fatalf("no %s %s recorded; got %+v", tc.wantMethod, tc.wantPath, reqs)
 			}
 		})
+	}
+}
+
+// TestLeadDeleteForcesActionRemove is the load-bearing delete assertion:
+// Lemlist's DELETE /campaigns/{id}/leads/{leadId} only force-deletes when
+// action=remove is sent; without it the endpoint silently falls back to
+// unsubscribing (and expects an email, not a lead id). The `delete` verb must
+// therefore always send action=remove.
+func TestLeadDeleteForcesActionRemove(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"DELETE /campaigns/cam_1/leads/lea_1": {status: 200, body: `{"ok":true}`},
+	})
+	defer srv.Close()
+
+	code, _, errStr := run(t, srv.URL, "lead", "delete", "cam_1", "lea_1")
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%s", code, errStr)
+	}
+	req := findReq(reqs, "DELETE", "/campaigns/cam_1/leads/lea_1")
+	if req == nil {
+		t.Fatal("no DELETE /campaigns/cam_1/leads/lea_1 recorded")
+	}
+	if got := req.Query.Get("action"); got != "remove" {
+		t.Errorf("action = %q, want remove (force delete)", got)
+	}
+}
+
+// TestCampaignStatsRequiresDates guards the required window: Lemlist documents
+// both startDate and endDate as required for GET /v2/campaigns/{id}/stats, so a
+// bare `campaign stats <id>` must fail with a usage error (exit 2) rather than
+// issue a request that the API rejects with HTTP 400.
+func TestCampaignStatsRequiresDates(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{})
+	defer srv.Close()
+
+	code, _, errStr := run(t, srv.URL, "campaign", "stats", "cam_9")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2 (usage) for missing dates; stderr=%s", code, errStr)
+	}
+	if len(reqs) != 0 {
+		t.Errorf("expected no HTTP call for a usage error, got %d", len(reqs))
 	}
 }
 
