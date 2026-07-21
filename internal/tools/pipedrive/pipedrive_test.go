@@ -463,3 +463,53 @@ func TestSearchMissingTerm_Exit2(t *testing.T) {
 		t.Errorf("exit code = %d, want 2 when required --term is missing", code)
 	}
 }
+
+// --- multi-call sequence: read stages, then move a deal --------------------
+
+// TestStageListThenDealMove exercises the realistic two-step flow an agent
+// follows to move a deal: list the pipeline's stages, then PATCH the deal onto
+// one of them. Each command is a separate Execute call against one multi-route
+// fake server, so this asserts both requests were routed, paginated, and
+// authorized correctly — coverage the single-response newServer harness cannot
+// express.
+func TestStageListThenDealMove(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"GET /api/v2/stages":     {status: http.StatusOK, body: `{"success":true,"data":[{"id":7,"pipeline_id":3}]}`},
+		"PATCH /api/v2/deals/42": {status: http.StatusOK, body: `{"success":true,"data":{"id":42,"stage_id":7}}`},
+	})
+	defer srv.Close()
+
+	if code, _, stderr := run(t, srv, fullEnv(srv), "stage", "list", "--pipeline-id", "3"); code != 0 {
+		t.Fatalf("stage list exit = %d, stderr = %q", code, stderr)
+	}
+	if code, _, stderr := run(t, srv, fullEnv(srv), "deal", "update", "42", "--stage-id", "7"); code != 0 {
+		t.Fatalf("deal update exit = %d, stderr = %q", code, stderr)
+	}
+
+	stageReq := findReq(reqs, http.MethodGet, "/api/v2/stages")
+	if stageReq == nil {
+		t.Fatalf("no GET /api/v2/stages recorded; saw %+v", reqs)
+	}
+	if stageReq.Query.Get("pipeline_id") != "3" {
+		t.Errorf("stage list pipeline_id = %q, want 3", stageReq.Query.Get("pipeline_id"))
+	}
+	if stageReq.Auth != "Bearer seed-access-token" {
+		t.Errorf("stage list Authorization = %q, want Bearer seed-access-token", stageReq.Auth)
+	}
+
+	moveReq := findReq(reqs, http.MethodPatch, "/api/v2/deals/42")
+	if moveReq == nil {
+		t.Fatalf("no PATCH /api/v2/deals/42 recorded; saw %+v", reqs)
+	}
+	if moveReq.Auth != "Bearer seed-access-token" {
+		t.Errorf("deal move Authorization = %q, want Bearer seed-access-token", moveReq.Auth)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(moveReq.Body, &body); err != nil {
+		t.Fatalf("deal move body not JSON: %v (%s)", err, moveReq.Body)
+	}
+	if body["stage_id"] != float64(7) {
+		t.Errorf("deal move body.stage_id = %v, want 7", body["stage_id"])
+	}
+}
