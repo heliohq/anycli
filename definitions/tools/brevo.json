@@ -1,0 +1,13 @@
+{
+  "name": "brevo",
+  "type": "service",
+  "description": "Brevo (email marketing, transactional email, contacts, CRM) as a tool",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "BREVO_API_KEY"}
+      }
+    ]
+  }
+}
