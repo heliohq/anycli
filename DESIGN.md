@@ -325,3 +325,36 @@ recorded because they diverge from the review's stated facts:
    identity is a `manual_api_token` capability, so the bundle moves to
    `manual_api_token`; the region second-field interaction with its single-secret
    storage face is the one item flagged for stage-1 resolution.
+
+6. **Subscribers / topics / workflows are now `/v2`, not `/v1` (implementation
+   divergence, verified at stage 1 against `api.novu.co/openapi.json`
+   2026-07-22).** The design said "the tool wraps the mature v1 REST API (base
+   `/v1`)." The current machine-readable spec shows Novu has **moved** the CRUD
+   surfaces for these three resources to `/v2` (`/v2/subscribers`, `/v2/topics`,
+   `/v2/workflows`); the v1 forms are absent from the spec. Events, messages,
+   notifications, integrations, and environments stay `/v1`. The tool therefore
+   wraps a **mixed** surface, so the injected `NOVU_API_BASE` is the region
+   **host only** (no `/v1`), and each command builds its own versioned path
+   (`/v1/events/trigger`, `/v2/subscribers`, …). This is a code-shape change from
+   the notion precedent (whose `BaseURL` bakes in `/v1`), not a lane or auth
+   change. L2 confirms the v1 forms are truly retired (not merely undocumented)
+   before the pin bump.
+
+7. **Verbatim passthrough instead of per-endpoint unwrap (simplification).** §3
+   proposed a per-endpoint envelope map (unwrap `data` where present, pass bare
+   shapes through). Implementation instead passes **every** response through
+   verbatim — matching the notion/bitly precedent exactly — because a blanket
+   "unwrap top-level `data`" is provably wrong for the pagination endpoints
+   (`/v1/messages`, `/v1/notifications` carry a `data` array **plus** `page`/
+   `hasMore` siblings that unwrapping would drop), and verbatim loses no
+   information for any endpoint. The trigger outcome requirement is still met:
+   the `{"data":{status,error,activityFeedLink,…}}` envelope is emitted whole, so
+   `status` is visible; the L1 test `TestEventTriggerSurfacesNonProcessedStatus`
+   asserts a `trigger_not_active` result is not masked. This deletes the
+   envelope-map maintenance burden and one class of unwrap bugs — a subtract, not
+   an add.
+
+8. **Trigger `to` envelope wrap confirmed.** The rendered docs page claimed the
+   trigger `201` is **not** wrapped; `openapi.json` (authoritative) shows it **is**
+   `{"data": TriggerEventResponseDto}`. §2's wrapped-response statement stands; the
+   docs-page reading was wrong.
