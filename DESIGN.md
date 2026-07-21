@@ -35,8 +35,10 @@ correct — with **no divergence to record**:
   wire). Rate limit: 10 req/s per team (`x-ratelimit-*` headers, `429` on
   breach).
 
-**Divergence recorded: none.** Official docs agree with both the catalog auth
-lane (`api_key`) and the audit verdict.
+**Divergence on the auth lane: none.** Official docs agree with both the catalog
+auth lane (`api_key`) and the audit verdict. (One unrelated **request-shape**
+spec/doc divergence — the `ContactDeleteRequest` `required` array — is recorded
+in §2; it does not affect the auth lane.)
 
 ---
 
@@ -86,15 +88,33 @@ and every command intention-revealing.
 
 ### Request-shape notes (from the spec, load-bearing for the impl)
 
-- **`contact create` / `contact update`** accept arbitrary custom properties
-  (`additionalProperties: string|number|boolean`) beyond the fixed
-  `email`/`userId`/`subscribed`/`mailingLists` fields. The CLI exposes fixed
-  flags plus a repeatable `--property key=value` (typed-coerced) and an escape
-  hatch `--json '<raw object>'` merged into the body — so the AI can set any
-  custom field without a definition change.
-- **`contact delete`** requires `email` **and** `userId` per the spec's
-  `required: [email, userId]` on `ContactDeleteRequest` (note: this differs from
-  find/suppression, which are `anyOf`). The CLI validates and forwards both.
+- **`contact create` / `contact update`** — the `ContactFields` schema defines
+  these **first-class** (non-additional) properties: `email`, `firstName`,
+  `lastName`, `source`, `subscribed`, `userGroup`, `userId`, `mailingLists`.
+  `create` requires `email` (`ContactRequest = ContactFields + required:[email]`);
+  `update` requires **exactly one** of `email`/`userId` (`anyOf`). The CLI
+  exposes each first-class field as a named convenience flag — `--email`,
+  `--first-name`, `--last-name`, `--source`, `--subscribed`, `--user-group`,
+  `--user-id`, `--mailing-list id=bool` (repeatable) — so the most common
+  contact attributes (firstName/lastName especially) are intention-revealing,
+  not buried in a generic escape hatch. On top of that,
+  `ContactFields.additionalProperties` (`string|number|boolean`) permits
+  arbitrary custom properties, exposed via a repeatable `--property key=value`
+  (typed-coerced) plus an escape hatch `--json '<raw object>'` merged into the
+  body — so the AI can also set any custom field without a definition change.
+  (Custom properties must already exist in Loops before use, per the spec.)
+- **`contact delete`** accepts **exactly one** of `email` **or** `userId` — the
+  same "exactly-one" shape as `find`/`suppression`. **Spec/doc divergence
+  (recorded):** the OpenAPI `ContactDeleteRequest` schema lists
+  `required: [email, userId]` (both), but the official endpoint docs say
+  *"Include only one of `email` or `userId`,"* and the live API returns **`400`**
+  ("email and userId are both provided") when both are sent. The OpenAPI
+  `required` array is a known spec bug; the docs + live behavior are
+  authoritative here. The CLI therefore **requires exactly one identifier and
+  rejects the both-provided case client-side** (usage error, exit 2) — it does
+  **not** forward both. (Building the wrong validation here would 400 on every
+  invocation and an L1 fake would lock in the wrong contract — exactly the
+  provider quirk L2 exists to catch.)
 - **`event send`** body: `eventName` required, plus `email` **or** `userId`,
   optional `eventProperties` (object), optional `mailingLists`. Honors an
   optional `--idempotency-key` (spec `Idempotency-Key` header; `409` on replay).
@@ -313,7 +333,7 @@ entirely.
 
 | Layer | What it proves for Loops | Needs external creds? |
 |---|---|---|
-| **L1** | anycli `go test ./...`: `loops` service + definition unit tests against `httptest` fakes — asserts method/path/query, `Authorization: Bearer <key>` header, request bodies (contact custom props, event, transactional `dataVariables`), 401→`RejectCredential`, `--json` error envelope, exit codes 0/1/2. | No (fakes) |
+| **L1** | anycli `go test ./...`: `loops` service + definition unit tests against `httptest` fakes — asserts method/path/query, `Authorization: Bearer <key>` header, request bodies (first-class contact flags firstName/lastName/… as top-level body keys, custom props, event, transactional `dataVariables`), `contact delete` **rejects the both-identifiers case client-side (exit 2) and forwards exactly one**, 401→`RejectCredential`, `--json` error envelope, exit codes 0/1/2. | No (fakes) |
 | **L2** | Dev harness against the **real** Loops API: `ANYCLI_CRED_API_KEY=<key> anycli loops -- whoami` (expect `{success, teamName}`), then `contact create/find/delete`, `event send`, `email list`, `list ls` against a **real Loops test team**. Proves field names + Bearer injection + request shapes match the live API. | **Yes** — a real Loops account API key (test-account pool, master plan lane 2) |
 | **L3** | `provider-gen --check` (run locally on-branch; expected red in CI until batch end) + both repos' unit suites: `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/`, and integration-service tests including the new/ reused Bearer-scheme verifier test. Point `helio-cli/go.mod` at the anycli branch via a **local, uncommitted** `replace`. | No |
 | **L4** | Singleton + seed a real key through the token gateway: `POST /internal/test-only/connections/seed` with `provider: loops`, `access_token: <real key>`, a **real** seeded org/assistant identity → `201`; then `heliox tool loops -- whoami` and one write (`contact create`) reach the live API. Seeds `access_token` only (no refresh/expiry — non-expiring bot-class token). | **Yes** — real key (same as L2) |
