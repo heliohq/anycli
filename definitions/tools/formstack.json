@@ -1,0 +1,13 @@
+{
+  "name": "formstack",
+  "type": "service",
+  "description": "Formstack as a tool (OAuth 2.0 access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "FORMSTACK_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
