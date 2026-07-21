@@ -10,7 +10,7 @@ All provider facts below were verified against Zoho's official docs on 2026-07-2
   `zoho.com/crm/developer/docs/api/v8/{oauth-overview,register-client,auth-request,access-refresh,refresh,revoke-tokens}.html`
 - Scopes: `zoho.com/crm/developer/docs/api/v8/scopes.html`
 - Records / search / insert: `zoho.com/crm/developer/docs/api/v8/{get-records,search-records,insert-records}.html`
-- Header schemes: Zoho Accounts OAuth protocol docs (`zoho.com/accounts/protocol/oauth/use-access-token.html`) — both `Authorization: Zoho-oauthtoken <t>` and `Authorization: Bearer <t>` are officially accepted.
+- Header schemes: the CRM data plane (`zohoapis.com/crm/v8`) requires `Authorization: Zoho-oauthtoken <t>` (CRM V8 docs); the accounts server's userinfo endpoint (`accounts.zoho.com/oauth/user/info`) additionally accepts `Authorization: Bearer <t>` per the Zoho Accounts OAuth protocol doc (`zoho.com/accounts/protocol/oauth/use-access-token.html`, whose Bearer example is shown against that accounts endpoint). These are different hosts — Bearer is not assumed to work on the CRM host.
 
 ## 0. Audit-verdict note (divergence log)
 
@@ -38,7 +38,7 @@ V8 contract details that shape the CLI (verified):
 - List records: `fields` param is **mandatory** (max 50 field API names); `per_page` default/max 200; `page` covers only the first 2,000 records, then `page_token`/`next_page_token` takes over (token valid 24 h, cannot combine with `page`); `sort_by` ∈ {`id`,`Created_Time`,`Modified_Time`}.
 - Search: exactly one of `criteria` / `email` / `phone` / `word` (priority order if several); optional `fields`; hard cap 2,000 results (`LIMIT_REACHED`); needs the extra scope `ZohoSearch.securesearch.READ` on top of the module scope (missing it → `OAUTH_SCOPE_MISMATCH` 401).
 - Insert: `{"data":[…]}`, max 100 records/call, per-record status objects, HTTP 207 on mixed outcomes; optional `trigger` array (pass `[]` to suppress workflows — exposed as a flag, default = provider default, i.e. automations run).
-- Auth header: the service sends `Authorization: Zoho-oauthtoken <access_token>` (the CRM-documented scheme; `Bearer` is also officially accepted per Zoho Accounts docs, which is what makes the Helio-side declarative identity probe work — §3.3).
+- Auth header: the service sends `Authorization: Zoho-oauthtoken <access_token>` — the scheme the CRM V8 docs require on every `zohoapis.com/crm/v8` call. The Helio-side declarative identity probe does **not** hit the CRM host; it hits the accounts-server userinfo endpoint, which accepts `Bearer` (§3.3). Do not conflate the two hosts.
 
 ## 2. anycli definition & service
 
@@ -122,20 +122,21 @@ ZohoSearch.securesearch.READ # required by GET /{module}/search (401 OAUTH_SCOPE
 ZohoCRM.coql.READ            # POST /coql
 ZohoCRM.settings.modules.READ
 ZohoCRM.settings.fields.READ
-ZohoCRM.users.READ           # user list + identity probe (CurrentUser)
+ZohoCRM.users.READ           # user list + assignment context (`user list` / `user me`)
 ZohoCRM.org.READ             # org get
+AaaServer.profile.READ       # identity probe: accounts.zoho.com/oauth/user/info
 ```
 
 `ZohoCRM.modules.ALL` is deliberate (vs per-module scopes): the tool is module-generic including custom modules, and per-module scopes would break `--module <custom>`. Operation types are `ALL/CREATE/READ/UPDATE/DELETE` (no `WRITE`).
 
 ### 3.3 Identity
 
-`identity.source: userinfo` against `https://www.zohoapis.com/crm/v8/users?type=CurrentUser`:
+`identity.source: userinfo` against `https://accounts.zoho.com/oauth/user/info` (accounts server, query-free):
 
-- Response: `{"users":[{"id":"<string>","email":…,"full_name":…,…}]}` → `stable_key: /users/0/id`, `label_candidates: [/users/0/email, /users/0/full_name, /users/0/id]`. RFC 6901 array indices are supported by `resolveJSONPointer`; CRM ids and emails are JSON strings (the resolver requires string values).
-- The declarative userinfo fetch sends `Authorization: Bearer <token>` (`oauth_exchange.go:170`) — officially accepted by Zoho alongside `Zoho-oauthtoken`, so no adapter is needed for identity.
-- Rejected alternative: `accounts.zoho.com/oauth/user/info` (`AaaServer.profile.READ`) — its `ZUID` is a JSON **number**, which `jsonPointerString` rejects (string-only), and it would add a scope for nothing.
-- Note: stable key is the CRM **user id**, which is org-scoped — the same human connecting two Zoho orgs yields two account keys. That is correct behavior (tokens are org-specific anyway).
+- Why the accounts endpoint, not the CRM one: the declarative resolver fetches userinfo with `Authorization: Bearer <token>` (`oauth_exchange.go` `fetchUserInfo`). Zoho's CRM V8 docs require the custom `Zoho-oauthtoken` prefix on every `zohoapis.com/crm/v8` call, so the CRM `/crm/v8/users?type=CurrentUser` endpoint is **not** usable by the Bearer-sending declarative resolver — and it would need a query on the userinfo URL. The accounts-server `/oauth/user/info` endpoint, by contrast, officially accepts `Bearer` (Zoho Accounts "Using Access token" doc, whose Bearer example runs against this exact endpoint) and takes no query. Requires the `AaaServer.profile.READ` scope.
+- Response: `{"First_Name":…,"Last_Name":…,"Email":"<string>","Display_Name":"<string>","ZUID":<number>}` → `stable_key: /Email`, `label_candidates: [/Display_Name, /Email]`. `ZUID` is the natural person id but it is a JSON **number**, and `jsonPointerString`/the resolver require a **string** value; `Email` is the only string identity field, so it is the stable key. (Switching the stable key to `ZUID` would need generic numeric-stable-key support in the resolver — out of scope here, tracked separately with the HubSpot row.)
+- No adapter and no service-side capability growth: identity stays fully declarative, and the earlier query-permitting userinfo validator is dropped (zoho_crm was its only consumer).
+- Note: `Email`/`ZUID` are account-level (one Zoho user), not org-scoped, so the same human connecting two orgs yields **one** account key. That is fine under `connection.mode: isolated` (tokens remain org-specific). Trade-off: a Zoho email change would mint a new account key on reconnect — an accepted limitation for the hidden-first beta.
 
 ### 3.4 Multi-DC — the one real divergence (V1 scoping decision)
 
@@ -180,9 +181,9 @@ auth:
       prompt: consent        # forces fresh refresh token on reconnect
     scopes: [ZohoCRM.modules.ALL, ZohoSearch.securesearch.READ, ZohoCRM.coql.READ,
              ZohoCRM.settings.modules.READ, ZohoCRM.settings.fields.READ,
-             ZohoCRM.users.READ, ZohoCRM.org.READ]
+             ZohoCRM.users.READ, ZohoCRM.org.READ, AaaServer.profile.READ]
     display_scopes: [modules.ALL, securesearch.READ, coql.READ,
-                     settings.READ, users.READ, org.READ]
+                     settings.READ, users.READ, org.READ, profile.READ]
     single_active_token: false
     refresh_lease: none
     revoke:
@@ -194,9 +195,9 @@ auth:
 
 identity:
   source: userinfo
-  url: https://www.zohoapis.com/crm/v8/users?type=CurrentUser
-  stable_key: /users/0/id
-  label_candidates: [/users/0/email, /users/0/full_name, /users/0/id]
+  url: https://accounts.zoho.com/oauth/user/info   # accounts server; accepts Bearer, query-free
+  stable_key: /Email                                # ZUID is a JSON number; resolver is string-only
+  label_candidates: [/Display_Name, /Email]
 
 connection:
   mode: isolated
