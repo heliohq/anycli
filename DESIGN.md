@@ -11,26 +11,34 @@
 
 ## 1. What an AI teammate does with Mixpanel, and which API surface that maps to
 
-Mixpanel is a product-analytics platform. An AI teammate's job against it is **read/query product analytics** — "how did signups trend last week", "what's the activation funnel conversion", "which events fire most", "pull the retention curve for the mobile cohort". It does **not** ingest events (that is the app's own instrumentation job, and uses a different credential — see §6). So this tool wraps Mixpanel's **Query API**, plus a thin slice of the **Lexicon Schemas API** (so the AI can discover what events/properties exist before querying) and the **Raw Data Export API** (bounded event pulls). Verification/identity rides the **App API** `/api/app/me`.
+Mixpanel is a product-analytics platform. An AI teammate's job against it is **read/query product analytics** — "how did signups trend last week", "what's the activation funnel conversion", "which events fire most", "pull the retention curve for the mobile cohort". It does **not** ingest events (that is the app's own instrumentation job, and uses a different credential — see §6). So this tool wraps Mixpanel's **Query API**, plus a thin slice of the **Lexicon Schemas API** (documented event/property schemas — a discovery *aid*, not the full inventory; see the caveat below) and the **Raw Data Export API** (bounded event pulls). `mixpanel events-names` (GET `/api/query/events/names`) is the **primary event-name discovery primitive** — it returns the actively-firing event names; lexicon supplements it with descriptions/metadata where authors created schemas.
+
+**Event discovery uses `events-names`, not lexicon.** Mixpanel's Lexicon Schemas API returns **only entities that have an authored schema** (created via the Schema API, CSV import, or UI metadata edits) — it is explicitly "a subset of the data that appears in Lexicon UI," and per Mixpanel's docs "entities seen in your Lexicon UI that were sent within the last 30 days without a Schema will not be reflected in the Lexicon Schema payload." So a project that never authored schemas returns a **partial or empty** list even though events are actively firing. An AI must not read an empty/short lexicon as "this project has no events." The authoritative event-name source is `mixpanel events-names`; lexicon is a documentation overlay only. This caveat is stated in the AI-facing sub-doc (§8).
+
+**Identity is derived from the credential, not from a connect-time verifier.** `account_key`/label come from the stored fields (`project_id`, `service_account_username`) — see §4 — so there is no static identity URL, and no region-scoped verifier to get wrong (Finding-1 resolution). The `mixpanel me` verb still exists as a **runtime** identity/auth probe the AI or user can run right after connecting (it is region-aware like every other call); a wrong secret surfaces there as a distinct `401` (§2.4).
 
 Official API inventory (verified against `docs.mixpanel.com/reference/overview`, redirected from `developer.mixpanel.com`):
 
 | Mixpanel API | Host (US) | This tool uses it? | Why |
 |---|---|---|---|
 | **Query** | `mixpanel.com/api/query/…` | **Yes — core** | The calculated data powering the Mixpanel web app: Insights, Segmentation, Funnels, Retention, Events, Cohorts, Engage (people). This is what an AI reads. |
-| **Lexicon Schemas** | `mixpanel.com/api/app/projects/…` | **Yes — discovery** | Lets the AI list event/property definitions before writing a query, instead of guessing event names. |
+| **Lexicon Schemas** | `mixpanel.com/api/app/projects/…` (region-scoped) | **Yes — documentation overlay** | Lists **only** event/property definitions that have an authored schema (subset of the Lexicon UI; schemaless-but-active events are omitted). A supplement to `events-names`, not the discovery primitive. |
 | **Raw Data Export** | `data.mixpanel.com/api/2.0/export` | **Yes — bounded** | Raw event stream for a date range/filter. Large & JSONL-streamed; exposed with mandatory date bounds and a documented "this can be big" caveat. |
-| **App / `me`** | `mixpanel.com/api/app/me` | **Yes — verify only** | Connect-time credential verification + identity label. |
+| **App / `me`** | `mixpanel.com/api/app/me` (region-scoped) | **Yes — runtime probe** | Runtime identity/auth check (region-aware); **not** a connect-time verifier — identity is credential-derived (§4). |
 | Ingestion (`api.mixpanel.com`) | — | **No** | Writing events; uses a **project token**, not the service account. Out of scope for a read/analytics tool (§6). |
 | Data Pipelines / Warehouse Connectors / GDPR / Feature Flags | — | **No** | Ops/admin surfaces outside an AI teammate's analytics workflow. |
 
-**Region matters and is not cosmetic.** Mixpanel enforces data residency: the same logical API lives on three host families, and a US-host call against an EU-resident project simply fails. So region is a first-class credential input, not a constant:
+**Region matters and is not cosmetic.** Mixpanel enforces data residency: the same logical API lives on three host families, and a US-host call against an EU-resident project simply fails. This applies to **every** surface — Query, Export, **and the App API** (`/api/app/me`, Lexicon Schemas), all confirmed region-scoped against `docs.mixpanel.com/reference/overview`. So region is a first-class credential input, not a constant:
 
 | Region | Query / App host | Export host |
 |---|---|---|
 | US (default) | `mixpanel.com` | `data.mixpanel.com` |
 | EU | `eu.mixpanel.com` | `data-eu.mixpanel.com` |
 | India | `in.mixpanel.com` | `data-in.mixpanel.com` |
+
+Because the App API is *also* region-scoped, host selection cannot be a static string anywhere — including for `me`/`lexicon`. The region-aware **anycli service** builds the host from `MIXPANEL_REGION` for **all** surfaces uniformly (Query, Export, App). This is exactly why identity is credential-derived rather than fetched from a fixed verifier URL (§4/§5): a single declarative `identity.url` cannot honor residency, so we don't use one.
+
+**Rate limits (verified, `docs.mixpanel.com/reference/segmentation-query`):** the Query API caps at **60 queries/hour** with **max 5 concurrent queries**. An AI teammate firing successive analytics calls will hit this readily, so `429` is surfaced as a **distinct, retryable** signal (with `Retry-After` when present) rather than a permanent failure (§2.4), and the limits are documented in the AI-facing sub-doc (§8).
 
 ## 2. anycli definition
 
@@ -65,7 +73,7 @@ A resource-grouped cobra tree (notion's shape). `project_id` is injected from th
 |---|---|---|
 | `mixpanel segmentation` | `GET /api/query/segmentation` | `--event` (req), `--from`, `--to` (req, `YYYY-MM-DD`), `--on`, `--where`, `--type general\|unique\|average`, `--unit` |
 | `mixpanel events` | `GET /api/query/events` | `--event` (repeatable), `--type`, `--unit`, `--interval`/`--from`/`--to` |
-| `mixpanel events-names` | `GET /api/query/events/names` | top event names for autodiscovery |
+| `mixpanel events-names` | `GET /api/query/events/names` | **primary event-name discovery** — actively-firing event names (use this, not lexicon, to learn what events exist) |
 | `mixpanel funnels list` | `GET /api/query/funnels/list` | saved funnels (id + name) |
 | `mixpanel funnels run` | `GET /api/query/funnels` | `--funnel-id` (req), `--from`, `--to`, `--on`, `--where` |
 | `mixpanel retention` | `GET /api/query/retention` | `--from`, `--to`, `--born-event`, `--event`, `--retention-type`, `--interval`, `--unit` |
@@ -73,9 +81,9 @@ A resource-grouped cobra tree (notion's shape). `project_id` is injected from th
 | `mixpanel insights` | `GET /api/query/insights` | `--bookmark-id` (req) — fetch a saved Insights report |
 | `mixpanel cohorts list` | `POST /api/query/cohorts/list` | list saved cohorts (id + name) |
 | `mixpanel engage` | `POST /api/query/engage` | `--where`, `--output-properties`, `--page` — query People/user profiles |
-| `mixpanel lexicon list` | `GET /api/app/projects/{project_id}/schemas` | list event/property data definitions |
+| `mixpanel lexicon list` | `GET /api/app/projects/{project_id}/schemas` | list **authored** event/property schemas only (documentation overlay — omits schemaless active events; not the discovery primitive, see §1) |
 | `mixpanel export` | `GET /api/2.0/export` (export host) | `--from`, `--to` (req), `--event`, `--where`, `--limit` — bounded raw JSONL event export |
-| `mixpanel me` | `GET /api/app/me` | account/verification echo (also the connect verifier, §4) |
+| `mixpanel me` | `GET /api/app/me` | runtime identity/auth probe (region-aware); **not** a connect-time verifier — identity is credential-derived (§4) |
 
 **HTTP method is not uniform — verified against the official OpenAPI (`docs.mixpanel.com/reference/*`).** Most of the Query surface is `GET` with all parameters in the query string, but **`engage` and `cohorts/list` are `POST`** endpoints whose analytical parameters travel in a request **body**, not the query string. `project_id` (and optional `workspace_id`) stay in the query string even for the POST endpoints — only the analytical params move to the body. The two families:
 
@@ -83,7 +91,12 @@ A resource-grouped cobra tree (notion's shape). `project_id` is injected from th
 - **POST request-body endpoints** — `engage` (`POST /api/query/engage`) and `cohorts/list` (`POST /api/query/cohorts/list`). For `engage`, `project_id` stays in the query string while `--where` / `--output-properties` / `--page` are assembled into a form-encoded (`application/x-www-form-urlencoded`) request **body** per the official spec (`output_properties` as a JSON-array field, `page` as an integer). For `cohorts/list`, `project_id` is a query-string param and the request is issued as `POST` (Mixpanel defines it POST even though the current surface exposes no body params). The service selects `GET` vs `POST` and body assembly per command; it is **not** a uniform GET query-string pass-through.
 
 ### 2.4 JSON output shape
-Pass Mixpanel's JSON response through on stdout verbatim + newline (notion/bitly convention) — Query API responses are already structured JSON, regardless of whether the request was `GET` (query-string) or `POST` (request-body, per the method split above). `mixpanel export` streams JSONL (one event object per line) as Mixpanel returns it; the caller is told in help text that this is line-delimited and unbounded-by-default, hence the required date window. Errors use notion's typed envelope: a non-2xx Mixpanel response maps to `apiError` → exit **1** with `{"error":{...}}` (and `--json` renders the structured envelope); usage/parse errors exit **2**; success exits **0**. A `401`/`403` is surfaced distinctly so the host can treat it as a credential-rejection signal.
+Pass Mixpanel's JSON response through on stdout verbatim + newline (notion/bitly convention) — Query API responses are already structured JSON, regardless of whether the request was `GET` (query-string) or `POST` (request-body, per the method split above). `mixpanel export` streams JSONL (one event object per line) as Mixpanel returns it; the caller is told in help text that this is line-delimited and unbounded-by-default, hence the required date window. Errors use notion's typed envelope: a non-2xx Mixpanel response maps to `apiError` → exit **1** with `{"error":{...}}` (and `--json` renders the structured envelope); usage/parse errors exit **2**; success exits **0**. Two HTTP statuses are surfaced **distinctly** from the generic `4xx` bucket, because the AI must react differently to each:
+
+- **`401`/`403`** → a `credential` error kind — a credential-rejection signal (wrong/expired secret, or the service account lacks project role). Permanent until the credential is fixed.
+- **`429`** → a `rateLimit` error kind — the Query API caps at **60 queries/hour, 5 concurrent** (verified, `docs.mixpanel.com/reference/segmentation-query`), which an AI firing successive analytics queries hits readily. The envelope carries the `Retry-After` value when Mixpanel returns one (the `error` object includes `retry_after_seconds`) so the host can **back off and retry** rather than treat the call as permanently failed. This is a `transient` failure, not a dead one.
+
+Both still exit **1** (they are `apiError`s), but the distinct error kind lets the host/AI choose "fix the credential" vs. "wait and retry" vs. "give up."
 
 ## 3. Credential fields & exact auth flow
 
@@ -139,11 +152,12 @@ auth:
          placeholder: "us"}
 
 identity:
-  source: verifier          # verify the pair against /api/app/me at connect time
-  url: https://mixpanel.com/api/app/me
-  # account_key is human-readable and stable: the project the credential is scoped to
-  stable_key: project_id
-  label_candidates: [/results/name, service_account_username]
+  source: strategy          # credential-derived — no connect-time network call, no static host
+  # account_key is human-readable and stable: the project the credential is scoped to.
+  # Both fields are sourced from the stored CREDENTIAL (connect-time input), exactly the
+  # mongodb `source: strategy` precedent — NOT from a verifier response body.
+  stable_key: project_id            # from the project_id input field
+  label: service_account_username   # from the username input field
 
 connection:
   mode: isolated
@@ -169,14 +183,20 @@ tool:
 
 ## 5. The one capability dependency to flag at stage 1
 
-Design-317 `manual_credentials` as originally shipped (mongodb) enforces a **single-secret** constraint: exactly one required field, stored directly as the token payload, and `identity.source: strategy` (no connect-time verification). Mixpanel needs **two extensions**, both already precedented by earlier Wave-2 api_key batches — Mixpanel reuses them rather than inventing anything:
+Design-317 `manual_credentials` as originally shipped (mongodb) enforces a **single-secret** constraint: exactly one required field, stored directly as the token payload, with `identity.source: strategy` (credential-derived, no connect-time network call). Mixpanel needs **exactly one** extension of that, already precedented by an earlier Wave-2 api_key batch — Mixpanel reuses it rather than inventing anything:
 
-1. **Multi-field `manual_credentials`** — storing a structured credential (4 fields) in the token payload and projecting each to a distinct `credential.fields` entry. Precedent: **DataForSEO** (Basic auth `login`+`password`, task #127 "integration-service capability") and HubSpot's numeric stable-key work. Region/project_id are non-secret companions to the secret.
-2. **Connect-time verifier for a typed-credential provider** — `identity.source: verifier` posting the assembled Basic-auth pair to an HTTPS identity endpoint (`/api/app/me`) so a wrong secret is rejected at connect time instead of surfacing as stale first-use failure. Precedent: **Semrush / Moz** ("verifier capability", tasks #184/#199).
+**Multi-field `manual_credentials`** — storing a structured credential (4 fields: `service_account_username`, `service_account_secret`, `project_id`, `region`) in the token payload and projecting each to a distinct `credential.fields` entry, with `stable_key`/`label` sourced from the stored input fields (`project_id` / `service_account_username`). Precedent: **DataForSEO** (Basic auth `login`+`password`, task #127 "integration-service capability") and HubSpot's numeric stable-key work — same shape, more fields. Region/project_id are non-secret companions to the secret.
 
-If both capabilities have already landed on `main` by Mixpanel's batch, Mixpanel needs **zero** new integration-service code — bundle + anycli service only. If not, the batch must add whichever is missing (multi-field storage in the seed/verify path + `verifier` identity source for `manual_credentials`), with unit tests, before Mixpanel's L4. This is the single stage-1 risk to confirm against `main` before the dev branch starts; it is not a novel capability, only a reuse.
+That is the **only** integration-service dependency. If multi-field `manual_credentials` (with input-field-sourced `stable_key`/`label`) has already landed on `main` by Mixpanel's batch, Mixpanel needs **zero** new integration-service code — bundle + anycli service only. If not, the batch adds it (multi-field storage in the seed/credential path + input-field `stable_key`/`label` for `manual_credentials`), with unit tests, before Mixpanel's L4. Confirm against `main` at stage 1.
 
-`account_key` = `project_id` (stable, human-readable, never a hash — mongodb-host precedent); label prefers the account name from `/api/app/me`, falling back to the service-account username. `mode: isolated` so each connected Mixpanel project is its own connection.
+**Why no connect-time verifier — the deliberate design cut (Finding-1 / Finding-2 resolution).** An earlier draft used `identity.source: verifier` posting to a fixed `https://mixpanel.com/api/app/me`. That is unshippable and was removed, for two independent reasons verified against Mixpanel's own docs:
+
+1. **Residency defect.** The App API (`/api/app/me`, Lexicon Schemas) is region-scoped — EU service accounts must hit `eu.mixpanel.com/api/app/me`, India `in.mixpanel.com/api/app/me` (confirmed, `docs.mixpanel.com/reference/overview`). A single declarative `identity.url` cannot interpolate the `region` input field, so a static-host verifier would silently target the **wrong host** for every EU/India project — by the design's own residency argument (§1), those calls fail. Making the verifier region-aware would require a *third* capability (verifier-host templating from an input field) that no cited precedent covers, and it would be **untestable** under a US-only account pool (the defect would ship uncaught). We do not add region host-templating; we remove the need for it.
+2. **Undocumented response shape.** Mixpanel does not publish the `/api/app/me` response schema (checked `docs.mixpanel.com/reference/service-accounts` and the OpenAPI index — no field list). So the earlier `label_candidates: /results/name` pointer was an unverifiable assumption. Sourcing `label` from a known **input field** (`service_account_username`) is deterministic and needs no response contract.
+
+Removing the verifier honors §1's residency argument **more** completely (region is now honored on *every* surface at runtime, including `me`/`lexicon`, via the region-aware anycli service — not just query/export), and it is strictly subtractive: one fewer integration-service capability, no static host, no assumption about an undocumented body. The cost — a wrong secret is not caught at connect time — matches the **mongodb `source: strategy` precedent** exactly and is mitigated because (a) `mixpanel me` is an explicit post-connect auth probe the AI/user can run immediately, and (b) a bad secret surfaces as a **distinct `401`** (§2.4), not a silent misread.
+
+`account_key` = `project_id` (stable, human-readable, never a hash — mongodb-host precedent); `label` = the service-account username, both from the connect-time input. `mode: isolated` so each connected Mixpanel project is its own connection. **Region (us/eu/in) is fully supported in v1** — the region-aware anycli service builds the host from `MIXPANEL_REGION` for all surfaces, and L1 unit tests assert host selection for all three families (see §7), so EU/India correctness is proven without a live non-US credential.
 
 ## 6. Explicitly out of scope (v1)
 
@@ -188,22 +208,23 @@ If both capabilities have already landed on `main` by Mixpanel's batch, Mixpanel
 
 | Layer | What runs | External creds? |
 |---|---|---|
-| **L1** anycli unit | `go test ./...` in `internal/tools/mixpanel/`: httptest fakes for `/api/query/segmentation`, `/events`, `/funnels(/list)`, `/retention`, `/insights`, `/cohorts/list`, `/engage`, `/api/app/projects/*/schemas`, `data.*/export`, `/api/app/me`. Assert: host chosen per `region`, `Authorization: Basic base64(user:secret)` header, `project_id` query param present on every query call, JSONL passthrough for export, and both plaintext + `--json` error envelopes for 401/403/4xx/5xx. Exit-code contract 0/1/2. | **No** |
+| **L1** anycli unit | `go test ./...` in `internal/tools/mixpanel/`: httptest fakes for `/api/query/segmentation`, `/events`, `/events/names`, `/funnels(/list)`, `/retention`, `/insights`, `/cohorts/list`, `/engage`, `/api/app/projects/*/schemas`, `data.*/export`, `/api/app/me`. Assert: **host is built from `region` for all three families** — `us`→`mixpanel.com`/`data.mixpanel.com`, `eu`→`eu.mixpanel.com`/`data-eu.mixpanel.com`, `in`→`in.mixpanel.com`/`data-in.mixpanel.com` — across query, export, **and** app (`me`/`lexicon`) surfaces (this is where EU/India correctness is proven without a live non-US credential); `Authorization: Basic base64(user:secret)` header; `project_id` query param present on every query call; POST-body assembly for `engage`/`cohorts/list`; JSONL passthrough for export. Error envelopes: plaintext + `--json` for `401`/`403` (`credential` kind) **and `429` (`rateLimit` kind, `retry_after_seconds` populated from `Retry-After`)** distinct from the generic `4xx`/`5xx` bucket. Exit-code contract 0/1/2. | **No** |
 | **L2** harness real API | `make build-harness` then `ANYCLI_CRED_SERVICE_ACCOUNT_USERNAME=… ANYCLI_CRED_SERVICE_ACCOUNT_SECRET=… ANYCLI_CRED_PROJECT_ID=… ANYCLI_CRED_REGION=us anycli mixpanel -- segmentation --event "…" --from … --to …` against a real Mixpanel project. Mandatory before pin bump — proves field names, Basic-auth assembly, host/region, and `project_id` injection match the live API. | **Yes** — real service account + a project with events (account pool) |
 | **L3** generation + suites | `provider-gen` + `provider-gen --check` (five projections); `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/`; integration-service unit suite (incl. any §5 capability tests). On-branch: local `replace` in `helio-cli/go.mod` → anycli branch; local regen not committed (batch lead owns the canonical regen). | **No** |
-| **L4** singleton + seed | Singleton in `env: dev`; `POST /internal/test-only/connections/seed` with the 4-field Mixpanel credential (multi-field seed — the §5 capability dependency; confirm the seed write path stores all four), then `heliox tool mixpanel -- me` and one real query. Proves token-gateway → anycli path serves the structured credential and reaches the live API. Non-expiring credential ⇒ seed the pair only, no `refresh_token`/`expires_at`. | **Yes** — same real service account seeded |
-| **L5** connect flow (api_key key-entry path) | Hidden tool, before visible flip: open the connect link → enter username/secret/project_id/region through the real connect UI (stored via `POST /connections/credentials`, **verified against `/api/app/me`**) → connection shows connected/configured in `GET /connections` → one **unseeded** live `heliox tool mixpanel` query through the real token gateway succeeds. Agent-drivable (api_key L5 lane); human fallback on UI breakage. | **Yes** — real service account (account pool) |
+| **L4** singleton + seed | Singleton in `env: dev`; `POST /internal/test-only/connections/seed` with the 4-field Mixpanel credential (multi-field seed — the §5 capability dependency; confirm the seed write path stores all four and derives `account_key = project_id` via `source: strategy`), then `heliox tool mixpanel -- me` (the auth probe) and one real query. Proves token-gateway → anycli path serves the structured credential and reaches the live API. Non-expiring credential ⇒ seed the pair only, no `refresh_token`/`expires_at`. | **Yes** — same real service account seeded |
+| **L5** connect flow (api_key key-entry path) | Hidden tool, before visible flip: open the connect link → enter username/secret/project_id/region through the real connect UI (stored via `POST /connections/credentials`; **identity is credential-derived — no connect-time verifier call**, so a correct-shape entry connects immediately) → connection shows connected/configured with `account_key = project_id` in `GET /connections` → one **unseeded** live `heliox tool mixpanel -- me` (auth check) + one query through the real token gateway succeeds; a deliberately-wrong secret is confirmed to surface as a **distinct `401`** on that first call (not a silent connect). Agent-drivable (api_key L5 lane); human fallback on UI breakage. | **Yes** — real service account (account pool) |
 
 **Externally-supplied credentials needed:** L2, L4, L5 — one real Mixpanel Service Account (username + secret) plus a `project_id` for a project that has event data, US region for the pool default. Mixpanel's free tier supports service accounts, so the account-pool lane can procure this without a paid plan.
 
 ## 8. Definition of done (per master plan §2)
 
-L1–L5 green · AI-facing sub-doc published under `agents/plugins/heliox/skills/tool/` (new `mixpanel` page: the verb table, that `project_id`/region are connection-time not per-call, and export's bounded-JSONL caveat) + plugin version bump (batch-end) · UI icon `ui/helio-app/src/integrations/icons/mixpanel.svg` + `providerIcons.ts` registration · then the visible flip (`presentation.visible: true` + regenerate) as the single go-live change. No `toolToProvider` entry (axes identical). Until the flip: code-complete (hidden).
+L1–L5 green · AI-facing sub-doc published under `agents/plugins/heliox/skills/tool/` (new `mixpanel` page: the verb table; that `project_id`/region are connection-time not per-call; export's bounded-JSONL caveat; **use `events-names` — not `lexicon` — for event-name discovery, and never read an empty/short `lexicon` result as "no events" since it lists only authored schemas**; and the **Query API rate limits — 60 queries/hour, max 5 concurrent — with guidance to back off on a `429`/`rateLimit` error rather than retry immediately or give up**) + plugin version bump (batch-end) · UI icon `ui/helio-app/src/integrations/icons/mixpanel.svg` + `providerIcons.ts` registration · then the visible flip (`presentation.visible: true` + regenerate) as the single go-live change. No `toolToProvider` entry (axes identical). Until the flip: code-complete (hidden).
 
 ---
 
 ### Sources
 - Service accounts / Basic auth: https://docs.mixpanel.com/reference/service-accounts · https://docs.mixpanel.com/docs/orgs-and-projects/service-accounts
-- API overview, hosts, data residency: https://docs.mixpanel.com/reference/overview
-- Segmentation query (path, `project_id`, params, rate limits): https://docs.mixpanel.com/reference/segmentation-query
+- API overview, hosts, data residency (Query/Export/**App API** all region-scoped): https://docs.mixpanel.com/reference/overview
+- Segmentation query (path, `project_id`, params, rate limits — 60/hr, 5 concurrent): https://docs.mixpanel.com/reference/segmentation-query
+- Lexicon (Schemas API returns only authored schemas — "subset of the data that appears in Lexicon UI"): https://docs.mixpanel.com/docs/data-governance/lexicon
 - Query API overview: https://docs.mixpanel.com/reference/query-api
