@@ -1,0 +1,17 @@
+{
+  "name": "servicenow",
+  "type": "service",
+  "description": "ServiceNow ITSM as a tool (Table API: incidents, tasks, CMDB, knowledge) via an instance-scoped REST API key",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "instance_url"},
+        "inject": {"type": "env", "env_var": "SERVICENOW_INSTANCE_URL"}
+      },
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "SERVICENOW_API_KEY"}
+      }
+    ]
+  }
+}
