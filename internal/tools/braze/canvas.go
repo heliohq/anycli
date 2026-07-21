@@ -91,11 +91,13 @@ func (s *Service) newCanvasSeriesCmd(c *client) *cobra.Command {
 		q := url.Values{}
 		q.Set("canvas_id", canvasID)
 		q.Set("ending_at", endingAt)
-		if cmd.Flags().Changed("length") {
-			q.Set("length", strconv.Itoa(length))
-		}
+		// Braze requires either length or starting_at alongside ending_at, and
+		// rejects sending both. Prefer an explicit starting_at; otherwise apply
+		// length (defaulting to 7) so a bare call always satisfies the contract.
 		if startingAt != "" {
 			q.Set("starting_at", startingAt)
+		} else {
+			q.Set("length", strconv.Itoa(length))
 		}
 		body, err := c.get(cmd.Context(), "/canvas/data_series", q)
 		if err != nil {
@@ -126,11 +128,13 @@ func (s *Service) newCanvasSummaryCmd(c *client) *cobra.Command {
 		q := url.Values{}
 		q.Set("canvas_id", canvasID)
 		q.Set("ending_at", endingAt)
-		if cmd.Flags().Changed("length") {
-			q.Set("length", strconv.Itoa(length))
-		}
+		// Braze requires either length or starting_at alongside ending_at, and
+		// rejects sending both. Prefer an explicit starting_at; otherwise apply
+		// length (defaulting to 7) so a bare call always satisfies the contract.
 		if startingAt != "" {
 			q.Set("starting_at", startingAt)
+		} else {
+			q.Set("length", strconv.Itoa(length))
 		}
 		body, err := c.get(cmd.Context(), "/canvas/data_summary", q)
 		if err != nil {

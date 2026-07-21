@@ -43,6 +43,67 @@ func TestGETQueryParamMapping(t *testing.T) {
 	}
 }
 
+// TestCanvasSeriesSummaryLengthContract — canvas series/summary satisfy Braze's
+// "either length or starting_at is required" contract: a bare call sends the
+// default length=7, while --starting-at sends starting_at and omits length
+// (Braze rejects sending both).
+func TestCanvasSeriesSummaryLengthContract(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"GET /canvas/data_series":  {status: 200, body: `{"data":{}}`},
+		"GET /canvas/data_summary": {status: 200, body: `{"data":{}}`},
+	})
+	defer srv.Close()
+
+	// Bare series (no --length, no --starting-at) → default length=7 applied.
+	if exit, _, stderr := run(t, srv, "canvas", "series", "--canvas-id", "cv1", "--ending-at", "2026-07-01"); exit != 0 {
+		t.Fatalf("canvas series exit=%d stderr=%s", exit, stderr)
+	}
+	req := findReq(reqs, "GET", "/canvas/data_series")
+	if req == nil {
+		t.Fatal("no canvas/data_series request")
+	}
+	if req.Query.Get("canvas_id") != "cv1" || req.Query.Get("ending_at") != "2026-07-01" {
+		t.Fatalf("series query = %v, want canvas_id=cv1 ending_at=2026-07-01", req.Query)
+	}
+	if req.Query.Get("length") != "7" {
+		t.Fatalf("bare series length = %q, want default 7", req.Query.Get("length"))
+	}
+	if req.Query.Has("starting_at") {
+		t.Fatalf("bare series should not send starting_at, got %q", req.Query.Get("starting_at"))
+	}
+
+	// --starting-at path → starting_at sent, length omitted (never both).
+	if exit, _, stderr := run(t, srv, "canvas", "series", "--canvas-id", "cv1", "--ending-at", "2026-07-01", "--starting-at", "2026-06-25"); exit != 0 {
+		t.Fatalf("canvas series --starting-at exit=%d stderr=%s", exit, stderr)
+	}
+	req = findReq(reqs[len(reqs)-1:], "GET", "/canvas/data_series")
+	if req == nil {
+		t.Fatal("no canvas/data_series request for --starting-at path")
+	}
+	if req.Query.Get("starting_at") != "2026-06-25" {
+		t.Fatalf("series starting_at = %q, want 2026-06-25", req.Query.Get("starting_at"))
+	}
+	if req.Query.Has("length") {
+		t.Fatalf("series with --starting-at should omit length, got %q", req.Query.Get("length"))
+	}
+
+	// Summary mirrors series: bare call applies the default length=7.
+	if exit, _, stderr := run(t, srv, "canvas", "summary", "--canvas-id", "cv1", "--ending-at", "2026-07-01"); exit != 0 {
+		t.Fatalf("canvas summary exit=%d stderr=%s", exit, stderr)
+	}
+	req = findReq(reqs, "GET", "/canvas/data_summary")
+	if req == nil {
+		t.Fatal("no canvas/data_summary request")
+	}
+	if req.Query.Get("length") != "7" {
+		t.Fatalf("bare summary length = %q, want default 7", req.Query.Get("length"))
+	}
+	if req.Query.Has("starting_at") {
+		t.Fatalf("bare summary should not send starting_at, got %q", req.Query.Get("starting_at"))
+	}
+}
+
 // TestUsersExportIsPOSTWithIdentifierBody — users export uses POST (not GET) and
 // assembles the identifier body; a call with no identifier is a usage error.
 func TestUsersExportIsPOSTWithIdentifierBody(t *testing.T) {
