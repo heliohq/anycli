@@ -15,9 +15,9 @@ Batch-lead strips this file at batch end.
 All three naming axes are identical (`mailjet`), so **no `toolToProvider`
 entry is required** — `ProviderFor("mailjet")` falls through to identity.
 
-## 1. Divergence check vs catalog / audit
+## 1. Auth-lane confirmation vs catalog / audit
 
-Nothing to divert. I re-verified Mailjet's auth model against the official
+No lane divergence. I re-verified Mailjet's auth model against the official
 API docs and it confirms the audit verdict:
 
 - Mailjet authenticates every Email API request with **HTTP Basic auth**,
@@ -30,12 +30,42 @@ API docs and it confirms the audit verdict:
   Basic auth with the key/secret pair and the `--user "$MJ_APIKEY_PUBLIC:$MJ_APIKEY_PRIVATE"`
   cURL shape.
 
-The one nuance the catalog row does not capture (recorded here per the "record
-divergence in DESIGN.md" instruction, though it is not a lane change):
-**Mailjet has two data regions with different base hosts** — EU (default,
-`https://api.mailjet.com`) and US (`https://api.us.mailjet.com`) for accounts
-migrated to US infrastructure. The credential (key:secret) carries no region
-marker, so region is an anycli-side flag, not a credential field (see §3).
+**API host (default EU + documented US-architecture host).** This is a
+factual API detail, not an auth-lane change. Mailjet processes data in the
+**EU** (single data-residency region — GDPR / ISO27001 is a selling point),
+but the API is reachable on **two documented base hosts**: the default
+`https://api.mailjet.com`, and `https://api.us.mailjet.com` for accounts that
+Mailjet has provisioned on / migrated to its **US architecture**. The credential
+(key:secret) carries no host marker, so host selection is an anycli-side flag,
+not a credential field (see §3). Primary sources (official Mailjet wrappers,
+each documenting the exact US host toggle): the .NET wrapper README —
+"If your account has been moved to Mailjet's US architecture, the URL value you
+need to set is `https://api.us.mailjet.com`" (`BaseAdress = "https://api.us.mailjet.com"`);
+the PHP wrapper README — same sentence with `['url' => "api.us.mailjet.com"]`;
+mirrored in the Ruby / Python / Node wrappers' base-URL config.
+
+### Review-finding overrides (verified against official docs)
+
+Two review findings asserted these facts were fabricated. I re-verified each
+against Mailjet's **primary-source** material and both findings are factually
+incorrect, so per the "follow official docs over the prompt/catalog/audit and
+record the divergence" instruction I am **keeping** the original behavior with
+citations rather than removing it:
+
+- **"`api.us.mailjet.com` does not exist; Mailjet is EU-only."** *Overridden.*
+  The reviewer conflated EU **data residency** (true) with the **API host**
+  (a real, documented US host exists). The official Mailjet .NET and PHP
+  wrapper READMEs both document `https://api.us.mailjet.com` verbatim for
+  US-architecture accounts (quotes above). The `--region us` / `--base-url`
+  flag therefore routes to a **real, officially documented** DNS host, not a
+  fabricated one, and the L1 host-switch assertion tests real behavior.
+- **"`/v3/REST/statistics/recipient-esp` is unconfirmable / wrong shape."**
+  *Overridden.* Mailjet's own `api-documentation` repo
+  (`guides/_statistics.md`) shows the exact endpoint:
+  `GET https://api.mailjet.com/v3/REST/statistics/recipient-esp?CampaignId=$Campaign_ID`
+  (per-mailbox-provider deliverability for a campaign). It follows the standard
+  `/v3/REST/statistics/<resource>` sub-resource shape (siblings:
+  `statistics/link-click`). Kept as-is; see §2 for the confirmed path + param.
 
 ## 2. API surface wrapped, and why
 
@@ -50,7 +80,7 @@ notion-style resource-grouped cobra tree:
 | `list list` / `list create` / `list add-contact` | `GET/POST /v3/REST/contactslist`, `POST /v3/REST/listrecipient` | Manage contact lists and (un)subscribe a contact — the audience side of marketing sends. |
 | `template list` / `template get` | `GET /v3/REST/template`, `GET /v3/REST/template/{id}/detailcontent` | Discover and inspect reusable email templates to send by `TemplateID`. |
 | `message list` / `message get` | `GET /v3/REST/message`, `GET /v3/REST/messagehistory` | Read what was sent and its delivery/engagement events — the "did it arrive / what happened" question. |
-| `stat` | `GET /v3/REST/statcounters`, `GET /v3/REST/statistics/recipient-esp` | Campaign/account delivery + open/click counters for reporting. |
+| `stat` | `GET /v3/REST/statcounters`, `GET /v3/REST/statistics/recipient-esp?CampaignId=<id>` | Campaign/account delivery + open/click counters, plus per-mailbox-provider deliverability for a campaign. Both paths confirmed verbatim in Mailjet's `api-documentation` repo (`guides/_statistics.md`); `recipient-esp` requires `CampaignId`. |
 
 Deliberately **out of scope for v1** (kept thin, agent-natural — Code Health
 "subtract before adding"): campaign-draft authoring/scheduling
@@ -60,9 +90,12 @@ v4 SMS API. These are heavy human-console workflows, not assistant verbs; add
 later only if usage demands.
 
 **Base URL:** `https://api.mailjet.com` default; v3 REST at
-`/v3/REST/{resource}`, Send API at `/v3.1/send`. A `--region us` flag (or
-`--base-url`) switches the host to `https://api.us.mailjet.com` for US-region
-accounts. Default EU host is correct for the large majority of accounts.
+`/v3/REST/{resource}`, Send API at `/v3.1/send`. A `--base-url` override (with
+`--region us` as documented sugar) switches the host to the
+officially-documented `https://api.us.mailjet.com` for accounts on Mailjet's
+US architecture (§1 sources). The default EU host is correct for the large
+majority of accounts; the credential is host-agnostic so the same key:secret
+works against whichever host the account lives on.
 
 ## 3. anycli definition
 
