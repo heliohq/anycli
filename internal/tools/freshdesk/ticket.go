@@ -94,7 +94,12 @@ func (s *Service) newTicketCreateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a ticket (POST /tickets)",
-		Args:  cobra.NoArgs,
+		Long: "Create a ticket (POST /tickets).\n\n" +
+			"Freshdesk requires both --status and --priority on create (as well as\n" +
+			"--subject, --description and a requester via --email or --requester-id);\n" +
+			"omitting status or priority returns a 400. Status: 2 Open|3 Pending|4\n" +
+			"Resolved|5 Closed. Priority: 1 Low|2 Medium|3 High|4 Urgent.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			setBodyStr(body, "subject", subject)
@@ -260,7 +265,7 @@ func (s *Service) newTicketNoteCmd(c *client) *cobra.Command {
 	cmd.Flags().StringVar(&id, "id", "", "ticket id")
 	cmd.Flags().StringVar(&body, "body", "", "note body (HTML)")
 	cmd.Flags().BoolVar(&private, "private", true, "private note (internal only) — the default")
-	cmd.Flags().BoolVar(&public, "public", false, "public note (visible to the requester)")
+	cmd.Flags().BoolVar(&public, "public", false, "public note (visible to the requester); takes precedence over --private when both are set")
 	cmd.Flags().StringSliceVar(&notify, "notify", nil, "agent email to notify (repeatable/CSV)")
 	_ = cmd.MarkFlagRequired("id")
 	_ = cmd.MarkFlagRequired("body")
