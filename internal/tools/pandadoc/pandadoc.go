@@ -4,12 +4,10 @@
 // send a document from a template, track signing status, retrieve the signed
 // PDF, and light template/contact lookup.
 //
-// Auth accepts either PandaDoc scheme: an OAuth bearer access token
-// (Authorization: Bearer <token>, the production Helio path) or an API key
-// (Authorization: API-Key <key>, an L2 dev convenience). When both are
-// present the API key wins. PandaDoc fails with a non-2xx status and a JSON
-// body carrying type/detail; a 401 rejects the resolved credential so the host
-// can invalidate it.
+// Auth is an OAuth bearer access token (Authorization: Bearer <token>) — the
+// production Helio path, and the only credential the Helio provider projects.
+// PandaDoc fails with a non-2xx status and a JSON body carrying type/detail; a
+// 401 rejects the resolved credential so the host can invalidate it.
 package pandadoc
 
 import (
@@ -28,13 +26,9 @@ import (
 // DefaultBaseURL is the production PandaDoc Public API base (v1 prefix included).
 const DefaultBaseURL = "https://api.pandadoc.com/public/v1"
 
-// EnvAccessToken / EnvAPIKey are the env vars the credential bindings inject
-// (definitions/tools/pandadoc.json). Access token = OAuth bearer (production);
-// API key = self-serve sandbox key (L2 harness convenience).
-const (
-	EnvAccessToken = "PANDADOC_ACCESS_TOKEN"
-	EnvAPIKey      = "PANDADOC_API_KEY"
-)
+// EnvAccessToken is the env var the credential binding injects
+// (definitions/tools/pandadoc.json): the OAuth bearer access token.
+const EnvAccessToken = "PANDADOC_ACCESS_TOKEN"
 
 // Service implements the built-in PandaDoc tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
@@ -83,13 +77,9 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	return execution.Result{ExitCode: 2}, nil
 }
 
-// selectAuth builds the Authorization header value from the resolved env. The
-// API-Key scheme takes precedence when present (L2 dev convenience); otherwise
-// the OAuth bearer access token is used. Returns "" when neither is set.
+// selectAuth builds the Authorization header value from the resolved env: the
+// OAuth bearer access token. Returns "" when it is not set.
 func selectAuth(env map[string]string) string {
-	if key := env[EnvAPIKey]; key != "" {
-		return "API-Key " + key
-	}
 	if tok := env[EnvAccessToken]; tok != "" {
 		return "Bearer " + tok
 	}

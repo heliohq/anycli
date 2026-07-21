@@ -82,10 +82,6 @@ the first gate. Implement `service` type against the HTTP API — matching 21 of
       {
         "source": {"field": "access_token"},
         "inject": {"type": "env", "env_var": "PANDADOC_ACCESS_TOKEN"}
-      },
-      {
-        "source": {"field": "api_key"},
-        "inject": {"type": "env", "env_var": "PANDADOC_API_KEY"}
       }
     ]
   }
@@ -93,17 +89,19 @@ the first gate. Implement `service` type against the HTTP API — matching 21 of
 ```
 
 PandaDoc has two native auth header schemes: `Authorization: Bearer {token}`
-(OAuth) and `Authorization: API-Key {key}`. The production Helio path supplies
-only `access_token` (Bearer). The second binding exists because anycli's
-resolver contract skips unresolved fields on inject
-(`internal/credential/resolve.go`: empty value ⇒ binding skipped), so declaring
-`api_key` costs nothing in production but lets L2 harness runs use a self-serve
-**sandbox API key** (`ANYCLI_CRED_API_KEY=…`) before the OAuth app exists.
-Service auth selection: `PANDADOC_API_KEY` set → `API-Key` scheme; else
-`PANDADOC_ACCESS_TOKEN` → `Bearer`; neither → fail fast with the notion-style
-usage error ("PANDADOC_ACCESS_TOKEN is not set"). 401 responses are classified
-via `execution.RejectCredential` (notion `auth_error.go` precedent) so the host
-can invalidate cached credentials.
+(OAuth) and `Authorization: API-Key {key}`. Helio ships the **oauth_light** lane,
+so the only credential the Helio provider projects — and therefore the only one
+this definition declares — is `access_token` (Bearer). We deliberately do **not**
+declare a second `api_key` binding: `anycli.ListTools()` surfaces every declared
+credential field, and Helio's `TestGeneratedToolProvidersMatchPinnedAnyCLI`
+requires each to be projected by the provider bundle, so an `api_key` field the
+OAuth bundle can never supply would fail that parity gate (there is no valid
+credential source in an OAuth connection that yields an API key). Keeping the
+definition Bearer-only matches what production actually supplies and removes a
+dead code path. Service auth: `PANDADOC_ACCESS_TOKEN` → `Bearer`; unset → fail
+fast with the notion-style usage error ("PANDADOC_ACCESS_TOKEN is not set"). 401
+responses are classified via `execution.RejectCredential` (notion
+`auth_error.go` precedent) so the host can invalidate cached credentials.
 
 ### Command tree (cobra, notion shape: `BaseURL`/`HC`/`Out`/`Err` struct)
 
@@ -185,9 +183,9 @@ choice):
 - Developer Dashboard / API access requires a PandaDoc plan with API access —
   the lane-2 test workspace must be provisioned with it (Enterprise trial or
   API add-on).
-- **Production API keys** require Sales approval — irrelevant here (we ship the
-  OAuth lane; API key is only the L2 dev convenience via a **sandbox** key,
-  which is self-serve).
+- **Production API keys** require Sales approval — irrelevant here: we ship the
+  OAuth lane only, and the definition is Bearer-only, so no PandaDoc API key is
+  ever involved (L2 uses an OAuth access token from the lane-1 dev app).
 - Sandbox documents carry a watermark; fine for L2/L4.
 
 ## 4. Helio provider bundle plan
@@ -256,8 +254,10 @@ Exact field paths are re-verified against a live response during L4 before the
 bundle is finalized (docs page for this endpoint was rate-limited during
 research; fields corroborated via the official python SDK MembersApi).
 
-Note the bundle's `credential.fields` maps **only** `access_token` — the
-definition's `api_key` binding is intentionally never supplied by Helio (§2).
+The bundle's `credential.fields` maps `access_token` (+ `account_key`), which is
+exactly the definition's single declared credential field (§2) — the two stay in
+parity so `TestGeneratedToolProvidersMatchPinnedAnyCLI` passes once the pin ships
+the tool.
 
 Other Helio-side artifacts (batch-end surfaces, per master plan §2):
 
@@ -284,8 +284,8 @@ Other Helio-side artifacts (batch-end surfaces, per master plan §2):
 
 | Layer | Plan | External credentials needed |
 |---|---|---|
-| **L1** | anycli unit tests, TDD-first, httptest fake of `api.pandadoc.com`: assert request paths/query/body shape for every verb; Bearer vs API-Key header selection; 401 → `RejectCredential` classification; uploaded→draft polling in `document create` (fake flips status on Nth poll) and `--no-wait`; download writes bytes to `--out`; `--json` passthrough and error envelope; exit codes 0/1/2. `go test ./...` green. | None |
-| **L2** | Dev harness against the REAL API: `ANYCLI_CRED_API_KEY=<sandbox key> anycli pandadoc -- template list`, then the full loop — `document create` from a real sandbox template, `status`, `send` (silent), `link`, `download`, `whoami`. Success = real data back from `api.pandadoc.com`. | **Yes — lane 2**: PandaDoc test workspace with API access + self-serve sandbox API key; one template with at least one signer role |
+| **L1** | anycli unit tests, TDD-first, httptest fake of `api.pandadoc.com`: assert request paths/query/body shape for every verb; Bearer header injection; 401 → `RejectCredential` classification; uploaded→draft polling in `document create` (fake flips status on Nth poll) and `--no-wait`; download writes bytes to `--out`; `--json` passthrough and error envelope; exit codes 0/1/2. `go test ./...` green. | None |
+| **L2** | Dev harness against the REAL API with an OAuth bearer token: `ANYCLI_CRED_ACCESS_TOKEN=<access token> anycli pandadoc -- template list`, then the full loop — `document create` from a real sandbox template, `status`, `send` (silent), `link`, `download`, `whoami`. Success = real data back from `api.pandadoc.com`. (The definition is Bearer-only — §2 — so a PandaDoc `API-Key` key is not a harness credential; mint the token from the dev app registered in lane 1.) | **Yes — lanes 1+2**: registered PandaDoc dev app + a minted OAuth access token; PandaDoc test workspace with API access and one template with at least one signer role |
 | **L3** | Local `provider-gen` + `provider-gen --check` against the branch bundle (not committed); helio-cli build + `go test ./cmd/heliox/cmds/tool/` with the local `replace`; anycli + integration-service unit suites. Branch CI `--check` red is expected until batch-end regen. | None |
 | **L4** | Singleton + `POST /internal/test-only/connections/seed` with a REAL OAuth `access_token` **and** `refresh_token` from the dev app, seeded with a deliberately short `expires_at` so the first `heliox tool pandadoc -- template list` exercises the token-gateway refresh-and-write-back path (PandaDoc's 1-year `expires_in` would otherwise never exercise it). Use real seeded org/assistant ObjectIDs. Then run the document loop end-to-end as the assistant. Verify whether the refresh response rotates the refresh token (feeds the `refresh_lease` decision, §3). | **Yes — lane 1**: registered PandaDoc dev app (client id/secret in local uncommitted `config/cloud.yaml`) + one manually minted token pair from the test account |
 | **L5** | Human-in-the-loop (lane 3, per-batch sweep, OAuth path): `heliox tool pandadoc auth` → connect link → real PandaDoc consent (`app.pandadoc.com/oauth2/authorize`, scope read+write) → `oauth_connected` event on the channel → one unseeded live command (`document list`). Gates the visible flip. | **Yes — lanes 1+3**: configured (committed) client id/secret + a human on the pool test account |

@@ -22,22 +22,6 @@ func TestExecute_BearerAuthSelected(t *testing.T) {
 	}
 }
 
-func TestExecute_APIKeyAuthPreferred(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, 200, `{"results":[]}`, &got)
-	defer srv.Close()
-
-	// Both credentials present: the API-Key scheme wins (L2 dev convenience).
-	env := map[string]string{EnvAccessToken: "tok-abc", EnvAPIKey: "key-xyz"}
-	result, _, stderr := runEnv(t, srv, env, "template", "list")
-	if result.ExitCode != 0 {
-		t.Fatalf("exit = %d, stderr = %q", result.ExitCode, stderr)
-	}
-	if got.Auth != "API-Key key-xyz" {
-		t.Errorf("Authorization = %q, want API-Key key-xyz", got.Auth)
-	}
-}
-
 func TestExecute_MissingCredentials(t *testing.T) {
 	var errBuf bytes.Buffer
 	svc := &Service{Err: &errBuf}

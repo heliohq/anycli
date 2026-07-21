@@ -9,7 +9,7 @@ import (
 )
 
 // newWhoamiCmd fetches the authenticated member (GET /members/current) — the
-// identity/whoami endpoint. It accepts both auth schemes.
+// identity/whoami endpoint.
 func (s *Service) newWhoamiCmd(authz string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "whoami",

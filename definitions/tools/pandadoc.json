@@ -7,10 +7,6 @@
       {
         "source": {"field": "access_token"},
         "inject": {"type": "env", "env_var": "PANDADOC_ACCESS_TOKEN"}
-      },
-      {
-        "source": {"field": "api_key"},
-        "inject": {"type": "env", "env_var": "PANDADOC_API_KEY"}
       }
     ]
   }
