@@ -1,0 +1,13 @@
+{
+  "name": "iterable",
+  "type": "service",
+  "description": "Iterable cross-channel marketing: users, events, lists, campaigns, transactional email",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "ITERABLE_API_KEY"}
+      }
+    ]
+  }
+}
