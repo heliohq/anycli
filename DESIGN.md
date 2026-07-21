@@ -53,29 +53,52 @@ in/out, key in the `api_key` header.
 holds a partial lead — an email, a LinkedIn URL, or a name + company — and needs
 the missing coordinates (verified email, direct/mobile phone, title,
 firmographics) to act; or it needs to *generate* net-new contacts/companies
-matching an ICP; or it needs to check remaining credits before spending them on
-a costly prospecting run. That maps to three resource groups:
+matching an ICP and then reveal the good ones; or it needs to check remaining
+credits before spending them on a costly prospecting run. Two discovery paths
+feed one reveal step, plus a usage check:
 
 | Group / verb | Method + path | Why it's in scope |
 |---|---|---|
-| `contact enrich` | `POST /v3/contacts/search-and-enrich` | The core action: turn a known identifier (email / linkedinUrl / firstName+lastName+companyName\|companyDomain / id) into revealed emails + phones. One-shot combined search+enrich — the drop-in replacement for legacy `GET /v2/person`. |
-| `company enrich` | `POST /v3/companies/search-and-enrich` | Turn a domain / name / id into firmographics (size, revenue, industry, technologies). Drop-in for legacy `GET /v2/company`. |
-| `contact search` | `POST /v3/contacts/prospecting` | ICP prospecting: filter by job title, seniority, department, location, company size, revenue, industry, technologies, intent, signals → net-new contact IDs (non-PII preview). Generates leads the assistant did not already have. |
-| `company search` | `POST /v3/companies/prospecting` | Same filter model, company-level. |
-| `account usage` | `GET /v3/account/usage` | Credits used/remaining/total, plan, rate limits. Agent-natural pre-flight check before a credit-heavy prospecting sweep — and the provider-side **verifier** endpoint (see §4). |
+| `contact enrich` | `POST /v3/contacts/search-and-enrich` | One-shot known-identifier path: turn a real-world identifier (email / linkedinUrl / firstName+lastName+companyName\|companyDomain) into revealed emails + phones in a single call. Drop-in replacement for legacy `GET /v2/person`. Charges twice (api_search + reveal). |
+| `contact search` | `POST /v3/contacts/prospecting` | ICP prospecting: filter by job title, seniority, department, location, company size/revenue/industry/technologies/intent/signals → net-new contact `id`s + a `requestId` (name-only preview, no email/phone). Generates leads the assistant did not already have. Charged per result via `api_search`. |
+| `contact reveal` | `POST /v3/contacts/enrich` | **The reveal step for prospecting.** Takes up to 100 Lusha contact `ids` (from a `contact search` result) + a `reveal` selector (`emails` / `phones`, omit = both) → full revealed records. Charged per revealed datapoint only (no api_search) — this is the credit-efficient path that makes "search 500 cheaply, reveal only the 80 that matter" possible. Without it, `contact search` returns `id`s that no verb could reveal. |
+| `company enrich` | `POST /v3/companies/search-and-enrich` | One-shot: domain / name → firmographics (size, revenue, industry, technologies). Drop-in for legacy `GET /v2/company`. |
+| `company search` | `POST /v3/companies/prospecting` | Same ICP filter model, company-level → company `id`s + `requestId`. |
+| `company reveal` | `POST /v3/companies/enrich` | Reveal step for company prospecting: up to 100 company `ids` (from a `company search` result) → full firmographics. |
+| `account usage` | `GET /v3/account/usage` | Credits used/remaining/total, plan, rate limits, per-action pricing. Agent-natural pre-flight check before a credit-heavy sweep — and the provider-side **verifier** endpoint (see §4). |
 
-**Deliberately deferred (v1):** Signals, Lookalikes, and the Subscriptions
-(webhook) endpoints under the `/api/` prefix. Webhooks require a Helio-hosted
-callback sink and a subscription lifecycle that an AnyCLI passthrough tool has
-no place to deliver to; Signals/Lookalikes are narrower and can be added as
-verbs later without reshaping the tool. Bulk (up to 100 identifiers per call) is
-supported by the enrich endpoints and is exposed via repeatable identifier
-flags rather than a separate verb.
+**Divergence recorded (review vs official V3 spec).** The review finding assumed
+the reveal endpoint "requires a `requestId` + `contactIds[]` plus
+`revealEmails`/`revealPhones` flags." The authoritative V3 OpenAPI bundle
+(`docs.lusha.com/_bundle/apis/@v3/openapi.yaml`, schema `V3ContactsEnrichRequest`
+/ `V3CompaniesEnrichRequest`) shows the request body is `{ "ids": [<id>…] (1–100,
+required), "reveal": ["emails"|"phones"] (optional, omit = both) }` — there is
+**no `requestId` in the enrich request** and no `revealEmails`/`revealPhones`
+booleans. `requestId` is a **response-only** field (returned by search /
+prospecting / enrich for traceability), so the reveal verb needs only the `id`s.
+Per the "follow official docs" rule, the verb is modeled on `ids` + `reveal`, and
+the search-verb envelope surfaces `request_id` as informational context, not as a
+required input to reveal.
+
+**Deliberately deferred (v1):** Signals, Lookalikes, the identifier-based
+two-step `POST /v3/contacts/search` + `/v3/companies/search` (the ICP-filter
+`prospecting` discovery already covers the "generate net-new" use case; the
+identifier-search variant is redundant with `search-and-enrich` for v1), and the
+Subscriptions (webhook) endpoints under the `/api/` prefix. Webhooks require a
+Helio-hosted callback sink and a subscription lifecycle an AnyCLI passthrough
+tool has no place to deliver to; the rest are narrower and can be added as verbs
+later without reshaping the tool. Bulk (up to 100 identifiers/ids per call) is
+supported by the enrich, reveal, and search-and-enrich endpoints and is exposed
+via repeatable `--id` / identifier flags rather than a separate verb.
 
 **Billing note surfaced to the AI (docs, not code):** `search-and-enrich`
-charges twice per result (one `api_search` + one reveal); the enrich verbs are
-credit-consuming. The `account usage` verb exists so the assistant can reason
-about spend. This goes in the AI-facing sub-doc, not the definition.
+charges twice per result (one `api_search` + one reveal); `search`/`prospecting`
+charge `api_search` per result; `enrich` (the reveal verb) charges only per
+revealed datapoint. So the credit-efficient prospecting flow is **`contact
+search` (cheap `api_search` sweep) → filter to ICP → `contact reveal` on the
+chosen `id`s (reveal-only charge)** — never revealing the rows you discard. The
+`account usage` verb exists so the assistant can reason about spend (and read
+per-action pricing). This goes in the AI-facing sub-doc, not the definition.
 
 ---
 
@@ -115,25 +138,40 @@ server; exit codes 0 success / 1 runtime+API failure via typed `apiError` /
 2 usage-parse; `--json` structured error envelope):
 
 ```
-lusha contact enrich   --email | --linkedin-url | --name+--company[-domain] | --id   [--reveal emails,phones]
+lusha contact enrich   --email | --linkedin-url | --name+--company[-domain]      [--reveal emails,phones]
 lusha contact search   --title --seniority --location --industry --company-size … [--page N --size 50]
-lusha company enrich   --domain | --name | --id
-lusha company search   --industry --location --size --revenue --technology …       [--page N --size 50]
+lusha contact reveal   --id <lusha-id>… (1–100, repeatable)                       [--reveal emails,phones]
+lusha company enrich   --domain | --name                                          [--reveal emails,phones]
+lusha company search   --industry --location --size --revenue --technology …      [--page N --size 50]
+lusha company reveal   --id <lusha-id>… (1–100, repeatable)                        [--reveal emails,phones]
 lusha account usage
 ```
+
+`enrich` owns the real-world-identifier one-shot (`search-and-enrich`); `reveal`
+owns the ID-based batch reveal (`/v3/{contacts,companies}/enrich`) that consumes
+the `id`s a prior `search` returned. Keeping them separate is the orthogonal
+split: "I have an email/LinkedIn/name" vs "I have Lusha `id`s from a search."
+Both `search` verbs' output must surface those `id`s (plus `request_id`) so the
+assistant can feed `reveal`.
 
 **JSON output shape.** Every verb accepts `--json` and emits a stable envelope
 so the assistant parses deterministically regardless of Lusha's nesting:
 
-- Enrich verbs → `{"data": {<revealed contact|company object>}, "meta":
-  {"credits_charged": <n>, "request_id": "…"}}`. Lusha's search-then-reveal
-  response carries `has` / `canReveal` preview flags; the service flattens the
-  revealed record into `data` and drops preview-only scaffolding.
-- Search verbs → `{"data": [<preview objects>], "meta": {"page": N,
-  "total": M, "has_more": bool}}`. Preview objects are non-PII (IDs + `has`
-  availability flags) — the assistant then calls an enrich verb on chosen IDs.
+- `enrich` verbs → `{"data": {<revealed contact|company object>}, "meta":
+  {"credits_charged": <n>, "request_id": "…"}}`. Lusha's search-and-enrich
+  response carries preview scaffolding (`canReveal`); the service flattens the
+  revealed record into `data` and drops preview-only fields.
+- `reveal` verbs → `{"data": [<revealed objects>], "meta": {"credits_charged":
+  <n>, "request_id": "…"}}` (Lusha returns a `results` array of up to 100
+  revealed records + a `billing.creditsCharged` total).
+- `search` verbs → `{"data": [<preview objects>], "meta": {"page": N,
+  "total": M, "has_more": bool, "request_id": "…"}}`. Preview objects carry the
+  Lusha `id` (+ name-only fields, no email/phone) — the assistant collects the
+  `id`s of the rows it wants and calls the matching `reveal` verb on them. The
+  `id` and `request_id` MUST appear in the envelope; without the `id`s the
+  reveal step is impossible.
 - `account usage` → `{"data": {"credits": {"used", "remaining", "total"},
-  "plan": "…"}}` (fields passed through as returned).
+  "plan": "…", "pricing": {…}}}` (fields passed through as returned).
 - Errors (all verbs) → exit 1 with `{"error": {"code": "…", "message": "…"}}`;
   a `401` from Lusha maps to an auth-class error message pointing the assistant
   at reconnecting.
@@ -198,9 +236,24 @@ tool:
 strategy auto-composes *verify-before-write*: a provider-declared header + an
 HTTPS identity endpoint hit at connect time, so a bad key is rejected before it
 reaches Vault. Lusha's natural verify endpoint is `GET /v3/account/usage`
-(`200` on a valid key, `401` on an invalid/missing one). **But** that endpoint
-returns credit/plan data only — it exposes **no stable per-account identifier or
-human label** (no email, no account id, no org name). This is the same gap the
+(`200` on a valid key, `401` on an invalid/missing one).
+
+**Path confirmed (minor-finding resolution).** The V3 migration guide renders
+this endpoint loosely as `account/usage` ("No change" from V2, no `/v3` shown),
+which raised an off-by-version risk — a wrong verify path would turn every
+connect into a false `401`/reject (the `manual_api_token` verify-before-write
+gate). The authoritative V3 OpenAPI bundle
+(`docs.lusha.com/_bundle/apis/@v3/openapi.yaml`) lists the path as
+**`GET /v3/account/usage`** (operationId `getAccountUsage`, `securitySchemes:
+ApiKeyAuth` = `api_key` header, `401` Unauthorized on bad key). So the DESIGN's
+pinned `/v3/account/usage` is correct; L2 still re-probes it live (it is
+credit-free) before verify metadata is authored, to catch any doc/live drift.
+The endpoint's **5 req/min** rate limit is confirmed in the same spec — a
+once-per-connect verify is well within budget.
+
+**But** that endpoint returns credit/plan/pricing data only — it exposes **no
+stable per-account identifier or human label** (no email, no account id, no org
+name; confirmed against `AccountUsageResponse`). This is the same gap the
 Wave-2 api_key tools with a "verifier capability" hit (semrush / moz /
 dataforseo / fullstory precedents): the endpoint is a boolean validity oracle,
 not an identity source.
@@ -248,8 +301,8 @@ visible flip.
 
 | Layer | Concretely for Lusha | Needs external creds? |
 |---|---|---|
-| **L1** anycli unit | `go test ./...` in anycli. `httptest.Server` fakes for `contacts/search-and-enrich`, `companies/search-and-enrich`, `contacts/prospecting`, `companies/prospecting`, `account/usage`. Assert: `api_key` header injected; request body shapes (identifier flags → JSON body; reveal flags); `--json` envelope for success + `401`/`429` error rendering; exit-code contract (0/1/2). Never hits the real API. | No |
-| **L2** dev harness, real API | `make build-harness`; `ANYCLI_CRED_API_KEY=<real key> anycli lusha -- account usage` (cheapest, no credit burn, proves header+auth), then one `contact enrich --email <known>` against a real known contact to prove the enrich body shape + reveal path. Mandatory before pin bump. | **Yes** — a real Lusha Premium/Scale API key (account pool, lane 2). Burns a credit on the enrich call. |
+| **L1** anycli unit | `go test ./...` in anycli. `httptest.Server` fakes for `contacts/search-and-enrich`, `companies/search-and-enrich`, `contacts/prospecting`, `companies/prospecting`, `contacts/enrich`, `companies/enrich`, `account/usage`. Assert: `api_key` header injected; request body shapes (identifier flags → `search-and-enrich` `contacts[]` body; repeatable `--id` → `enrich` `{ids:[…]}` body; `--reveal emails,phones` → `reveal:[…]`); search-verb envelope surfaces `id` + `request_id`; `--json` envelope for success + `401`/`429` error rendering; exit-code contract (0/1/2). Never hits the real API. | No |
+| **L2** dev harness, real API | `make build-harness`; `ANYCLI_CRED_API_KEY=<real key> anycli lusha -- account usage` (cheapest, credit-free, proves header+auth **and re-confirms the `/v3/account/usage` verify path live**), then one `contact enrich --email <known>` (proves the search-and-enrich body + reveal), plus a minimal two-step probe: `contact search` with a tight filter + `--size 1` → take the returned `id` → `contact reveal --id <that-id> --reveal emails` (proves prospecting `id` flows into `/v3/contacts/enrich`). Mandatory before pin bump. | **Yes** — a real Lusha Premium/Scale API key (account pool, lane 2). Burns credits on the enrich/search/reveal calls (kept minimal). |
 | **L3** generate + suites | From `integration-service`: `provider-gen` + `provider-gen --check` (five projections regenerate together — validate on-branch, do **not** commit; batch lead owns the canonical regen). `helio-cli/go.mod` local `replace` → anycli branch; `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/`. `integration-service` unit suite green (esp. if the verifier capability is touched). | No |
 | **L4** singleton + seed | `make run-singleton` (`env: dev`); `POST /internal/test-only/connections/seed` with `provider:"lusha"`, `access_token:<real key>` (api_key providers are seedable — user-token class), real seeded assistant/org identities; then `heliox tool lusha -- account usage` and `heliox tool lusha -- contact enrich --email <known>` resolve the key through the real token gateway → anycli → live Lusha API. Non-expiring key → seed `access_token` only, no refresh cycle. | **Yes** — same real key as L2. |
 | **L5** full connect flow (pre-flip, once) | api_key **key-entry** path (not OAuth consent): `heliox tool lusha auth` → open connect link → paste the key through the real connect UI → stored via `POST /connections/credentials`, **verified against `GET /v3/account/usage`** (option-1 verifier) → connection shows connected/`configured` in `GET /connections` → one **unseeded** `heliox tool lusha -- account usage` through the real token gateway succeeds. Agent-drivable (agent-browser) with human fallback. Gates the visible flip. | **Yes** — same real key. |
