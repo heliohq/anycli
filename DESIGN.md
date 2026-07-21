@@ -7,7 +7,9 @@
 ## 0. Verification summary (independent, against official docs + repo code)
 
 Sources read directly: the official Freshservice API v2 reference (`api.freshservice.com`)
-— base-URL/auth/pagination/rate-limit pages — plus repo code
+— base-URL/auth/pagination/rate-limit, create-ticket (mandatory-field + status/priority/
+source/type enum codes) and filter-tickets (30/page × 10-page = 300-result cap, no
+`per_page`) pages — plus repo code
 (`integration-service/model/catalog.go`, `model/runtime_contract.go`,
 `service/manual_credentials_identity.go`, `service/manual_token_verifier.go`,
 `service/provider_registry.go`) and the shipped `mongodb` bundle as the
@@ -99,8 +101,14 @@ ITIL modules), Service Catalog ordering + Service Requests item flow, Solutions/
 writes, SLA/business-hours/automation admin, ticket delete/forget, time entries. The
 v1 cut mirrors the Zendesk/Freshdesk "triage + reply + route + look up" teammate loop.
 
-Pagination: `page` (1-based) + `per_page` (default 30, max 100); next-page URL in the
-`link` response header — surface `next_page`/`link` in JSON output. Rate limits: on
+Pagination (standard list endpoints, e.g. `GET /tickets`): `page` (1-based) + `per_page`
+(default 30, max 100); next-page URL in the `link` response header — surface
+`next_page`/`link` in JSON output. **`GET /tickets/filter` is the exception** and does
+**not** share this contract: it returns **30/page fixed (`per_page` is ignored),
+`page` must be 1–10 (hard cap 300 results), and only tickets created in the last 30 days
+are returned by default**. Because the paging semantics genuinely differ, filtered
+listing is a **separate `ticket search` subcommand** (§2) rather than a `--filter` flag on
+`ticket list`, so a paging flag never silently changes meaning. Rate limits: on
 `429`, surface a typed API error including `Retry-After` and the `X-RateLimit-*`
 headers; **no silent retry loop** (fail fast per Helio hard rules — invalid requests
 still consume quota, so a retry storm is actively harmful).
@@ -170,9 +178,10 @@ mid-batch).
 **Command tree (axis-① word `freshservice`, flat):**
 
 ```
-freshservice ticket list    [--filter "status:2 AND priority:1"] [--updated-since T] [--per-page N] [--page N]
+freshservice ticket list    [--updated-since T] [--per-page N] [--page N]          # GET /tickets     — per_page ≤100, walks full set
+freshservice ticket search  --query "status:2 AND priority:1" [--page N]           # GET /tickets/filter — 30/page fixed, page 1–10, 30-day window
 freshservice ticket get     <id> [--conversations]
-freshservice ticket create  --subject S --description D --email E [--priority P] [--status ST] [--group-id G] [--agent-id A] [--type T]
+freshservice ticket create  --subject S --description D --email E [--status ST] [--priority P] [--group-id G] [--agent-id A] [--type T]
 freshservice ticket update  <id> [--status ST] [--priority P] [--group-id G] [--agent-id A] [--tags a,b]
 freshservice ticket reply   <id> --body BODY
 freshservice ticket note    <id> --body BODY [--private]
@@ -185,6 +194,32 @@ freshservice asset list     [--filter "…"] [--per-page N] [--page N]
 freshservice asset get      <display-id>
 ```
 
+**`ticket create` required-field reality — always the agent-on-behalf context.** Helio
+*always* authenticates with a stored API key, and Freshservice treats every API-key create
+as an **agent creating on behalf of a requester** — in that context `status` and
+`priority` are **server-side mandatory** (the Service Portal / Freshdesk default them; the
+agent API does not). Leaving them optional and unset would 400 every `ticket create` —
+breaking the primary write path. So the CLI **supplies defaults when the flags are omitted:
+`--status` → `2` (Open), `--priority` → `2` (Medium)**, both overridable, and the applied
+default is documented in help + the AI doc. Caveats the create docs do **not** enumerate,
+worth a one-line note because there is no create-time escape hatch (**`bypass_mandatory`
+exists only on `PUT`/update, not on `POST`**): an account **priority matrix** can override
+the sent `priority` (Admin → Priority Matrix); account-configured **mandatory custom
+fields** (and sometimes `department_id`) can still 400 a create with fields this synopsis
+doesn't list. Surface the raw `errors[]` body verbatim so the agent sees exactly which
+field the account requires. (Also: pass no `responder_id` to leave a ticket unassigned —
+`null` is rejected; omit the flag.)
+
+**`ticket list` vs `ticket search` — split so a paging flag means one thing per command.**
+`ticket list` → `GET /tickets`: `--per-page` adjustable up to **100**, `--page` walks the
+full dataset via the `link` header. `ticket search` → `GET /tickets/filter`: the endpoint
+**fixes 30 results/page and ignores `per_page`**, so `ticket search` deliberately exposes
+**no `--per-page`**; `--page` is validated to **1–10** (hard cap 300 results) and the CLI
+errors on out-of-range rather than silently returning nothing, and the default 30-day
+created-window is documented. This split (not one `list --filter`) is the fail-fast /
+no-silent-behavior-divergence resolution required by the Helio hard rules — a flag never
+silently no-ops depending on another flag.
+
 **JSON output shape (provider-neutral, agent-tuned — the 003 §3 convention):** every
 command prints a single JSON object to stdout. List commands:
 `{"items": [...], "page": N, "per_page": N, "next_page": N|null}` (`next_page` derived
@@ -196,8 +231,10 @@ body and, on 429, `retry_after`. Exit codes: `0` success · `1` runtime/API fail
 (typed `apiError` with HTTP status + body) · `2` usage/missing-credential.
 
 Unit tests (TDD, httptest fakes): base-URL + Basic-header construction from a blob;
-each command's request shaping; pagination `link`→`next_page`; 401→typed auth error;
-429→`retry_after`; malformed-blob→exit 2. No real network in L1.
+each command's request shaping; pagination `link`→`next_page`; `ticket create` injects the
+`status=2`/`priority=2` defaults when the flags are omitted (and honours overrides);
+`ticket search` sends no `per_page` and rejects `--page` outside 1–10; 401→typed auth
+error; 429→`retry_after`; malformed-blob→exit 2. No real network in L1.
 
 ## 3. Credential fields and the exact auth flow
 
@@ -291,8 +328,22 @@ tool:
 - **Generation:** from `go-services/integration-service`, `go run ./cmd/provider-gen`
   then `--check`; commit all five projections together with the bundle.
 - **AI-facing doc:** provider sub-doc under `agents/plugins/heliox/skills/tool/`
-  documenting the command tree, the URL-blob credential format, filter-query syntax,
-  and pagination; plugin version bump + marketplace publish (one per batch).
+  documenting the command tree, the URL-blob credential format, filter-query syntax, the
+  split `ticket list` vs `ticket search` pagination contracts, and — because the
+  create/update APIs accept **integer codes, not labels** — the **enum code tables the
+  agent must send** (without these, `--status`/`--priority`/`--source` are effectively
+  unusable):
+  - **status:** `2` Open · `3` Pending · `4` Resolved · `5` Closed (accounts may add
+    custom statuses with codes ≥ 6)
+  - **priority:** `1` Low · `2` Medium · `3` High · `4` Urgent
+  - **source:** `1` Email · `2` Portal · `3` Phone · `4` Chat · `5` Feedback widget ·
+    `9` Walkup · `10` Slack · `15` MS Teams · … (publish the full list in the doc)
+  - **type:** **DIVERGENCE from the review finding, verified against the official
+    create-ticket schema** — `type` is a **string**, not an integer enum: e.g.
+    `"Incident"` (default) or `"Service Request"`. Document it as a free-string field, not
+    a numeric code, so the agent doesn't send an integer that Freshservice rejects.
+
+  Plugin version bump + marketplace publish (one per batch).
 
 ### 4.3 Capability decision to surface to the batch lead (stage 1)
 
