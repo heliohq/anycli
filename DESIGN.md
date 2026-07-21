@@ -236,6 +236,67 @@ L1–L5 green · AI-facing sub-doc published under `agents/plugins/heliox/skills
 
 ---
 
+## 9. Implementation divergence — single-secret packed credential (recorded per master plan §2)
+
+**As-designed:** §2.2/§4/§5 specify **four discrete credential fields**
+(`service_account_username`, `service_account_secret`, `project_id`, `region`),
+each injected as its own env var and **projected to its own `credential.fields`
+entry**, with `stable_key`/`label` sourced from named input fields — flagged in
+§5 as a **new** integration-service capability the batch would land.
+
+**As-built:** a **single packed JSON credential** (`token.access_token`) —
+i.e. the mongodb single-secret pack that §5 documented as the sanctioned
+zero-capability fallback. Verified against the actual repo code (the
+instruction's "check the repo yourself, nothing is exempt" mandate), the
+multi-field shape is **more invasive than §5 framed**, on three counts the
+design under-weighted:
+
+1. **Closed `CredentialSource` allowlist.** `model/catalog.go` defines a closed
+   allowlist of token-gateway sources; the only token-derived one is
+   `token.access_token`. Four per-field projections would require **adding four
+   entries to a security-sensitive closed vocabulary** plus token-gateway
+   plumbing — not "projection config."
+2. **D5 single-secret invariant.** `model.validateCredentialInputSchema` and the
+   `RuntimeStrategyManualCredentials` runtime contract **assert exactly one
+   required field** (design 317 D5/D8, "no new CredentialSource"). Multi-field
+   relaxes a *documented, asserted* invariant.
+3. **`manualTokenVerifier.Verify(secret string)`** takes a single secret; the
+   whole manual-credentials path is single-secret end to end.
+
+Given the repo's **subtract-before-adding** hard rule, and that a sibling batch
+tool (**amplitude**, same analytics/api_key lane) concurrently landed the
+**deriver-selection** mechanism for exactly this packed-secret shape, the
+packed-JSON fallback is the correct, lowest-conflict, allowlist-respecting
+choice. It is functionally equivalent: `account_key = project_id` is still
+surfaced (via `mixpanelCredentialDeriver` → `connection.account_key`,
+human-readable, never a hash), and identity is still credential-derived with no
+connect-time verifier (the §5 Finding-1/Finding-2 residency argument holds
+unchanged). Net effect on §5: **both new capabilities (a) and (b) are dropped**
+— (b) numeric `stable_key` disappears entirely because a form-field value is
+always a string, and (a) collapses to one deriver + one-line deriver selection.
+
+Consequent shape changes (supersede §2.2 and §4 where they conflict):
+
+- **anycli definition:** one binding — `credentials` → `MIXPANEL_CREDENTIALS`
+  (a JSON object `{username, secret, project_id, region}`); the service parses
+  the four values (region defaults to `us`). Region-aware host selection,
+  Basic-auth assembly, GET/POST split, JSONL export, and typed
+  `credential`/`rateLimit` error kinds are all unchanged.
+- **bundle:** one required secret `credentials` field with a JSON placeholder;
+  `identity.source: strategy`; `credential.fields: {credentials:
+  token.access_token, account_key: connection.account_key}`.
+- **integration-service:** `mixpanelCredentialDeriver` (JSON → account_key =
+  project_id, label = username, secret excluded from identity) selected by
+  `manualCredentialsDeriver(definition)`.
+
+**Trade-off accepted:** the connect form is one JSON field rather than four
+labeled inputs, and `region` is inside the secret blob rather than an
+inspectable non-secret field. The AI-facing sub-doc + the field placeholder
+carry the exact JSON shape, and `project_id` remains inspectable as
+`account_key`.
+
+---
+
 ### Sources
 - Service accounts / Basic auth: https://docs.mixpanel.com/reference/service-accounts · https://docs.mixpanel.com/docs/orgs-and-projects/service-accounts
 - API overview, hosts, data residency (Query/Export/**App API** all region-scoped): https://docs.mixpanel.com/reference/overview
