@@ -9,25 +9,33 @@ batch-end. Catalog row 270 (§4 of the 298-integrations rollout plan): product
 
 The 2026-07-21 OAuth audit (row 272 in `oauth-audit.md`) keeps Knock in the
 **api_key** lane: "no viable multi-tenant path". The **lane** is verified
-against Knock's own docs and confirmed. One catalog detail is **not** confirmed
-and is corrected here: Knock secret keys are opaque, **plain `sk_`-prefixed**
-tokens with **no** environment token in the prefix (there is no `sk_test_` /
-`sk_live_` format — that pairing is a Stripe-style illustrative placeholder, not
-Knock's real scheme).
+against Knock's own docs and confirmed. On the key format the earlier
+catalog/design assumption is **partly** corrected. Knock's official docs **do**
+show an `sk_test_` prefix for the Development environment — the API reference
+overview authenticates with `Authorization: Bearer sk_test_12345` and the Elixir
+SDK docs use `api_key: "sk_test_12345"`. So it is **wrong** to call `sk_test_` a
+"Stripe placeholder, not Knock's scheme"; Knock's development secret keys really
+do carry an `sk_test_` prefix. What is **not** safe is deriving a meaningful
+environment *label* from the prefix — the reasons are below, and they still
+support the static-label decision in §4, just for the correct reasons.
 
 - Knock's data API (`https://api.knock.app/v1`) authenticates with a single
-  **environment-scoped secret key** — prefix `sk_` (public keys `pk_`), with the
-  environment resolved **server-side by which environment-scoped key is used**,
-  not by any token embedded in the prefix. Source:
+  **environment-scoped secret key** — public keys prefix `pk_`, secret keys
+  prefix `sk_` (development keys observed as `sk_test_…`). Source:
   docs.knock.app/developer-tools/api-keys ("they start with `pk_` for a public
   key, vs `sk_` for a secret key"; "each environment has its own unique set of
   API keys") and the API reference ("You must pass your API key to Knock as a
-  Bearer token using the `Authorization` header").
+  Bearer token using the `Authorization` header", example `Bearer sk_test_12345`).
 - Environments are **open-ended**: an account starts with Development and
   Production but can add arbitrary custom environments (e.g. Staging), inserted
   below Production in the promotion chain (docs.knock.app/concepts/environments).
-  A binary test/live label therefore cannot represent the real environment set —
-  another reason the prefix-derived label in §4 is dropped.
+  A **custom** environment cannot be represented from any prefix (there is no
+  documented `sk_staging_`-style scheme), and production keys are not documented
+  to carry a readable env segment. So a prefix-derived environment label would be
+  correct only for the Development case and wrong/empty for the rest — which is
+  why §4 uses a **static** label plus a fingerprint suffix rather than a
+  prefix-parsed one. The static-label conclusion stands; the "no sk_test_ exists"
+  premise does not.
 - There is **no** multi-tenant authorization-code OAuth flow: no
   `authorize`/`token` endpoints, no "one registered app that arbitrary Knock
   customers authorize". The only credential a customer can produce for
@@ -183,19 +191,27 @@ false` (hidden-first). **Three naming axes all identical → no
 (no network verify).** This is the crux and the one **capability-growth flag
 (stage 1, per rollout §6 "flag adapter/credential-kind candidates at stage 1").**
 
-Why not the plain `manual_api_token` + `declarativeManualTokenVerifier` path
-(GET an identity endpoint, extract a stable-key JSON pointer)? Because Knock's
-data API has **no whoami / account-identity endpoint** — every list endpoint
-returns `{entries, page_info}` with no account-identifying string, so there is
-nothing for `identity.stable_key` to point at. Verified against the reference:
-the only account scoping is the environment baked into the key itself, and the
-docs expose no account/environment info resource.
-
-So identity must be **derived from the credential**, exactly the design-317
-`manual_credentials` model that `dsnHostIdentityDeriver` already uses for
+**The one unavoidable new capability is a secret-fingerprint identity source.**
+Knock's data API has **no whoami / account-identity endpoint** — every list
+endpoint returns `{entries, page_info}` with no account-identifying string, and
+`GET /messages?page_size=1` has no account field and returns empty `entries`
+when the env has no messages. So **no Knock response yields a value for
+`identity.stable_key` to point at.** The account key can therefore only be
+**derived from the credential itself** (a deterministic fingerprint of the
+secret), exactly the design-317 model `dsnHostIdentityDeriver` already uses for
 mongodb/braze (no provider-side request; a bad secret surfaces at first tool
 use via AnyCLI `CredentialRejected`). Knock differs only in *what* is derived,
-since a secret key has no readable host.
+since a secret key has no readable host — it has no host **and** no whoami, so
+the derived value is a fingerprint, not a parsed field.
+
+This reframes the choice below. It is **not** "Option A needs a new capability,
+Option B avoids it." **Both** options need the *same* one new thing — a
+fingerprint-producing identity source — because neither the `dsnHostIdentityDeriver`
+(manual_credentials) nor the `declarativeManualTokenVerifier` (manual_api_token)
+can produce a stable_key from a hostless, whoami-less Knock key on main. The real
+question is only **which strategy hosts that one fingerprint capability**: the
+`manual_credentials` deriver path (Option A) or the `manual_api_token` verifier
+path (Option B).
 
 > **Hard prerequisite — NOT on main today.** On `main`,
 > `composeProviderRegistration` (integration-service
@@ -222,35 +238,49 @@ since a secret key has no readable host.
     fingerprint), matching the dsnHost "secret-free metadata" rule.
   - **label** = a **static `"Knock"`** (optionally suffixed with the
     fingerprint's short form, e.g. `Knock · a1b2c3`, to disambiguate two
-    connected keys). There is **no documented way to obtain a readable
-    environment name from the credential** — the environment is server-side
-    state keyed by the opaque secret, and the account's environment set is
-    open-ended (Development / Production / custom Staging, §0) — so any
-    environment-in-the-label scheme is **out of scope**. The earlier
-    prefix-derived `"Knock (live)"` idea is dropped: `sk_test_`/`sk_live_` is not
-    Knock's real key format (§0), so it would produce wrong or empty labels and
-    fall back to exactly the raw hash that dsnHost OQ2 forbids.
+    connected keys). A prefix-derived environment label is dropped **not**
+    because `sk_test_` is fake — it is real for Development (§0) — but because it
+    would be right only for the Development case: custom environments have no
+    documented prefix scheme and production keys are not documented to carry a
+    readable env segment, so a prefix parse yields correct-for-dev / wrong-or-empty
+    for everything else (§0). The environment is server-side state keyed by the
+    opaque secret with no documented way to read a name back from the credential,
+    so any environment-in-the-label scheme is **out of scope**. A static label
+    plus fingerprint suffix disambiguates two connected keys without ever falling
+    back to the raw hash that dsnHost OQ2 forbids.
 
   This deriver is **not Knock-specific**: rows 268–272 (Iterable, Courier,
   Knock, Novu, Loops) plus Mailjet are the same shape — one opaque Bearer
   secret, no whoami. Build it once as the cluster's reusable capability, not a
   per-tool fork (rollout "prefer growing one reviewed capability").
 
-- **Alternative (Option B — adopt if reviewers want a positive connect-time
-  signal, or to avoid depending on the unbuilt deriver-selection path):** a
-  network verify — `GET /messages?page_size=1` with `Authorization: Bearer
-  <key>` — reusing the Bearer-scheme manual-token verifier capability (tally
-  precedent, `manual_api_token` + `declarativeManualTokenVerifier`) to confirm
-  `200` before the Vault write, still fingerprinting for the account key. This
-  path does **not** depend on the deriver-selection mechanism, so it is the
-  lower-risk option if that mechanism slips. Trade-off: it adds request surface
-  for marginal value, since AnyCLI already classifies the `401` at first use,
-  and it needs a workflow-free read path (message list is safe and always
-  exists).
+- **Alternative (Option B — adopt only if reviewers want a positive connect-time
+  signal):** host the same fingerprint capability on the `manual_api_token`
+  strategy instead. This is **not capability-free**, and the earlier framing that
+  it "does not depend on the unbuilt deriver-selection path" was **wrong**. The
+  shipped `declarativeManualTokenVerifier` (manual_token_verifier.go:53-60)
+  **requires** `identity.stable_key` to resolve to a non-empty string **inside the
+  identity-endpoint response body** and hard-fails the connect otherwise — it has
+  **no secret-fingerprint fallback**. Since no Knock response yields a stable_key
+  (above), the stock verifier **cannot** connect Knock; "still fingerprinting for
+  the account key" is not something that code path does or can do. So Option B
+  needs a **new compiled `manual_api_token` verifier variant** that fingerprints
+  the secret as the stable_key — the *same* fingerprint capability as Option A,
+  just wired to the verifier strategy. Its only genuine delta over Option A is the
+  optional `GET /messages?page_size=1` (`Authorization: Bearer <key>`) `200` check
+  before the Vault write, for a positive connect-time signal. Trade-off: it adds
+  request surface for marginal value (AnyCLI already classifies the `401` at first
+  use), needs a workflow-free read path (message list is safe and always exists),
+  and — being a verifier variant — does not de-risk the fingerprint work, since
+  that work is unavoidable in either option.
 
-Bundle sketch (copy exact `credential.fields` source-token and `tool.kind`
-form from a shipped `manual_credentials` bundle — mixpanel / braze / segment —
-so the generator's closed contract passes):
+Bundle sketch — the shape follows the shipped `manual_credentials` precedent
+`integrations/providers/mongodb/provider.yaml` exactly (auth.type `credentials`,
+`identity.source: strategy`, `credential.fields` projecting `token.access_token`
+plus `account_key: connection.account_key`, `tool.kind: api-key` with a dash —
+the wire-compat value, distinct from the catalog's `api_key` **lane label**,
+which is not the bundle's `auth.type` enum). Copy the exact field values from
+mongodb/braze so the generator's closed contract passes:
 
 ```yaml
 schema: helio.provider/v1
@@ -263,15 +293,12 @@ presentation:
   visible: false          # hidden-first; flip + regen is the single go-live change
   order: <next free>
 auth:
-  type: api_key
+  type: credentials       # design-317 manual-credentials shape (NOT the catalog "api_key" lane label)
   owner: individual
   credential_input:
     fields:
-      - {name: api_key, label_key: api_key, secret: true, required: true, placeholder: "sk_..."}
+      - {name: api_key, label_key: api_key, secret: true, required: true, placeholder: "sk_test_..."}
     setup_url: https://dashboard.knock.app     # Developers → API keys
-  # display-only capability disclosure (rendered via i18n tools.scopes.<slug>)
-  api_key:
-    header: Authorization                       # informational; Bearer built in service
 identity:
   source: strategy                              # deriver; no stable_key/url required
 connection:
@@ -279,13 +306,21 @@ connection:
   disconnect_mode: local_only
   runtime_strategy: manual_credentials
 resources: {selection: none, discovery: none, enforcement: none}
+# Single secret stored via the existing UpsertUserToken write path (design 317 D5):
+# project the token itself + the deriver-produced account key, mirroring mongodb.
 credential:
   fields:
-    api_key: <manual_credentials secret source token — copy from mixpanel/braze>
+    api_key: token.access_token
+    account_key: connection.account_key
 tool:
   name: knock
-  kind: api_key
+  kind: api-key           # wire-compat value (317 D2), dash — clients route the drawer by auth_type
 ```
+
+Note the credential field carries the secret through `token.access_token` (the
+Bearer scheme is built in the anycli service, §2 — the bundle does not declare a
+header sub-block; the invented `auth.api_key.header` block in an earlier draft is
+not part of the manual_credentials contract and is dropped).
 
 - **required_config_fields:** empty — a `manual_credentials` provider "does not
   use server config fields" (validate.go), so **no `config/` + `deploy/` secret
@@ -319,39 +354,47 @@ rather than a read. **L1 and L3 need no external credentials.**
 ## 6. Rollout
 
 Ship hidden (`visible: false`). The anycli service + definition land
-independently, but the Helio bundle's connect path is **gated on the
-deriver-selection capability + fingerprint deriver landing on main** (Open
-Decision 1 / §4 hard-prerequisite box) — until that merges (or Option B's
-Bearer verifier is adopted instead), the bundle validates (L3) but connect does
-not compose. Sequence: land the capability (Option A) or the verifier (Option
-B), then the `manual_credentials` (or `manual_api_token`) bundle, pass L1–L4 on
-branch, then the batch-end merge (one pin bump, one `provider-gen`, one plugin
-publish). Run the L5 key-entry sweep after batch-end while still hidden; only
-then flip `presentation.visible: true` + regenerate as the single go-live
+independently, but the Helio bundle's connect path is **gated on a
+fingerprint-producing identity source landing on main** (Open Decision 1 / §4
+hard-prerequisite box) — this is required in **both** options, so there is no
+"skip the capability" path. Until it merges, the bundle validates (L3) but
+connect does not compose. Sequence: land the one fingerprint capability, hosted
+on whichever strategy OD1 picks — the `manual_credentials` deriver (Option A) or
+a new `manual_api_token` verifier variant (Option B) — then the bundle, pass
+L1–L4 on branch, then the batch-end merge (one pin bump, one `provider-gen`, one
+plugin publish). Run the L5 key-entry sweep after batch-end while still hidden;
+only then flip `presentation.visible: true` + regenerate as the single go-live
 change. Wave 3, no review clock (api_key) — the gates on "done" are the
 capability prerequisite and L5.
 
 ## 7. Open decisions for the implementer
 
-1. **Deriver capability (BLOCKING prerequisite, stage-1 flag).** Neither the
-   design-317 deriver-selection mechanism **nor** a fingerprint deriver is on
-   `main` today — on main `composeProviderRegistration` binds all
-   `manual_credentials` providers to `dsnHostIdentityDeriver`, which rejects a
-   hostless `sk_` key (§4 hard-prerequisite box). This must be resolved before
-   Knock's connect can compose; it is not a confirmation. Two ways to unblock:
+1. **Fingerprint identity capability (BLOCKING prerequisite, stage-1 flag).**
+   No path on `main` today produces a stable_key from a hostless, whoami-less
+   Knock key: `composeProviderRegistration` binds all `manual_credentials`
+   providers to `dsnHostIdentityDeriver`, which rejects a hostless `sk_` key, and
+   the `manual_api_token` `declarativeManualTokenVerifier` hard-fails when the
+   response has no stable_key with no fingerprint fallback (§4). A
+   fingerprint-producing identity source is therefore required **regardless of
+   option** — the decision is only **which strategy hosts it**, not whether it is
+   built:
    - **Option A (recommended):** land the deriver-selection wiring in
      `composeProviderRegistration` **and** add a shared
      `bearerKeyFingerprintIdentityDeriver` (no network call; **label = static
      `"Knock"`**, optionally `+ short fingerprint`; **stable_key = truncated
-     SHA-256** of the secret). **Do not** derive the label from the key prefix —
-     `sk_test_`/`sk_live_` is not Knock's real format and a readable environment
-     name is not obtainable from the credential (out of scope). Build it as the
-     reusable capability serving the rows-268–272 cluster, not a Knock-only path.
-   - **Option B (fallback that avoids the unbuilt deriver-selection path):**
-     ship as `manual_api_token` with a Bearer-scheme `declarativeManualTokenVerifier`
-     doing `GET /messages?page_size=1` (tally precedent), still fingerprinting
-     for the account key. Pick this if the deriver-selection capability slips or
-     reviewers want a positive connect-time signal.
+     SHA-256** of the secret). **Do not** derive the label from the key prefix:
+     `sk_test_` is real for Development but a readable environment name is not
+     obtainable for custom/production environments (§0), so it is out of scope.
+     Build it as the reusable capability serving the rows-268–272 cluster, not a
+     Knock-only path.
+   - **Option B (only for a positive connect-time signal — NOT capability-free):**
+     add a **new** `manual_api_token` verifier variant that fingerprints the
+     secret as stable_key (the stock `declarativeManualTokenVerifier` cannot, §4),
+     optionally gated on a `GET /messages?page_size=1` `200` check (tally-style
+     Bearer scheme). This hosts the *same* fingerprint capability on the verifier
+     strategy; it does **not** avoid building the fingerprint work and does not
+     de-risk against the deriver-selection wiring slipping. Pick it only if a
+     pre-Vault `200` signal is wanted.
 2. **Trigger safety.** Default `workflow trigger` to require an explicit
    `--recipients`; surface `--sandbox`/`--skip-delay` prominently in the
    AI-facing doc so a teammate can dry-run a send before a real fan-out.
