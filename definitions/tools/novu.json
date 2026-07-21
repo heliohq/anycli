@@ -7,10 +7,6 @@
       {
         "source": {"field": "api_key"},
         "inject": {"type": "env", "env_var": "NOVU_SECRET_KEY"}
-      },
-      {
-        "source": {"field": "api_base"},
-        "inject": {"type": "env", "env_var": "NOVU_API_BASE"}
       }
     ]
   }

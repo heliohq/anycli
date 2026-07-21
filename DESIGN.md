@@ -340,6 +340,19 @@ recorded because they diverge from the review's stated facts:
    change. L2 confirms the v1 forms are truly retired (not merely undocumented)
    before the pin bump.
 
+   **Region is US-only for the hidden landing (`api_base` credential dropped).**
+   §3/§4 planned a second `api_base` credential carrying the region base. On
+   `main` there is **no** `CredentialSource` that projects a region value (the
+   closed set is `token.access_token`, `connection.account_key`,
+   `connection.metadata.person_urn`, `credential.app_id`, `credential.brand`), so
+   the Helio bundle cannot supply `api_base` without new capability. Rather than
+   grow the source vocabulary + a region-metadata capture path for a hidden
+   landing, the definition injects **only** `api_key` → `NOVU_SECRET_KEY`; the
+   service defaults the base to US (`https://api.novu.co`) when `NOVU_API_BASE` is
+   absent. The service still reads `NOVU_API_BASE` (tests exercise it, and it is
+   the seam EU support rides later), but EU is a documented follow-up requiring a
+   joint region-field + region→base projection capability, landed together.
+
 7. **Verbatim passthrough instead of per-endpoint unwrap (simplification).** §3
    proposed a per-endpoint envelope map (unwrap `data` where present, pass bare
    shapes through). Implementation instead passes **every** response through
