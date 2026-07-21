@@ -310,6 +310,16 @@ Notes / risks:
 - `register.go` entry `RegisterService("reddit", …)`; anycli tag; helio-cli
   pin bump (drop the local `replace`).
 - Bundle merge + single canonical `provider-gen` run (five projections).
+- **Hand-add `model.ProviderReddit: model.RuntimeStrategyStandardOAuth` to the
+  `wantStrategies` map in
+  `go-services/integration-service/service/provider_registry_test.go`.**
+  `provider-gen` regenerates `provider_catalog.gen.go` (which defines the
+  `ProviderReddit` const) but does NOT touch this hand-written test, so
+  `TestDefaultProviderRegistryIsComplete` fails (`registry definitions = N,
+  want N-1`) after the regen until this line lands. The line cannot compile on
+  the tool branch (the const only exists once the regen is committed), so it is
+  batch-end-coupled exactly like the projections. Verified locally: regen +
+  this line → `go test ./service/` green.
 - No `toolToProvider` entry (② == ③).
 - `providerIcons.ts` append + `icons/reddit.svg`.
 - Provider sub-doc under `agents/plugins/heliox/skills/tool/` + plugin version
