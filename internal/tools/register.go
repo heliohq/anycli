@@ -21,6 +21,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
 	"github.com/heliohq/anycli/internal/tools/tasks"
+	"github.com/heliohq/anycli/internal/tools/typeform"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
 
@@ -46,6 +47,7 @@ func init() {
 	RegisterService("linkedin", &linkedin.Service{})
 	RegisterService("meet", &meet.Service{})
 	RegisterService("tasks", &tasks.Service{})
+	RegisterService("typeform", &typeform.Service{})
 	RegisterService("x", &x.Service{})
 	RegisterService("microsoft-outlook", &microsoftoutlook.Service{})
 	RegisterService("microsoft-calendar", &microsoftcalendar.Service{})
