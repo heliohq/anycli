@@ -9,7 +9,7 @@
         "inject": {"type": "env", "env_var": "SNOV_CLIENT_ID"}
       },
       {
-        "source": {"field": "client_secret"},
+        "source": {"field": "api_secret"},
         "inject": {"type": "env", "env_var": "SNOV_CLIENT_SECRET"}
       }
     ]
