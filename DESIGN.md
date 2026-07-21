@@ -2,7 +2,7 @@
 
 **Catalog row:** #18 · Attio · anycli id `attio` · provider key `attio` · lane `oauth_light` · Wave 1 · CRM.
 **Branches:** anycli `tool/attio` (this worktree), Helio `tool/attio`.
-**Status of catalog assumptions after independent verification against official docs:** all confirmed; no divergences. Details and citations below.
+**Status of catalog assumptions after independent verification against official docs:** catalog lane and audit endpoints confirmed; no catalog divergences. (Rev 2 corrects three internal spec errors found in review — update verb mapping, search required fields, comment author — see §2 and §6.) Details and citations below.
 
 ## 1. What an AI teammate does with Attio, and the API surface that serves it
 
@@ -17,8 +17,8 @@ An AI teammate's real jobs: "find the record for Acme / jane@acme.com", "what's 
 | Meta | `GET /v2/self` | whoami / token+workspace identity; also the bundle's identity endpoint |
 | Objects | `GET /v2/objects`, `GET /v2/objects/{object}` | discover object slugs (incl. custom) before any record op |
 | Attributes | `GET /v2/{target}/{id}/attributes`, `.../attributes/{attribute}`, `.../options`, `.../statuses` (read-only) | discover attribute slugs, select options, deal/status stages — prerequisite for correct writes |
-| Records | `POST /v2/objects/records/search` (fuzzy, beta), `POST /v2/objects/{object}/records/query` (filter/sort), `GET/PATCH/DELETE /v2/objects/{object}/records/{record_id}`, `POST /v2/objects/{object}/records` (create), `PUT /v2/objects/{object}/records` (assert/upsert by matching attribute) | the core CRM read/write loop |
-| Lists & entries | `GET /v2/lists`, `GET /v2/lists/{list}`, `POST /v2/lists/{list}/entries/query`, `POST /v2/lists/{list}/entries` (create), `PUT` assert-by-parent, `PATCH/DELETE /v2/lists/{list}/entries/{entry_id}` | pipeline work: add to list, change stage, query a pipeline |
+| Records | `POST /v2/objects/records/search` (fuzzy, beta), `POST /v2/objects/{object}/records/query` (filter/sort), `GET/DELETE /v2/objects/{object}/records/{record_id}`, `PUT /v2/objects/{object}/records/{record_id}` (update, **overwrite** multiselect), `PATCH /v2/objects/{object}/records/{record_id}` (update, **append** multiselect), `POST /v2/objects/{object}/records` (create), `PUT /v2/objects/{object}/records` (assert/upsert by matching attribute) | the core CRM read/write loop |
+| Lists & entries | `GET /v2/lists`, `GET /v2/lists/{list}`, `POST /v2/lists/{list}/entries/query`, `POST /v2/lists/{list}/entries` (create), `PUT` assert-by-parent, `PUT /v2/lists/{list}/entries/{entry_id}` (update, **overwrite** multiselect), `PATCH /v2/lists/{list}/entries/{entry_id}` (update, **append** multiselect), `DELETE /v2/lists/{list}/entries/{entry_id}` | pipeline work: add to list, change stage, query a pipeline |
 | Notes | `GET /v2/notes` (filter by record), `GET/DELETE /v2/notes/{note_id}`, `POST /v2/notes` (markdown/plaintext) | meeting/call logging — a primary assistant write path |
 | Tasks | `GET /v2/tasks`, `POST /v2/tasks`, `GET/PATCH/DELETE /v2/tasks/{task_id}` | follow-ups with due dates, assignees, linked records |
 | Comments & threads | `GET /v2/threads`, `GET /v2/threads/{thread_id}`, `POST /v2/comments`, `GET/DELETE /v2/comments/{comment_id}` | participate in record discussions |
@@ -26,7 +26,7 @@ An AI teammate's real jobs: "find the record for Acme / jane@acme.com", "what's 
 
 **Deliberately out of scope (v1):** webhooks (runtime has no callback surface; presence-over-polling assistants don't need them for CLI use), meetings/call-recordings (beta, gated by separate `meeting`/`call_recording` scopes, not core CRM), files (upload lifecycle adds little for v1), attribute/object **write** endpoints (schema mutation is an admin act, not a teammate act — read-only introspection is enough and safer), list/object create-update (same reasoning).
 
-**Pagination** (verified: https://docs.attio.com/rest-api/guides/pagination.md): `limit`/`offset` — query params on GET, JSON body fields on POST query endpoints; some newer endpoints (meetings) use cursors, but none we wrap. Surface `--limit`/`--offset` verbatim; do not auto-paginate. Search caps `limit` at 25.
+**Pagination** (verified: https://docs.attio.com/rest-api/guides/pagination.md): `limit`/`offset` — query params on GET, JSON body fields on POST query endpoints; some newer endpoints (meetings) use cursors, but none we wrap. Surface `--limit`/`--offset` verbatim; do not auto-paginate. Search is the exception: `limit` only (default/max 25), no offset.
 
 **Rate limits** (verified): 100 read rps / 25 write rps, `429` + `Retry-After`. No client-side throttling in v1; surface the 429 body through the standard error envelope.
 
@@ -62,22 +62,29 @@ An AI teammate's real jobs: "find the record for Acme / jane@acme.com", "what's 
 attio whoami
 attio object   list | get <object>
 attio attribute list --object <o> | --list <l>   # plus: options/statuses via `attribute options|statuses`
-attio record   search --query <q> [--objects people,companies] [--limit N]
+attio record   search --query <q> [--objects <o1,o2,...>] [--request-as-member <member_id|email>] [--limit N]
 attio record   query  <object> [--filter <json>] [--sort <json>] [--limit N] [--offset N]
 attio record   get|delete <object> <record_id>
 attio record   create <object> --values <json>
-attio record   update <object> <record_id> --values <json> [--append]   # PATCH; --append maps to the append-multiselect variant
+attio record   update <object> <record_id> --values <json> [--append]   # default PUT (overwrite multiselect); --append switches to PATCH (append multiselect)
 attio record   upsert <object> --values <json> --match <attribute>      # PUT assert
 attio list     list | get <list>
 attio entry    query <list> [--filter <json>] [--limit N] [--offset N]
 attio entry    add <list> --parent-record <id> --parent-object <o> [--values <json>]
-attio entry    get|update|remove <list> <entry_id>
+attio entry    get|remove <list> <entry_id>
+attio entry    update <list> <entry_id> --values <json> [--append]      # same contract as record update: default PUT (overwrite), --append → PATCH (append)
 attio note     list [--record <object>:<id>] | get <note_id> | create --parent <object>:<id> --title <t> (--markdown <md> | --plaintext <txt>) | delete <note_id>
 attio task     list | get <task_id> | create --content <txt> [--deadline <iso>] [--assignee <member_id>] [--record <object>:<id>] | update <task_id> | delete <task_id>
 attio thread   list [--record <object>:<id>] | get <thread_id>
-attio comment  create (--thread <id> | --record <object>:<id>) --content <txt> | get <id> | delete <id>
+attio comment  create (--thread <id> | --record <object>:<id>) --content <txt> [--author <member_id>] | get <id> | delete <id>
 attio member   list | get <member_id>
 ```
+
+**Update semantics (record + entry)** — verified against https://docs.attio.com/rest-api/endpoint-reference/records/update-a-record-overwrite-multiselect-values.md and `.../update-a-record-append-multiselect-values.md` (and the list-entry twins under `endpoint-reference/entries/`): Attio exposes the same duality on both paths — `PUT /v2/objects/{object}/records/{record_id}` "the values supplied will overwrite/remove the list of values that already exist (if any)", `PATCH` at the same path "the values supplied will be created and prepended to the list of values that already exist (if any)". The CLI default for `record update` / `entry update` is **PUT (overwrite)** — the intuitive "update replaces what I set" semantics — and `--append` switches to **PATCH (append)**. Both verbs get L1 request-shape assertions.
+
+**Search defaults** — verified against https://docs.attio.com/rest-api/endpoint-reference/records/search-records.md: the body requires `query` (maxLength 256), `objects` (min 1 item, slugs or IDs), and `request_as` (`{type: "workspace"}` or `{type: "workspace-member", workspace_member_id|email_address}`); `limit` is optional (default/max 25); no offset. CLI contract: `--objects` defaults to the five standard objects (`people,companies,deals,users,workspaces`) when omitted; `request_as` defaults to `{"type": "workspace"}`, with `--request-as-member <member_id|email>` opting into member-scoped visibility (UUID → `workspace_member_id`, otherwise `email_address`). Both defaults are asserted in L1 request-shape tests.
+
+**Comment author contract** — verified against https://docs.attio.com/rest-api/endpoint-reference/comments/create-a-comment.md: every variant of `POST /v2/comments` requires `format` (enum: `plaintext` only), `content`, and `author` (`{type: "workspace-member", id: <uuid>}`; "other types of actors are not currently supported"). The CLI always sends `format: "plaintext"` and defaults `author` to the connection's `authorized_by_workspace_member_id` resolved via `GET /v2/self` (one extra call, cacheable per token within the process); `--author <member_id>` overrides. If `/v2/self` yields no member id (e.g. a workspace API key not tied to a member), the command fails fast with a message requiring `--author` — no silent fallback.
 
 **JSON output:** default human-readable summaries (record_text, ids, one line per item); `--json` emits the provider's response `data` verbatim (Attio already wraps in `{"data": ...}`) so agents can chain calls. Attio attribute *values* are structured (arrays of typed value objects); write flags take raw JSON (`--values`, `--filter`, `--sort`) rather than inventing a lossy flag-per-attribute DSL — the schema is per-workspace, so JSON passthrough plus `attribute list` introspection is the honest contract.
 
@@ -162,7 +169,7 @@ tool:
 
 | Layer | What runs for attio | External inputs needed |
 |---|---|---|
-| **L1** | anycli `go test ./...`: `internal/tools/attio/` unit tests against httptest fakes — request shapes for every subcommand (incl. POST-body vs query-param pagination, `--append` → append-variant path, upsert `matching_attribute`), bearer injection, exit codes, plain + `--json` error envelopes, missing-token guard | none |
+| **L1** | anycli `go test ./...`: `internal/tools/attio/` unit tests against httptest fakes — request shapes for every subcommand (incl. POST-body vs query-param pagination; record/entry update default **PUT** vs `--append` → **PATCH**, both verbs asserted; search body defaults `objects` = standard five + `request_as` = `{"type":"workspace"}` and the `--request-as-member` member variant; comment `author` default from `/v2/self` + `--author` override + `format: plaintext`; upsert `matching_attribute`), bearer injection, exit codes, plain + `--json` error envelopes, missing-token guard | none |
 | **L2** | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<real token> anycli attio -- whoami / object list / record search --query … / record create+update+delete round-trip / note create / task create` against the live API. Mandatory before tagging | **YES — test account pool (lane 2):** a real Attio workspace + an access token. Simplest source pre-OAuth-app: a workspace API key from the Attio settings (same bearer semantics as an OAuth token), else a token minted from the lane-1 dev app |
 | **L3** | local `go run ./cmd/provider-gen` + `--check` against the branch bundle (validation only, per §2 — expected red in CI until batch-end regen); helio-cli built with uncommitted `replace github.com/heliohq/anycli => <this worktree>`; `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/`; integration-service suite | none |
 | **L4** | singleton (`env: dev`), `POST /internal/test-only/connections/seed` with `provider: "attio"`, real ids, and `access_token` **only** (no `refresh_token`/`expires_at` — non-expiring token class, no refresh path to exercise); then `heliox tool attio -- whoami` + one record read reaching the live API | **YES — lane 1:** dev OAuth app registered at build.attio.com; a real access token minted from it (uncommitted local `config/cloud.yaml` entries for client id/secret) |
@@ -172,4 +179,9 @@ tool:
 
 ## 6. Divergence log
 
-None. Official docs confirm the catalog lane (`oauth_light`: self-serve registration, no review program), the audit's endpoints (authorize `app.attio.com/authorize`, token `app.attio.com/oauth/token`), and the standard_oauth fit. The only nuance worth recording: Attio issues **no refresh tokens** and sends **no scope query parameter** — both are properties the Notion bundle already models (`refresh_lease: none`, dashboard-configured scopes as `display_scopes`), so no schema or adapter work follows.
+**Catalog/audit divergences:** none. Official docs confirm the catalog lane (`oauth_light`: self-serve registration, no review program), the audit's endpoints (authorize `app.attio.com/authorize`, token `app.attio.com/oauth/token`), and the standard_oauth fit. The only nuance worth recording: Attio issues **no refresh tokens** and sends **no scope query parameter** — both are properties the Notion bundle already models (`refresh_lease: none`, dashboard-configured scopes as `display_scopes`), so no schema or adapter work follows.
+
+**Rev 2 spec corrections (design-internal, not catalog divergences)** — review findings verified against official docs and fixed in §1/§2/§5:
+1. **Update verb mapping was inverted.** `PATCH /v2/objects/{object}/records/{record_id}` is the *append-multiselect* variant; `PUT` at the same path is the *overwrite/remove* variant (same duality on `/v2/lists/{list}/entries/{entry_id}`). Rev 1 based `update` on PATCH with a no-op `--append`, leaving overwrite unreachable. Now: default PUT (overwrite), `--append` → PATCH, for both `record update` and `entry update`; PUT-with-id added to the §1 surface table.
+2. **Search required fields were missing.** `POST /v2/objects/records/search` requires `objects` (min 1) and `request_as` in addition to `query`. Now: `--objects` defaults to the five standard objects, `request_as` defaults to `{"type":"workspace"}` with `--request-as-member` override.
+3. **Comment author was unspecified.** `POST /v2/comments` requires `author` (`{type:"workspace-member", id}`) and `format` (only `plaintext`) in every variant. Now: author defaults to `authorized_by_workspace_member_id` from `GET /v2/self`, `--author` overrides, fail-fast when unresolvable.
