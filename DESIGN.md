@@ -1,159 +1,183 @@
-# Tool design: Delighted (`delighted`)
+# Tool design: Delighted (`delighted`) — BLOCKED (provider sunset)
 
 Scratch design doc for the `tool/delighted` branch (batch-lead strips at batch
 end). Drives the anycli `delighted` service definition and the Helio
 `delighted` provider bundle. Written from the pipeline skill
 (`helio-tool-provider`), master plan `008-300` (§2 execution model, §3 naming),
-and the Delighted official REST API — verified against the live docs, not
-assumed from the catalog.
+and the Delighted official REST API.
 
 Catalog row 213: Product **Delighted** · anycli id `delighted` · provider key
 `delighted` · auth `api_key` · wave 3 · category Forms & Surveys.
 
-## 1. Audit reconciliation — `api_key` confirmed against official docs
+## 0. Status: BLOCKED — DO NOT BUILD. Catalog divergence: provider fully sunset
+
+**Verdict: do not implement this tool. Row 213 (Delighted) must be dropped from
+the catalog.** The rest of this document is retained only as the evidence trail
+and as the (now-moot) reference design that reached this conclusion.
+
+### 0.1 The divergence (official docs override the catalog)
+
+My instructions require following the provider's **official documentation** over
+the catalog and recording any divergence here. The official docs say the product
+no longer exists:
+
+- **Delighted (the Qualtrics-owned NPS/CSAT product) was fully sunset on
+  June 30, 2026, and access was terminated / the product completely shut down on
+  July 1, 2026.** Today is **2026-07-22** — the platform and its REST API have
+  been dead for ~3 weeks. Sources (all official or official-adjacent):
+  - Official **Delighted Sunset FAQ** (Help Center, article 840): "The Delighted
+    platform and product will be discontinued. It will cease to operate…" —
+    timeline: annual renewals stopped 2025-07-01, monthly ended 2026-05-31,
+    **final sunset 2026-06-30**, access terminated / fully shut down 2026-07-01,
+    then **all account data is permanently deleted**.
+    <https://delighted-help-160b834b9adfde78ebef1528.helpscoutdocs.com/article/840-delighted-sunset-faq>
+  - Official API **client repositories**, all archived with an identical banner
+    **"[DEPRECATED] Delighted API … Client — Delighted is sunset June 30, 2026"**:
+    `delighted/delighted-node`, `delighted/delighted-ruby`, `delighted/delighted-php`,
+    and the `delighted` npm package. These are the vendor's own SDKs; their
+    deprecation is the vendor's own statement that the API is gone.
+  - The Qualtrics sunset notice and the vendor sunset landing page
+    (`delighted.com/?page_id=25877`) carry the same message.
+
+- Master plan §3 already **DROPPED** two tools on exactly this "API viability"
+  reasoning — Medium ("write API effectively closed") and Wave ("API restricted
+  to invited partners"). **A fully-terminated product is a strictly stronger cut
+  than either.** This design mirrors the §3 "Seed corrections" treatment and asks
+  the batch lead / master-plan owner to remove row 213 the same way.
+
+### 0.2 Why it cannot ship as-is (consequences)
+
+1. **Zero value to an AI teammate.** Every command would hit a dead API. There is
+   no account any user could connect and no data any request could return. A
+   shipped `heliox tool delighted` returns nothing but connection/transport
+   errors for every user — the opposite of the "human-natural colleague with a
+   working tool" bar.
+2. **The §7 test plan is unexecutable — permanently.** L2/L4/L5 all require "a
+   real Delighted project API key from the lane-2 account pool," but **no new
+   Delighted account can be provisioned** (sign-up and renewals are closed) and
+   the **live API no longer responds**. So L2's "Mandatory before pin bump" gate
+   and L5's "unseeded live run" success criterion **can never be met**. Per
+   anycli TDD rules a tool that cannot pass its own required live tests must not
+   be pinned or flipped visible.
+
+### 0.3 Required action
+
+- **Escalate to the batch lead / master-plan owner to drop Delighted from catalog
+  row 213**, mirroring the §3 Medium/Wave "Seed corrections" treatment. Do not
+  bump the anycli pin, do not land the provider bundle, do not flip visible.
+- **If a Forms-&-Surveys NPS/CSAT slot is still wanted**, retarget to a *live*
+  platform the lane-2 account pool can actually provision (the market successors
+  now positioning for ex-Delighted users — e.g. Zonka Feedback, SurveyVista,
+  Customer Thermometer, or a Qualtrics-native path). That is a **new catalog row
+  with its own design doc**, not a rename of this one.
+- **Leave `tool/delighted` unmerged.** No anycli definition, no Helio bundle, no
+  `provider-gen` regen, no pin bump.
+
+Everything below §0 is the pre-sunset reference analysis (API shape and auth
+model were verified before the sunset was confirmed). **It is retained for the
+record only and must not be used to build the tool.** Two review corrections are
+folded in where they touch factual claims (the deriver-selection mechanism in
+§6.1 and the rate-limit contract in §3/§4.4); both are otherwise moot under §0.
+
+## 1. Audit reconciliation — `api_key` (pre-sunset reference)
 
 Master-plan lane: `api_key`. OAuth audit row 215 verdict: **"no viable
 multi-tenant path → stays api_key"** (compact note, no evidence URL).
 
-Independent verification against the official docs **confirms** the verdict:
+Independent verification against the (then-live) official docs confirmed the
+verdict:
 
-- Delighted's REST API authenticates via **HTTP Basic Auth with the API key as
-  the username and a blank password**, over HTTPS only. There is **no OAuth 2.0
+- Delighted's REST API authenticated via **HTTP Basic Auth with the API key as
+  the username and a blank password**, over HTTPS only. There was **no OAuth 2.0
   authorization-code flow** of any kind — no authorize/token endpoints, no app
-  registration, no consent screen. (Source: official API auth section —
-  "authenticated via HTTP Basic Auth. Use your API key as the username and
-  leave the password blank.")
-- The key is **per CX project**: "Each CX project has its own API key." A user
-  copies it from the Delighted dashboard (Settings → API). Keys are long-lived
-  (no documented expiry); rotation is manual regeneration in the dashboard.
+  registration, no consent screen.
+- The key was **per CX project**: "Each CX project has its own API key," copied
+  from the Delighted dashboard (Settings → API). Long-lived, manual rotation.
 
-So there is nothing to move; `api_key` is correct. No divergence to record.
-**One nuance the catalog's flat `api_key` label hides** and this design must
-handle: Delighted's credential is delivered as HTTP **Basic** (key-as-username),
-**not** as a plain header token (`X-Api-Key: <key>` / `Authorization: Bearer
-<key>`). This does not change the lane, but it changes the Helio-side auth model
-(§6) — the existing header-token `manual_api_token` verifier cannot encode
-Basic-username auth, and there is no identity endpoint to extract an account
-from.
+So the lane was `api_key`, delivered as HTTP **Basic** (key-as-username), not a
+plain header token. (All moot under §0 — the API no longer accepts any key.)
 
-## 2. What an AI teammate does with Delighted → surface selection
+## 2. What an AI teammate would have done with Delighted (pre-sunset reference)
 
-Delighted is an NPS/CSAT/CES customer-experience survey platform. An AI teammate
-acting as a CX analyst / ops helper does, in rough order of frequency:
+Delighted was an NPS/CSAT/CES customer-experience survey platform. An AI teammate
+acting as a CX analyst / ops helper would have, in rough order of frequency:
 
 1. **Read the score.** Pull current NPS/CSAT/CES aggregates and trend
    (`metrics`).
 2. **Read & triage verbatim feedback.** List survey responses, filter by score
-   band / time window, retrieve a single response with its comment, person, and
-   tags (`survey_responses` list + retrieve).
-3. **Annotate feedback.** Add tags / notes to a response during triage
-   (`survey_responses` update).
+   band / time window, retrieve a single response (`survey_responses`).
+3. **Annotate feedback.** Add tags / notes to a response (`survey_responses`
+   update).
 4. **Enroll customers to be surveyed.** Create/update a person and schedule a
-   survey, or add them to Autopilot recurring surveys (`people`,
-   `autopilot memberships`).
+   survey, or add them to Autopilot (`people`, `autopilot memberships`).
 5. **Manage deliverability & compliance.** List bounced / unsubscribed people,
-   unsubscribe on request, cancel pending sends, GDPR-delete a person
-   (`bounces`, `unsubscribes`, `people` delete, pending survey-request delete).
+   unsubscribe, cancel pending sends, GDPR-delete a person.
 
-Reads dominate; writes are enrollment + compliance. This selects the endpoint
-set in §3 and keeps write verbs conservative (create/update/delete of people,
-tags, and subscription state — no bulk/destructive account operations beyond
-what the API itself scopes to a single project key).
+## 3. Official API reference (pre-sunset reference)
 
-## 3. Official API reference (verified)
-
-- **Base URL:** `https://api.delighted.com/v1`
+- **Base URL:** `https://api.delighted.com/v1` (now non-responsive).
 - **Transport:** HTTPS only; JSON request/response (`.json` suffix on every
   path).
 - **Auth:** HTTP Basic — `Authorization: Basic base64(<api_key> + ":")` (key =
   username, empty password).
-- **Rate limits:** `429 Too Many Requests` with a `Retry-After` header;
-  exponential backoff recommended. Each failed request is safely retriable.
-- **Identity endpoint:** **none.** There is no `/me`, `/account`, or `/project`
-  object. `metrics.json` returns only aggregate numbers (nps, promoter_count,
-  …) with no account identifier or name. This is load-bearing for §6.
+- **Rate limits (corrected per review — minor finding):** Delighted's official
+  rate-limit guidance documented a **client-side fixed exponential backoff**
+  (retry after 1s, then 2s, then 4s) against an average of ~100 req/min, and
+  stated failed requests are safely retriable. It did **not** document a
+  `Retry-After` **response header**. The earlier draft's claim that the tool
+  "surfaces `Retry-After`" was wrong; a `429` handler should follow the
+  documented fixed-schedule backoff and surface `Retry-After` **only if actually
+  present**. (Moot under §0.)
+- **Identity endpoint:** **none.** No `/me`, `/account`, or `/project` object;
+  `metrics.json` returned only aggregate numbers with no account identifier. This
+  was load-bearing for the §6 auth model.
 
-Endpoints the tool wraps (all under `/v1`, all `.json`):
+Endpoints the tool would have wrapped (all under `/v1`, all `.json`):
 
 | Group | Method & path | Purpose |
 |---|---|---|
 | metrics | `GET /metrics.json` | NPS/CSAT/CES aggregates (`since`, `until`, `trend`) |
 | survey responses | `GET /survey_responses.json` | list (`per_page`, `page`, `since`, `until`, `updated_since`, `trend[...]`, `expand[]`, `order`) |
 | survey responses | `GET /survey_responses/{id}.json` | retrieve one (`expand[]`) |
-| survey responses | `POST /survey_responses.json` | create a response (`person`, `score`, `comment`, …) |
+| survey responses | `POST /survey_responses.json` | create a response |
 | survey responses | `PUT /survey_responses/{id}.json` | update (tags/notes/properties) |
-| people | `GET /people.json` | list people (cursor pagination via `page_info`, `per_page`) |
-| people | `POST /people.json` | create/update person + schedule survey ("send to people"; `email`, `name`, `properties[...]`, `send`, `delay`, `channel`) |
+| people | `GET /people.json` | list people (cursor pagination via `page_info`) |
+| people | `POST /people.json` | create/update person + schedule survey |
 | people | `DELETE /people/{id}.json` | GDPR delete a person + their data |
-| pending requests | `DELETE /people/{email}/survey_requests/pending.json` | cancel scheduled-but-unsent surveys for a person |
-| bounces | `GET /bounces.json` | list bounced people (oldest first) |
+| pending requests | `DELETE /people/{email}/survey_requests/pending.json` | cancel scheduled-but-unsent surveys |
+| bounces | `GET /bounces.json` | list bounced people |
 | unsubscribes | `GET /unsubscribes.json` | list unsubscribed people |
-| unsubscribes | `POST /unsubscribes.json` | unsubscribe a person (`person_email`/`person_id`) |
-| autopilot | `GET /autopilot/{email\|sms}/memberships.json` | list Autopilot memberships (all, or one via `person_email`) |
+| unsubscribes | `POST /unsubscribes.json` | unsubscribe a person |
+| autopilot | `GET /autopilot/{email\|sms}/memberships.json` | list Autopilot memberships |
 | autopilot | `POST /autopilot/{email\|sms}/memberships.json` | add a person to Autopilot |
 | autopilot | `DELETE /autopilot/{email\|sms}/memberships.json` | remove a person from Autopilot |
 | autopilot | `GET /autopilot/{email\|sms}.json` | read Autopilot configuration |
 
-Errors are non-2xx with a JSON body carrying a `message`; `401` on a bad/absent
-key. (Web snippet and webhook config endpoints exist but are out of scope — not
-useful to an AI teammate operating over an API key.)
+## 4. anycli definition (pre-sunset reference — not to be implemented)
 
-## 4. anycli definition
+### 4.1 Tool form — `service`
 
-### 4.1 Tool form — `service` (stage-1 rubric)
-
-`service` type. No official Delighted CLI exists; the `cli`-type rubric
-(official, non-interactive, `--json`-capable, provisionable binary) fails on the
-first clause. Implement against the HTTP API in `internal/tools/delighted/`,
-following the `bitly` reference shape (single-token Bearer/Basic REST service,
-resource-grouped cobra tree, httptest-faked unit tests). 22 of 24 shipped
-definitions are `service`.
+`service` type (no official CLI). Would follow the `bitly` reference shape
+(single-token Basic REST service, resource-grouped cobra tree, httptest-faked
+unit tests) in `internal/tools/delighted/`.
 
 ### 4.2 Naming (all three axes identical → no resolver divergence)
 
 | Axis | Value | Where |
 |---|---|---|
-| ① CLI command word | `delighted` | bundle `tool.command` (flat, no group) |
-| ② anycli tool id | `delighted` | `definitions/tools/delighted.json`, `RegisterService("delighted", …)` |
+| ① CLI command word | `delighted` | bundle `tool.command` (flat) |
+| ② anycli tool id | `delighted` | `definitions/tools/delighted.json` |
 | ③ provider catalog key | `delighted` | `integrations/providers/delighted/` |
 
-②≡③, so **no** `helio-cli/internal/toolcred/resolver.go` `toolToProvider`
-entry is added (mechanical identity mapping is handled by `ProviderFor`'s
-default). Go package: `internal/tools/delighted/` (no dash/digit normalization
-needed).
+②≡③, so no `toolToProvider` resolver entry would be added.
 
-### 4.3 Credential binding
+### 4.3 Credential binding (reference)
 
-`definitions/tools/delighted.json`:
+`api_key` field injected as env var `DELIGHTED_API_KEY`; the service would call
+`req.SetBasicAuth(key, "")`, keeping the Basic-username scheme entirely inside
+anycli. Helio stores/serves one opaque secret.
 
-```json
-{
-  "name": "delighted",
-  "type": "service",
-  "description": "Delighted as a tool (NPS/CSAT survey metrics, responses, people)",
-  "auth": {
-    "credentials": [
-      {
-        "source": {"field": "api_key"},
-        "inject": {"type": "env", "env_var": "DELIGHTED_API_KEY"}
-      }
-    ]
-  }
-}
-```
-
-- Credential field name **`api_key`** (not `access_token`) — this is a static
-  API key, and the Helio bundle's `credential.fields` maps
-  `api_key: token.access_token`, so the name is a local anycli↔env convention
-  only; the resolver still supplies it from the single stored secret.
-- Injected as env var `DELIGHTED_API_KEY`. The service reads it and calls
-  `req.SetBasicAuth(key, "")` — the Basic-username scheme lives **entirely
-  inside the anycli service**, so nothing in the credential map or token
-  gateway needs to know about Basic encoding. This is the clean seam: anycli
-  owns request construction; Helio owns storage/resolution of one opaque
-  secret.
-
-### 4.4 Command tree (resource-grouped, mirrors `notion`/`bitly`)
+### 4.4 Command tree (reference)
 
 ```
 delighted metrics get            [--since --until --trend]
@@ -164,7 +188,7 @@ delighted response update --id ID [--tags --notes --properties-json]
 delighted people list            [--per-page --page-info]
 delighted people send    --email E [--name --properties-json --send --delay --channel]
 delighted people delete  --id ID
-delighted people cancel-pending --email E        # DELETE .../survey_requests/pending.json
+delighted people cancel-pending --email E
 delighted bounces list           [--per-page --page]
 delighted unsubscribes list      [--per-page --page]
 delighted unsubscribes add --person-email E
@@ -174,88 +198,58 @@ delighted autopilot memberships remove --platform email|sms --person-email E
 delighted autopilot config get         --platform email|sms
 ```
 
-Design notes:
-- **`--platform email|sms`** models the `/autopilot/{email|sms}/…` path segment
-  as a required enum flag rather than two command subtrees — one code path,
-  validated against the two literals.
-- **JSON output:** every command emits the provider's JSON response verbatim to
-  stdout + newline (`bitly`'s `emit`); no client-side reshaping. `--json` is a
-  no-op persistent flag accepted for uniformity (output is always JSON).
-- **Exit codes** (the documented anycli contract): `0` success; `1`
-  runtime/API failure (non-2xx → typed `apiError` carrying Delighted's
-  `message`); `2` usage/parse error. **`401` maps to
-  `execution.RejectCredential`** so Helio surfaces a re-auth prompt (this is the
-  only signal a bad key produces, since connect-time is no-verify — see §6).
-  `429` is a plain retryable error surfacing `Retry-After`.
-- Pagination flags are passed straight through as query params; the tool does
-  **not** auto-paginate (agents page explicitly), matching the built-in
-  service conventions.
+Design notes (reference):
+- **`--platform email|sms`** models the path segment as a required enum flag.
+- **JSON output:** verbatim provider JSON to stdout.
+- **Exit codes:** `0` success; `1` runtime/API failure; `2` usage/parse error.
+  `401 → execution.RejectCredential`. **`429`:** follow the documented fixed
+  exponential backoff (1s/2s/4s); surface `Retry-After` **only if the response
+  actually carries it** (corrected per the minor finding — the API does not
+  document sending that header).
 
-## 5. Auth flow & credential fields (api_key lane)
+## 5. Auth flow & credential fields (reference)
 
-- **Registration model:** none. The user generates/reads a per-project API key
-  in the Delighted dashboard (Settings → API). No Helio-side OAuth client, no
-  `config/`+`deploy/` client id/secret — this is the whole reason api_key tools
-  need zero lane-1 app registration.
-- **Scopes/semantics:** the key is all-or-anything the project exposes; there is
-  no wire-level scope parameter. Long-lived; revoked by regenerating in the
-  dashboard.
-- **Storage/flow:** the user pastes the key through Helio's write-only
-  `POST /connections/credentials`; it is stored in Vault as a single secret and
-  served to `heliox tool delighted` through the token gateway, injected as
-  `DELIGHTED_API_KEY`. The key never lives in the provider bundle.
+- **Registration model:** none — user reads a per-project key from the dashboard.
+- **Scopes:** none at the wire level; long-lived key.
+- **Storage/flow:** pasted via `POST /connections/credentials`, stored as a
+  single Vault secret, injected as `DELIGHTED_API_KEY`.
 
-## 6. Helio provider bundle plan (`integrations/providers/delighted/`)
+## 6. Helio provider bundle plan (reference — not to be landed)
 
-### 6.1 The auth-model decision (the one real design choice)
+### 6.1 The auth-model decision (with review correction)
 
-Two facts from §3 rule out the header-token `manual_api_token` path:
+The header-token `manual_api_token` path was ruled out (Basic-username scheme;
+no identity endpoint), pushing to the **`credentials` / `manual_credentials`**
+model (the mongodb precedent, design 317): a single pasted opaque secret,
+`identity.source: strategy`, no `stable_key`/userinfo requirement.
 
-1. **Basic-username scheme.** `declarativeManualTokenVerifier`
-   (`integration-service/service/manual_token_verifier.go`) verifies a key by
-   `GET`ting the bundle's `identity.url` with `req.Header.Set(APIKey.Header,
-   token)` — a **raw header value**. It cannot produce
-   `Authorization: Basic base64(key+":")`. A Delighted key sent that way is
-   rejected.
-2. **No identity endpoint.** The same verifier requires `identity.source:
-   userinfo` + a `stable_key` JSON Pointer yielding a non-empty account string.
-   Delighted exposes no `/me`/account object and `metrics.json` has no
-   identifier, so there is nothing to extract even if the scheme fit.
+**Deriver selection — declarative, NOT a provider-name switch (major finding
+correction).** The earlier draft proposed a `constantKeyIdentityDeriver`
+"selected for Delighted" but never stated *how* selection happens. On `main`,
+`composeProviderRegistration()` hardcodes `manual: dsnHostIdentityDeriver{}` for
+the **entire** `RuntimeStrategyManualCredentials` case, with no per-provider
+seam — and Delighted's proposed bundle is byte-shape-identical to mongodb's, so
+nothing declarative distinguishes "derive host from DSN" (mongodb) from "constant
+key" (Delighted). Resolving that by a hardcoded `switch definition.Provider`
+would be exactly the "discriminator field on an overloaded model" smell the repo
+CLAUDE.md forbids.
 
-Both push to the **`credentials` / `manual_credentials`** model — the **mongodb
-precedent** (`integrations/providers/mongodb/provider.yaml`, design 317): a
-single pasted opaque secret, `identity.source: strategy`, stored without a
-`stable_key`/userinfo requirement. mongodb's only deriver on `main`
-(`dsnHostIdentityDeriver`) parses the secret as a URL and would reject an opaque
-Delighted key, so a **small integration-service capability addition** is needed.
+The **correct** design (had this shipped) is a **declarative selector the
+registry/generator reads from the bundle**, not the provider name:
 
-**Option A (recommended — minimal, orthogonal): `credentials` /
-`manual_credentials`, no provider-side verification, constant account key.**
-Add a `constantKeyIdentityDeriver` selected for Delighted (the batch's
-deriver-selection seam — cf. the amplitude/crisp/braze per-provider derivers —
-is the growth point; on `main` only mongodb's exists, so this design adds one).
-It performs **no** HTTP call, returns a fixed account key (e.g. `delighted`) and
-a static label (`"Delighted"`), and never puts the secret in the identity map.
-Rationale mirrors mongodb OQ1/OQ2: with no identity endpoint, connect-time
-verification buys nothing and a bad key surfaces cleanly at first
-`heliox tool delighted` call via anycli's `401 → CredentialRejected` (§4.4).
-**Documented limitation:** one Delighted **project** per assistant connection —
-because the account key is constant, connecting a second project's key replaces
-the first. This matches the "each CX project has its own key" reality: an
-assistant is bound to one project's key at a time.
+- Introduce a distinct **`identity.source` value** — e.g. `identity.source:
+  constant` (constant account key, no HTTP) **vs** `identity.source: strategy`
+  reserved for the DSN-deriving path (mongodb) — **or** an explicit
+  `identity.deriver_kind` enum field on the provider model.
+- `composeProviderRegistration()` then branches on that declared value to pick
+  `constantKeyIdentityDeriver{}` vs `dsnHostIdentityDeriver{}`, and
+  `provider-gen` validates the field against a closed set. No `switch` on
+  `definition.Provider` anywhere.
 
-**Option B (deferred enhancement): connect-time Basic-auth verify against
-`GET /metrics.json`.** Unlike mongodb, Delighted *does* have a cheap validating
-endpoint (200 = valid key, 401 = bad key). A `basicUsernameVerifier` variant
-could give earlier "bad key" feedback at connect time. But it still needs the
-constant-key path (metrics.json yields no identity), so it is Option A **plus** a
-Basic-scheme verifier — strictly more machinery for a UX nicety. Recommend
-shipping A first; revisit B if connect-time validation is desired program-wide.
-(The batch has already grown sibling Basic/Bearer verifier variants — lemlist
-`basic_password`, tally Bearer-scheme — so B is low-risk if prioritized, but it
-is not required to ship Delighted.)
+This is moot under §0 (the tool is dropped), but it is the shape any future
+constant-key `manual_credentials` provider in this batch must use.
 
-### 6.2 Bundle sketch (Option A)
+### 6.2 Bundle sketch (reference, Option A)
 
 ```yaml
 schema: helio.provider/v1
@@ -266,8 +260,7 @@ presentation:
   name: Delighted
   description_key: delighted
   consent_domain: delighted.com
-  visible: false          # hidden-first; flip only after L1–L5 green + anycli pin ships
-  # order: <pick unoccupied at flip time>
+  visible: false
 
 auth:
   type: credentials
@@ -279,10 +272,10 @@ auth:
         secret: true
         placeholder: "your Delighted project API key"
         required: true
-    setup_url: https://app.delighted.com/docs/api   # "where to get the key"
+    setup_url: https://app.delighted.com/docs/api
 
 identity:
-  source: strategy        # no HTTPS userinfo endpoint; constant account key deriver
+  source: constant        # declarative selector → constantKeyIdentityDeriver (see §6.1)
 
 connection:
   mode: isolated
@@ -296,71 +289,43 @@ resources:
 
 credential:
   fields:
-    api_key: token.access_token        # single secret via the existing UpsertUserToken write path
+    api_key: token.access_token
     account_key: connection.account_key
 
 tool:
   name: delighted
-  kind: api-key                        # wire-compat tool kind (317 D2); client routes drawer by auth_type
+  kind: api-key
 ```
 
-- **`credential_input.fields`** is single-secret (one required field) — satisfies
-  the D5 generation-time "exactly one required field" check that
-  `resolveManualSecret` relies on.
-- **No `auth.api_key` block** (that is only for `auth.type: api_key` header-token
-  providers) and **no `identity.url`** (only allowed for `userinfo`). The
-  generator's closed-field validation enforces both.
+### 6.3 Service, config, resolver, icon, docs (reference)
 
-### 6.3 Service, config, resolver, icon, docs
+Would have needed the declarative `constantKeyIdentityDeriver` (§6.1) in
+integration-service, an icon + i18n strings, and an AI-facing sub-doc. **None of
+this should be created** — the tool is dropped.
 
-- **integration-service:** the only code change is the `constantKeyIdentityDeriver`
-  + its selection for `manual_credentials` providers that opt out of DSN parsing
-  (small, unit-tested against the `manualTokenVerifier`/deriver interface — a
-  synthetic-provider test like `manual_credential_test.go`). No adapter, no
-  token-gateway change (single secret reuses the mongodb write path). **No
-  `config/`/`deploy/` entries** — api_key/credentials providers carry no client
-  id/secret, so integration-service renders `configured: true` with zero
-  server config (nothing to sync, Config Sync rule N/A here).
-- **resolver:** none (axes ②≡③).
-- **icon:** `ui/helio-app/src/integrations/icons/delighted.svg` +
-  hand-register in `providerIcons.ts`; add `tools.desc.delighted` /
-  `delighted_api_key` i18n strings (all locales) — never generated.
-- **AI-facing docs:** provider sub-doc under
-  `agents/plugins/heliox/skills/tool/`; bump plugin version + publish
-  (batch-end, one publish per batch).
+### 6.4 Generation (reference)
 
-### 6.4 Generation
+`provider-gen` regen would be committed by the batch lead at batch end. **Not
+applicable** — no bundle is landed.
 
-From `go-services/integration-service`: `go run ./cmd/provider-gen` then
-`--check`. Five projections regenerate together (committed by the batch lead at
-batch end; on-branch runs are for L3 validation only and are **not** committed,
-per master plan §2).
+## 7. Test plan — UNEXECUTABLE (provider dead)
 
-## 7. Test plan (five layers)
+**This plan cannot be run and must not gate anything. It is recorded to show
+exactly why the tool is blocked, per §0.2.** L2/L4/L5 each require a real
+Delighted project API key from the lane-2 account pool; **no new account can be
+provisioned and the live API does not respond**, so the required live layers can
+**never** pass.
 
-| Layer | Scope for Delighted | Needs external creds? |
-|---|---|---|
-| **L1** anycli unit | `go test ./...` in `internal/tools/delighted/`: httptest fake asserts path/method/query per command, `SetBasicAuth(key, "")` header shape, verbatim JSON emit, exit-code contract (0/1/2), `401 → CredentialRejected`, `429`+`Retry-After` surfaced. **No real API.** | No |
-| **L2** harness real-API | `ANYCLI_CRED_API_KEY=<real key> anycli delighted -- metrics get`; then `response list`, `people list`, `bounces list`. Proves field name (`api_key`→`DELIGHTED_API_KEY`), Basic-username scheme, and live request shapes. **Mandatory before pin bump.** | **Yes** — a real Delighted project API key (account pool, lane 2) |
-| **L3** `provider-gen --check` + suites | Local `provider-gen` + `--check` against the branch bundle; anycli `go test ./...`; integration-service tests incl. the new `constantKeyIdentityDeriver` unit test; helio-cli build with a local `replace` to the anycli branch + `go test ./cmd/heliox/cmds/tool/`. | No |
-| **L4** singleton + seed | Start singleton (`env: dev`); `POST /internal/test-only/connections/seed` with `provider: delighted`, `api_key`/`access_token` = the **real** key from L2 (seed is allowed for api_key/credentials providers); then `heliox tool delighted -- metrics get` reaches the live API through the real token gateway. Non-expiring key → seed `access_token` only (no refresh cycle). | **Yes** — same real key |
-| **L5** full connect flow | Hidden, pre-flip: open the connect link → paste the key through the real connect UI (`POST /connections/credentials`) → connection shows connected/configured (`GET /connections`) → one **unseeded** `heliox tool delighted -- metrics get` succeeds. This is the **api_key key-entry L5 path** (master plan §2), not the OAuth consent path. | **Yes** — same real key |
+| Layer | Scope | External creds | Executable now? |
+|---|---|---|---|
+| **L1** anycli unit | httptest fake asserts path/method/query, `SetBasicAuth(key,"")`, verbatim emit, exit codes, `401→CredentialRejected`, `429` backoff | No | Would run against a *fake*, but pointless — ships a tool that hits a dead API |
+| **L2** harness real-API | live `metrics get` etc. against `api.delighted.com` | **Yes** | **NO — API dead; account unprovisionable.** Gate "mandatory before pin bump" can never be met |
+| **L3** `provider-gen --check` + suites | local generation/build checks | No | Would run, but validates a bundle that must not land |
+| **L4** singleton + seed | seed real key → live call through token gateway | **Yes** | **NO — same dead-API blocker** |
+| **L5** full connect flow | paste key via real connect UI → **unseeded** live `metrics get` | **Yes** | **NO — the "unseeded live run" success criterion is unreachable** |
 
-Notes:
-- Layers needing externally supplied credentials: **L2, L4, L5** (all use one
-  real Delighted project API key from the lane-2 account pool). L1/L3 are
-  self-contained.
-- **No lane-1 OAuth app registration** and **no `config/`+`deploy/` secret** are
-  required (api_key/credentials lane) — the only human dependency is the test
-  account key.
-- Delighted's connect-time model is **no-verify** (Option A), so a wrong key
-  passes connect and fails at first use with a `CredentialRejected` prompt —
-  L5's success criterion is the *unseeded live run*, which is exactly what
-  exercises the real key end-to-end.
+## 8. Rollout — CANCELLED
 
-## 8. Rollout
-
-Hidden-first: land anycli `delighted` definition+service (batch-merges freely) →
-batch-end pin bump + one anycli tag → land bundle (`visible: false`) + the
-`constantKeyIdentityDeriver` + `provider-gen` regen (batch lead) → L1–L5 green →
-flip `presentation.visible: true` + regenerate as the single go-live change.
+**Do not roll out.** No hidden-first landing, no pin bump, no visible flip. The
+action is §0.3: escalate to drop catalog row 213 and, if a Forms-&-Surveys NPS
+slot is still wanted, open a new design doc targeting a live provider.
