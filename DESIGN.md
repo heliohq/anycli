@@ -36,10 +36,16 @@ rubric's "no viable multi-tenant path," so Lusha correctly sits in the
 API", docs.lusha.com/guides.)
 
 Consequence for the bundle: user-supplied secret through the write-only
-`POST /connections/credentials` API into Vault; `runtime_strategy:
-manual_api_token`; `tool.kind: api-key`. This is the Figma-precedent shape
-(`X-Figma-Token` + `/v1/me`) described in design 227's provider-extension
-contract, adapted to Lusha's header name and verify endpoint.
+`POST /connections/credentials` API into Vault; `tool.kind: api-key`; and a
+manual-secret `runtime_strategy` whose exact enum value is **provisional** until
+stage-2 confirms the reviewed strategy set on `integration-service` main (see
+finding-3 resolution in §4). The only shipped manual precedent on this branch is
+mongodb's `runtime_strategy: manual_credentials` (design 317); a
+`manual_api_token` verify-before-write strategy (the Figma-style `X-Figma-Token`
++ `/v1/me` shape from design 227's provider-extension contract) is **not present
+on this branch** and must not be assumed. So the strategy is `manual_api_token`
+**only if** a shared verifier capability exists; otherwise it is
+`manual_credentials`.
 
 ---
 
@@ -62,9 +68,9 @@ feed one reveal step, plus a usage check:
 | `contact enrich` | `POST /v3/contacts/search-and-enrich` | One-shot known-identifier path: turn a real-world identifier (email / linkedinUrl / firstName+lastName+companyName\|companyDomain) into revealed emails + phones in a single call. Drop-in replacement for legacy `GET /v2/person`. Charges twice (api_search + reveal). |
 | `contact search` | `POST /v3/contacts/prospecting` | ICP prospecting: filter by job title, seniority, department, location, company size/revenue/industry/technologies/intent/signals → net-new contact `id`s + a `requestId` (name-only preview, no email/phone). Generates leads the assistant did not already have. Charged per result via `api_search`. |
 | `contact reveal` | `POST /v3/contacts/enrich` | **The reveal step for prospecting.** Takes up to 100 Lusha contact `ids` (from a `contact search` result) + a `reveal` selector (`emails` / `phones`, omit = both) → full revealed records. Charged per revealed datapoint only (no api_search) — this is the credit-efficient path that makes "search 500 cheaply, reveal only the 80 that matter" possible. Without it, `contact search` returns `id`s that no verb could reveal. |
-| `company enrich` | `POST /v3/companies/search-and-enrich` | One-shot: domain / name → firmographics (size, revenue, industry, technologies). Drop-in for legacy `GET /v2/company`. |
-| `company search` | `POST /v3/companies/prospecting` | Same ICP filter model, company-level → company `id`s + `requestId`. |
-| `company reveal` | `POST /v3/companies/enrich` | Reveal step for company prospecting: up to 100 company `ids` (from a `company search` result) → full firmographics. |
+| `company enrich` | `POST /v3/companies/search-and-enrich` | One-shot: domain / name → firmographics (size, revenue, industry, technologies). Drop-in for legacy `GET /v2/company`. **No `reveal` selector** — the `V3CompaniesSearchAndEnrichRequest` schema is `{companies[], options}` only; companies have no emails/phones, firmographics are returned by default. Charged per successful result via the `reveal_company` action. |
+| `company search` | `POST /v3/companies/prospecting` | Same ICP filter model, company-level → company `id`s + `requestId`. Charged `api_search` per result. |
+| `company reveal` | `POST /v3/companies/enrich` | Reveal step for company prospecting: up to 100 company `ids` (from a `company search` result) → full firmographics. Optional `reveal` selector is the **firmographic-expansion** enum `employeesByDepartment\|employeesByLocation\|employeesBySeniority\|competitors\|intent` (NOT `emails`/`phones` — that enum belongs only to the contact verbs); omit = base firmographics. Charged per successful result via the `reveal_company` action. |
 | `account usage` | `GET /v3/account/usage` | Credits used/remaining/total, plan, rate limits, per-action pricing. Agent-natural pre-flight check before a credit-heavy sweep — and the provider-side **verifier** endpoint (see §4). |
 
 **Divergence recorded (review vs official V3 spec).** The review finding assumed
@@ -91,12 +97,28 @@ later without reshaping the tool. Bulk (up to 100 identifiers/ids per call) is
 supported by the enrich, reveal, and search-and-enrich endpoints and is exposed
 via repeatable `--id` / identifier flags rather than a separate verb.
 
-**Billing note surfaced to the AI (docs, not code):** `search-and-enrich`
-charges twice per result (one `api_search` + one reveal); `search`/`prospecting`
-charge `api_search` per result; `enrich` (the reveal verb) charges only per
-revealed datapoint. So the credit-efficient prospecting flow is **`contact
-search` (cheap `api_search` sweep) → filter to ICP → `contact reveal` on the
-chosen `id`s (reveal-only charge)** — never revealing the rows you discard. The
+**Billing note surfaced to the AI (docs, not code) — billing differs by
+entity, so state it per endpoint, not as one blanket "enrich = per-datapoint"
+rule:**
+
+- **contact reveal** (`POST /v3/contacts/enrich`) → charged **per revealed
+  datapoint** (each email or phone), no `api_search`. If `canReveal.credits` is
+  0 the datapoint is already revealed and re-enriching it is free.
+- **contact enrich** (`POST /v3/contacts/search-and-enrich`) → **two** charges
+  per result: one `api_search` + one per revealed datapoint.
+- **company reveal** (`POST /v3/companies/enrich`) → charged **per successful
+  company result** via the `reveal_company` action — a per-result charge, **not**
+  per-datapoint (companies expose no emails/phones to meter individually).
+- **company enrich** (`POST /v3/companies/search-and-enrich`) → charged **per
+  successful result** via `reveal_company` (same meter as company reveal).
+- **`contact search` / `company search`** (`prospecting`) → `api_search` per
+  result.
+
+So the credit-efficient contact prospecting flow is **`contact search` (cheap
+`api_search` sweep) → filter to ICP → `contact reveal` on the chosen `id`s
+(reveal-only, per-datapoint charge)** — never revealing the rows you discard.
+The same "reveal only the `id`s that matter" reasoning holds for companies, but
+there the reveal charge is per surviving company result, not per datapoint. The
 `account usage` verb exists so the assistant can reason about spend (and read
 per-action pricing). This goes in the AI-facing sub-doc, not the definition.
 
@@ -141,9 +163,9 @@ server; exit codes 0 success / 1 runtime+API failure via typed `apiError` /
 lusha contact enrich   --email | --linkedin-url | --name+--company[-domain]      [--reveal emails,phones]
 lusha contact search   --title --seniority --location --industry --company-size … [--page N --size 50]
 lusha contact reveal   --id <lusha-id>… (1–100, repeatable)                       [--reveal emails,phones]
-lusha company enrich   --domain | --name                                          [--reveal emails,phones]
+lusha company enrich   --domain | --name                                          (no --reveal)
 lusha company search   --industry --location --size --revenue --technology …      [--page N --size 50]
-lusha company reveal   --id <lusha-id>… (1–100, repeatable)                        [--reveal emails,phones]
+lusha company reveal   --id <lusha-id>… (1–100, repeatable)                        [--reveal employeesByDepartment,employeesByLocation,employeesBySeniority,competitors,intent]
 lusha account usage
 ```
 
@@ -153,6 +175,33 @@ the `id`s a prior `search` returned. Keeping them separate is the orthogonal
 split: "I have an email/LinkedIn/name" vs "I have Lusha `id`s from a search."
 Both `search` verbs' output must surface those `id`s (plus `request_id`) so the
 assistant can feed `reveal`.
+
+**The `--reveal` flag is per-entity, not shared** (verified against the V3
+OpenAPI bundle — see the correction note below):
+
+- **Contact verbs** (`contact enrich`, `contact reveal`) — `--reveal` selects
+  the PII to reveal: enum `emails,phones`, omit = both. This is the only reveal
+  axis the two contact verbs carry.
+- **`company enrich`** (`companies/search-and-enrich`) — **no `--reveal` flag at
+  all.** Its request schema `V3CompaniesSearchAndEnrichRequest` is
+  `{companies[], options}` with no `reveal` field; firmographics come back by
+  default. Emitting a reveal selector here would send a field the endpoint
+  ignores.
+- **`company reveal`** (`companies/enrich`) — `--reveal` is the optional
+  **firmographic-expansion** enum
+  `employeesByDepartment|employeesByLocation|employeesBySeniority|competitors|intent`;
+  omit = base firmographics. It is **not** `emails`/`phones` (companies have no
+  contact PII to reveal), so passing `emails`/`phones` here returns a 400
+  invalid-enum. Because the expansion enum is niche, the flag is optional and
+  most calls omit it.
+
+**Correction (prior draft vs official V3 spec).** An earlier draft applied the
+contact-only `--reveal emails,phones` selector to both company verbs. The V3
+OpenAPI bundle (`docs.lusha.com/_bundle/apis/@v3/openapi.yaml`, and the
+`companies/enrich` reference) contradicts this: `companies/search-and-enrich`
+has no `reveal` field, and `companies/enrich`'s `reveal` enum is the
+firmographic-expansion set above, never `emails`/`phones`. Per the "follow
+official docs" rule the reveal model is split by entity as documented here.
 
 **JSON output shape.** Every verb accepts `--json` and emits a stable envelope
 so the assistant parses deterministically regardless of Lusha's nesting:
@@ -180,9 +229,13 @@ so the assistant parses deterministically regardless of Lusha's nesting:
 
 ## 4. Helio provider bundle plan (`integrations/providers/lusha/provider.yaml`)
 
-Hidden-first (`presentation.visible: false`). Manual-token (api_key) shape,
-Figma/`manual_api_token` precedent — **not** the mongodb no-verify path, because
-Lusha *does* offer a clean HTTPS verify signal.
+Hidden-first (`presentation.visible: false`). Manual-secret (api_key) shape. The
+`runtime_strategy` enum is **provisional** (see the verify/identity decision
+below): `manual_api_token` (Figma-style verify-before-write) *if* a shared
+verifier capability exists on `integration-service` main, else
+`manual_credentials` (the mongodb no-verify precedent, design 317 — the only
+shipped manual strategy on this branch). Lusha *does* offer a clean HTTPS verify
+signal, so `manual_api_token` is preferred if available.
 
 Planned bundle (final field names pinned against `provider-gen`'s closed schema
 during stage-2/5; shape below):
@@ -215,7 +268,10 @@ identity:
 connection:
   mode: isolated
   disconnect_mode: local_only
-  runtime_strategy: manual_api_token
+  # PROVISIONAL — pin in stage-2 against provider-gen's closed strategy enum:
+  #   manual_api_token   if a shared verifier capability exists on integration-service main
+  #   manual_credentials otherwise (mongodb precedent, design 317 — the only shipped manual strategy on this branch)
+  runtime_strategy: manual_api_token   # or manual_credentials — see verify/identity note
 
 resources:
   selection: none
@@ -232,11 +288,17 @@ tool:
   kind: api-key
 ```
 
-**Verify + identity — the one real design decision.** The `manual_api_token`
-strategy auto-composes *verify-before-write*: a provider-declared header + an
-HTTPS identity endpoint hit at connect time, so a bad key is rejected before it
-reaches Vault. Lusha's natural verify endpoint is `GET /v3/account/usage`
-(`200` on a valid key, `401` on an invalid/missing one).
+**Verify + identity — the one real design decision (and what pins the
+`runtime_strategy` enum).** *If* a `manual_api_token`-style verifier capability
+exists on `integration-service` main, it auto-composes *verify-before-write*: a
+provider-declared header + an HTTPS identity endpoint hit at connect time, so a
+bad key is rejected before it reaches Vault. Lusha's natural verify endpoint is
+`GET /v3/account/usage` (`200` on a valid key, `401` on an invalid/missing one).
+This strategy is **not confirmed present on this branch** (`manual_api_token`
+appears in no shipped provider bundle here; only mongodb's `manual_credentials`
+does), so stage-2 must verify the exact strategy enum in provider-gen before
+treating it as fixed — do not fork a parallel verifier capability; grow the
+shared set or fall back to option 2 below.
 
 **Path confirmed (minor-finding resolution).** The V3 migration guide renders
 this endpoint loosely as `account/usage` ("No change" from V2, no `/v3` shown),
@@ -282,9 +344,10 @@ The bundle above writes `identity.source: strategy` as a placeholder; stage-2
 pins it to whichever of the two the current `integration-service` capability set
 supports, and records the choice here.
 
-**`standard_oauth` vs adapter:** neither — this is a `manual_api_token` bundle,
-zero provider-specific Go on the Helio side (the whole point of the manual-token
-golden path). No `service/adapter_*.go`.
+**`standard_oauth` vs adapter:** neither — this is a manual-secret (api_key)
+bundle (`manual_api_token` or `manual_credentials` per the strategy decision
+above), zero provider-specific Go on the Helio side (the whole point of the
+manual-secret golden path). No `service/adapter_*.go`.
 
 **Config:** none. api_key providers carry no `required_config_fields` (no client
 id/secret) — nothing lands in `config/` or the `deploy/` Secret, so Lusha is not
@@ -301,7 +364,7 @@ visible flip.
 
 | Layer | Concretely for Lusha | Needs external creds? |
 |---|---|---|
-| **L1** anycli unit | `go test ./...` in anycli. `httptest.Server` fakes for `contacts/search-and-enrich`, `companies/search-and-enrich`, `contacts/prospecting`, `companies/prospecting`, `contacts/enrich`, `companies/enrich`, `account/usage`. Assert: `api_key` header injected; request body shapes (identifier flags → `search-and-enrich` `contacts[]` body; repeatable `--id` → `enrich` `{ids:[…]}` body; `--reveal emails,phones` → `reveal:[…]`); search-verb envelope surfaces `id` + `request_id`; `--json` envelope for success + `401`/`429` error rendering; exit-code contract (0/1/2). Never hits the real API. | No |
+| **L1** anycli unit | `go test ./...` in anycli. `httptest.Server` fakes for `contacts/search-and-enrich`, `companies/search-and-enrich`, `contacts/prospecting`, `companies/prospecting`, `contacts/enrich`, `companies/enrich`, `account/usage`. Assert: `api_key` header injected; request body shapes (identifier flags → `search-and-enrich` `contacts[]`/`companies[]` body; repeatable `--id` → `enrich` `{ids:[…]}` body; contact `--reveal emails,phones` → `reveal:["emails","phones"]`; `company reveal --reveal competitors,intent` → `reveal:["competitors","intent"]`; `company enrich` emits **no** `reveal` key; an `emails`/`phones` value rejected for company verbs); search-verb envelope surfaces `id` + `request_id`; `--json` envelope for success + `401`/`429` error rendering; exit-code contract (0/1/2). Never hits the real API. | No |
 | **L2** dev harness, real API | `make build-harness`; `ANYCLI_CRED_API_KEY=<real key> anycli lusha -- account usage` (cheapest, credit-free, proves header+auth **and re-confirms the `/v3/account/usage` verify path live**), then one `contact enrich --email <known>` (proves the search-and-enrich body + reveal), plus a minimal two-step probe: `contact search` with a tight filter + `--size 1` → take the returned `id` → `contact reveal --id <that-id> --reveal emails` (proves prospecting `id` flows into `/v3/contacts/enrich`). Mandatory before pin bump. | **Yes** — a real Lusha Premium/Scale API key (account pool, lane 2). Burns credits on the enrich/search/reveal calls (kept minimal). |
 | **L3** generate + suites | From `integration-service`: `provider-gen` + `provider-gen --check` (five projections regenerate together — validate on-branch, do **not** commit; batch lead owns the canonical regen). `helio-cli/go.mod` local `replace` → anycli branch; `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/`. `integration-service` unit suite green (esp. if the verifier capability is touched). | No |
 | **L4** singleton + seed | `make run-singleton` (`env: dev`); `POST /internal/test-only/connections/seed` with `provider:"lusha"`, `access_token:<real key>` (api_key providers are seedable — user-token class), real seeded assistant/org identities; then `heliox tool lusha -- account usage` and `heliox tool lusha -- contact enrich --email <known>` resolve the key through the real token gateway → anycli → live Lusha API. Non-expiring key → seed `access_token` only, no refresh cycle. | **Yes** — same real key as L2. |
