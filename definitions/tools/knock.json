@@ -1,0 +1,13 @@
+{
+  "name": "knock",
+  "type": "service",
+  "description": "Knock as a tool (notification infrastructure; environment-scoped secret API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "KNOCK_API_KEY"}
+      }
+    ]
+  }
+}
