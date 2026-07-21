@@ -263,6 +263,17 @@ tool:
 
 Notes / risks:
 
+- **Implementation refinement to the `revoke` block (recorded divergence).**
+  The shipped bundle mirrors the proven `gmail` revoke shape —
+  `token: refresh_token`, `fallback_token: access_token`,
+  `token_type_hint: none` — rather than the draft's
+  `token_type_hint: refresh_token`. Reason: the generator forbids a
+  `fallback_token` together with a non-`none` `token_type_hint`
+  (`validateOAuthRevocation`), Reddit documents `token_type_hint` as optional,
+  and `gmail` (the same no-new-refresh-token Google-style provider) uses this
+  exact form. The fallback makes best-effort disconnect robust for any
+  connection that somehow lacks a stored refresh token. Wire behavior is
+  unchanged: revoking the refresh token also revokes its access tokens.
 - `/api/v1/me` returns a flat JSON object (`id`, `name`) — JSON Pointers
   `/id` and `/name` are correct; requires the `identity` scope (in the list).
 - Refresh semantics fit the standard exchanger: like Google, Reddit's refresh
