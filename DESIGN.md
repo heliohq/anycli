@@ -415,3 +415,34 @@ integration inside a customer's workspace — not a general authorization-code
 flow a shared Helio client can run to act on arbitrary customer workspaces. The
 audit verdict stands; **no catalog amendment**. Lane, id, key, and wave are
 unchanged from the master plan.
+
+## 8. Implementation-time findings (verified against the official Go SDK)
+
+Paths were verified at build time against `segmentio/public-api-sdk-go` (the
+official SDK). Three §1 items are now settled:
+
+1. **IAM paths diverge from the §1 draft.** The real REST paths are `GET /users`
+   and `GET /groups` — **not** `/iam/users` / `/iam/groups` (the "IAM" grouping
+   is a docs *tag*, not a URL prefix). The `segment iam user list` /
+   `segment iam group list` CLI grouping is kept as a UX affordance, but the
+   service hits `/users` and `/groups`. Confirmed via `api_iam_users.go`
+   (`/users`) and `api_iam_groups.go` (`/groups`).
+2. **Delivery axes confirmed — no longer PROVISIONAL.** `events-volume` is
+   workspace-scoped `GET /events/volume` (`api_events.go`); delivery metrics is
+   destination-scoped `GET /destinations/{destinationId}/delivery-metrics`
+   (`api_destinations.go`). Both ship as first-class commands. Their exact query
+   *filter* field names remain L2-gated, so events-volume exposes
+   recipe-confirmed `--granularity`/`--start`(startTime)/`--end`(endTime)
+   convenience flags plus a repeatable `--param name=value` passthrough, and
+   delivery-metrics takes `--destination-id` (path) plus `--param` passthrough.
+3. **Pagination encoding settled to dot notation.** The canonical OpenAPI
+   reference (`docs.segmentapis.com/tag/Pagination`) uses
+   `pagination.count`/`pagination.cursor` (count 1–1000, default 200). Dot
+   notation ships, centralized in `paginationQuery`; the bracket-notation recipe
+   is a secondary source. L2 against the live API remains the final arbiter and
+   would change only that one helper.
+
+Confirmed unchanged from §1: base host `api.segmentapis.com` (US), `Authorization:
+Bearer` scheme, Get Workspace = `GET /`, list envelope
+`{"data",…,"pagination":{"current","next","previous","totalEntries"}}` passed
+through verbatim.
