@@ -384,3 +384,47 @@ L1–L5 green · AI-facing sub-doc published under
 `agents/plugins/heliox/skills/tool/` (with the billing/credits guidance) · icon
 registered · `presentation.visible: true` + regenerate as the single go-live
 change. Until the flip: code-complete (hidden).
+
+---
+
+## 7. Implementation notes — divergences from this design (as built)
+
+Recorded after implementing against the authoritative V3 OpenAPI bundle
+(`docs.lusha.com/_bundle/apis/@v3/openapi.yaml`). Per the "follow official docs"
+rule, the code follows the spec where it contradicts this design.
+
+1. **Prospecting request shape — flat filter flags → `--filters <json>`.** §2/§3
+   modeled `search` with flat flags (`--title --seniority --location …`). The
+   real schemas (`V3ProspectingContactsRequest` / `V3ProspectingCompaniesRequest`
+   — note the name order, not `V3Contacts…`) require a nested body:
+   `{pagination:{page,size}, filters:{contacts|companies:{include,exclude:{…}}},
+   options}`. The contact filter DSL alone carries `jobTitles`, `seniorityIds`,
+   `departments`, `countries`, `locations`, `names`, … The verb therefore takes
+   the whole `filters` object as raw JSON (`--filters`) plus `--page`/`--size`/
+   `--include-partial`, rather than a flag per field. Pagination bounds are
+   `page` 0–1000 (default 0) and `size` **10–100 (default 25)** — not 50.
+2. **Enrich envelope `data` is an array, not a single object.** §3 said `enrich`
+   → `data: {object}`. `search-and-enrich`/`enrich` responses always return a
+   `results` **array** (batch-capable to 100), so all list verbs emit
+   `data: [...]` for a consistent, honest agent contract; `account usage` stays
+   an object. The reveal model (`{ids, reveal}`, per-entity reveal enums, company
+   enrich has no reveal) matched the design's corrected §2/§3 and shipped as-is.
+3. **Error envelope follows the shipped notion convention**
+   `{"error":{"message","kind","status"}}` (stderr, exit 1), not the ad-hoc
+   `{"error":{"code","message"}}` §3 sketched — one error shape across tools.
+   401/403 map to AnyCLI `RejectCredential` (reconnect signal).
+4. **Runtime strategy pinned to `manual_api_token` + `identity.source: strategy`
+   (DESIGN §4 option 1).** On this branch neither shipped manual verifier fit a
+   bare account-level key: the `manual_api_token` declarative verifier requires a
+   stable-key identity field (Lusha's `/v3/account/usage` has none), and
+   `manual_credentials` requires a DSN host. So the integration-service grew a
+   reusable **constant-identity manual api_key verifier** (verify-before-write
+   against the declared endpoint + header, 200/401 gate, constant synthetic
+   account key = provider key). This is the same shared "verifier capability" the
+   parallel api_key-no-identity tools (semrush / moz / dataforseo / fullstory)
+   grow; the batch lead reconciles duplicates. The generator also now permits
+   `_` in auth header names (RFC 7230 tchar) — Lusha's real header is `api_key`.
+5. **No `toolToProvider` entry** — id == key == `lusha`, resolved mechanically.
+6. **L2/L5 require a real Premium/Scale key** (lane-2 account pool) and were not
+   run in this worktree; L1 (anycli unit) and L3 (`provider-gen --check` +
+   helio-cli replace build + both suites) are green locally.
