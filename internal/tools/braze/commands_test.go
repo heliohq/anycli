@@ -73,6 +73,33 @@ func TestUsersExportIsPOSTWithIdentifierBody(t *testing.T) {
 		t.Fatalf("fields_to_export = %v", body["fields_to_export"])
 	}
 
+	// --email is a single string per the Braze contract ("only one email_address
+	// can be included per request"), not a JSON array.
+	if exit, _, stderr := run(t, srv, "users", "export", "--email", "a@b.co"); exit != 0 {
+		t.Fatalf("users export --email exit=%d stderr=%s", exit, stderr)
+	}
+	emailReq := findReq(reqs[len(reqs)-1:], "POST", "/users/export/ids")
+	if emailReq == nil {
+		t.Fatal("users export --email did not POST /users/export/ids")
+	}
+	emailBody := decodeBody(t, emailReq.Body)
+	if got, ok := emailBody["email_address"].(string); !ok || got != "a@b.co" {
+		t.Fatalf("email_address = %#v, want string \"a@b.co\"", emailBody["email_address"])
+	}
+
+	// --braze-id is likewise a single string, not an array.
+	if exit, _, stderr := run(t, srv, "users", "export", "--braze-id", "bz1"); exit != 0 {
+		t.Fatalf("users export --braze-id exit=%d stderr=%s", exit, stderr)
+	}
+	brazeReq := findReq(reqs[len(reqs)-1:], "POST", "/users/export/ids")
+	if brazeReq == nil {
+		t.Fatal("users export --braze-id did not POST /users/export/ids")
+	}
+	brazeBody := decodeBody(t, brazeReq.Body)
+	if got, ok := brazeBody["braze_id"].(string); !ok || got != "bz1" {
+		t.Fatalf("braze_id = %#v, want string \"bz1\"", brazeBody["braze_id"])
+	}
+
 	// No identifier → usage error, exit 2, no request.
 	before := len(reqs)
 	result, _, _ := runResult(t, srv, "users", "export", "--fields", "email")

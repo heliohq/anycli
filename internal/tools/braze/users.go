@@ -19,31 +19,35 @@ func (s *Service) newUsersCmd(c *client) *cobra.Command {
 // profiles by identifier. Braze exports by POST, not GET. At least one
 // identifier is required.
 func (s *Service) newUsersExportCmd(c *client) *cobra.Command {
-	var externalIDs, emails, brazeIDs, fields []string
+	var externalIDs, fields []string
+	var email, brazeID string
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Look up user profiles by identifier (POST /users/export/ids)",
 		Args:  cobra.NoArgs,
 	}
+	// Braze's /users/export/ids contract: external_ids is an array (up to 50),
+	// but email_address and braze_id are single strings ("only one email_address
+	// or device_id can be included per request"). Model them as single-value flags.
 	cmd.Flags().StringArrayVar(&externalIDs, "external-id", nil, "external user id (repeatable)")
-	cmd.Flags().StringArrayVar(&emails, "email", nil, "email address (repeatable)")
-	cmd.Flags().StringArrayVar(&brazeIDs, "braze-id", nil, "Braze internal user id (repeatable)")
+	cmd.Flags().StringVar(&email, "email", "", "email address (single)")
+	cmd.Flags().StringVar(&brazeID, "braze-id", "", "Braze internal user id (single)")
 	cmd.Flags().StringArrayVar(&fields, "fields", nil, "profile field to export (repeatable; omit for defaults)")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		payload := map[string]any{}
 		if len(externalIDs) > 0 {
 			payload["external_ids"] = externalIDs
 		}
-		if len(emails) > 0 {
-			payload["email_address"] = emails
+		if email != "" {
+			payload["email_address"] = email
 		}
-		if len(brazeIDs) > 0 {
-			payload["braze_id"] = brazeIDs
+		if brazeID != "" {
+			payload["braze_id"] = brazeID
 		}
 		if len(fields) > 0 {
 			payload["fields_to_export"] = fields
 		}
-		if len(externalIDs) == 0 && len(emails) == 0 && len(brazeIDs) == 0 {
+		if len(externalIDs) == 0 && email == "" && brazeID == "" {
 			return &usageError{msg: "users export requires at least one of --external-id, --email, --braze-id"}
 		}
 		body, err := c.post(cmd.Context(), "/users/export/ids", payload)
