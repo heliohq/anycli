@@ -173,8 +173,10 @@ func TestLoadBundled_LarkCliShape(t *testing.T) {
 }
 
 // TestLoadBundled_GitHubCliShape pins the github definition's cli-type shape:
-// it wraps the gh binary from a pinned github-release source and injects the
-// minted token as GH_TOKEN.
+// it wraps the gh binary from a pinned official direct-download source (lazy
+// install with mandatory per-platform sha256) and injects the minted token as
+// GH_TOKEN. gh's windows zip lays bin/gh.exe at the archive root (no versioned
+// top dir), so the definition must carry the binary_path_map override.
 func TestLoadBundled_GitHubCliShape(t *testing.T) {
 	def, err := LoadBundled("github")
 	if err != nil {
@@ -186,14 +188,31 @@ func TestLoadBundled_GitHubCliShape(t *testing.T) {
 	if def.Binary != "gh" {
 		t.Errorf("Binary = %q, want gh", def.Binary)
 	}
-	if def.Source == nil {
-		t.Fatal("Source missing — the gh provisioning metadata must be declared")
+	src := def.Source
+	if src == nil {
+		t.Fatal("Source missing — the gh lazy-install source must be declared")
 	}
-	if def.Source.Type != "github-release" || def.Source.Repo != "cli/cli" {
-		t.Errorf("Source = %+v, want github-release cli/cli", def.Source)
+	if src.Type != "direct" {
+		t.Errorf("Source.Type = %q, want direct", src.Type)
 	}
-	if def.Source.Version != "2.63.0" {
-		t.Errorf("Source.Version = %q, want pinned 2.63.0", def.Source.Version)
+	if src.Version != "2.96.0" {
+		t.Errorf("Source.Version = %q, want pinned 2.96.0", src.Version)
+	}
+	if src.URLTemplate == "" || src.BinaryPath == "" {
+		t.Errorf("Source url_template/binary_path missing: %+v", src)
+	}
+	if src.BinaryPathMap["windows"] == "" {
+		t.Error("binary_path_map lacks the windows override — gh's windows zip has no versioned top dir")
+	}
+	for _, platform := range []string{"macOS-arm64", "macOS-amd64", "linux-arm64", "linux-amd64", "windows-amd64"} {
+		digest, ok := src.SHA256[platform]
+		if !ok {
+			t.Errorf("sha256 missing for platform %s", platform)
+			continue
+		}
+		if len(digest) != 64 {
+			t.Errorf("sha256[%s] = %q, want a 64-hex digest", platform, digest)
+		}
 	}
 	b := def.Auth.Credentials[0]
 	if b.Source.Field != "access_token" {
@@ -201,5 +220,142 @@ func TestLoadBundled_GitHubCliShape(t *testing.T) {
 	}
 	if b.Inject.Type != "env" || b.Inject.EnvVar != "GH_TOKEN" {
 		t.Errorf("inject = %+v, want env GH_TOKEN", b.Inject)
+	}
+}
+
+// TestLoadBundled_MongoDBShape pins the mongodb definition's mongosh-wrapper
+// shape: a service-type tool whose underlying binary is the official mongosh
+// with a pinned direct-download source (mandatory per-platform sha256), and
+// the unchanged connection-string env binding (the provider.yaml wire
+// contract — a drifted env var name means no injection).
+func TestLoadBundled_MongoDBShape(t *testing.T) {
+	def, err := LoadBundled("mongodb")
+	if err != nil {
+		t.Fatalf("LoadBundled(mongodb) failed: %v", err)
+	}
+	if def.Type != "service" {
+		t.Errorf("Type = %q, want service", def.Type)
+	}
+	if def.Binary != "mongosh" {
+		t.Errorf("Binary = %q, want mongosh", def.Binary)
+	}
+	src := def.Source
+	if src == nil {
+		t.Fatal("Source missing — the mongosh lazy-install source must be declared")
+	}
+	if src.Type != "direct" {
+		t.Errorf("Source.Type = %q, want direct", src.Type)
+	}
+	if src.Version != "2.9.2" {
+		t.Errorf("Source.Version = %q, want pinned 2.9.2", src.Version)
+	}
+	if src.URLTemplate == "" || src.BinaryPath == "" {
+		t.Errorf("Source url_template/binary_path missing: %+v", src)
+	}
+	for _, platform := range []string{"darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-x64"} {
+		digest, ok := src.SHA256[platform]
+		if !ok {
+			t.Errorf("sha256 missing for platform %s", platform)
+			continue
+		}
+		if len(digest) != 64 {
+			t.Errorf("sha256[%s] = %q, want a 64-hex digest", platform, digest)
+		}
+	}
+	if def.Auth == nil || len(def.Auth.Credentials) != 1 {
+		t.Fatalf("credentials = %+v, want one binding", def.Auth)
+	}
+	binding := def.Auth.Credentials[0]
+	if binding.Source.Field != "connection_string" {
+		t.Errorf("field = %q, want connection_string", binding.Source.Field)
+	}
+	if binding.Inject.Type != "env" || binding.Inject.EnvVar != "MONGODB_CONNECTION_STRING" {
+		t.Errorf("inject = %+v, want env MONGODB_CONNECTION_STRING", binding.Inject)
+	}
+}
+
+// TestLoadBundled_DirectSourcesAreComplete validates every direct-download
+// source shipped in the definitions: lazy install requires a url template, a
+// pinned version, an archive binary path, and a non-empty sha256 table.
+func TestLoadBundled_DirectSourcesAreComplete(t *testing.T) {
+	bundled, err := ListBundled()
+	if err != nil {
+		t.Fatalf("ListBundled failed: %v", err)
+	}
+	for _, def := range bundled {
+		if def.Source == nil || def.Source.Type != "direct" {
+			continue
+		}
+		src := def.Source
+		if src.URLTemplate == "" {
+			t.Errorf("%s: direct source has no url_template", def.Name)
+		}
+		if src.Version == "" {
+			t.Errorf("%s: direct source has no pinned version", def.Name)
+		}
+		if src.BinaryPath == "" {
+			t.Errorf("%s: direct source has no binary_path", def.Name)
+		}
+		if len(src.SHA256) == 0 {
+			t.Errorf("%s: direct source has no sha256 table — lazy install would have nothing to verify", def.Name)
+		}
+		for platform, digest := range src.SHA256 {
+			if len(digest) != 64 {
+				t.Errorf("%s: sha256[%s] = %q, want a 64-hex digest", def.Name, platform, digest)
+			}
+		}
+
+		// Every sha256 platform key must be reachable by URL expansion: some
+		// Go OS/arch must map (via os_map/arch_map, defaulting to identity)
+		// onto the key, and ext_map must cover that Go OS when the template
+		// uses {ext}. Otherwise the pinned digest is dead weight and install
+		// on that platform fails only at runtime with an empty {ext} URL.
+		goosSet := []string{"darwin", "linux", "windows"}
+		goarchSet := []string{"amd64", "arm64"}
+		mapOS := func(goos string) string {
+			if m, ok := src.OsMap[goos]; ok {
+				return m
+			}
+			return goos
+		}
+		mapArch := func(goarch string) string {
+			if m, ok := src.ArchMap[goarch]; ok {
+				return m
+			}
+			return goarch
+		}
+		for platform := range src.SHA256 {
+			osName, arch, ok := strings.Cut(platform, "-")
+			if !ok {
+				t.Errorf("%s: sha256 platform key %q is not <os>-<arch>", def.Name, platform)
+				continue
+			}
+			var matchedGoos []string
+			for _, goos := range goosSet {
+				if mapOS(goos) == osName {
+					matchedGoos = append(matchedGoos, goos)
+				}
+			}
+			if len(matchedGoos) == 0 {
+				t.Errorf("%s: sha256 pins %q but no Go OS maps to %q via os_map", def.Name, platform, osName)
+			}
+			archMatched := false
+			for _, goarch := range goarchSet {
+				if mapArch(goarch) == arch {
+					archMatched = true
+					break
+				}
+			}
+			if !archMatched {
+				t.Errorf("%s: sha256 pins %q but no Go arch maps to %q via arch_map", def.Name, platform, arch)
+			}
+			if strings.Contains(src.URLTemplate, "{ext}") {
+				for _, goos := range matchedGoos {
+					if src.ExtMap[goos] == "" {
+						t.Errorf("%s: sha256 pins %q but ext_map has no entry for Go OS %q — the expanded URL would have an empty {ext}", def.Name, platform, goos)
+					}
+				}
+			}
+		}
 	}
 }

@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/heliohq/anycli/definitions"
 	"github.com/heliohq/anycli/internal/credential"
+	"github.com/heliohq/anycli/internal/exec/binresolve"
 	"github.com/heliohq/anycli/internal/registry"
 	"github.com/heliohq/anycli/internal/tools"
 )
@@ -472,7 +474,7 @@ func TestResolveBinary_AbsolutePath(t *testing.T) {
 	truePath := trueBinary(t)
 	def := &registry.Definition{Name: "test", Binary: "true", Resolve: truePath}
 
-	got, err := resolveBinary(def)
+	got, err := ResolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -483,7 +485,7 @@ func TestResolveBinary_AbsolutePath(t *testing.T) {
 
 func TestResolveBinary_AbsolutePath_Missing(t *testing.T) {
 	def := &registry.Definition{Name: "test", Binary: "missing", Resolve: "/nonexistent/path/to/binary"}
-	if _, err := resolveBinary(def); err == nil {
+	if _, err := ResolveBinary(context.Background(), def); err == nil {
 		t.Fatal("expected error for missing absolute path")
 	}
 }
@@ -505,7 +507,7 @@ func TestResolveBinary_Which(t *testing.T) {
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+filepath.Join(home, "bin"))
 
 	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: ""}
-	got, err := resolveBinary(def)
+	got, err := ResolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -536,7 +538,7 @@ func TestResolveBinary_SkipsShimDir(t *testing.T) {
 	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+realDir)
 
 	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: ""}
-	got, err := resolveBinary(def)
+	got, err := ResolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -562,7 +564,7 @@ func TestResolveBinary_WhichResolveValue(t *testing.T) {
 	t.Setenv("PATH", binDir)
 
 	def := &registry.Definition{Name: "my-tool", Binary: "my-tool", Resolve: "which"}
-	got, err := resolveBinary(def)
+	got, err := ResolveBinary(context.Background(), def)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -637,5 +639,56 @@ func TestExecute_StaleMarkHitsOnlyFailingAccount(t *testing.T) {
 	a2, ok := cache.Get(credential.CacheKey("test-multi-acct", "a2"))
 	if !ok || a2.Stale {
 		t.Error("the other account's entry (a2) must NOT be marked stale")
+	}
+}
+
+// TestResolveBinary_GitHubDefinitionPinThenPATH pins the real gh definition's
+// resolution order now that it carries a direct-download source: a PATH hit
+// (level ②) resolves without engaging lazy install, and a pinned gh (level ①)
+// wins over the same PATH entry. The lazy-install miss path itself downloads
+// from github.com and is covered by the env-guarded TestE2ERealGhLazyInstall
+// in binresolve, not here.
+func TestResolveBinary_GitHubDefinitionPinThenPATH(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows")
+	}
+	setupHome(t)
+	pinRoot := t.TempDir()
+	t.Setenv("HELIO_BIN_DIR", pinRoot)
+
+	def, err := definitions.LoadBundled("github")
+	if err != nil {
+		t.Fatalf("LoadBundled(github) failed: %v", err)
+	}
+
+	// PATH hit with an empty pin root: resolves to the PATH entry.
+	binDir := t.TempDir()
+	fakeGh := filepath.Join(binDir, "gh")
+	if err := os.WriteFile(fakeGh, []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatalf("write fake gh: %v", err)
+	}
+	t.Setenv("PATH", binDir)
+	got, err := ResolveBinary(context.Background(), def)
+	if err != nil {
+		t.Fatalf("ResolveBinary: %v", err)
+	}
+	if got != fakeGh {
+		t.Errorf("ResolveBinary = %q, want PATH hit %q", got, fakeGh)
+	}
+
+	// Pinned gh present: level ① wins over the same PATH entry.
+	pinned := filepath.Join(pinRoot, "versions", "github", def.Source.Version, binresolve.Platform(def.Source), "gh")
+	if err := os.MkdirAll(filepath.Dir(pinned), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pinned, []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatalf("write pinned gh: %v", err)
+	}
+	got, err = ResolveBinary(context.Background(), def)
+	if err != nil {
+		t.Fatalf("ResolveBinary with pin: %v", err)
+	}
+	if got != pinned {
+		t.Errorf("ResolveBinary = %q, want pinned %q", got, pinned)
 	}
 }

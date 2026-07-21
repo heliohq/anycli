@@ -13,7 +13,8 @@ import (
 type ToolKind string
 
 const (
-	// ToolKindCLI wraps an external binary provisioned by the host environment.
+	// ToolKindCLI wraps an external binary provisioned by the host environment
+	// or lazily installed from a pinned direct source.
 	ToolKindCLI ToolKind = "cli"
 	// ToolKindService executes an in-process API client registered with AnyCLI.
 	ToolKindService ToolKind = "service"
@@ -49,20 +50,33 @@ func ListTools() ([]ToolManifest, error) {
 	return manifests, nil
 }
 
-func manifestFor(definition *registry.Definition) (ToolManifest, error) {
-	kind := ToolKindCLI
+// kindOf is the single owner of the tool-kind discriminator: it classifies a
+// bundled definition and validates its execution contract — a CLI definition
+// must name a binary, a service definition must have a registered
+// implementation, and unknown types are rejected. Every caller that branches
+// on definition.Type (manifestFor, WarmEligibleTools, ResolveToolBinary) goes
+// through here so the failure posture cannot silently diverge.
+func kindOf(definition *registry.Definition) (ToolKind, error) {
 	switch definition.Type {
 	case "", string(ToolKindCLI):
 		if definition.Binary == "" {
-			return ToolManifest{}, fmt.Errorf("CLI tool %q has no binary", definition.Name)
+			return "", fmt.Errorf("CLI tool %q has no binary", definition.Name)
 		}
+		return ToolKindCLI, nil
 	case string(ToolKindService):
-		kind = ToolKindService
 		if !tools.HasService(definition.Name) {
-			return ToolManifest{}, fmt.Errorf("service tool %q has no registered implementation", definition.Name)
+			return "", fmt.Errorf("service tool %q has no registered implementation", definition.Name)
 		}
+		return ToolKindService, nil
 	default:
-		return ToolManifest{}, fmt.Errorf("tool %q has unsupported type %q", definition.Name, definition.Type)
+		return "", fmt.Errorf("tool %q has unsupported type %q", definition.Name, definition.Type)
+	}
+}
+
+func manifestFor(definition *registry.Definition) (ToolManifest, error) {
+	kind, err := kindOf(definition)
+	if err != nil {
+		return ToolManifest{}, err
 	}
 
 	fieldSet := make(map[string]struct{})

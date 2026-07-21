@@ -1,7 +1,24 @@
 {
   "name": "mongodb",
   "type": "service",
-  "description": "MongoDB database operations via connection string",
+  "description": "MongoDB database operations via the official mongosh shell (eval + ping)",
+  "binary": "mongosh",
+  "source": {
+    "type": "direct",
+    "url_template": "https://downloads.mongodb.com/compass/mongosh-{version}-{os}-{arch}{ext}",
+    "binary_path": "mongosh-{version}-{os}-{arch}/bin/mongosh{exe}",
+    "version": "2.9.2",
+    "os_map": {"darwin": "darwin", "linux": "linux", "windows": "win32"},
+    "arch_map": {"amd64": "x64", "arm64": "arm64"},
+    "ext_map": {"darwin": ".zip", "linux": ".tgz", "windows": ".zip"},
+    "sha256": {
+      "darwin-arm64": "386392be90e5ff4b827d8c21cc828ff6f82cdbc045a6f6a7eb8bc3c641c9181f",
+      "darwin-x64": "56c5c0b36213335ac375c9a5e2a8ebbdc3910ebe73019c24fa02a24dbdc68b86",
+      "linux-arm64": "e8cd0a2279acb6d29bdb0555457f6cfc6207dd95a40ed091b57318b4ed566104",
+      "linux-x64": "b0febe385c10c9be755c29095ffa95a42bed16ea6625ea3fbde36ae33b42da79",
+      "win32-x64": "1e9b505f78830a717bfc8c22d6a904cc68e3aa5a3b47fe1453a9eb2ed400fbc0"
+    }
+  },
   "auth": {
     "credentials": [
       {

@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/heliohq/anycli/definitions"
 	"github.com/heliohq/anycli/internal/config"
 	"github.com/heliohq/anycli/internal/credential"
+	"github.com/heliohq/anycli/internal/exec/binresolve"
 	"github.com/heliohq/anycli/internal/middleware"
 	"github.com/heliohq/anycli/internal/registry"
 	"github.com/heliohq/anycli/internal/tools"
@@ -108,7 +108,7 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 	}
 
 	// 5. Resolve the real binary path.
-	binaryPath, err := resolveBinary(def)
+	binaryPath, err := ResolveBinary(ctx, def)
 	if err != nil {
 		return 1, fmt.Errorf("cannot find %q binary: %w", tool, err)
 	}
@@ -160,8 +160,12 @@ func (e *Engine) markCredentialsStale(tool, account string) {
 	fmt.Fprintf(os.Stderr, "[anycli] credentials for %q may be stale. retry the same command to fetch fresh credentials.\n", tool)
 }
 
-// resolveBinary finds the real binary path, skipping the anycli shim directory.
-func resolveBinary(def *registry.Definition) (string, error) {
+// ResolveBinary finds the real binary path. An explicit absolute Resolve wins;
+// otherwise the shared three-level resolution runs: pinned-versions dir, PATH
+// (skipping the anycli shim directory), then lazy install for definitions with
+// an official direct-download source. Definitions without one (e.g. lark-cli)
+// keep the historical PATH-only behavior and error.
+func ResolveBinary(ctx context.Context, def *registry.Definition) (string, error) {
 	if def.Resolve != "" && def.Resolve != "which" {
 		// Absolute path provided
 		if _, err := os.Stat(def.Resolve); err != nil {
@@ -169,20 +173,9 @@ func resolveBinary(def *registry.Definition) (string, error) {
 		}
 		return def.Resolve, nil
 	}
-
-	// Search PATH, but skip our own shim directory
-	shimDir := config.BinDir()
-	pathEnv := os.Getenv("PATH")
-	for _, dir := range filepath.SplitList(pathEnv) {
-		if dir == shimDir {
-			continue
-		}
-		candidate := filepath.Join(dir, def.Binary)
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return candidate, nil
-		}
-	}
-	return "", fmt.Errorf("%s not found in PATH", def.Binary)
+	return binresolve.Resolve(ctx, def.Name, def.Binary, def.Source, binresolve.Options{
+		SkipPATHDir: config.BinDir(),
+	})
 }
 
 // executePassthrough runs the binary with stdin/stdout/stderr connected directly.
