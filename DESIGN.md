@@ -154,15 +154,30 @@ ANYCLI_CRED_API_KEY=<workspace-key> anycli phantombuster -- org resources       
 
 ## 3. Helio provider bundle plan (`integrations/providers/phantombuster/provider.yaml`)
 
-**Golden `api_key` path — zero new integration-service Go.** PhantomBuster exposes an
-HTTPS identity endpoint reachable with the same header, so it uses
-`runtime_strategy: manual_api_token` and the built-in `declarativeManualTokenVerifier`
+**`api_key` path — no new integration-service Go, but only because the identity value is
+a JSON string (verified, not assumed).** PhantomBuster exposes an HTTPS identity endpoint
+reachable with the same header, so it uses `runtime_strategy: manual_api_token` and the
+built-in `declarativeManualTokenVerifier`
 (`go-services/integration-service/service/manual_token_verifier.go`): at connect time the
 service GETs `identity.url` with header `auth.api_key.header = X-Phantombuster-Key`, then
 extracts the stable account key + label via JSON pointers. This is a strictly better fit
 than the `mongodb` `manual_credentials`/`dsnHostIdentityDeriver` path (which does **no**
 provider-side verification) — PhantomBuster CAN verify the key at connect time, so a bad
 key is rejected immediately with `invalid_provider_credential`, not deferred to first use.
+
+**Load-bearing caveat — the verifier extracts JSON *strings* only.** Both the connect-time
+verifier and the OAuth-side `declarativeIdentityResolver` go through `jsonPointerString`
+(`service/declarative_identity.go`), which does `value.(string)`: a JSON *number* at the
+stable key yields `ok=false` and the connect verify fails with `identity has no string
+value at stable key`. PhantomBuster uses very large numeric-looking ids (e.g.
+`2008952215470815`), so the "is `id` a string or a number on the wire?" axis is as
+decisive as the envelope axis — and, unlike envelope shape, it is **not** a bundle
+one-liner: a JSON-number id would require the numeric-stable-key integration-service
+capability (the exact work HubSpot needed), not a pointer edit. This tool avoids that only
+because the official OpenAPI schema types `orgs/fetch.id` (and `users/fetch-me`'s
+`user.id`) as `"string"` — verified below. **If** a live L2 `orgs/fetch` ever returns `id`
+as a bare number (schema drift), fall back to a guaranteed string-valued field or gate the
+flip on the numeric-stable-key capability being merged to `main`.
 
 Hidden-first (`presentation.visible: false`) until the anycli pin ships the tool and
 L1–L5 pass.
@@ -184,7 +199,13 @@ auth:
   owner: individual
   api_key:
     header: X-Phantombuster-Key
-    setup_url: https://support.phantombuster.com/hc/en-us/articles/4401916698130-How-to-Get-Started-with-the-PhantomBuster-API
+    # Points at the current "Retrieve Your Results Via API" article, which both
+    # (a) mints the key from Workspace settings → API Keys and (b) uses the v2
+    # header X-Phantombuster-Key — matching the bundle header above. Do NOT link
+    # article 4401916698130 ("Get Started with the PhantomBuster API"): its body
+    # still instructs the deprecated v1 header X-Phantombuster-Key-1, which would
+    # contradict this bundle and the L2 header check (see header note below).
+    setup_url: https://support.phantombuster.com/hc/en-us/articles/23117755693458-Retrieve-Your-Results-Via-API
   credential_input:
     fields:
       - name: api_key
@@ -195,8 +216,12 @@ auth:
 
 identity:
   source: userinfo
+  # Official OpenAPI schema (hub.phantombuster.com, get_orgs-fetch): body is a
+  # RAW object (no {status,data} envelope) and `id` is typed "string" — so the
+  # string-only declarative verifier extracts it directly. See the two-axis
+  # verification note below (envelope AND string-vs-number both resolved).
   url: https://api.phantombuster.com/api/v2/orgs/fetch
-  stable_key: /id                      # STAGE-1 VERIFY: confirm envelope (raw vs /data/…)
+  stable_key: /id                      # raw envelope, string-typed id (verified)
   label_candidates: [/name, /id]
 
 connection:
@@ -223,15 +248,38 @@ tool:
 - ① CLI word: `phantombuster` · ② anycli id: `phantombuster` · ③ provider key:
   `phantombuster` — all identical; **no resolver / no group** entries.
 
-### Open verification item (must close at stage 1 / L2, not guess)
-The `hub.phantombuster.com/reference` pages render response schemas client-side and hide
-field names. **Before writing the bundle's `identity` pointers**, confirm against the
-OpenAPI spec (`hub.phantombuster.com/llms.txt`) or a live `orgs/fetch` call whether v2
-wraps the body in a `{status,data}` envelope. If enveloped, `stable_key: /data/id` and
-`label_candidates: [/data/name, /data/id]`. The declarative verifier does a raw
-`map[string]any` unmarshal + JSON-pointer lookup, so this is a one-line bundle change
-either way — but it must be verified, not assumed. Fallback identity endpoint if
-`orgs/fetch` proves unsuitable: `users/fetch-me` (`/id`, label from `/name`).
+### Identity verification — two axes, both closed against the OpenAPI schema
+The `hub.phantombuster.com/reference` HTML pages render response schemas client-side and
+hide field names, so the `identity` pointers were resolved against the machine-readable
+OpenAPI schema behind those pages (`get_orgs-fetch` / `get_users-fetch-me`, reachable as
+the `.md` twins and indexed from `hub.phantombuster.com/llms.txt`). Two independent axes
+had to close, **not one**:
+
+1. **Envelope (raw vs `{status,data}`)** — decides `/id` vs `/data/id`. *Verified:*
+   `orgs/fetch` returns a **raw** object, no envelope → `stable_key: /id`. This axis, if it
+   had gone the other way, would indeed be a one-line pointer edit.
+2. **Value type (JSON string vs number)** — decides whether the string-only verifier works
+   at all (see the load-bearing caveat above). *Verified:* the schema types top-level `id`
+   as `"string"` in `orgs/fetch` and `user.id` as `"string"` in `users/fetch-me`, even
+   though the ids are large integers on screen. So `/id` extracts cleanly with **zero** new
+   Go. This axis is **not** a pointer edit if it inverts — a number would require the
+   numeric-stable-key capability.
+
+Because L4 seed bypasses the verifier entirely, neither axis is exercised until L5. To
+avoid a late, unbudgeted L5 failure, **L2 must run a live `orgs/fetch` and assert `id`
+comes back JSON-string-typed** (not just "some id is present"), confirming the schema
+matches production. Fallback identity endpoint if `orgs/fetch` proves unsuitable:
+`users/fetch-me` (`/user/id`, label from `/user/firstName` or `/user/email`) — same
+string-typing verified.
+
+### Auth-header reconciliation (v2 vs v1)
+The bundle header `X-Phantombuster-Key` is the **v2** header; the deprecated v1 header is
+`X-Phantombuster-Key-1`. This is confirmed by the **current** "Retrieve Your Results Via
+API" article (the `setup_url` above) and the live OpenAPI reference, **not** by the older
+"Get Started with the PhantomBuster API" article (4401916698130), whose body still shows
+`X-Phantombuster-Key-1`. `setup_url` deliberately links the former so the connect-drawer
+doc and the L2 header assertion agree; if the linked article is ever swapped, keep it on a
+page that uses `X-Phantombuster-Key` so the doc never contradicts the bundle.
 
 ### Config Sync
 No integration-service **config** is needed: `api_key` providers carry **no**
