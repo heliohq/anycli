@@ -1,0 +1,13 @@
+{
+  "name": "typefully",
+  "type": "service",
+  "description": "Typefully social-writing tool (drafts, scheduling/publishing, queue, tags, X analytics)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "TYPEFULLY_API_KEY"}
+      }
+    ]
+  }
+}
