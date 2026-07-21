@@ -84,21 +84,28 @@ no binary to wrap, so the default holds (21/23 precedent).
     "auth": {
       "credentials": [
         {"source": {"field": "access_token"},
-         "inject": {"type": "env", "env_var": "SIGNNOW_ACCESS_TOKEN"}},
-        {"source": {"field": "api_base_url"},
-         "inject": {"type": "env", "env_var": "SIGNNOW_API_BASE_URL"}}
+         "inject": {"type": "env", "env_var": "SIGNNOW_ACCESS_TOKEN"}}
       ]
     }
   }
   ```
 
-  `api_base_url` is an **optional** binding: `ApplyBindings` skips empty
-  values (verified in `internal/credential/inject.go` +
-  `TestApplyBindings_SkipsEmptyValues`), and a resolver that lacks the field
-  yields empty — so Helio's token gateway never sets it and the service falls
-  back to production, while the L2 harness sets
-  `ANYCLI_CRED_API_BASE_URL=https://api-eval.signnow.com` to target the free
-  sandbox. No definition-schema change needed.
+  **DIVERGENCE (implementation, from the original §3 plan):** `api_base_url` is
+  NOT a credential binding. The original plan made it an "optional" second
+  binding fed by `ANYCLI_CRED_API_BASE_URL`, on the assumption that an unset
+  resolver field just yields empty. That is wrong at the Helio boundary: the
+  helio-cli pin-match check `TestGeneratedToolProvidersMatchPinnedAnyCLI`
+  requires **every** anycli credential field to be projected by the provider
+  bundle's `credential.fields`, and a fixed production base URL has no
+  token/connection source to project from — declaring it would fail that gate
+  (and would be a false contract: the token gateway never serves a base URL).
+  The base URL is instead a fixed production constant baked into the service
+  (`DefaultBaseURL`), overridable only via the **process** env var
+  `SIGNNOW_API_BASE_URL` read directly with `os.Getenv` (dev/L2 harness only —
+  the operator exports `SIGNNOW_API_BASE_URL=https://api-eval.signnow.com`,
+  NOT an `ANYCLI_CRED_*`). Production never sets it, so the service falls back
+  to production. Net: the definition ships one credential field
+  (`access_token`), which the bundle projects.
 
 - `internal/tools/signnow/` (package `signnow`), registered as
   `RegisterService("signnow", &signnow.Service{})` in
