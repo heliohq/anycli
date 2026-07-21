@@ -6,9 +6,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newMeCmd is `me` (GET /me): the authenticated account's identity (alias,
-// email, language, and — on live payloads — user_id). Needs the accounts:read
-// scope. Output JSON.
+// newMeCmd is `me` (GET /me): the authenticated account's identity. The
+// documented accounts:read response carries exactly alias, email, and language
+// (https://www.typeform.com/developers/get-started/hands-on/) — there is no
+// user_id field. Output JSON.
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "me",

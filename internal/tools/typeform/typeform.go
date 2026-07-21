@@ -58,6 +58,12 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	if token == "" {
 		// The token check runs before cobra parses flags, so detect --json in
 		// the raw args to honor the structured error-envelope contract.
+		//
+		// Deliberate taxonomy: a missing credential is exit 1 (a runtime
+		// classification — the tool cannot run without the injected token),
+		// distinct from parse/arg usage errors which are exit 2. Under --json it
+		// still renders kind "usage" (there is no separate "credential" kind in
+		// the envelope), matching the notion precedent across the tool batch.
 		s.renderError(hasJSONArg(args), &usageError{msg: "TYPEFORM_TOKEN is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}

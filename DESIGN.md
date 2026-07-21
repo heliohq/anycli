@@ -169,7 +169,11 @@ Source: `https://www.typeform.com/developers/get-started/applications/` and
   - Token: `POST https://api.typeform.com/oauth/token`, URL-encoded form body
     carrying `client_id` + `client_secret` (no Basic-auth option documented)
     → `token_exchange_style: form_secret`.
-  - **PKCE: not supported/documented** → `pkce: none`.
+  - **PKCE: not supported.** The official authorize doc
+    (`.../get-started/applications/`) lists only `client_id`, `redirect_uri`,
+    `scope`, and optional `state` — no `code_challenge`/`code_verifier`. Token
+    exchange relies on `client_id` + `client_secret`. → `pkce: none` (unlike the
+    X precedent's `s256`; Typeform simply does not offer PKCE).
 - **Token semantics:** access tokens expire (default **1 week**). A refresh
   token is issued **only when the `offline` scope is requested**. Refresh
   (`grant_type=refresh_token`, client id+secret in form body) **rotates** the
@@ -185,12 +189,16 @@ Source: `https://www.typeform.com/developers/get-started/applications/` and
   Excluded: `responses:write` (destructive delete-responses; no v1 command),
   `themes:*`, `images:*` (out of surface).
 - **Identity:** `GET https://api.typeform.com/me` (needs `accounts:read`).
-  Officially documented fields: `alias`, `email`, `language`; multiple
-  non-official references also show `user_id`. Bundle plan uses
-  `stable_key: /user_id` with `label_candidates: [/email, /alias]` — **the
-  presence of `user_id` in the live `/me` payload is an explicit L2
-  verification item**; if absent, fall back to `stable_key: /email` before the
-  bundle merges.
+  The documented response is **exactly** `{alias, email, language}` — official
+  example `{"alias":"Batman","email":"bruce@wayne.com","language":"en"}`
+  (`.../get-started/hands-on/`). **There is no `user_id` field in the
+  documented schema.** Because `stable_key` is a single RFC 6901 pointer with
+  **no resolver fallback** (only `label_candidates` has ordered fallback), the
+  bundle uses `stable_key: /email` (guaranteed present) with
+  `label_candidates: [/alias, /email]`. **Divergence from the original plan:**
+  the initial draft proposed `stable_key: /user_id` pending an L2 check; the
+  official docs settle it — `user_id` is not documented, so `/email` is the
+  account key, not a fallback.
 - **Revocation:** no OAuth token-revocation endpoint documented →
   `disconnect_mode: local_only` (notion/microsoft precedent).
 
@@ -237,8 +245,8 @@ auth:
 identity:
   source: userinfo
   url: https://api.typeform.com/me
-  stable_key: /user_id     # L2 verification item; fallback /email (§3)
-  label_candidates: [/email, /alias]
+  stable_key: /email       # /me schema is {alias, email, language}; no user_id (§3)
+  label_candidates: [/alias, /email]
 
 connection:
   mode: isolated
@@ -296,7 +304,7 @@ Notes:
 | Layer | What runs here | External credentials needed |
 |---|---|---|
 | L1 | `go test ./...` in anycli: unit tests for every subcommand against `httptest` fakes (request shape, auth header, pagination params, error envelope, exit codes) | none |
-| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli typeform -- me / form list / form get / response list / form create+delete / webhook set+delete` against the **real** API. Also the §3 verification item: confirm `user_id` in `/me`. | **YES** — a Typeform **personal access token** from the test-account pool (lane 2); no OAuth app needed at this layer |
+| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli typeform -- me / form list / form get / response list / form create+delete / webhook set+delete` against the **real** API. Confirm `/me` returns `email` (the `stable_key`, §3). | **YES** — a Typeform **personal access token** from the test-account pool (lane 2); no OAuth app needed at this layer |
 | L3 | local `provider-gen` + `--check` against the branch bundle; anycli + helio-cli + integration-service unit suites with the `replace` in place | none |
 | L4 | singleton + `POST /internal/test-only/connections/seed` with a **real OAuth access_token + refresh_token** and a deliberately short `expires_at`, then `heliox tool typeform -- form list`. Must prove: (a) token gateway serves the seeded token to anycli; (b) the refresh path fires and **writes back the rotated refresh token** (Typeform invalidates the old one — a second run after refresh is the check); (c) live data returned | **YES** — dev-app client id/secret (lane 1, local uncommitted `config/cloud.yaml`) + a token pair minted from the dev app against the test account |
 | L5 | while still hidden: `heliox tool typeform auth` → connect link → real consent on the test account → `oauth_connected` event on the channel → one **unseeded** live run. Human-in-the-loop (oauth lane), per-batch sweep | **YES** — registered dev app with the committed config appends landed (lane 1) + test-account login (lane 2) |
@@ -306,8 +314,9 @@ single go-live change.
 
 ## 7. Open items / risks
 
-1. `/me` `user_id` field presence — verified at L2; fallback `stable_key:
-   /email` (§3).
+1. Identity key — resolved: official `/me` schema is `{alias, email, language}`
+   with no `user_id`, so `stable_key: /email` (§3). L2 confirms `email` is
+   present on the live payload.
 2. EU data-center accounts are unsupported in v1 (global base URL only);
    documented limitation, `BaseURL` seam kept for a later EU option (§1).
 3. Rate limit is 2 req/s per token — surface Typeform's 429/`RATE_LIMITED`

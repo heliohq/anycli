@@ -27,10 +27,42 @@ func TestExecuteMissingTokenExit1(t *testing.T) {
 	}
 }
 
+// TestMissingTokenJSONEnvelopeUsageKind locks the deliberate taxonomy for the
+// pre-parse credential-absent case: exit 1 (a runtime classification — the tool
+// cannot run without the injected credential), rendered under --json as
+// kind "usage". This matches the notion precedent across the tool batch; a
+// missing token is never exit 2.
+func TestMissingTokenJSONEnvelopeUsageKind(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, nil)
+	defer srv.Close()
+
+	_, stderr, exit := run(t, srv, "", "--json", "me")
+	if exit != 1 {
+		t.Fatalf("exit = %d, want 1", exit)
+	}
+	var env struct {
+		Error struct {
+			Message string `json:"message"`
+			Kind    string `json:"kind"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(stderr)), &env); err != nil {
+		t.Fatalf("stderr is not a JSON error envelope: %v (%q)", err, stderr)
+	}
+	if env.Error.Kind != "usage" {
+		t.Errorf("kind = %q, want usage", env.Error.Kind)
+	}
+	if !strings.Contains(env.Error.Message, "TYPEFORM_TOKEN is not set") {
+		t.Errorf("message = %q, want missing-token message", env.Error.Message)
+	}
+}
+
 func TestMeSuccessInjectsBearerAndEmitsJSON(t *testing.T) {
 	var reqs []capturedRequest
+	// The documented GET /me schema is exactly {alias, email, language}.
 	srv := newMux(t, &reqs, map[string]stub{
-		"GET /me": {status: 200, body: `{"user_id":"u1","alias":"al","email":"a@b.co","language":"en"}`},
+		"GET /me": {status: 200, body: `{"alias":"al","email":"a@b.co","language":"en"}`},
 	})
 	defer srv.Close()
 
@@ -52,8 +84,11 @@ func TestMeSuccessInjectsBearerAndEmitsJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("stdout is not JSON: %v (%q)", err, stdout)
 	}
-	if got["user_id"] != "u1" {
-		t.Errorf("user_id = %v, want u1", got["user_id"])
+	if got["email"] != "a@b.co" {
+		t.Errorf("email = %v, want a@b.co", got["email"])
+	}
+	if got["alias"] != "al" {
+		t.Errorf("alias = %v, want al", got["alias"])
 	}
 }
 
