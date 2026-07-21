@@ -7,23 +7,71 @@ the `tool/mailerlite` branch and stripped by the batch lead at batch-end.
 
 ## 1. Verdict check against official docs
 
-The master-plan catalog and the 2026-07-21 OAuth audit (row 130) both place
-MailerLite in the **api_key** lane. I verified this against MailerLite's
-official developer docs (developers.mailerlite.com) and it holds — **no
-divergence to record**:
+The master-plan catalog and the 2026-07-21 OAuth audit (row 130 — a
+**no-evidence "stays api_key"** row) place MailerLite in the **api_key** lane.
+The lane is correct, but the earlier premise for it was **wrong** and is now
+corrected against MailerLite's official docs. **Two divergences to record.**
 
-- The MailerLite (new / "Connect") API authenticates with a single
-  account-issued **Bearer API token** (`Authorization: Bearer <token>`).
-  Docs: <https://developers.mailerlite.com/docs/> (Getting started →
-  Authentication).
-- Tokens are generated **self-serve** in the dashboard (Integrations →
-  MailerLite API → "Generate new token"), shown once, with **no scopes and
-  no expiry** documented. They are permanently bound to the creating user.
-- There is **no multi-tenant authorization-code OAuth** offering — no
-  authorize/token endpoints, no registered-app model, no consent screen. So
-  a shared Helio-owned client cannot mint per-account tokens; the user pastes
-  their own key. That is exactly the audit rubric's "no viable multi-tenant
-  path → api_key" case. Confirmed api_key.
+**Divergence A — MailerLite DOES operate an OAuth 2.0 authorization server
+(the audit's "OAuth-absent" premise is false).** An earlier draft asserted
+MailerLite has "no authorize/token endpoints, no registered-app model, no
+consent screen, no OAuth offering." That is **disproven by MailerLite's own
+first-party developer docs**:
+
+- The **official MailerLite CLI docs** (<https://developers.mailerlite.com/docs/cli>)
+  state the CLI offers **"two authentication methods: OAuth (recommended) and
+  API token."** OAuth login **"opens your browser to authorize the CLI with
+  your MailerLite account,"** and **"OAuth tokens are automatically refreshed
+  when they expire."** Multi-account: *"If your OAuth credentials have access
+  to multiple MailerLite accounts…"* → a real OAuth authorization server, a
+  **consent screen**, and **refresh tokens** all exist.
+- Concrete endpoints, on MailerLite's **own** domains and corroborated across
+  multiple public integration guides: authorize
+  `https://app.mailerlite.com/integrations/oauth/authorize`
+  (`client_id`, `response_type=code`, `redirect_uri`), token
+  `https://connect.mailerlite.com/oauth/token`
+  (`grant_type=authorization_code` → `access_token` + `refresh_token`).
+
+So OAuth is **not absent**. The prior "no OAuth" claim is deleted.
+
+**Why api_key still holds — third-party app registration is NOT self-serve
+(partner-gated).** OAuth existing is necessary but not sufficient for
+`oauth_light`; the audit rubric admits api_key when OAuth is
+per-instance/partner-only/impractical for a shared Helio-owned client. That is
+the case here, on official evidence:
+
+- The **developer docs' Authentication section**
+  (<https://developers.mailerlite.com/docs/>) documents **only** the
+  account-issued **Bearer API token** (`Authorization: Bearer <token>`,
+  `401 {"message":"Unauthenticated."}` on a bad key). There is **no** OAuth
+  section, **no** documented `client_id`/`client_secret`/redirect-URI
+  self-registration screen, and `developers.mailerlite.com/docs/oauth`
+  **404s**. The CLI's OAuth uses a **first-party client embedded in the CLI**;
+  the docs never ask a user to register an app for it.
+- Public/third-party OAuth apps are routed through the **MailerLite
+  Integration / Developer & Tech Partner Program** (partner tiers, "depending
+  on the partner type, completing relevant training or certification might be
+  required"; MailerLite support explicitly **does not cover custom API setups
+  or third-party integrations**). No public search or official page surfaces a
+  self-serve dashboard flow to mint a third-party `client_id`/`client_secret`.
+
+Conclusion: OAuth exists but there is **no documented self-serve path for
+Helio to register its own OAuth client**, so no shared multi-tenant Helio
+client can be stood up without a partner-program application of unknown
+timeline. The **buildable, self-serve** multi-tenant path remains **the user
+pasting their own account-issued API token → api_key**. Tokens are generated
+self-serve (Integrations → MailerLite API → "Generate new token"), shown once,
+**no scopes, no documented expiry**, permanently bound to the creating user.
+
+**Residual uncertainty + escalation (must run before lane-1 build).** The
+"partner-gated" finding rests on absence of a documented self-serve OAuth
+app-registration UI, not on a positive "you may not." If lane-1 investigation
+confirms a **self-serve** app-creation screen (own `client_id`/`client_secret`
++ redirect URIs, no partner gate), **re-lane to `oauth_light`** and rebuild as
+a `standard_oauth` bundle (refresh-token lease; identity from
+`token_response`, since there is no userinfo endpoint — see §1 Divergence B)
+— which deletes nearly all of §4's bespoke deriver work. Do not build the
+api_key deriver until this check is closed.
 
 MailerLite Classic (accounts created before 2022-03-22) is a **separate**
 legacy API (`developers-classic.mailerlite.com`, base
@@ -32,25 +80,27 @@ legacy API (`developers-classic.mailerlite.com`, base
 Classic is out of scope (shrinking cohort, different header/base — a second
 provider at most, not this one).
 
-**One divergence to record — lane label vs. buildable mechanism.** The catalog
-row and audit bucket MailerLite in the human-facing **api_key** lane. That lane
-label is correct, but on `main` the `manual_api_token` runtime strategy (the
-literal "api_key" path) is not buildable for MailerLite: `ValidateRuntimeContract`
-(`runtime_contract.go`) requires `AuthAPIKey` bundles to declare
-`identity.source: userinfo` — a JSON identity endpoint the verifier GETs. The
-MailerLite Connect API has **no `/me`, account, or user-info endpoint** (verified
-against developers.mailerlite.com and the official CLI's resource groups — its
-sections are Subscribers, Groups, Segments, Fields, Automations, Campaigns, Forms,
-Batching, Webhooks, Timezones, Campaign languages, **and an E-commerce API**
-(Shops, Products, Categories, Customers, Orders, Carts, Cart Items, Bulk Import);
-none returns a stable **account** identity — the nearest thing, a shop id, is a
-user-created resource id, not an account identifier, so it cannot key the
-connection). With no userinfo endpoint,
-the buildable mechanism is the **design-317 `credentials` / `manual_credentials`**
-path — exactly what semrush and moz (also opaque keys with no userinfo endpoint)
-use. So the bundle sets `auth.type: credentials` even though the lane label is
-"api_key"; the wire tool kind stays `api-key`. This is not a lane change, it is
-the api_key lane's opaque-key implementation.
+**Divergence B — lane label vs. buildable mechanism (api_key path only).**
+Given api_key, the human-facing lane label is "api_key," but on `main` the
+`manual_api_token` runtime strategy (the literal "api_key" path) is not
+buildable for MailerLite: `ValidateRuntimeContract` (`runtime_contract.go`)
+requires `AuthAPIKey` bundles to declare `identity.source: userinfo` — a JSON
+identity endpoint the verifier GETs. The MailerLite Connect API has **no
+`/me`, account, or user-info endpoint** (verified against
+developers.mailerlite.com and the official CLI's resource groups — Subscribers,
+Groups, Segments, Fields, Automations, Campaigns, Forms, Batching, Webhooks,
+Timezones, Campaign languages, **and an E-commerce API** (Shops, Products,
+Categories, Customers, Orders, Carts, Cart Items, Bulk Import); none returns a
+stable **account** identity — a shop id is a user-created resource id, not an
+account identifier, so it cannot key the connection). With no userinfo
+endpoint, the buildable mechanism is the **design-317 `credentials` /
+`manual_credentials`** path (the same opaque-key shape mongodb uses on `main`).
+So the bundle sets `auth.type: credentials` even though the lane label is
+"api_key"; the wire tool kind stays `api-key`. This is not a lane change, it
+is the api_key lane's opaque-key implementation. Note this is also exactly why
+the `oauth_light` alternative would be *cleaner* if self-serve registration
+turns out to exist (Divergence A escalation): a `standard_oauth` bundle keys
+identity off `token_response` and needs no bespoke deriver at all.
 
 ## 2. API surface wrapped, and why
 
@@ -194,11 +244,14 @@ Pagination flags mirror the API: `--limit`, `--cursor` (subscribers/groups),
 
 - **Credential kind:** single opaque secret — the MailerLite API token. One
   field, `api_token` (bundle field name; injected as `MAILERLITE_API_TOKEN`).
-- **Registration model:** self-serve, dashboard-generated, no app
-  registration, **no OAuth client** — so **lane 1 does nothing** for this
-  tool (no client id/secret to create or land in integration-service config;
+- **Registration model:** the pasted token is self-serve, dashboard-generated
+  (Integrations → MailerLite API → "Generate new token"). MailerLite **does**
+  run OAuth (§1 Divergence A), but there is **no self-serve third-party OAuth
+  client registration** — and the api_key path registers **no Helio-owned
+  OAuth client** regardless — so **lane 1 does nothing** for this tool (no
+  client id/secret to create or land in integration-service config;
   `required_config_fields` is empty and the provider is `configured: true`
-  with zero config, like the mongodb/semrush credentials providers).
+  with zero config, like the mongodb credentials provider on `main`).
 - **Scopes / token semantics:** none. The token is all-or-nothing per
   account, non-expiring, permanently bound to its creating user. No refresh
   cycle → the token gateway serves it directly (seed `access_token` only in
@@ -251,18 +304,51 @@ for mongodb, selecting the MailerLite deriver for `provider == mailerlite`):
   better UX — but it is **explicit MailerLite-owned capability growth**
   (a compiled verifier + its unit tests), not a reuse of anything on `main`.
 
-**account_key / label derivation (both variants).** No API account identifier
-exists, but a **static constant** (e.g. `"mailerlite"`) is wrong: with
-`identity.source: strategy` the account key is per-connection, feeds the
-`(org_id, provider, account_key)` model, and is the human-readable label — a
-global literal collides and carries no information. Follow semrush: derive a
-**non-reversible last-4-characters** key/label from the pasted token
-(e.g. label `MailerLite ••••ab12`, key `ab12`). The deriver returns
-`(identity, label, accountKey)` and the secret never enters the identity map,
-so Connection metadata stays secret-free. Field names and the exact label
-format are confirmed against `service/manual_credential.go`
-(`defaultAccountName(label, accountKey, provider)`) and the semrush verifier
-before pinning.
+**account_key / label derivation (both variants).** The deriver returns
+`(identity, label, accountKey)` — and on `main` these are **two different
+fields**: `Connection.AccountKey` (the stable, indexed `(org_id, provider,
+account_key)` dedup key) and `Connection.Account` (the human-visible label,
+via `defaultAccountName(label, sub, provider)` in `service/oauth.go`). They
+must be derived **separately**, because MailerLite exposes **no account
+identifier at all** (a fact §1/§2 establish) and the token is the only input:
+
+- **account_key = a full non-reversible hash of the token**, e.g.
+  `sha256(token)` hex-truncated to ≥12 chars (`ml_<hex12>`). **Not** a 4-char
+  substring. Four characters is ~16 bits of entropy: two genuinely different
+  MailerLite accounts connected in the same org can collide on the same
+  `account_key` and the second connect would upsert over the first, silently
+  shadowing one account's connection. A full-token hash removes that collision
+  risk; it stays secret-safe (non-reversible, never stored in the identity
+  map, so Connection metadata carries no secret).
+- **label = `MailerLite ••••<last4>`** for readability only. The last-4 is
+  fine *here* because it is a display string, never the dedup key. This keeps
+  the on-`main` "the visible account must be human-readable, never a hash"
+  constraint (`manual_credentials_identity.go` comment) satisfied — the hash
+  is the invisible key, the masked tail is the visible label.
+
+- **Accepted trade — rotation produces a new connection (explicit, documented).**
+  Because the only stable input is the token, keying on `sha256(token)` means a
+  user who **regenerates** their MailerLite token (tokens are shown once and
+  replaced on loss, per official docs) gets a **new** `account_key` → a second
+  connection row for the same underlying account. This is inherent to any
+  token-derived key (last-4 had the *same* rotation break **plus** collisions);
+  the hash keeps only the rotation break, which is the smaller, unavoidable one.
+  The story is the standard reconnect/cleanup: the old row is a dormant
+  connection the user disconnects (`disconnect_mode: local_only`, no provider
+  revoke), and tool calls simply use the newest active row. Call this out in
+  the connect UI copy / provider sub-doc so it is a known behavior, not a
+  surprise.
+
+**Precedent honesty.** There is **no last-4 (or any token-hash) deriver on
+`main`** — the only `manual_credentials` deriver on `main` is
+`dsnHostIdentityDeriver` (mongodb), which derives a **host** from a DSN and is
+inapplicable to an opaque Bearer token. semrush/moz are the conceptual siblings
+but live on **unmerged branches**, so they provide **no verifiable precedent**
+to copy. The MailerLite deriver is therefore **net-new MailerLite-owned code**
+(one deriver + its unit tests), not a reuse — asserting "follow semrush" would
+be citing code that is not on `main`. Field names and `defaultAccountName`'s
+signature are confirmed against `service/oauth.go` and
+`service/manual_credentials_identity.go` before pinning.
 
 ## 5. Helio provider bundle plan
 
@@ -272,10 +358,10 @@ group, no `tool.group`, and **no `toolToProvider` entry** (id == key; the
 resolver's identity default applies). Register nothing in
 `resolver.go`. Hidden-first.
 
-Sketch — the mongodb/semrush `credentials` + `manual_credentials` shape
-verbatim (the only credentials shape provider-gen strict-decode accepts on
-`main`); the compiled deriver from §4 supplies identity, so the bundle carries
-**no** verify stanza:
+Sketch — the mongodb (on-`main`) `credentials` + `manual_credentials` shape
+verbatim, the same shape the unmerged semrush/moz branches use (the only
+credentials shape provider-gen strict-decode accepts on `main`); the compiled
+deriver from §4 supplies identity, so the bundle carries **no** verify stanza:
 
 ```yaml
 schema: helio.provider/v1
@@ -316,7 +402,7 @@ resources:
 credential:
   fields:
     api_token: token.access_token       # single secret via existing UpsertUserToken path
-    account_key: connection.account_key # last-4-chars key from the deriver (§4)
+    account_key: connection.account_key # non-reversible token-hash key from the deriver (§4); label carries ••••last4
 
 tool:
   name: mailerlite
@@ -327,7 +413,8 @@ tool:
   environment config; **nothing lands in `config/` or `deploy/`** for this
   provider (no client id/secret). This removes the §2 seventh-shared-surface
   (oauth config) work entirely.
-- The bundle is declaratively identical to mongodb/semrush; the MailerLite-specific
+- The bundle is declaratively identical to mongodb on `main` (and the unmerged
+  semrush/moz); the MailerLite-specific
   work is the **compiled deriver** wired in `service/provider_registry.go`
   (§4) plus its unit test — not a manifest field. Diff the bundle against
   `integrations/providers/mongodb/provider.yaml` at build time (both are
