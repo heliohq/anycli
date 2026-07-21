@@ -41,18 +41,24 @@ Endpoints the tool wraps, and why:
 | `POST /invitees` (Scheduling API, 2026) | direct booking: `event_type`, UTC `start_time`, invitee `{name,email,timezone}`, `location` rules; **requires the Calendly account to be on a paid plan** — surface the 403 clearly, do not hide it |
 | `GET /organization_memberships?organization=…` | resolve teammates' user URIs (needed for availability/busy on colleagues) |
 
-**Required OAuth scope per endpoint** (from the official Scope Catalog's
-"Provides access to" mapping — the scope set in §3/§5 is *derived* from this,
-not from a read/write-twin shortcut): `GET /users/me` → `users:read`;
-`GET /event_types*` → `event_types:read`; the three availability endpoints
-(`event_type_available_times`, `user_busy_times`, `user_availability_schedules`)
-→ `availability:read`; `GET /scheduled_events*` → `scheduled_events:read`
-(satisfied by the `scheduled_events:write` we request via the catalog's
-`:write` ⊇ `:read` hierarchy rule); `GET /scheduled_events/{uuid}/invitees` and
-`…/invitees/{uuid}` → `invitees:read` (catalog-vs-example contradiction — §3/§7
-#5); `POST …/cancellation`, `POST`/`DELETE /invitee_no_shows`, and Scheduling-API
-`POST /invitees` → `scheduled_events:write`; `POST /scheduling_links` →
-`scheduling_links:write`; `GET /organization_memberships` → `organizations:read`.
+**Required OAuth scope per endpoint** (transcribed verbatim from the official
+Scope Catalog's "Provides access to" mapping — the scope set in §3/§5 is
+*derived* from this, not from a read/write-twin shortcut): `GET /users/me` →
+`users:read`; `GET /event_types*` **and `GET /event_type_available_times`** →
+`event_types:read` (the catalog lists `event_type_available_times` under
+`event_types:read`, **not** `availability:read`); `GET /user_busy_times` and
+`GET /user_availability_schedules` → `availability:read`;
+`GET /scheduled_events*`, `GET /scheduled_events/{uuid}/invitees`, and
+`…/invitees/{uuid}` → `scheduled_events:read` — **the catalog maps invitee reads
+under `scheduled_events:read`, and the `scheduled_events:write` we request
+implicitly includes `scheduled_events:read` via the catalog's `:write` ⊇ `:read`
+hierarchy rule, so invitee reads need no separate scope** (there is no
+`invitees:read` catalog scope — see §3/§7 #5); `POST …/cancellation`,
+`POST`/`DELETE` no-show, and Scheduling-API `POST /invitees` →
+`scheduled_events:write` (**the catalog explicitly enumerates `POST /invitees`
+under `scheduled_events:write`** — this booking mapping is catalog-verified, not
+assumed); `POST /scheduling_links` → `scheduling_links:write`;
+`GET /organization_memberships` → `organizations:read`.
 
 **Range-cap note (Calendly's own docs are internally inconsistent — verified).**
 For `event_type_available_times` the current *guide* pages say 31 days
@@ -167,37 +173,45 @@ Verified on official pages (`/creating-an-oauth-app`, `/authentication`,
   via `/users/me` (needs `users:read`) 403s and L5 fails.
   **Scope set — derived per-endpoint from the official Scope Catalog's
   "Provides access to" mapping, not a read/write-twin heuristic:**
-  `users:read` (`GET /users/me`), `event_types:read` (`GET /event_types*`),
-  `availability:read` (the three availability endpoints
-  `event_type_available_times` / `user_busy_times` /
-  `user_availability_schedules` — **confirmed a real catalog scope, not
-  assumed**), `scheduled_events:write` (`POST …/cancellation`, `POST`/`DELETE
-  /invitee_no_shows`, and the Scheduling-API `POST /invitees`; the catalog's
-  documented hierarchy rule — "a `:write` scope implicitly includes the
-  corresponding `:read` scope within the same domain" — makes this also cover
-  the read-only `GET /scheduled_events*` list/get), `invitees:read`
-  (`GET /scheduled_events/{uuid}/invitees` and `…/invitees/{uuid}` — see the
-  contradiction note next), `scheduling_links:write` (`POST /scheduling_links`),
-  `organizations:read` (`GET /organization_memberships`).
-- **`invitees:read` — official-docs contradiction, recorded (see §7 #5).**
-  Calendly's own `/scopes` page is internally inconsistent: its **Scope
-  Catalog** (the authoritative list of valid scope *strings*) does **not** list
-  `invitees:read` and maps List Event Invitees under `scheduled_events:read`,
-  yet the same page's **"Choosing Scopes" worked example** lists `invitees:read`
-  — "Required to associate meetings with people and contact details" — for
-  exactly the read-who-booked-and-their-answers use case this tool leads with
-  (§1). Reading invitees is a **separate resource**: it has **no `:write`
-  twin**, so `scheduled_events:write` does **not** implicitly cover it under the
-  hierarchy rule, and the granular model grants **no access until a scope is
-  approved**. The safe, capability-complete choice is therefore to **request
-  `invitees:read` explicitly** on the wire and at registration. If it is merely
-  redundant (catalog view: invitee reads covered by `scheduled_events:read`),
-  requesting a documented scope is harmless; if it is genuinely required
-  (example view), omitting it 403s the headline `event invitees` verb on every
-  connected account. **L2 is the arbiter** — it asserts the invitee verbs
-  succeed with exactly the requested set and records whether `invitees:read` is
-  accepted on the wire and whether it is load-bearing, so the set can be trimmed
-  to the catalog view only if empirically proven safe.
+  `users:read` (`GET /users/me`), `event_types:read` (`GET /event_types*` **and
+  `GET /event_type_available_times`** — the catalog lists available-times under
+  `event_types:read`, not `availability:read`), `availability:read`
+  (`GET /user_busy_times` / `GET /user_availability_schedules` — **confirmed a
+  real catalog scope, not assumed**), `scheduled_events:write` (`POST
+  …/cancellation`, the `POST`/`DELETE` no-show writes, and the Scheduling-API
+  `POST /invitees` — **the catalog explicitly enumerates `POST /invitees` under
+  `scheduled_events:write`**; and the catalog's documented hierarchy rule — "a
+  `:write` scope implicitly includes the corresponding `:read` scope within the
+  same domain" — makes this also cover the read-only `GET /scheduled_events*`
+  list/get **and the invitee reads `GET /scheduled_events/{uuid}/invitees` /
+  `…/invitees/{uuid}`, which the catalog maps under `scheduled_events:read`**),
+  `scheduling_links:write` (`POST /scheduling_links`), `organizations:read`
+  (`GET /organization_memberships`). **Six scopes, no `invitees:read`** — see
+  the note next.
+- **No `invitees:read` scope — the catalog is authoritative and it is not a
+  valid scope string (see §7 #5).** Calendly's `/scopes` page is internally
+  inconsistent: its **"Choosing Scopes" worked example** names `invitees:read`
+  ("Required to associate meetings with people and contact details"), but the
+  page's **Scope Catalog** — the authoritative list of valid scope *strings* —
+  does **not** contain `invitees:read` at all, and instead maps
+  `GET /scheduled_events/{uuid}/invitees` and `…/invitees/{uuid}` under
+  `scheduled_events:read`. This is decisive on two counts. **(1) Coverage:** the
+  `scheduled_events:write` we already request implicitly includes
+  `scheduled_events:read` (hierarchy rule), which the catalog says *is* the
+  invitee-read scope — so invitee reads are fully covered without a separate
+  scope. **(2) Wire safety:** these scopes ship on the wire (§3 above), and
+  Calendly's authorize endpoint **strictly validates the `scope` param and
+  rejects any unknown/unlisted string** with a hard "The requested scope is
+  invalid, unknown, or malformed" error (the documented `openid` rejection is
+  the precedent). Because `invitees:read` is not a catalog string, sending it
+  would not silently no-op — it would **break the entire `/oauth/authorize`
+  request and brick the connect flow for every account**, including the tool's
+  headline `event invitees` capability. So v1 **excludes** `invitees:read`
+  entirely. L2 (which uses a bearer PAT) cannot exercise the wire `scope`-param
+  validation and so structurally cannot settle wire acceptance; the invitee
+  verbs are instead confirmed at L2 by asserting they return 2xx under the
+  requested six-scope set (`scheduled_events:write` ⊇ `scheduled_events:read`),
+  and the wire-acceptance of the whole set is confirmed at L5's real consent.
 - Personal Access Tokens exist (also scoped for new tokens); irrelevant to
   the connect flow but ideal for L2.
 
@@ -295,11 +309,11 @@ auth:
     # (google_calendar precedent) AND tick the identical set at app
     # registration; display_scopes is consent-page disclosure only.
     scopes: [users:read, event_types:read, availability:read,
-             scheduled_events:write, invitees:read, scheduling_links:write,
+             scheduled_events:write, scheduling_links:write,
              organizations:read]
     display_scopes: [users:read, event_types:read, availability:read,
-                     scheduled_events:write, invitees:read,
-                     scheduling_links:write, organizations:read]
+                     scheduled_events:write, scheduling_links:write,
+                     organizations:read]
     single_active_token: false
     refresh_lease: none                # program default for standard_oauth, incl. the rotating-refresh class (Pennylane/Airtable/PandaDoc); single-use rotation is handled by A3 strict write-back — see §3
     revoke:
@@ -371,7 +385,7 @@ local, uncommitted `go.mod` `replace` pointing at this anycli worktree.
 | Layer | What runs here | External credentials needed |
 |---|---|---|
 | L1 | anycli `go test ./...`: httptest fakes asserting Bearer header, request paths/query (URI expansion, `me` resolution, range params **passed through unmodified — no client-side range rejection**), pagination passthrough, cancel/no-show/link/book request bodies, 401-rejected mapping, plain + `--json` error rendering | none |
-| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli calendly -- me` then each verb family against the live API. **Assert every verb family returns 2xx with *exactly* the §3 requested scope set** — in particular `event invitees` (settles the `invitees:read` catalog-vs-example contradiction: record whether the granular PAT was accepted with `invitees:read` on it and whether the invitee endpoints 403 without it, so the set can be trimmed to the catalog view only if proven safe). **Also record the observed live range cap for both `availability slots` (event_type_available_times) and `availability busy` (user_busy_times)** — resolve the guide-vs-reference 31d/7d contradiction against the live API and note it | **yes** — a Calendly **Personal Access Token** from the lane-2 test account, created with the §3 scope set (new PATs are scoped; an unscoped PAT has no access). PAT suffices because anycli only sees a bearer token |
+| L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli calendly -- me` then each verb family against the live API. **Assert every verb family returns 2xx with *exactly* the §3 requested six-scope set** — in particular `event invitees`, which confirms the catalog is right that invitee reads fall under `scheduled_events:read` (⊆ the requested `scheduled_events:write`) and need no `invitees:read`. Note: L2 uses a bearer PAT, so it cannot exercise the authorize endpoint's wire `scope`-param validation — wire acceptance of the set is a **L5** concern, not L2's. **Also record the observed live range cap for both `availability slots` (event_type_available_times) and `availability busy` (user_busy_times)** — resolve the guide-vs-reference 31d/7d contradiction against the live API and note it | **yes** — a Calendly **Personal Access Token** from the lane-2 test account, created with the §3 six-scope set (new PATs are scoped; an unscoped PAT has no access). PAT suffices because anycli only sees a bearer token |
 | L3 | local `go run ./cmd/provider-gen` + `--check` against this branch's bundle — **passes as-is** (`refresh_lease: none` satisfies the `standard_oauth` contract; no contract edit, no new contract test). Also run helio-cli + integration-service unit suites with the local `replace` | none |
 | L4 | singleton + `POST /internal/test-only/connections/seed` with `provider: "calendly"`, real `access_token` **and** `refresh_token` from the lane-1 **sandbox app**, deliberately short `expires_at` → forces the A3 refresh; then `heliox tool calendly -- me`. Run the tool **twice**: the second call proves the rotated (single-use) refresh token was persisted by A3 strict write-back — this is the Calendly-specific L4 assertion, not optional | **yes** — lane-1 sandbox app client id/secret (uncommitted local `config/cloud.yaml`) + a token pair minted from it on the lane-2 test account |
 | L5 | `heliox tool calendly auth` → connect link → real consent on the test account → `oauth_connected` event → unseeded `heliox tool calendly -- me` and one write (e.g. `link create`); confirm the consent screen shows the §3 scope set | **yes** — human-in-the-loop (lane 3), production-app config landed in `config/` + `deploy/` |
@@ -412,21 +426,36 @@ local, uncommitted `go.mod` `replace` pointing at this anycli worktree.
    flips its one field along with the rest of the class. Recommendation: raise
    this in the master plan's §6 before Wave 1's rotating-provider batches flip
    visible.
-5. **`invitees:read` scope — Calendly's own `/scopes` page contradicts itself
-   (divergence recorded, L2 settles it).** The **Scope Catalog** (authoritative
-   scope-string list) omits `invitees:read` and maps List Event Invitees under
-   `scheduled_events:read`, but the same page's **"Choosing Scopes" example**
-   lists `invitees:read` as required to read who booked + their details — the
-   tool's headline capability (§1). Because invitees is a separate resource with
-   no `:write` twin (so `scheduled_events:write` does not implicitly grant it)
-   and the granular model gives no access until a scope is approved, v1
-   **requests `invitees:read` explicitly** in `auth.oauth.scopes` +
-   `display_scopes` (§5) and at app registration — the fail-safe choice:
-   harmless if redundant, load-bearing if required. Per the "official docs win /
-   endpoint contract authoritative" rule, the contradiction is recorded here and
-   **L2 asserts each verb family (esp. `event invitees`) succeeds with exactly
-   the requested set** and records whether `invitees:read` is wire-accepted and
-   required, so the set is trimmed to the catalog view only on empirical proof.
+5. **`invitees:read` scope — EXCLUDE it; the Scope Catalog is authoritative and
+   it is not a valid scope string (divergence recorded).** Calendly's `/scopes`
+   page contradicts itself: its **"Choosing Scopes" worked example** names
+   `invitees:read` ("Required to associate meetings with people and contact
+   details"), but its **Scope Catalog** — the authoritative list of valid scope
+   *strings* — does **not** contain `invitees:read` at all and maps List Event
+   Invitees (`GET /scheduled_events/{uuid}/invitees`, `…/invitees/{uuid}`) under
+   `scheduled_events:read`. Two facts make exclusion the only correct choice, not
+   a fail-safe "request it anyway":
+   - **It is redundant.** The catalog's hierarchy rule ("`:write` implicitly
+     includes the corresponding `:read` within the same domain") means the
+     `scheduled_events:write` we already request grants `scheduled_events:read`,
+     which the catalog says *is* the invitee-read scope. Invitee reads are fully
+     covered without any invitee-specific scope.
+   - **It is actively harmful on the wire.** These scopes ship in the authorize
+     `scope` param (§3/§5). Calendly **strictly validates** that param and
+     rejects any unknown/unlisted string with a hard "The requested scope is
+     invalid, unknown, or malformed" error (the documented `openid` rejection is
+     the precedent). An unlisted scope does **not** silently no-op — it breaks
+     the whole `/oauth/authorize` request and **bricks the connect flow for every
+     account**, including the headline `event invitees` capability. So the
+     earlier "harmless if redundant, load-bearing if required" framing was
+     falsified on both halves.
+   The shipped six-scope set (`users:read, event_types:read, availability:read,
+   scheduled_events:write, scheduling_links:write, organizations:read`) is
+   capability-complete. Note the arbiter: **L2 uses a bearer PAT and never
+   exercises the authorize endpoint's wire `scope`-param validation**, so it
+   cannot settle wire acceptance — that only surfaces at **L5** (real consent).
+   L2's job is narrower: confirm `event invitees` returns 2xx under the six-scope
+   set, empirically proving invitee reads ride `scheduled_events:read`.
 
 ### Resolved during review revision
 
@@ -456,23 +485,29 @@ local, uncommitted `go.mod` `replace` pointing at this anycli worktree.
   space-separated `scope` param and a granular-scopes "no access until
   approved" model, so scopes ship **on the wire** (`auth.oauth.scopes`) plus
   the same set at app registration — see §3/§5. No longer open.
-- **`invitees:read` missing from the scope set (major finding from review)**:
-  the earlier set (`users:read`, `event_types:read`, `availability:read`,
-  `scheduled_events:write`, `scheduling_links:write`, `organizations:read`)
-  covered scheduled-event reads via the `:write` twin's implicit `:read` but had
-  **no scope for the invitee resource**, which is separate and has no `:write`
-  twin — so the headline `event invitees` verb (`GET
-  /scheduled_events/{uuid}/invitees`) could 403 on every connected account.
-  **Resolved**: re-derived the scope set per-endpoint from the official Scope
-  Catalog's "Provides access to" mapping (not a read/write-twin heuristic) and
-  **added `invitees:read`** to `auth.oauth.scopes` + `display_scopes` (§5), the
-  §3 set, and the new §2 per-endpoint scope table. Verification also surfaced a
-  Calendly-docs contradiction — the Scope Catalog omits `invitees:read` and maps
-  invitee reads under `scheduled_events:read`, while the page's "Choosing
-  Scopes" example lists `invitees:read` explicitly — recorded as §7 #5 with L2
-  as the empirical arbiter. Separately confirmed `availability:read` is a real
-  catalog scope (was "assumed but unverified") and that the no-show writes +
-  Scheduling-API `POST /invitees` map to `scheduled_events:write`.
+- **`invitees:read` scope (two review passes — first added, then correctly
+  removed)**: an intermediate draft, worried the invitee resource had no
+  coverage, **added `invitees:read`** to the scope set. A later review verified
+  against the authoritative Scope Catalog that this was wrong on two counts:
+  (a) `invitees:read` is **not a valid catalog scope string** — the catalog maps
+  `GET /scheduled_events/{uuid}/invitees` and `…/invitees/{uuid}` under
+  `scheduled_events:read`, which the requested `scheduled_events:write` already
+  grants via the `:write` ⊇ `:read` hierarchy rule, so invitee reads are covered
+  without it; and (b) because scopes ship on the wire, Calendly's strict
+  authorize-endpoint validation would **reject the unlisted string and brick the
+  entire connect flow** (same failure class as the documented `openid`
+  rejection), not silently no-op. **Resolved by dropping `invitees:read`** from
+  `auth.oauth.scopes` + `display_scopes` (§5), the §3 derivation, the §2
+  per-endpoint table, and the §7 #5 rationale — leaving the capability-complete
+  six-scope set (`users:read`, `event_types:read`, `availability:read`,
+  `scheduled_events:write`, `scheduling_links:write`, `organizations:read`). The
+  same verification pass corrected the §2/§3 mapping of
+  `GET /event_type_available_times` to `event_types:read` (the catalog lists it
+  there, not under `availability:read`), and confirmed from the catalog that
+  `availability:read` is a real scope and that the no-show writes **and the
+  Scheduling-API `POST /invitees`** are catalog-enumerated under
+  `scheduled_events:write` (the booking mapping is catalog-verified, not an
+  assumption pending L2).
 - **Disconnect revoke (was OQ "disconnect revoke")**: Calendly officially
   documents Revoke Access/Refresh Token
   (`POST https://auth.calendly.com/oauth/revoke`, `client_id`/`client_secret`/
