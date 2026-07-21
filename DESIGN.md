@@ -312,3 +312,44 @@ throughput advantage.
 
 **Definition of done:** L1–L5 green · docs published · icon registered · then
 `presentation.visible: true` + `provider-gen` regenerate as the single go-live change.
+
+## 5. Implementation reconciliation (verified against the official OpenAPI schema)
+
+Re-verifying every endpoint against the machine-readable OpenAPI twins
+(`hub.phantombuster.com/reference/*.md`, indexed from `llms.txt`) during
+implementation surfaced several response-shape specifics in §1/§2.3 that were
+inaccurate. The **auth lane (`api_key`), the header (`X-Phantombuster-Key`), the
+base URL, and the identity axes** (`orgs/fetch` is a raw object with a
+string-typed `/id`; `users/fetch-me` wraps under `/user/id`, string) all hold as
+designed — no divergence from the audit verdict. The corrections, all now
+reflected in the wrapper:
+
+- **`agents/fetch-output` does not return `resultObject`.** Its fields are
+  `containerId`, `status`, `output`, `outputPos`, `isAgentRunning`, `progress`,
+  `runtimeEvents`. The structured result lives only on the container path
+  (`containers/fetch` and `containers/fetch-result-object`). The §1 table's claim
+  that `fetch-output` carries `resultObject` was wrong.
+- **The incremental cursor is `outputPos` (response) / `fromOutputPos` (query),
+  and the running flag is `isAgentRunning`** — not a generic `status` string. The
+  wrapper normalizes these to `data.output_pos` and `data.is_running`.
+- **Agent objects have `lastEndType` (an enum), not `lastEndStatus`, and no
+  `orgS3Folder`** — only `s3Folder`. `orgS3Folder` is a property of the *org*
+  (`orgs/fetch.s3Folder`), so a result-file URL is built from the org's folder +
+  the agent's `s3Folder`. Because the §2.3 "stable subset" allowlist named
+  non-existent fields, the wrapper instead **passes the raw provider object
+  through under `data`** (forward-compatible) and only *adds* the normalized
+  poll fields + ISO mirrors — it never drops or renames provider fields.
+- **`containers/fetch-all` returns `{maxLimitReached, containers:[…]}`**, an
+  object wrapping the array — not a raw array. The wrapper passes this object
+  through under `data` (so `data.containers` + `data.max...`), rather than the
+  §2.3 `data.items` shape. Only `agents/fetch-all` is a raw array (emitted as
+  `data.items`).
+- **`containers/fetch-result-object.resultObject` is a JSON *string* (nullable)**,
+  not an object; passed through verbatim for the AI to parse.
+- **Timestamp ISO mirrors** are emitted as `<camelKey>_iso` (e.g. `createdAt_iso`)
+  for every `*At` key whose value is a numeric ms timestamp — forward-compatible
+  with new timestamp fields, rather than a fixed `*_at_iso` allowlist.
+
+None of these change the provider bundle (§3) or the auth/identity contract; they
+only refine the anycli wrapper's request/response handling to match the live
+schema.
