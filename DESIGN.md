@@ -32,6 +32,22 @@ legacy API (`developers-classic.mailerlite.com`, base
 Classic is out of scope (shrinking cohort, different header/base — a second
 provider at most, not this one).
 
+**One divergence to record — lane label vs. buildable mechanism.** The catalog
+row and audit bucket MailerLite in the human-facing **api_key** lane. That lane
+label is correct, but on `main` the `manual_api_token` runtime strategy (the
+literal "api_key" path) is not buildable for MailerLite: `ValidateRuntimeContract`
+(`runtime_contract.go`) requires `AuthAPIKey` bundles to declare
+`identity.source: userinfo` — a JSON identity endpoint the verifier GETs. The
+MailerLite Connect API has **no `/me`, account, or user-info endpoint** (verified
+against developers.mailerlite.com — its only sections are Subscribers, Groups,
+Segments, Fields, Automations, Campaigns, Forms, Batching, Webhooks, Timezones,
+Campaign languages; none returns an account id/name). With no userinfo endpoint,
+the buildable mechanism is the **design-317 `credentials` / `manual_credentials`**
+path — exactly what semrush and moz (also opaque keys with no userinfo endpoint)
+use. So the bundle sets `auth.type: credentials` even though the lane label is
+"api_key"; the wire tool kind stays `api-key`. This is not a lane change, it is
+the api_key lane's opaque-key implementation.
+
 ## 2. API surface wrapped, and why
 
 Base URL: `https://connect.mailerlite.com/api`. Every call sends
@@ -140,7 +156,7 @@ Pagination flags mirror the API: `--limit`, `--cursor` (subscribers/groups),
   registration, **no OAuth client** — so **lane 1 does nothing** for this
   tool (no client id/secret to create or land in integration-service config;
   `required_config_fields` is empty and the provider is `configured: true`
-  with zero config, like other manual-token api_key providers).
+  with zero config, like the mongodb/semrush credentials providers).
 - **Scopes / token semantics:** none. The token is all-or-nothing per
   account, non-expiring, permanently bound to its creating user. No refresh
   cycle → the token gateway serves it directly (seed `access_token` only in
@@ -149,32 +165,62 @@ Pagination flags mirror the API: `--limit`, `--cursor` (subscribers/groups),
   `POST /connections/credentials` connect UI; it is stored in Vault and never
   touches the bundle (per `references/provider-yaml.md`).
 
-**Verification / identity — the one design decision.** MailerLite exposes
-**no `/me` / account endpoint**: there is no API way to read an account id or
-name, so no natural `stable_key` exists. This is the **semrush / moz /
-fullstory** situation, not the mongodb one — unlike a MongoDB DSN (which
-can't be checked without connecting), a MailerLite token **can** be validated
-with a cheap authenticated GET. Design:
+**Verification / identity — the one design decision, grounded on `main`.**
+There is **no** generic declarative verify-only capability on `main` to inherit,
+and `identity.source: verifier` / a `verify_url` manifest field **do not exist**
+(the `IdentitySource` enum in `model/catalog.go` is only
+`userinfo | token_response | strategy`; provider-gen strict-decode rejects unknown
+fields). The credentials path is nailed down by `ValidateRuntimeContract`:
+`AuthCredentials` **requires** `identity.source: strategy` ("no provider-side
+verification endpoint") and forbids a userinfo/verify URL. So identity for a
+credentials provider is produced by a **compiled deriver**, selected in
+`composeProviderRegistration` (`service/provider_registry.go`), not by a
+declarative verify stanza.
 
-- **Verify** the pasted token at connect time with
-  `GET /subscribers?limit=0` (the documented count call — returns `200` +
-  `{"total":N}` on a valid token, `401 {"message":"Unauthenticated."}` on a
-  bad one, `403` when API access is disabled). This is the bundle's HTTPS
-  identity/verification endpoint, sending the fixed `Authorization: Bearer`
-  header — reusing the integration-service **api_key verifier capability**
-  already shipped for semrush/moz/fullstory (verify-only: `200` ⇒ store,
-  non-`200` ⇒ reject at connect with real feedback, no silent store).
-- **account_key / label:** since the API yields no account identifier, use a
-  **static** provider-stable key (e.g. `mailerlite`) with a human-readable
-  label — `isolated` connection mode means one MailerLite connection per
-  assistant, so a static key is unambiguous. (Fallback if the shipped
-  verifier capability cannot assign a static key: `runtime_strategy:
-  manual_credentials` + `identity.source: strategy` like mongodb, i.e.
-  no-verify store. Preferred is verify-on-connect — MailerLite gives us a
-  real check, so we should use it rather than defer a bad key to first use.)
+The on-`main` `manual_credentials` case hard-binds `dsnHostIdentityDeriver{}`,
+which `url.Parse`s the secret and extracts a DSN host. A MailerLite token is an
+opaque Bearer string with **no host** — that deriver returns
+`manualCredentialFormatError` ("requires a connection string with a host") and
+**every Connect fails**. So MailerLite cannot reuse the mongodb deriver verbatim.
+This is the **semrush/moz** shape (opaque key, no userinfo endpoint, needs a
+bespoke deriver) — and semrush/moz are on unmerged per-tool branches, not `main`.
+There is therefore **MailerLite-owned integration-service work** here, budgeted
+with its own unit tests (mirroring tasks #184/#199 for semrush/moz), not
+inherited coverage.
 
-No adapter Go is needed on either side beyond the generic verifier: MailerLite
-is a plain Bearer key with a standard verify GET.
+Two buildable variants, both `auth.type: credentials` +
+`identity.source: strategy` + `runtime_strategy: manual_credentials`, both
+adding a compiled deriver keyed by `definition.Provider` in the
+`RuntimeStrategyManualCredentials` arm (defaulting to `dsnHostIdentityDeriver`
+for mongodb, selecting the MailerLite deriver for `provider == mailerlite`):
+
+- **Primary — no-verify (`mailerliteKeyIdentityDeriver`, minimal).** Mirrors the
+  mongodb no-verify contract but for an opaque key: `Verify` performs **no**
+  provider HTTP call, derives the account key/label from the token, and stores
+  as-is; a bad token surfaces at first use via AnyCLI's `CredentialRejected`
+  classification (stale feedback, the accepted design-317 OQ1 trade). Smallest
+  change; one deriver + one unit test.
+- **Opt-in — verify-on-connect (`mailerliteAPIVerifier`, mirrors
+  `semrushAPIUnitsVerifier`).** Same bundle, but the deriver additionally GETs
+  `GET /subscribers?limit=0` with the Bearer token: `200` ⇒ store,
+  `401 {"message":"Unauthenticated."}` / `403` ⇒ reject at connect with real
+  feedback (`invalid_provider_credential`, the code `ManualCredentialService`
+  already maps for 401/403). MailerLite gives a cheap real check, so this is the
+  better UX — but it is **explicit MailerLite-owned capability growth**
+  (a compiled verifier + its unit tests), not a reuse of anything on `main`.
+
+**account_key / label derivation (both variants).** No API account identifier
+exists, but a **static constant** (e.g. `"mailerlite"`) is wrong: with
+`identity.source: strategy` the account key is per-connection, feeds the
+`(org_id, provider, account_key)` model, and is the human-readable label — a
+global literal collides and carries no information. Follow semrush: derive a
+**non-reversible last-4-characters** key/label from the pasted token
+(e.g. label `MailerLite ••••ab12`, key `ab12`). The deriver returns
+`(identity, label, accountKey)` and the secret never enters the identity map,
+so Connection metadata stays secret-free. Field names and the exact label
+format are confirmed against `service/manual_credential.go`
+(`defaultAccountName(label, accountKey, provider)`) and the semrush verifier
+before pinning.
 
 ## 5. Helio provider bundle plan
 
@@ -184,8 +230,10 @@ group, no `tool.group`, and **no `toolToProvider` entry** (id == key; the
 resolver's identity default applies). Register nothing in
 `resolver.go`. Hidden-first.
 
-Sketch (final field names pinned to the shipped verifier-capability contract
-at build time; shape follows the api_key manual-token precedents):
+Sketch — the mongodb/semrush `credentials` + `manual_credentials` shape
+verbatim (the only credentials shape provider-gen strict-decode accepts on
+`main`); the compiled deriver from §4 supplies identity, so the bundle carries
+**no** verify stanza:
 
 ```yaml
 schema: helio.provider/v1
@@ -199,11 +247,11 @@ presentation:
   visible: false            # hidden-first; flip is the single go-live change
 
 auth:
-  type: credentials         # api_key / manual-token (wire auth_type routes the drawer)
+  type: credentials         # design 317 D5 opaque-key path (no userinfo endpoint)
   owner: individual
   credential_input:
     fields:
-      - name: api_token
+      - name: api_token     # exactly one required field (D5 single-secret storage)
         label_key: mailerlite_api_token
         secret: true
         required: true
@@ -211,13 +259,11 @@ auth:
     setup_url: https://www.mailerlite.com/help/where-to-find-the-mailerlite-api-key-groupid-and-documentation
 
 identity:
-  source: verifier          # verify GET, no natural account id (semrush/moz/fullstory pattern)
-  verify_url: https://connect.mailerlite.com/api/subscribers?limit=0
-  # static provider-stable account key + human label (no API-derived id)
+  source: strategy          # compiled deriver (§4); credentials REQUIRES strategy
 
 connection:
   mode: isolated
-  disconnect_mode: local_only
+  disconnect_mode: local_only   # no v3 token-revoke API; dashboard-managed
   runtime_strategy: manual_credentials
 
 resources:
@@ -228,7 +274,7 @@ resources:
 credential:
   fields:
     api_token: token.access_token       # single secret via existing UpsertUserToken path
-    account_key: connection.account_key
+    account_key: connection.account_key # last-4-chars key from the deriver (§4)
 
 tool:
   name: mailerlite
@@ -239,10 +285,12 @@ tool:
   environment config; **nothing lands in `config/` or `deploy/`** for this
   provider (no client id/secret). This removes the §2 seventh-shared-surface
   (oauth config) work entirely.
-- Exact `identity`/verifier field names must match the
-  semrush/moz/fullstory bundles already on `main` — verify against one of
-  those at implementation time and copy its verifier stanza verbatim rather
-  than inventing keys (strict-decode fails on unknown fields).
+- The bundle is declaratively identical to mongodb/semrush; the MailerLite-specific
+  work is the **compiled deriver** wired in `service/provider_registry.go`
+  (§4) plus its unit test — not a manifest field. Diff the bundle against
+  `integrations/providers/mongodb/provider.yaml` at build time (both are
+  `credentials`/`manual_credentials`/`identity.source: strategy`); the only
+  intended differences are the key/name/labels and `placeholder`.
 - **UI icon** (not generated): `ui/helio-app/src/integrations/icons/mailerlite.svg`
   + hand-register in `providerIcons.ts`; add `tools.desc.mailerlite` /
   `mailerlite_api_token` i18n strings across locales.
@@ -253,9 +301,9 @@ tool:
 |---|---|---|
 | **L1** anycli unit | `go test ./...` — httptest fakes per verb: path/method/query, `Authorization: Bearer` from `MAILERLITE_API_TOKEN`, `--json` vs plain output, `401`/`422` error envelopes. | No |
 | **L2** harness real-API | `ANYCLI_CRED_API_TOKEN=<real> anycli mailerlite -- subscriber count` and a `campaign list --status sent` against `connect.mailerlite.com` — proves field name, header injection, and request shape match the live API. **Mandatory before pin bump.** | **Yes** — one real MailerLite token (free tier works; account pool lane 2). |
-| **L3** projections + suites | From `go-services/integration-service`: `provider-gen` then `provider-gen --check`; then `helio-cli` (with local `replace` → this anycli branch) `go build ./...` + `go test ./cmd/heliox/cmds/tool/`, and integration-service unit suite (verifier capability already covered by semrush/moz tests; add a mailerlite bundle-load assertion if the suite enumerates bundles). | No |
+| **L3** projections + suites | From `go-services/integration-service`: `provider-gen` then `provider-gen --check`; then `helio-cli` (with local `replace` → this anycli branch) `go build ./...` + `go test ./cmd/heliox/cmds/tool/`, and the integration-service unit suite **including a new MailerLite-owned deriver test** (`mailerlite` identity/verify deriver — mirrors `manual_semrush_verifier_test.go`; no coverage is inherited from semrush/moz, which are on unmerged branches) plus a bundle-load assertion if the suite enumerates bundles. | No |
 | **L4** singleton + seed | `make run-singleton`; `POST /internal/test-only/connections/seed` with `provider:"mailerlite"`, a **real** token as `access_token` (no refresh_token/expires_at — non-expiring key), real org/assistant identities; then `heliox tool mailerlite -- subscriber count` returns live data through the token gateway. | **Yes** — same real token as L2. |
-| **L5** connect flow (api_key path) | Pre-flip, hidden: open the connect link → paste the token in the real connect UI (`POST /connections/credentials`) → verifier hits `GET /subscribers?limit=0` → connection shows connected/`configured` in `GET /connections` → one **unseeded** `heliox tool mailerlite -- subscriber list` through the real token gateway succeeds. Agent-drivable (agent-browser) per master-plan §2 api_key L5; human fallback on UI breakage. | **Yes** — real token pasted through the UI (account pool). |
+| **L5** connect flow (credentials path) | Pre-flip, hidden: open the connect link → paste the token in the real connect UI (`POST /connections/credentials`) → deriver stores it (no-verify variant) **or** GETs `GET /subscribers?limit=0` first (verify-on-connect variant) → connection shows connected/`configured` in `GET /connections` with a `••••<last4>` account label → one **unseeded** `heliox tool mailerlite -- subscriber list` through the real token gateway succeeds. Agent-drivable (agent-browser) per master-plan §2 api_key L5; human fallback on UI breakage. | **Yes** — real token pasted through the UI (account pool). |
 
 External-credential layers: **L2, L4, L5** (all need one real MailerLite API
 token from the account pool). L1 and L3 are hermetic. No OAuth app, no lane-1
