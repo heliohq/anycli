@@ -1,0 +1,13 @@
+{
+  "name": "dataforseo",
+  "type": "service",
+  "description": "DataForSEO SEO data APIs — SERP, keyword research, backlinks, on-page (Basic-auth API credentials)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "DATAFORSEO_CREDENTIALS"}
+      }
+    ]
+  }
+}
