@@ -131,7 +131,7 @@ mid-batch).
   "auth": {
     "credentials": [
       {
-        "source": {"field": "access_token"},
+        "source": {"field": "freshservice_url"},
         "inject": {"type": "env", "env_var": "FRESHSERVICE_URL"}
       }
     ]
@@ -139,6 +139,21 @@ mid-batch).
 }
 ```
 
+- **`source.field` MUST match the bundle's `credential.fields` key, not
+  `access_token`.** helio-cli `internal/toolcred/resolver.go` `credentialData()`
+  returns the bundle-projected `resp.Credential` map **verbatim** whenever it is
+  non-nil (always true for a bundle that declares `credential.fields`); the
+  legacy top-level `access_token` is dropped. Since §4.1 projects the secret as
+  `credential.fields: freshservice_url` (not `access_token`), the runtime
+  credential map is `{freshservice_url, account_key}` with **no** `access_token`
+  key. Selecting `source: {field: access_token}` would resolve to empty, inject a
+  blank `FRESHSERVICE_URL`, and fail every command (malformed-blob → exit 2).
+  The shipped `mongodb` precedent proves the contract: its anycli definition uses
+  `source: {field: connection_string}` to match its bundle key
+  `connection_string` (both verified in repo code). This cross-repo field-name
+  join is invisible to L1–L3 (the anycli definition + harness are self-consistent
+  on whatever field name they pick; provider-gen validates only the bundle) and
+  first surfaces at L4 through the real token gateway — see §5 L4.
 - **One credential env var, `FRESHSERVICE_URL`**, carrying the whole
   `https://<api_key>@<domain>.freshservice.com` blob. The service parses it once at
   startup: `url.Parse` → `Host` builds `BaseURL = https://<host>/api/v2`; the userinfo
@@ -298,7 +313,7 @@ key, and the eventual D8 two-field schema) rather than three divergent ones.
 | **L1** anycli unit | `go test ./...` in anycli: httptest fakes cover blob→BaseURL+Basic-header, every subcommand's request/response shaping, `link`→`next_page` pagination, 401 auth error, 429 `retry_after`, malformed-blob→exit 2. TDD, no network. | No |
 | **L2** harness real-API | `anycli freshservice -- ticket list --per-page 1` etc. with `ANYCLI_CRED_*` set to a real blob; hit a real Freshservice trial and confirm real tickets/requesters/agents/assets return, pagination advances, and a bad key yields a clean typed 401. No Helio services. | **Yes** — a real Freshservice account + API key (test-account pool lane 2). Free 14-day trial suffices. |
 | **L3** generation + suites | `provider-gen` + `provider-gen --check` (five projections regenerate clean; strict decode passes with only reviewed fields); anycli unit suite + `helio-cli`/integration-service suites green. Validate on-branch with local regen + `go.mod` `replace` → anycli branch (regen and replace **not committed**; batch lead produces the canonical regen). | No |
-| **L4** singleton + seed | `make run-singleton` + `POST /internal/test-only/connections/seed` seeding the URL blob, then `heliox tool freshservice -- ticket list` through the real token gateway (hidden tool runs as a cobra-hidden command — no visible flip needed). Success = the seeded blob reaches the live Freshservice API and returns real data. | **Yes** — same real blob as L2 (seed bypasses the connect UI). |
+| **L4** singleton + seed | `make run-singleton` + `POST /internal/test-only/connections/seed` seeding the URL blob, then `heliox tool freshservice -- ticket list` through the real token gateway (hidden tool runs as a cobra-hidden command — no visible flip needed). Success = the seeded blob reaches the live Freshservice API and returns real data. **This is the layer that verifies the cross-repo field-name join** (§2): the bundle projects `credential.fields: freshservice_url`, the resolver returns that map verbatim, and the anycli `source: {field: freshservice_url}` selects it → a non-empty `FRESHSERVICE_URL` reaches the service. A field-name mismatch (e.g. `access_token`) passes L1–L3 self-consistently and only breaks here, as an empty inject → exit 2. | **Yes** — same real blob as L2 (seed bypasses the connect UI). |
 | **L5** full connect flow | Once before the visible flip: open the connect link → paste the URL blob through the real connect UI (stored via write-only `POST /connections/credentials`) → connection shows connected/configured in `GET /connections` (account label = `<domain>.freshservice.com`) → one **unseeded** live `heliox tool freshservice -- ticket list` through the real token gateway succeeds. This is the **api_key key-entry L5 path** (master plan §2), agent-drivable via agent-browser with human fallback; **not** the OAuth-consent path. | **Yes** — real account; agent pastes the key from the account pool. |
 
 **Layers needing externally supplied credentials:** L2, L4, L5 (one real Freshservice
@@ -306,5 +321,12 @@ account + API key from the test-account pool). L1 and L3 are hermetic. There is 
 OAuth app-registration dependency (lane 1) — Freshservice is api_key, so the only
 external dependency is the test account itself.
 
-**Definition of done:** all five layers green · AI-facing doc published · icon
-registered · then `presentation.visible: true` + regenerate as the single go-live change.
+**Definition of done / flip gate:** all five layers green · AI-facing doc
+published · icon registered in `providerIcons.ts` · **the i18n locale strings the
+bundle references ship in all 9 supported locales** (`de-DE`, `en-US`, `es-ES`,
+`fr-FR`, `ja-JP`, `ko-KR`, `pt-BR`, `zh-CN`, `zh-TW`) — the
+`presentation.description_key` `freshservice` (rendered as `tools.desc.freshservice`)
+and the `credential_input.label_key` `freshservice_url` — mirroring the mongodb
+bundle's flip-gate note that gates `visible: true` on `tools.desc.mongodb` shipping
+in all 9 locales · then `presentation.visible: true` + regenerate as the single
+go-live change.
