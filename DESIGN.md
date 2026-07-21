@@ -247,33 +247,43 @@ connect drawer → integration-service verifies it against `GET /v2/me`
 `api_key` / `manual_api_token` bundle — the `instantly` precedent almost exactly.
 Runtime strategy (`manual_api_token`) + `api_key` Bearer-scheme connect-time
 verifier + declarative userinfo identity resolver need no Typefully-specific Go
-adapter. **One capability is a hard prerequisite, not "nothing extra":** the
-stable account key comes from `GET /v2/me`'s `id`, and **the official v2 schema
-types `id` as a JSON integer** (required; not a string). The declarative identity
-resolver on `origin/main`
+adapter. **This branch does add two reusable integration-service capabilities,
+though — they are not "nothing extra":** the stable account key comes from
+`GET /v2/me`'s `id`, and **the official v2 schema types `id` as a JSON integer**
+(required; not a string). The declarative identity resolver on `origin/main`
 (`go-services/integration-service/service/declarative_identity.go`) extracts the
 stable key via `jsonPointerString`, which does a plain `value.(string)` and
 returns `"identity has no string value at stable key"` for any non-string. So
-`stable_key: /id` **fails connect-time identity resolution on `origin/main`**,
-breaking the connection `account_key` and therefore L4/L5. This is the same
-numeric-id problem hubspot (task #102) and mixpanel (#233) hit; hubspot's branch
-(`origin/tool/hubspot`) fixed it by replacing that `value.(string)` with a
-`stringifyIdentityValue` scalar coercion (`string` verbatim; `json.Number` →
-`.String()`; integral `float64` → decimal string). **That coercion is NOT on
-`origin/main` yet** (confirmed via `git show origin/main:.../declarative_identity.go`
-— and `origin/tool/mixpanel` also still has the plain assertion), so Typefully has
-a real dependency:
+`stable_key: /id` **fails connect-time identity resolution against `origin/main`
+as it stands**, breaking the connection `account_key` and therefore L4/L5. This
+is the same numeric-id problem hubspot (task #102) and mixpanel (#233) surfaced.
+`stringifyIdentityValue` — the scalar coercion that fixes it (`string` verbatim;
+`json.Number` → `.String()`; integral `float64` → decimal string) — is **not on
+`origin/main`**, so **this branch introduces it itself** (commit
+`feat(integration-service): api_key numeric stable-key + bearer verify scheme`,
+with `numeric_stable_key_bearer_test.go` covering it). It is a self-delivered
+capability, not an external prerequisite this tool waits on:
 
-- **Prerequisite (chosen path):** the numeric-stable-key coercion capability (the
-  hubspot `stringifyIdentityValue` branch) MUST be merged to `origin/main` before
-  Typefully ships with `stable_key: /id`. This is tracked as an explicit
-  dependency, not treated as zero capability growth. Typefully adds no *new*
-  capability — it reuses hubspot's — but it inherits the prerequisite.
+- **Self-delivered capability #1 — numeric stable-key coercion:** this branch
+  replaces the plain `value.(string)` in `jsonPointerString` with
+  `stringifyIdentityValue`, so `stable_key: /id` resolves a usable account key.
+  Non-scalars still fall through, so label-candidate behavior is unchanged. This
+  is authored here (with its test), not inherited from a pre-merged hubspot
+  branch. It happens to be the same capability hubspot #102 needs — whichever of
+  the two lands on `origin/main` first satisfies the other; there is no ordering
+  dependency for Typefully to ship.
+- **Self-delivered capability #2 — api_key bearer verify `scheme`:** the connect-
+  time verifier must send `Authorization: Bearer <key>` (v2), not the historical
+  verbatim header. This branch adds a `Scheme` field to `APIKeyPolicy`
+  (`""`/`raw` = verbatim, `bearer` = `Bearer <token>`), threads
+  `auth.api_key.scheme` through the generator (manifest/validate/render) and the
+  manual-token verifier, and keeps empty-scheme behavior identical for existing
+  api_key providers. Also authored here with test coverage.
 - **Why not a string field instead:** `/email` is a guaranteed string but is
   **mutable**, so it is a poor immutable account key (an email change would fork
   the connection identity); `id` is the only stable, immutable account key. The
-  correct fix is the numeric-key capability, so we do not fall back to `/email`
-  as the stable key.
+  correct fix is the numeric-key coercion above, so we do not fall back to
+  `/email` as the stable key.
 
 Otherwise this is close to `instantly` (no wire scopes; `instantly` needed
 `workspaces:read`). **Hidden-first** (`presentation.visible: false`).
@@ -309,9 +319,9 @@ auth:
 
 # GET /v2/me takes no params, resolves the account from the key, and verifies it
 # at connect time. `id` is the immutable account key but is a JSON *integer* in
-# the official v2 schema -> requires the numeric-stable-key coercion capability
-# on origin/main (hubspot #102's stringifyIdentityValue) before this ships; see
-# the prose above. label_candidates lead with guaranteed-string fields: /name
+# the official v2 schema -> resolved by the numeric-stable-key coercion
+# (stringifyIdentityValue) this branch adds to jsonPointerString; see the prose
+# above. label_candidates lead with guaranteed-string fields: /name
 # and /email are required strings; /api_key_label is a nullable object in the
 # schema ("Null if no label was set"), so it is kept only as a trailing best-
 # effort candidate (jsonPointerString falls through non-strings, so a non-string
@@ -406,13 +416,17 @@ passes and the icon/i18n/docs are in. No review-clearance gate (api_key lane).
 - **No resolver divergence, no config append.** id==key==`typefully`; api_key
   bundle carries no client id/secret → no `toolToProvider` entry and no
   integration-service config/deploy Secret work. §0, §4.
-- **Numeric stable-key is a hard prerequisite (corrects an earlier "no capability
-  growth" claim).** `GET /v2/me`'s `id` is a JSON **integer**, and `origin/main`'s
-  `jsonPointerString` rejects non-strings. Typefully depends on the numeric-
-  stable-key coercion (hubspot #102 `stringifyIdentityValue`) being merged to
-  `origin/main` before it ships. Typefully adds no new capability of its own but
-  is blocked on that prerequisite; `/email` is not an acceptable substitute
-  stable key because it is mutable. §4.
+- **This branch self-delivers two integration-service capabilities (corrects an
+  earlier "no capability growth / external prerequisite" claim).** `GET /v2/me`'s
+  `id` is a JSON **integer**, and `origin/main`'s `jsonPointerString` rejects
+  non-strings, so this branch adds the numeric-stable-key coercion
+  (`stringifyIdentityValue`) itself — it is authored here with its test, not
+  inherited from a pre-merged hubspot #102 branch (whichever lands first satisfies
+  the other; no ordering dependency). It also adds the api_key bearer verify
+  `scheme` (`Scheme` on `APIKeyPolicy`, threaded through the generator + manual-
+  token verifier) so the connect-time header is `Authorization: Bearer <key>`.
+  Both keep existing api_key providers' behavior unchanged. `/email` is not an
+  acceptable substitute stable key because it is mutable. §4.
 - **403 is not always a rejected credential.** Typefully keys inherit the user's
   per-social-set access level (READ/WRITE/PUBLISH/ADMIN). Only 401 and auth-
   related 403 map to `CredentialRejected`; a permission-scoped 403 (valid key
