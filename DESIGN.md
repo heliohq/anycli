@@ -152,11 +152,13 @@ auth:
          placeholder: "us"}
 
 identity:
-  source: strategy          # credential-derived — no connect-time network call, no static host
-  # account_key is human-readable and stable: the project the credential is scoped to.
-  # Both fields are sourced from the stored CREDENTIAL (connect-time input), exactly the
-  # mongodb `source: strategy` precedent — NOT from a verifier response body.
-  stable_key: project_id            # from the project_id input field
+  source: strategy          # credential-derived — no connect-time network call, no static host (mongodb-precedented)
+  # account_key = the project the credential is scoped to; label = the service-account username.
+  # Both are declared here from named INPUT fields. IMPORTANT: source:strategy / no-verifier is the
+  # mongodb precedent, but declarative input-field-sourced stable_key/label is a NEW integration-service
+  # capability — mongodb declares NEITHER (it derives account_key inside strategy code from its single
+  # packed secret). See §5 dependency (a). project_id is numeric → also §5 dependency (b).
+  stable_key: project_id            # from the project_id input field (numeric → §5 (b))
   label: service_account_username   # from the username input field
 
 connection:
@@ -181,13 +183,25 @@ tool:
 
 **Adapter?** No compiled `service/adapter_*.go` — Mixpanel is a static-credential provider with no OAuth lifecycle, no revoke endpoint (disconnect is `local_only`: delete the stored credential; Mixpanel has no programmatic service-account revoke by key). It rides the declarative `manual_credentials` strategy.
 
-## 5. The one capability dependency to flag at stage 1
+## 5. Integration-service dependencies to confirm at stage 1
 
-Design-317 `manual_credentials` as originally shipped (mongodb) enforces a **single-secret** constraint: exactly one required field, stored directly as the token payload, with `identity.source: strategy` (credential-derived, no connect-time network call). Mixpanel needs **exactly one** extension of that, already precedented by an earlier Wave-2 api_key batch — Mixpanel reuses it rather than inventing anything:
+**Precedent, corrected.** Design-317 `manual_credentials` as shipped (mongodb) enforces a **single-secret** shape: exactly one `credential_input` field, stored directly as the token payload (`token.access_token`), with `identity.source: strategy` (credential-derived, no connect-time network call) and **no** declarative `stable_key`/`label` — mongodb derives its `account_key` (the DSN host) *inside strategy code* from the single packed secret. The only other `manual_*` api_key bundle in this program, **DataForSEO**, is *also* single-field (login:password packed into one `api_credentials` field → one `token.access_token`) and additionally uses `manual_api_token` + `identity.source: userinfo` (verify-first), **not** `source: strategy`; it is not on `main` (it lives in a parallel worktree). So **neither landed bundle is multi-field, and neither sources `stable_key`/`label` from named input fields.** The shape §4 proposes — **multi-field storage** (4 discrete `credential.fields` projections) with **`stable_key`/`label` sourced from named input fields** — therefore has **no landed precedent**. It is a **new** integration-service capability. An earlier draft's "already precedented by DataForSEO / HubSpot" framing was false and is corrected here.
 
-**Multi-field `manual_credentials`** — storing a structured credential (4 fields: `service_account_username`, `service_account_secret`, `project_id`, `region`) in the token payload and projecting each to a distinct `credential.fields` entry, with `stable_key`/`label` sourced from the stored input fields (`project_id` / `service_account_username`). Precedent: **DataForSEO** (Basic auth `login`+`password`, task #127 "integration-service capability") and HubSpot's numeric stable-key work — same shape, more fields. Region/project_id are non-secret companions to the secret.
+**Subtract-before-adding: the zero-new-capability alternative (mongodb pattern).** Per the repo's mandatory rule, the landed alternative is evaluated first. mongodb's pattern applied to Mixpanel: collect the credential as **one** packed secret field, store it as the single `token.access_token`, and have the anycli service parse the four values out of it — with the strategy deriving `account_key = project_id` exactly as mongodb derives `account_key = DSN host` from its packed secret. This needs **zero** new integration-service capability and **zero** numeric-stable-key work (account_key is a strategy-derived *string*, never a declaratively-typed key). It is the pure-reuse baseline, and it is the fallback if the batch prefers strict subtraction.
 
-That is the **only** integration-service dependency. If multi-field `manual_credentials` (with input-field-sourced `stable_key`/`label`) has already landed on `main` by Mixpanel's batch, Mixpanel needs **zero** new integration-service code — bundle + anycli service only. If not, the batch adds it (multi-field storage in the seed/credential path + input-field `stable_key`/`label` for `manual_credentials`), with unit tests, before Mixpanel's L4. Confirm against `main` at stage 1.
+**Why this design chooses multi-field anyway (explicit rationale, not default reuse).** Two Mixpanel-specific reasons, weighed against the mongodb pattern:
+
+1. **No combined artifact to paste.** mongodb's single field works because the Atlas console hands the user one copy-pasteable DSN. Mixpanel exposes username, secret, project_id, and region as **four separate values in different UI locations** with no combined string, so a single packed field forces the user to hand-assemble a synthetic, order-sensitive `username:secret:project_id:region` string — error-prone. Four labeled inputs match how Mixpanel actually presents the credential.
+2. **Secret hygiene.** `project_id` and `region` are **non-secret**. The mongodb-pack stores them inside the secret blob (mislabeling non-secret data as secret, hidden from the connection view). Multi-field stores them as non-secret labeled fields, so `account_key = project_id` and the region are inspectable in `GET /connections` without decrypting a secret.
+
+These are genuine UX/hygiene wins, not a reflex to keep the nicer shape. If the batch weights strict subtraction higher, fall back to the mongodb single-secret pack above — it ships with no integration-service change.
+
+**Two distinct new capabilities, each its own stage-1 confirmation item.** They are **orthogonal** — do not treat either as "free" because the other landed:
+
+- **(a) Multi-field `manual_credentials` + input-field-sourced `stable_key`/`label`.** Store a structured 4-field credential in the token payload, project each value to its own `credential.fields` entry, and source `stable_key`/`label` from named input fields (`project_id` / `service_account_username`). **No landed precedent** (mongodb and DataForSEO are both single-field). If not on `main` at stage 1, the batch implements + unit-tests it (multi-field storage in the seed/credential write path + input-field `stable_key`/`label` for `manual_credentials`) **before** Mixpanel's L4.
+- **(b) Numeric `stable_key` for `project_id`.** Mixpanel's `project_id` is numeric, so a declarative `stable_key: project_id` requires the integration-service to accept a **numeric** stable key. This is the **HubSpot** capability (numeric `hub_id` stable key) and is orthogonal to (a): it concerns the *value type* of the stable key, not multi-field storage or input-field sourcing. HubSpot's numeric-stable-key work is **not yet on `main`** (parallel worktree); confirm its landing status at stage 1, and if unlanded it is a separate prerequisite the batch must land, with unit tests, before Mixpanel's L4. (The mongodb-pattern fallback dodges (b) entirely, since account_key would be a strategy-derived string.)
+
+**Confirm both (a) and (b) against `main` at stage 1.** If both are already landed, Mixpanel needs bundle + anycli service only. If either is missing, the batch lands it — with unit tests — before Mixpanel's L4. The chosen shape is multi-field (rationale above); the mongodb single-secret pack remains the documented zero-capability fallback.
 
 **Why no connect-time verifier — the deliberate design cut (Finding-1 / Finding-2 resolution).** An earlier draft used `identity.source: verifier` posting to a fixed `https://mixpanel.com/api/app/me`. That is unshippable and was removed, for two independent reasons verified against Mixpanel's own docs:
 
