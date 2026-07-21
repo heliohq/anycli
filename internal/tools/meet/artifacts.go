@@ -52,6 +52,8 @@ func (s *Service) newRecordingsListCmd(token string) *cobra.Command {
 		Use:   "list <record>",
 		Short: "List recordings of a conference record (state + Drive fileId + exportUri; v1 does not download the file)",
 		Args:  cobra.ExactArgs(1),
+		// GET /conferenceRecords/{r}/recordings — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Single-page GET (no pageToken loop): a conference record almost
 			// always has 0–2 recordings. Request the 100 cap so the provider's
@@ -100,6 +102,8 @@ func (s *Service) newTranscriptsListCmd(token string) *cobra.Command {
 		Use:   "list <record>",
 		Short: "List transcripts of a conference record (state + Docs documentId + exportUri)",
 		Args:  cobra.ExactArgs(1),
+		// GET /conferenceRecords/{r}/transcripts — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Single-page GET (see recordings list): transcripts per record are
 			// a tiny fixed set. Request the 100 cap so the provider default of 10
@@ -149,6 +153,8 @@ func (s *Service) newTranscriptsEntriesCmd(token string) *cobra.Command {
 		Use:   "entries <transcript>",
 		Short: "List structured transcript entries (speaker resource + text + timestamps), oldest first",
 		Args:  cobra.ExactArgs(1),
+		// GET .../transcripts/{t}/entries — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			q.Set("pageSize", strconv.Itoa(max))
@@ -214,6 +220,9 @@ func (s *Service) newTranscriptsTextCmd(token string) *cobra.Command {
 			"start time, and prints `speaker: text` lines. Source is the Meet API entries, which\n" +
 			"can differ slightly from the Google Docs transcript file.",
 		Args: cobra.ExactArgs(1),
+		// Synthetic read: GET participants + GET entries only; --save writes a
+		// local file, never a provider mutation (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			transcript := strings.TrimPrefix(args[0], "/")
 			record, ok := recordOfTranscript(transcript)
@@ -315,6 +324,8 @@ func (s *Service) newSmartNotesListCmd(token string) *cobra.Command {
 		Use:   "list <record>",
 		Short: "List smart notes of a conference record (v2beta; state + Docs documentId + exportUri)",
 		Args:  cobra.ExactArgs(1),
+		// GET v2beta /conferenceRecords/{r}/smartNotes — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// smartNotes get/list are GA methods, but still served under the
 			// /v2beta/ URL — route via betaBase. Single-page GET: a record has at

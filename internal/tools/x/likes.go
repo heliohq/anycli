@@ -15,9 +15,10 @@ func (s *Service) newLikeCmd(token, userID string) *cobra.Command {
 
 func (s *Service) newLikeCreateCmd(token, userID string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "create <post-id>",
-		Short: "Like a post",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <post-id>",
+		Annotations: sideEffect(true),
+		Short:       "Like a post",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConnectedUserAndPostID(userID, args[0]); err != nil {
 				return err
@@ -36,9 +37,10 @@ func (s *Service) newLikeCreateCmd(token, userID string) *cobra.Command {
 
 func (s *Service) newLikeDeleteCmd(token, userID string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <post-id>",
-		Short: "Unlike a post",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <post-id>",
+		Annotations: sideEffect(true),
+		Short:       "Unlike a post",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConnectedUserAndPostID(userID, args[0]); err != nil {
 				return err
@@ -59,9 +61,10 @@ func (s *Service) newPostAudienceCmd(token, use, short, endpoint string) *cobra.
 	var nextToken string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   use + " <post-id>",
-		Short: short + " (one page)",
-		Args:  cobra.ExactArgs(1),
+		Use:         use + " <post-id>",
+		Annotations: sideEffect(false),
+		Short:       short + " (one page)",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("post id", args[0]); err != nil {
 				return err

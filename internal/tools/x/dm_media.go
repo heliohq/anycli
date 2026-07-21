@@ -23,9 +23,10 @@ func (s *Service) newDMMediaCmd(token string) *cobra.Command {
 func (s *Service) newDMMediaDownloadCmd(token string) *cobra.Command {
 	var eventID, mediaKey, resourceID, output string
 	cmd := &cobra.Command{
-		Use:   "download",
-		Short: "Download legacy DM media as raw bytes to a file",
-		Args:  cobra.NoArgs,
+		Use:         "download",
+		Short:       "Download legacy DM media as raw bytes to a file",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireNumericID("DM event id", eventID); err != nil {
 				return err

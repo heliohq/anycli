@@ -52,7 +52,7 @@ figma capabilities
 figma api list
 figma api describe OPERATION_ID
 figma api call OPERATION_ID --param key=value [--body-json JSON | --body-file PATH]
-figma api --method METHOD --path /v1/... [--query key=value] [--body-json JSON | --body-file PATH]
+figma api request --method METHOD --path /v1/... [--query key=value] [--body-json JSON | --body-file PATH]
 ```
 
 `api call` is the stable, catalog-validated form. The raw relative-path form is a forward-compatible escape hatch for a newly published Figma endpoint. It accepts only `/v1/` or `/v2/` paths on the fixed Figma API origin; arbitrary URLs, path traversal, inline query strings, and custom auth headers are rejected.

@@ -123,6 +123,8 @@ func (s *Service) newPageCreateCmd(token string) *cobra.Command {
 		Use:   "create",
 		Short: "Create one or more pages from a --pages JSON array",
 		Args:  cobra.NoArgs,
+		// POST /pages
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&pagesFlag, "pages", "", "JSON array of page objects (parent/properties/content/icon/cover)")
 	_ = cmd.MarkFlagRequired("pages")
@@ -202,6 +204,8 @@ func (s *Service) newPageUpdateCmd(token string) *cobra.Command {
 		Use:   "update <page-id>",
 		Short: "Update a page's content and/or properties",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /pages/{id} and/or PATCH /pages/{id}/markdown
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	f := cmd.Flags()
 	f.StringVar(&command, "command", "", "content op: replace_content|update_content|insert_content (omit for properties-only)")
@@ -486,6 +490,8 @@ func (s *Service) newPageReplaceCmd(token string) *cobra.Command {
 		Use:   "replace <page-id>",
 		Short: "Replace a page's entire content (alias for update --command replace_content)",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /pages/{id}/markdown
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&newStr, "new-str", "", "replacement markdown (or --file)")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -517,6 +523,8 @@ func (s *Service) newPageEditCmd(token string) *cobra.Command {
 		Use:   "edit <page-id>",
 		Short: "Search-and-replace text in a page (alias for update --command update_content)",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /pages/{id}/markdown
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringArrayVar(&olds, "old", nil, "text to find (repeatable, paired with --new)")
 	cmd.Flags().StringArrayVar(&news, "new", nil, "replacement text (repeatable, paired with --old)")
@@ -555,6 +563,8 @@ func (s *Service) newPageInsertCmd(token string) *cobra.Command {
 		Use:   "insert <page-id>",
 		Short: "Insert markdown at the start or end of a page (alias for update --command insert_content)",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /pages/{id}/markdown
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&content, "content", "", "markdown to insert (or --file)")
 	cmd.Flags().StringVar(&at, "at", "", "insert position: start|end (default end)")
@@ -593,6 +603,8 @@ func (s *Service) newPageAppendCmd(token string) *cobra.Command {
 		Use:   "append <page-id>",
 		Short: "Append markdown to the end of a page (alias for update --command insert_content)",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /pages/{id}/markdown
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&content, "content", "", "markdown to append (or --file)")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

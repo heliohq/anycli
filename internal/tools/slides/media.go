@@ -14,9 +14,10 @@ import (
 func (s *Service) newImagesInsertCmd(token string) *cobra.Command {
 	var slideID, imageURL, at, size string
 	cmd := &cobra.Command{
-		Use:   "insert <presentation-id-or-url> --slide <slide-id> --url <https-url>",
-		Short: "Insert an image from a public URL onto a slide (--at x,y and --size WxH in points)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "insert <presentation-id-or-url> --slide <slide-id> --url <https-url>",
+		Short:       "Insert an image from a public URL onto a slide (--at x,y and --size WxH in points)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if slideID == "" {
 				return fmt.Errorf("slides: --slide is required")
@@ -113,9 +114,10 @@ func parseTransform(spec string) (map[string]any, error) {
 // the skill.
 func (s *Service) newElementsDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <presentation-id-or-url> <element-id>...",
-		Short: "Delete page elements inside slides (no undo — confirm first for content you did not create)",
-		Args:  cobra.MinimumNArgs(2),
+		Use:         "delete <presentation-id-or-url> <element-id>...",
+		Short:       "Delete page elements inside slides (no undo — confirm first for content you did not create)",
+		Args:        cobra.MinimumNArgs(2),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pid := extractPresentationID(args[0])
 			ids := cleanIDs(args[1:])

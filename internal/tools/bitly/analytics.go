@@ -33,9 +33,10 @@ func (s *Service) newBitlinkMetricCmd(token, use, short, suffix string, withSize
 	var analytics analyticsParams
 	var size int
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // all analytics endpoints are GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			analytics.apply(q)

@@ -24,6 +24,8 @@ func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 		Use:   "create",
 		Short: "Comment on a page/block, or reply to a discussion",
 		Args:  cobra.NoArgs,
+		// POST /comments
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&pageID, "page-id", "", "page to comment on")
 	cmd.Flags().StringVar(&blockID, "block-id", "", "block to comment on")
@@ -77,6 +79,8 @@ func (s *Service) newCommentListCmd(token string) *cobra.Command {
 		Use:   "list <page-id>",
 		Short: "List comments on a page",
 		Args:  cobra.ExactArgs(1),
+		// GET /comments
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
 	pf := registerPaginationFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -118,6 +122,8 @@ func (s *Service) newUserGetCmd(token string) *cobra.Command {
 		Use:   "get [self|<user-id>]",
 		Short: "Get the current user (self), a user by id, search users (--query), or list all users",
 		Args:  cobra.MaximumNArgs(1),
+		// GET /users, /users/me, /users/{id}
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
 	cmd.Flags().StringVar(&query, "query", "", "case-insensitive substring match on user name or email")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -226,6 +232,8 @@ func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 		Use:   "get <task-id>",
 		Short: "Get an async task's status",
 		Args:  cobra.ExactArgs(1),
+		// GET task status
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		id, err := resolveID(args[0])

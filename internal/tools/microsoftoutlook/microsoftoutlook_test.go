@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
+	"github.com/spf13/cobra"
 )
 
 // recordedRequest is one request the fake Graph server saw.
@@ -205,5 +206,66 @@ func TestScopeHintAbsentOnPlainError(t *testing.T) {
 	_, _, stderr := f.run(t, "folders", "list")
 	if strings.Contains(stderr, "possibly missing scope") {
 		t.Errorf("stderr = %q, scope hint must only appear on 401/403", stderr)
+	}
+}
+
+// TestSideEffectAnnotations asserts every runnable leaf command of the tree
+// carries an explicit anycli.side_effect annotation with the reviewed value
+// (design 318 may-mutate criterion), and that group commands carry none.
+func TestSideEffectAnnotations(t *testing.T) {
+	want := map[string]string{
+		"microsoft-outlook messages list":        "false", // GET /me/messages
+		"microsoft-outlook messages get":         "false", // GET /me/messages/{id}
+		"microsoft-outlook messages attachments": "false", // GET .../attachments + local file writes
+		"microsoft-outlook messages move":        "true",  // POST /me/messages/{id}/move
+		"microsoft-outlook messages mark":        "true",  // PATCH /me/messages/{id}
+		"microsoft-outlook messages send":        "true",  // POST /me/sendMail
+		"microsoft-outlook messages reply":       "true",  // POST createReply(All) + send
+		"microsoft-outlook messages forward":     "true",  // POST createForward + send
+		"microsoft-outlook folders list":         "false", // GET /me/mailFolders
+		"microsoft-outlook drafts create":        "true",  // POST /me/messages (own-data mutation)
+		"microsoft-outlook drafts list":          "false", // GET /me/mailFolders/drafts/messages
+		"microsoft-outlook drafts get":           "false", // GET /me/messages/{id}
+		"microsoft-outlook drafts update":        "true",  // PATCH /me/messages/{id}
+		"microsoft-outlook drafts send":          "true",  // POST /me/messages/{id}/send
+		"microsoft-outlook drafts delete":        "true",  // DELETE /me/messages/{id}
+	}
+
+	root := (&Service{}).NewCommandTree()
+	got := map[string]string{}
+	var walk func(cmd *cobra.Command)
+	walk = func(cmd *cobra.Command) {
+		val, ok := cmd.Annotations["anycli.side_effect"]
+		if cmd.HasSubCommands() {
+			if ok {
+				t.Errorf("%s: group command must not carry anycli.side_effect, got %q", cmd.CommandPath(), val)
+			}
+			for _, sub := range cmd.Commands() {
+				walk(sub)
+			}
+			return
+		}
+		if cmd.RunE == nil && cmd.Run == nil {
+			return
+		}
+		if !ok {
+			t.Errorf("%s: runnable leaf missing explicit anycli.side_effect annotation", cmd.CommandPath())
+			return
+		}
+		got[cmd.CommandPath()] = val
+	}
+	walk(root)
+
+	for path, wantVal := range want {
+		if gotVal, ok := got[path]; !ok {
+			t.Errorf("%s: leaf command not found in tree", path)
+		} else if gotVal != wantVal {
+			t.Errorf("%s: anycli.side_effect = %q, want %q", path, gotVal, wantVal)
+		}
+	}
+	for path := range got {
+		if _, ok := want[path]; !ok {
+			t.Errorf("%s: new runnable leaf not covered by this table — classify it per the design 318 may-mutate criterion", path)
+		}
 	}
 }

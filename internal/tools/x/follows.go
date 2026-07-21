@@ -17,9 +17,10 @@ func (s *Service) newFollowCmd(token, userID string) *cobra.Command {
 
 func (s *Service) newFollowCreateCmd(token, userID string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "create <user-id>",
-		Short: "Follow a user",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <user-id>",
+		Annotations: sideEffect(true),
+		Short:       "Follow a user",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConnectedUserAndTargetID(userID, args[0]); err != nil {
 				return err
@@ -38,9 +39,10 @@ func (s *Service) newFollowCreateCmd(token, userID string) *cobra.Command {
 
 func (s *Service) newFollowDeleteCmd(token, userID string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <user-id>",
-		Short: "Unfollow a user",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <user-id>",
+		Annotations: sideEffect(true),
+		Short:       "Unfollow a user",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConnectedUserAndTargetID(userID, args[0]); err != nil {
 				return err
@@ -62,9 +64,10 @@ func (s *Service) newUserConnectionsCmd(token, connectedUserID, use, short, endp
 	var nextToken string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short + " (one page)",
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Annotations: sideEffect(false),
+		Short:       short + " (one page)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if userID == "" {
 				return fmt.Errorf("user id is required: pass --user-id or reconnect X to populate X_USER_ID")

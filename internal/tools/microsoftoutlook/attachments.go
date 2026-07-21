@@ -27,9 +27,10 @@ func (s *Service) newMessagesAttachmentsCmd(token string) *cobra.Command {
 	var indexes []int
 	var saveDir string
 	cmd := &cobra.Command{
-		Use:   "attachments <message-id>",
-		Short: "Download message attachments (all by default; select with --name / --index)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "attachments <message-id>",
+		Short:       "Download message attachments (all by default; select with --name / --index)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			messageID := args[0]
 			inventory, err := s.listAttachments(cmd.Context(), token, messageID)

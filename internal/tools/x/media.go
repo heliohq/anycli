@@ -33,9 +33,10 @@ func (s *Service) newMediaCmd(token string) *cobra.Command {
 func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 	var file, category string
 	cmd := &cobra.Command{
-		Use:   "upload",
-		Short: "Upload one JPEG, PNG, or WebP image with the simple upload API",
-		Args:  cobra.NoArgs,
+		Use:         "upload",
+		Short:       "Upload one JPEG, PNG, or WebP image with the simple upload API",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if category != "tweet_image" && category != "dm_image" {
 				return fmt.Errorf("category must be tweet_image or dm_image")
@@ -68,9 +69,10 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 
 func (s *Service) newMediaStatusCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "status <media-id>",
-		Short: "Get media upload processing status",
-		Args:  cobra.ExactArgs(1),
+		Use:         "status <media-id>",
+		Short:       "Get media upload processing status",
+		Args:        cobra.ExactArgs(1),
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("media id", args[0]); err != nil {
 				return err
@@ -88,9 +90,10 @@ func (s *Service) newMediaStatusCmd(token string) *cobra.Command {
 func (s *Service) newMediaMetadataCmd(token string) *cobra.Command {
 	var altText string
 	cmd := &cobra.Command{
-		Use:   "metadata <media-id>",
-		Short: "Set media alt text",
-		Args:  cobra.ExactArgs(1),
+		Use:         "metadata <media-id>",
+		Short:       "Set media alt text",
+		Args:        cobra.ExactArgs(1),
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("media id", args[0]); err != nil {
 				return err

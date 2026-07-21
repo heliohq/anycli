@@ -37,6 +37,7 @@ func (s *Service) newFileGetCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "getFile",
+			sideEffectAnnotation:  "false", // GET file document
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query, err := opts.query()
@@ -63,6 +64,7 @@ func (s *Service) newFileMetaCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "getFileMeta",
+			sideEffectAnnotation:  "false", // GET file metadata
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.callCatalogOperationAndEmit(cmd.Context(), token, "getFileMeta", []string{"file_key=" + fileKey}, nil)
@@ -81,6 +83,7 @@ func (s *Service) newFileNodesCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "getFileNodes",
+			sideEffectAnnotation:  "false", // GET file nodes
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query, err := opts.query()
@@ -143,6 +146,7 @@ func (s *Service) newImageRenderCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "getImages",
+			sideEffectAnnotation:  "false", // GET rendered image URLs
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if scale != 0 && (scale < 0.01 || scale > 4) {

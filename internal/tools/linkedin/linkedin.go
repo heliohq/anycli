@@ -98,9 +98,10 @@ func (s *Service) newRoot(token, personURN string) *cobra.Command {
 func (s *Service) newPostCreateCmd(token, personURN string) *cobra.Command {
 	var text string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Publish a post as the connected member",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Publish a post as the connected member",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // POST /rest/posts
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if personURN == "" {
 				return fmt.Errorf("person_urn missing — reconnect LinkedIn to capture it")
@@ -126,9 +127,10 @@ func (s *Service) newPostCreateCmd(token, personURN string) *cobra.Command {
 
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Show the connected member's identity (OIDC userinfo)",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Show the connected member's identity (OIDC userinfo)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET /v2/userinfo
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/userinfo", false, nil)
 			if err != nil {
@@ -209,3 +211,9 @@ func apiMessage(body []byte) string {
 	}
 	return string(body)
 }
+
+// NewCommandTree returns the full command tree built with empty credentials
+// for dry-run parsing and traversal (tools.Service seam, design 318). The
+// credentials are only captured by RunE closures, which are never run on
+// this tree.
+func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("", "") }

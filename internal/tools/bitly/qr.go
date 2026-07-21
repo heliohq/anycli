@@ -32,9 +32,10 @@ func (s *Service) newQRCreateCmd(token string) *cobra.Command {
 	var tags []string
 	var archived bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a dynamic QR code (POST /qr-codes)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a dynamic QR code (POST /qr-codes)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // POST /qr-codes
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if (destBitlink == "") == (destLongURL == "") {
 				return fmt.Errorf("bitly: exactly one of --destination-bitlink or --destination-long-url is required")
@@ -93,9 +94,10 @@ func (s *Service) newQRCreateCmd(token string) *cobra.Command {
 func (s *Service) newQRCreateStaticCmd(token string) *cobra.Command {
 	var content, group, customizationsJSON string
 	cmd := &cobra.Command{
-		Use:   "create-static",
-		Short: "Create a static QR code (POST /qr-codes/static)",
-		Args:  cobra.NoArgs,
+		Use:         "create-static",
+		Short:       "Create a static QR code (POST /qr-codes/static)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // POST /qr-codes/static
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guid, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {
@@ -129,9 +131,10 @@ func (s *Service) newQRCreateStaticCmd(token string) *cobra.Command {
 func (s *Service) newQRGetCmd(token string) *cobra.Command {
 	var qr string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a QR code (GET /qr-codes/{qrcode_id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a QR code (GET /qr-codes/{qrcode_id})",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/qr-codes/"+url.PathEscape(qr), nil, nil)
 			if err != nil {
@@ -150,9 +153,10 @@ func (s *Service) newQRListCmd(token string) *cobra.Command {
 	var tags []string
 	var size int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List a group's QR codes (GET /groups/{group_guid}/qr-codes)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a group's QR codes (GET /groups/{group_guid}/qr-codes)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guid, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {
@@ -199,9 +203,10 @@ func (s *Service) newQRUpdateCmd(token string) *cobra.Command {
 	var tags []string
 	var archived bool
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a QR code (PATCH /qr-codes/{qrcode_id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a QR code (PATCH /qr-codes/{qrcode_id})",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // PATCH /qr-codes/{qrcode_id}
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if title != "" {
@@ -263,6 +268,9 @@ func (s *Service) newQRImageCmd(token string) *cobra.Command {
 		Use:   "image",
 		Short: "Fetch a QR code image (GET /qr-codes/{qrcode_id}/image)",
 		Args:  cobra.NoArgs,
+		// GET only; --output writes a local file, which is not a provider
+		// mutation.
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if format != "svg" && format != "png" {
 				return fmt.Errorf("bitly: --format must be svg or png, got %q", format)

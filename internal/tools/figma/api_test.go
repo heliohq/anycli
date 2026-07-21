@@ -15,7 +15,7 @@ func TestAPIGetSupportsVersionedPathsAndRepeatedQueries(t *testing.T) {
 	defer server.Close()
 
 	code, stdout, stderr := runService(t, server,
-		"api", "--method", "GET", "--path", "/v1/files/abc/nodes",
+		"api", "request", "--method", "GET", "--path", "/v1/files/abc/nodes",
 		"--query", "ids=1:2,3:4", "--query", "plugin_data=shared",
 	)
 	if code != 0 || stderr != "" {
@@ -123,7 +123,7 @@ func TestAPIPostSupportsV2AndInlineJSON(t *testing.T) {
 	defer server.Close()
 
 	code, _, stderr := runService(t, server,
-		"api", "--method", "POST", "--path", "/v2/webhooks",
+		"api", "request", "--method", "POST", "--path", "/v2/webhooks",
 		"--body-json", `{"event_type":"FILE_UPDATE","context":"team"}`,
 	)
 	if code != 0 || stderr != "" {
@@ -150,7 +150,7 @@ func TestAPIBodyFile(t *testing.T) {
 		t.Fatalf("write request body: %v", err)
 	}
 	code, _, stderr := runService(t, server,
-		"api", "--method", "PUT", "--path", "/v1/files/abc/dev_resources/resource-1", "--body-file", bodyPath,
+		"api", "request", "--method", "PUT", "--path", "/v1/files/abc/dev_resources/resource-1", "--body-file", bodyPath,
 	)
 	if code != 0 || stderr != "" {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
@@ -166,14 +166,14 @@ func TestAPIRejectsUnsafeOrMalformedInputBeforeRequest(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "arbitrary host", args: []string{"api", "--path", "https://attacker.example/v1/me"}, want: "must start with /v1/ or /v2/"},
-		{name: "unsupported version", args: []string{"api", "--path", "/v3/me"}, want: "must start with /v1/ or /v2/"},
-		{name: "path traversal", args: []string{"api", "--path", "/v1/../secrets"}, want: "must not contain path traversal"},
-		{name: "inline query", args: []string{"api", "--path", "/v1/me?token=bad"}, want: "must not contain a query"},
-		{name: "unsupported method", args: []string{"api", "--method", "TRACE", "--path", "/v1/me"}, want: "--method must be one of"},
-		{name: "malformed query", args: []string{"api", "--path", "/v1/me", "--query", "missing-value"}, want: "--query must use key=value"},
-		{name: "invalid JSON", args: []string{"api", "--method", "POST", "--path", "/v1/me", "--body-json", "{"}, want: "--body-json must be valid JSON"},
-		{name: "two bodies", args: []string{"api", "--method", "POST", "--path", "/v1/me", "--body-json", `{}`, "--body-file", "body.json"}, want: "mutually exclusive"},
+		{name: "arbitrary host", args: []string{"api", "request", "--path", "https://attacker.example/v1/me"}, want: "must start with /v1/ or /v2/"},
+		{name: "unsupported version", args: []string{"api", "request", "--path", "/v3/me"}, want: "must start with /v1/ or /v2/"},
+		{name: "path traversal", args: []string{"api", "request", "--path", "/v1/../secrets"}, want: "must not contain path traversal"},
+		{name: "inline query", args: []string{"api", "request", "--path", "/v1/me?token=bad"}, want: "must not contain a query"},
+		{name: "unsupported method", args: []string{"api", "request", "--method", "TRACE", "--path", "/v1/me"}, want: "--method must be one of"},
+		{name: "malformed query", args: []string{"api", "request", "--path", "/v1/me", "--query", "missing-value"}, want: "--query must use key=value"},
+		{name: "invalid JSON", args: []string{"api", "request", "--method", "POST", "--path", "/v1/me", "--body-json", "{"}, want: "--body-json must be valid JSON"},
+		{name: "two bodies", args: []string{"api", "request", "--method", "POST", "--path", "/v1/me", "--body-json", `{}`, "--body-file", "body.json"}, want: "mutually exclusive"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -11,9 +11,10 @@ import (
 
 func (s *Service) newLabelsListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List labels",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List labels",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/users/me/labels", nil, nil)
 			if err != nil {
@@ -42,9 +43,10 @@ func (s *Service) newLabelsListCmd(token string) *cobra.Command {
 
 func (s *Service) newLabelsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <label-id>",
-		Short: "Show one label with its message/thread counters (e.g. `labels get INBOX` — messagesUnread is the inbox unread count, no pagination needed)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <label-id>",
+		Short:       "Show one label with its message/thread counters (e.g. `labels get INBOX` — messagesUnread is the inbox unread count, no pagination needed)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/users/me/labels/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -75,9 +77,10 @@ func (s *Service) newLabelsGetCmd(token string) *cobra.Command {
 
 func (s *Service) newLabelsCreateCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "create <name>",
-		Short: "Create a label",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <name>",
+		Short:       "Create a label",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPost, "/users/me/labels", nil, map[string]string{"name": args[0]})
 			if err != nil {

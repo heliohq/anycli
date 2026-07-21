@@ -59,6 +59,8 @@ func (s *Service) newContextMetadataCommand(token string) *cobra.Command {
 		Use:   "metadata",
 		Short: "Get a bounded sparse tree of node metadata",
 		Args:  cobra.NoArgs,
+		// GET getFile / getFileNodes; local extraction only.
+		Annotations: map[string]string{sideEffectAnnotation: "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			locator, err := locatorFlags.resolve()
 			if err != nil {
@@ -105,6 +107,8 @@ func (s *Service) newDesignContextCommand(token, use, short string) *cobra.Comma
 		Use:   use,
 		Short: short,
 		Args:  cobra.NoArgs,
+		// GET getFileNodes + getImages (+ getLocalVariables) batch.
+		Annotations: map[string]string{sideEffectAnnotation: "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			locator, err := locatorFlags.resolve()
 			if err != nil {
@@ -162,10 +166,13 @@ func (s *Service) newContextScreenshotCommand(token string) *cobra.Command {
 	var format string
 	var scale float64
 	cmd := &cobra.Command{
-		Use:         "screenshot",
-		Short:       "Get temporary rendered image URLs for selected nodes",
-		Args:        cobra.NoArgs,
-		Annotations: map[string]string{operationIDAnnotation: "getImages"},
+		Use:   "screenshot",
+		Short: "Get temporary rendered image URLs for selected nodes",
+		Args:  cobra.NoArgs,
+		Annotations: map[string]string{
+			operationIDAnnotation: "getImages",
+			sideEffectAnnotation:  "false", // GET rendered image URLs
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			locator, err := locatorFlags.resolve()
 			if err != nil {
@@ -193,10 +200,13 @@ func (s *Service) newContextScreenshotCommand(token string) *cobra.Command {
 func (s *Service) newContextVariablesCommand(token string) *cobra.Command {
 	var locatorFlags locatorOptions
 	cmd := &cobra.Command{
-		Use:         "variables",
-		Short:       "Get local variables for a file (Enterprise)",
-		Args:        cobra.NoArgs,
-		Annotations: map[string]string{operationIDAnnotation: "getLocalVariables"},
+		Use:   "variables",
+		Short: "Get local variables for a file (Enterprise)",
+		Args:  cobra.NoArgs,
+		Annotations: map[string]string{
+			operationIDAnnotation: "getLocalVariables",
+			sideEffectAnnotation:  "false", // GET local variables
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			locator, err := locatorFlags.resolve()
 			if err != nil {

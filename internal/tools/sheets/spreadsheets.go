@@ -13,9 +13,10 @@ import (
 
 func (s *Service) newSpreadsheetsGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Show a spreadsheet's title and tab list (no cell data) — run this before touching any tab",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Show a spreadsheet's title and tab list (no cell data) — run this before touching any tab",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {
@@ -48,9 +49,10 @@ func (s *Service) newSpreadsheetsCreateCmd(token string) *cobra.Command {
 	var title string
 	var tabs []string
 	cmd := &cobra.Command{
-		Use:   "create --title T [--tab N]...",
-		Short: "Create a spreadsheet in the user's My Drive root (spreadsheets.create)",
-		Args:  cobra.NoArgs,
+		Use:         "create --title T [--tab N]...",
+		Short:       "Create a spreadsheet in the user's My Drive root (spreadsheets.create)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if title == "" {
 				return fmt.Errorf("sheets: --title is required")
@@ -89,9 +91,10 @@ func (s *Service) newSpreadsheetsCreateCmd(token string) *cobra.Command {
 func (s *Service) newSpreadsheetsBatchUpdateCmd(token string) *cobra.Command {
 	var requestFile string
 	cmd := &cobra.Command{
-		Use:   "batch-update <id> --request-file <json>",
-		Short: "Apply a raw spreadsheets.batchUpdate request (escape hatch for formatting, sorting, charts, ...)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "batch-update <id> --request-file <json>",
+		Short:       "Apply a raw spreadsheets.batchUpdate request (escape hatch for formatting, sorting, charts, ...)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {

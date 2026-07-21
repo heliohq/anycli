@@ -22,9 +22,10 @@ func (s *Service) newDocumentsGetCmd(token string) *cobra.Command {
 	var format, tab, suggestions string
 	var allTabs bool
 	cmd := &cobra.Command{
-		Use:   "get <doc|url>",
-		Short: "Fetch a document (default: rendered as markdown; --format text|json for alternatives)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <doc|url>",
+		Short:       "Fetch a document (default: rendered as markdown; --format text|json for alternatives)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if format != "md" && format != "text" && format != "json" {
 				return fmt.Errorf("docs: --format must be md, text, or json, got %q", format)
@@ -73,9 +74,10 @@ func (s *Service) newDocumentsGetCmd(token string) *cobra.Command {
 func (s *Service) newDocumentsCreateCmd(token string) *cobra.Command {
 	var title, bodyFile string
 	cmd := &cobra.Command{
-		Use:   "create --title T [--body-file <md>]",
-		Short: "Create a document; --body-file writes markdown into the new document",
-		Args:  cobra.NoArgs,
+		Use:         "create --title T [--body-file <md>]",
+		Short:       "Create a document; --body-file writes markdown into the new document",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if title == "" {
 				return fmt.Errorf("docs: --title is required")
@@ -125,9 +127,10 @@ func (s *Service) reportCreated(cmd *cobra.Command, body []byte, created apiDocu
 func (s *Service) newDocumentsAppendCmd(token string) *cobra.Command {
 	var text, bodyFile, tab string
 	cmd := &cobra.Command{
-		Use:   "append <doc|url> (--text S | --body-file <md>)",
-		Short: "Append text or markdown to the end of a document (no index required)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "append <doc|url> (--text S | --body-file <md>)",
+		Short:       "Append text or markdown to the end of a document (no index required)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if (text == "") == (bodyFile == "") {
 				return fmt.Errorf("docs: exactly one of --text or --body-file is required")
@@ -242,9 +245,10 @@ func (s *Service) newDocumentsReplaceAllCmd(token string) *cobra.Command {
 	var find, replace string
 	var matchCase bool
 	cmd := &cobra.Command{
-		Use:   "replace-all <doc|url> --find X --replace Y",
-		Short: "Replace every occurrence of a string (reports occurrencesChanged)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "replace-all <doc|url> --find X --replace Y",
+		Short:       "Replace every occurrence of a string (reports occurrencesChanged)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if find == "" {
 				return fmt.Errorf("docs: --find is required")
@@ -280,9 +284,10 @@ func (s *Service) newDocumentsReplaceAllCmd(token string) *cobra.Command {
 func (s *Service) newDocumentsBatchUpdateCmd(token string) *cobra.Command {
 	var requestsFile string
 	cmd := &cobra.Command{
-		Use:   "batch-update <doc|url> --requests-file <req.json>",
-		Short: "Escape hatch: apply raw Docs API batchUpdate requests verbatim",
-		Args:  cobra.ExactArgs(1),
+		Use:         "batch-update <doc|url> --requests-file <req.json>",
+		Short:       "Escape hatch: apply raw Docs API batchUpdate requests verbatim",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if requestsFile == "" {
 				return fmt.Errorf("docs: --requests-file is required")

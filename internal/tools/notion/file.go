@@ -22,9 +22,10 @@ const singlePartLimit = 20 * 1024 * 1024
 func (s *Service) newFileUploadCmd(token string) *cobra.Command {
 	var name, contentType string
 	cmd := &cobra.Command{
-		Use:   "upload <path>",
-		Short: "Upload a local file to Notion-managed storage",
-		Args:  cobra.ExactArgs(1),
+		Use:         "upload <path>",
+		Annotations: map[string]string{"anycli.side_effect": "true"},
+		Short:       "Upload a local file to Notion-managed storage",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := args[0]
 			data, err := os.ReadFile(path)
@@ -67,9 +68,10 @@ func (s *Service) newFileUploadCmd(token string) *cobra.Command {
 func (s *Service) newFileAttachCmd(token string) *cobra.Command {
 	var property, uploadID, externalURL, name string
 	cmd := &cobra.Command{
-		Use:   "attach <page-id>",
-		Short: "Attach an uploaded or external file to a page files property",
-		Args:  cobra.ExactArgs(1),
+		Use:         "attach <page-id>",
+		Annotations: map[string]string{"anycli.side_effect": "true"},
+		Short:       "Attach an uploaded or external file to a page files property",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pageID, err := resolveID(args[0])
 			if err != nil {

@@ -48,9 +48,10 @@ func (s *Service) newFilesUploadCmd(token string) *cobra.Command {
 	var parent, name string
 	var convert bool
 	cmd := &cobra.Command{
-		Use:   "upload <path>...",
-		Short: "Upload local files to Drive (returns webViewLink). --convert turns Office/CSV/text into Google Docs/Sheets.",
-		Args:  cobra.MinimumNArgs(1),
+		Use:         "upload <path>...",
+		Short:       "Upload local files to Drive (returns webViewLink). --convert turns Office/CSV/text into Google Docs/Sheets.",
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if name != "" && len(args) > 1 {
 				return fmt.Errorf("drive: --name cannot be combined with multiple paths")

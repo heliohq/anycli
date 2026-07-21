@@ -83,8 +83,12 @@ func buildSpaceConfig(cmd *cobra.Command, in spaceConfigInput) (map[string]any, 
 	return config, mask, nil
 }
 
+// accessTypeValue and onOffValue match strictly (lowercase only, mirroring
+// onedrive --scope): a non-canonical spelling fails at command validation
+// instead of silently bypassing value-conditioned policy on the literal argv
+// (fail-closed, design 318 §equals audit rule).
 func accessTypeValue(v string) (string, error) {
-	switch strings.ToLower(v) {
+	switch v {
 	case "open":
 		return "OPEN", nil
 	case "trusted":
@@ -92,18 +96,18 @@ func accessTypeValue(v string) (string, error) {
 	case "restricted":
 		return "RESTRICTED", nil
 	default:
-		return "", fmt.Errorf("meet: --access-type must be open, trusted, or restricted, got %q", v)
+		return "", fmt.Errorf("meet: --access-type must be open, trusted, or restricted (lowercase), got %q", v)
 	}
 }
 
 func onOffValue(flag, v string) (string, error) {
-	switch strings.ToLower(v) {
+	switch v {
 	case "on":
 		return "ON", nil
 	case "off":
 		return "OFF", nil
 	default:
-		return "", fmt.Errorf("meet: --%s must be on or off, got %q", flag, v)
+		return "", fmt.Errorf("meet: --%s must be on or off (lowercase), got %q", flag, v)
 	}
 }
 
@@ -112,6 +116,8 @@ func (s *Service) newSpacesGetCmd(token string) *cobra.Command {
 		Use:   "get <space | meeting-code>",
 		Short: "Show a meeting space: URI, code, access + artifact config, active conference",
 		Args:  cobra.ExactArgs(1),
+		// GET /spaces/{s} — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/"+spaceName(args[0]), nil, nil)
 			if err != nil {
@@ -131,6 +137,8 @@ func (s *Service) newSpacesCreateCmd(token string) *cobra.Command {
 		Use:   "create",
 		Short: "Create an ad-hoc meeting space (no calendar event); prints the meeting URI + code",
 		Args:  cobra.NoArgs,
+		// POST /spaces — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			config, _, err := buildSpaceConfig(cmd, in)
 			if err != nil {
@@ -162,6 +170,8 @@ func (s *Service) newSpacesUpdateCmd(token string) *cobra.Command {
 		Use:   "update <space>",
 		Short: "Update a space's access/artifact config (spaces.patch; updateMask built from the set flags)",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /spaces/{s} — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config, mask, err := buildSpaceConfig(cmd, in)
 			if err != nil {
@@ -192,6 +202,9 @@ func (s *Service) newSpacesEndConferenceCmd(token string) *cobra.Command {
 		Use:   "end-conference <space>",
 		Short: "End the active conference in a space — removes EVERYONE in the call (confirm with the user first)",
 		Args:  cobra.ExactArgs(1),
+		// POST /spaces/{s}:endActiveConference — mutating provider call
+		// (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPost, "/"+spaceName(args[0])+":endActiveConference", nil, map[string]any{})
 			if err != nil {

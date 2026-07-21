@@ -18,9 +18,10 @@ func (s *Service) newDMConversationCreateCmd(token string) *cobra.Command {
 	var participantIDs []string
 	var text, mediaID string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a group DM conversation with its first message",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a group DM conversation with its first message",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(participantIDs) < 2 || len(participantIDs) > 49 {
 				return fmt.Errorf("between 2 and 49 --participant-id values are required for a group conversation")
@@ -59,9 +60,10 @@ func (s *Service) newDMConversationCreateCmd(token string) *cobra.Command {
 func (s *Service) newDMSendCmd(token string) *cobra.Command {
 	var conversationID, participantID, text, mediaID string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a message by conversation id or participant id",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a message by conversation id or participant id",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireExactlyOne("--conversation-id", conversationID, "--participant-id", participantID); err != nil {
 				return err
@@ -98,9 +100,10 @@ func (s *Service) newDMSendCmd(token string) *cobra.Command {
 
 func (s *Service) newDMDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <event-id>",
-		Short: "Delete a DM event sent by the connected user",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <event-id>",
+		Short:       "Delete a DM event sent by the connected user",
+		Args:        cobra.ExactArgs(1),
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("DM event id", args[0]); err != nil {
 				return err

@@ -24,9 +24,10 @@ func (s *Service) newListCmd(token string) *cobra.Command {
 	var pageToken, sort, fields string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List the user's contacts (people.connections.list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the user's contacts (people.connections.list)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if sort != "" {
 				if _, ok := sortOrders[sort]; !ok {
@@ -94,9 +95,10 @@ func cleanResourceNames(args []string) ([]string, error) {
 func (s *Service) newGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "get <resource-name>...",
-		Short: "Fetch one or more contacts by resource name (people.get / getBatchGet)",
-		Args:  cobra.MinimumNArgs(1),
+		Use:         "get <resource-name>...",
+		Short:       "Fetch one or more contacts by resource name (people.get / getBatchGet)",
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			names, err := cleanResourceNames(args)
 			if err != nil {

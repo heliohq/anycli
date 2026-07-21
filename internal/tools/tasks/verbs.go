@@ -26,9 +26,10 @@ func (s *Service) newTasksStatusCmd(token, status string) *cobra.Command {
 		verb, past, short = "reopen", "reopened", "Reopen completed tasks (synthetic verb = patch status=needsAction)"
 	}
 	cmd := &cobra.Command{
-		Use:   verb + " <task-id>...",
-		Short: short,
-		Args:  cobra.MinimumNArgs(1),
+		Use:         verb + " <task-id>...",
+		Short:       short,
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			list, _ := cmd.Flags().GetString("list")
 			ids, err := splitIDs(args)
@@ -48,9 +49,10 @@ func (s *Service) newTasksStatusCmd(token, status string) *cobra.Command {
 func (s *Service) newTasksMoveCmd(token string) *cobra.Command {
 	var parent, previous, toList string
 	cmd := &cobra.Command{
-		Use:   "move <task-id>",
-		Short: "Reposition/reparent a task (tasks.move). --to-list moves it to another list (repeating tasks cannot cross lists — API 400 passes through).",
-		Args:  cobra.ExactArgs(1),
+		Use:         "move <task-id>",
+		Short:       "Reposition/reparent a task (tasks.move). --to-list moves it to another list (repeating tasks cannot cross lists — API 400 passes through).",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			list, _ := cmd.Flags().GetString("list")
 			q := url.Values{}
@@ -83,9 +85,10 @@ func (s *Service) newTasksMoveCmd(token string) *cobra.Command {
 
 func (s *Service) newTasksClearCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "clear",
-		Short: "Hide all completed tasks in a list (tasks.clear). Reversible — --show-hidden re-reveals them; prefer this over delete for 'clean up done'.",
-		Args:  cobra.NoArgs,
+		Use:         "clear",
+		Short:       "Hide all completed tasks in a list (tasks.clear). Reversible — --show-hidden re-reveals them; prefer this over delete for 'clean up done'.",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			list, _ := cmd.Flags().GetString("list")
 			if _, err := s.call(cmd.Context(), token, http.MethodPost, "/lists/"+url.PathEscape(list)+"/clear", nil, nil); err != nil {
@@ -104,9 +107,10 @@ func (s *Service) newTasksClearCmd(token string) *cobra.Command {
 
 func (s *Service) newTasksDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <task-id>...",
-		Short: "Delete tasks (tasks.delete) — irreversible; an assigned task's Docs/Chat original is deleted too. Prefer `clear` for done tasks.",
-		Args:  cobra.MinimumNArgs(1),
+		Use:         "delete <task-id>...",
+		Short:       "Delete tasks (tasks.delete) — irreversible; an assigned task's Docs/Chat original is deleted too. Prefer `clear` for done tasks.",
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			list, _ := cmd.Flags().GetString("list")
 			ids, err := splitIDs(args)

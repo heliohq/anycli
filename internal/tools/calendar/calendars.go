@@ -28,6 +28,8 @@ func (s *Service) newCalendarsListCmd(token string) *cobra.Command {
 		Use:   "list",
 		Short: "List the calendars the user is subscribed to (calendarList.list)",
 		Args:  cobra.NoArgs,
+		// GET /users/me/calendarList — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("maxResults", strconv.Itoa(max))
@@ -71,6 +73,8 @@ func (s *Service) newCalendarsGetCmd(token string) *cobra.Command {
 		Use:   "get <calendar-id>",
 		Short: "Show one calendar list entry (calendarList.get)",
 		Args:  cobra.ExactArgs(1),
+		// GET /users/me/calendarList/{id} — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/users/me/calendarList/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

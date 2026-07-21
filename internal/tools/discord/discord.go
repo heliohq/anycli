@@ -96,6 +96,8 @@ func (s *Service) newMessageSendCmd(token string) *cobra.Command {
 		Use:   "send",
 		Short: "Send a message to a channel",
 		Args:  cobra.NoArgs,
+		// POST /channels/{id}/messages — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPost,
 				"/channels/"+url.PathEscape(channel)+"/messages",
@@ -119,6 +121,8 @@ func (s *Service) newChannelsListCmd(token string) *cobra.Command {
 		Use:   "list",
 		Short: "List a guild's channels",
 		Args:  cobra.NoArgs,
+		// GET /guilds/{id}/channels — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet,
 				"/guilds/"+url.PathEscape(guild)+"/channels", nil)
@@ -200,3 +204,8 @@ func apiMessage(body []byte) string {
 	}
 	return string(body)
 }
+
+// NewCommandTree returns the full command tree built with an empty token for
+// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// is only captured by RunE closures, which are never run on this tree.
+func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

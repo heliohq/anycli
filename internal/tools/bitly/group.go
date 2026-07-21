@@ -26,9 +26,10 @@ func (s *Service) newGroupCmd(token string) *cobra.Command {
 func (s *Service) newGroupListCmd(token string) *cobra.Command {
 	var organization string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List groups (GET /groups)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List groups (GET /groups)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if organization != "" {
@@ -53,9 +54,10 @@ func (s *Service) newGroupMetricCmd(token, use, short, suffix string, withAnalyt
 	var analytics analyticsParams
 	var size int
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // all group endpoints here are GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guid, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {

@@ -11,9 +11,10 @@ import (
 
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Show the connected X user",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Show the connected X user",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/2/users/me", nil, nil)
 			if err != nil {
@@ -38,9 +39,10 @@ func (s *Service) newUserCmd(token, userID string) *cobra.Command {
 func (s *Service) newUserGetCmd(token string) *cobra.Command {
 	var id, username string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a user by id or username",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a user by id or username",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireExactlyOne("--id", id, "--username", username); err != nil {
 				return err
@@ -73,9 +75,10 @@ func (s *Service) newUserSearchCmd(token string) *cobra.Command {
 	var query, nextToken string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search users (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search users (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if query == "" {
 				return fmt.Errorf("query is required")

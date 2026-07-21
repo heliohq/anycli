@@ -40,9 +40,10 @@ type savedFile struct {
 func (s *Service) newFilesDownloadCmd(token string) *cobra.Command {
 	var saveDir string
 	cmd := &cobra.Command{
-		Use:   "download <file-id>",
-		Short: "Download a binary file's content (files.get alt=media). For Workspace docs use `export`.",
-		Args:  cobra.ExactArgs(1),
+		Use:         "download <file-id>",
+		Short:       "Download a binary file's content (files.get alt=media). For Workspace docs use `export`.",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
 			name, _, err := s.fileNameType(cmd.Context(), token, id)
@@ -69,9 +70,10 @@ func (s *Service) newFilesDownloadCmd(token string) *cobra.Command {
 func (s *Service) newFilesExportCmd(token string) *cobra.Command {
 	var format, saveDir string
 	cmd := &cobra.Command{
-		Use:   "export <file-id> --format pdf|docx|xlsx|pptx|csv|txt",
-		Short: "Export a Google Workspace doc (Docs/Sheets/Slides) to a downloadable format. API caps exports at 10MB.",
-		Args:  cobra.ExactArgs(1),
+		Use:         "export <file-id> --format pdf|docx|xlsx|pptx|csv|txt",
+		Short:       "Export a Google Workspace doc (Docs/Sheets/Slides) to a downloadable format. API caps exports at 10MB.",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			spec, ok := exportFormats[strings.ToLower(format)]
 			if !ok {

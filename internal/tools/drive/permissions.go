@@ -27,9 +27,10 @@ type permission struct {
 
 func (s *Service) newPermissionsListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list <file-id>",
-		Short: "List who a file is shared with (permissions.list)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <file-id>",
+		Short:       "List who a file is shared with (permissions.list)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := driveParams()
 			q.Set("fields", "permissions(id,type,role,emailAddress,domain,displayName)")
@@ -67,9 +68,10 @@ func (s *Service) newFilesShareCmd(token string) *cobra.Command {
 	var anyone, noNotify bool
 	var role, message string
 	cmd := &cobra.Command{
-		Use:   "share <file-id> --with a@b[,c@d] --role reader|commenter|writer",
-		Short: "Share a file (permissions.create). Outward-facing — confirm with the user first; --anyone makes it link-visible.",
-		Args:  cobra.ExactArgs(1),
+		Use:         "share <file-id> --with a@b[,c@d] --role reader|commenter|writer",
+		Short:       "Share a file (permissions.create). Outward-facing — confirm with the user first; --anyone makes it link-visible.",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !validRoles[role] {
 				return fmt.Errorf("drive: --role must be reader, commenter, or writer, got %q", role)
@@ -133,9 +135,10 @@ func (s *Service) newFilesShareCmd(token string) *cobra.Command {
 func (s *Service) newPermissionsUpdateCmd(token string) *cobra.Command {
 	var role string
 	cmd := &cobra.Command{
-		Use:   "update <file-id> <permission-id> --role reader|commenter|writer",
-		Short: "Change a permission's role. Escalation (e.g. reader→writer) widens exposure — confirm with the user first.",
-		Args:  cobra.ExactArgs(2),
+		Use:         "update <file-id> <permission-id> --role reader|commenter|writer",
+		Short:       "Change a permission's role. Escalation (e.g. reader→writer) widens exposure — confirm with the user first.",
+		Args:        cobra.ExactArgs(2),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !validRoles[role] {
 				return fmt.Errorf("drive: --role must be reader, commenter, or writer, got %q", role)
@@ -165,9 +168,10 @@ func (s *Service) newPermissionsUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newPermissionsDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <file-id> <permission-id>",
-		Short: "Revoke a permission (permissions.delete). Convergent — safe to run without confirmation.",
-		Args:  cobra.ExactArgs(2),
+		Use:         "delete <file-id> <permission-id>",
+		Short:       "Revoke a permission (permissions.delete). Convergent — safe to run without confirmation.",
+		Args:        cobra.ExactArgs(2),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := driveParams()
 			if _, err := s.call(cmd.Context(), token, http.MethodDelete,

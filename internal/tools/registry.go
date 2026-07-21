@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
+	"github.com/spf13/cobra"
 )
 
 // ExecutionResult is the outcome of one built-in service invocation.
@@ -18,6 +20,14 @@ type Service interface {
 	// Execute runs the service with the given arguments and credentials.
 	// The env map contains resolved credentials (e.g., {"NOTION_TOKEN": "xxx"}).
 	Execute(ctx context.Context, args []string, env map[string]string) (ExecutionResult, error)
+
+	// NewCommandTree returns the tool's full cobra command tree built with
+	// empty credentials. Credentials are only captured by RunE closures, so
+	// an empty token is sufficient for dry-run flag parsing and tree
+	// traversal — the returned commands must never be executed. Inspect,
+	// lint, and policy coverage tests all take the tree through this seam
+	// (design 318).
+	NewCommandTree() *cobra.Command
 }
 
 // CredentialPatcher handles non-standard credential file formats.
@@ -65,4 +75,15 @@ func GetPatcher(name string) (CredentialPatcher, error) {
 func HasService(name string) bool {
 	_, ok := services[name]
 	return ok
+}
+
+// ServiceNames returns the registry tool ids of all registered built-in
+// services, sorted for deterministic enumeration.
+func ServiceNames() []string {
+	names := make([]string, 0, len(services))
+	for name := range services {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

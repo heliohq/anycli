@@ -20,7 +20,9 @@ func TestLoadBundled_NotFound(t *testing.T) {
 }
 
 // TestLoadBundled_ShippedDefinitions asserts every shipped definition loads
-// and exposes a complete credential-injection shape.
+// and exposes a complete credential-injection shape. gate-probe is the one
+// pinned exception (design 318 §E2E Testing Harness): the approval-gate probe
+// is credential-free by contract, so it must ship with NO auth block at all.
 func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 	bundled, err := ListBundled()
 	if err != nil {
@@ -33,6 +35,12 @@ func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 		t.Run(def.Name, func(t *testing.T) {
 			if def.Description == "" {
 				t.Error("Description is empty")
+			}
+			if def.Name == "gate-probe" {
+				if def.Auth != nil {
+					t.Fatalf("gate-probe declares an auth block %+v; design 318 pins it credential-free", def.Auth)
+				}
+				return
 			}
 			if def.Auth == nil || len(def.Auth.Credentials) == 0 {
 				t.Fatal("tool has no credential bindings")
@@ -111,6 +119,26 @@ func TestLoadBundled_FigmaCredentialBinding(t *testing.T) {
 	}
 	if binding.Inject.Type != "env" || binding.Inject.EnvVar != "FIGMA_ACCESS_TOKEN" {
 		t.Errorf("inject = %+v, want env FIGMA_ACCESS_TOKEN", binding.Inject)
+	}
+}
+
+// TestLoadBundled_GateProbeShape pins the gate-probe harness definition
+// (design 318 §E2E Testing Harness): service type so execTool's LoadBundled
+// precondition passes, and no auth block — execution needs no credentials and
+// the engine must never call the resolver for it.
+func TestLoadBundled_GateProbeShape(t *testing.T) {
+	def, err := LoadBundled("gate-probe")
+	if err != nil {
+		t.Fatalf("LoadBundled(gate-probe) failed: %v", err)
+	}
+	if def.Type != "service" {
+		t.Errorf("Type = %q, want service", def.Type)
+	}
+	if def.Auth != nil {
+		t.Errorf("Auth = %+v, want nil (credential-free by contract)", def.Auth)
+	}
+	if def.Binary != "" {
+		t.Errorf("Binary = %q, want empty for a service tool", def.Binary)
 	}
 }
 

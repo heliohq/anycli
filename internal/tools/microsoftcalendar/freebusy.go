@@ -31,6 +31,8 @@ func (s *Service) newFreebusyCmd(token string) *cobra.Command {
 		Use:   "freebusy",
 		Short: "Compute your own busy windows in a time range (from /me/calendarView)",
 		Args:  cobra.NoArgs,
+		// GET /me/calendarView (paged) + local merge — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("startDateTime", start)

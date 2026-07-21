@@ -25,9 +25,10 @@ func (s *Service) newTasksListCmd(token string) *cobra.Command {
 		showHidden, showDeleted, showAssigned                bool
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tasks in a list (tasks.list). No text search — the API has no query language; use --json and read.",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tasks in a list (tasks.list). No text search — the API has no query language; use --json and read.",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			list, _ := cmd.Flags().GetString("list")
 			q := url.Values{}
@@ -104,9 +105,10 @@ func (s *Service) newTasksListCmd(token string) *cobra.Command {
 
 func (s *Service) newTasksGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <task-id>",
-		Short: "Show one task (tasks.get)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <task-id>",
+		Short:       "Show one task (tasks.get)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			list, _ := cmd.Flags().GetString("list")
 			body, err := s.call(cmd.Context(), token, http.MethodGet, tasksPath(list)+"/"+url.PathEscape(args[0]), nil, nil)
@@ -131,9 +133,10 @@ func (s *Service) newTasksGetCmd(token string) *cobra.Command {
 func (s *Service) newTasksCreateCmd(token string) *cobra.Command {
 	var title, notes, due, parent, previous string
 	cmd := &cobra.Command{
-		Use:   "create --title T",
-		Short: "Create a task (tasks.insert). --parent makes a subtask; --previous positions it.",
-		Args:  cobra.NoArgs,
+		Use:         "create --title T",
+		Short:       "Create a task (tasks.insert). --parent makes a subtask; --previous positions it.",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			list, _ := cmd.Flags().GetString("list")
 			payload := map[string]any{"title": title}
@@ -179,9 +182,10 @@ func (s *Service) newTasksUpdateCmd(token string) *cobra.Command {
 	var title, notes, due string
 	var clearDue bool
 	cmd := &cobra.Command{
-		Use:   "update <task-id>",
-		Short: "Update a task's fields (tasks.patch — partial update, never a full overwrite)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <task-id>",
+		Short:       "Update a task's fields (tasks.patch — partial update, never a full overwrite)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			list, _ := cmd.Flags().GetString("list")
 			payload := map[string]any{}

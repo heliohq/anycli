@@ -28,9 +28,10 @@ func (s *Service) newTimelineLeafCmd(token, connectedUserID, use, short string, 
 	var nextToken, sinceID string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short + " (one page)",
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short + " (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if userID == "" {
 				return fmt.Errorf("user id is required: pass --user-id or reconnect X to populate X_USER_ID")
@@ -63,9 +64,10 @@ func (s *Service) newHomeTimelineCmd(token, connectedUserID string) *cobra.Comma
 	var nextToken, sinceID string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "home",
-		Short: "Reverse-chronological home timeline for the connected user (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "home",
+		Short:       "Reverse-chronological home timeline for the connected user (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if connectedUserID == "" {
 				return fmt.Errorf("user id is required: reconnect X to populate X_USER_ID")

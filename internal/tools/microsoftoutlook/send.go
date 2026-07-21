@@ -13,9 +13,10 @@ import (
 func (s *Service) newMessagesSendCmd(token string) *cobra.Command {
 	var o composeOptions
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send an email (POST /me/sendMail)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send an email (POST /me/sendMail)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			bodyText, err := o.resolveComposeBody()
 			if err != nil {
@@ -46,9 +47,10 @@ func (s *Service) newMessagesReplyCmd(token string) *cobra.Command {
 	var o composeOptions
 	var replyAll bool
 	cmd := &cobra.Command{
-		Use:   "reply <message-id>",
-		Short: "Reply to a message (sender only; --all for reply-all)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "reply <message-id>",
+		Short:       "Reply to a message (sender only; --all for reply-all)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			bodyText, err := o.resolveComposeBody()
 			if err != nil {
@@ -79,9 +81,10 @@ func (s *Service) newMessagesForwardCmd(token string) *cobra.Command {
 	var to []string
 	var preamble string
 	cmd := &cobra.Command{
-		Use:   "forward <message-id>",
-		Short: "Forward a message with the original quoted",
-		Args:  cobra.ExactArgs(1),
+		Use:         "forward <message-id>",
+		Short:       "Forward a message with the original quoted",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{"toRecipients": recipients(to)}
 			if preamble != "" {

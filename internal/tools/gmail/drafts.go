@@ -31,9 +31,10 @@ func draftPayload(o *composeOptions) (map[string]any, error) {
 func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 	var o composeOptions
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a draft (same parameters as messages send)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a draft (same parameters as messages send)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := draftPayload(&o)
 			if err != nil {
@@ -54,9 +55,10 @@ func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 func (s *Service) newDraftsUpdateCmd(token string) *cobra.Command {
 	var o composeOptions
 	cmd := &cobra.Command{
-		Use:   "update <draft-id>",
-		Short: "Replace a draft's content (same parameters as messages send)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <draft-id>",
+		Short:       "Replace a draft's content (same parameters as messages send)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := draftPayload(&o)
 			if err != nil {
@@ -78,9 +80,10 @@ func (s *Service) newDraftsListCmd(token string) *cobra.Command {
 	var pageToken string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List drafts",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List drafts",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("maxResults", strconv.Itoa(max))
@@ -127,9 +130,10 @@ func (s *Service) newDraftsListCmd(token string) *cobra.Command {
 func (s *Service) newDraftsGetCmd(token string) *cobra.Command {
 	var bodyKind string
 	cmd := &cobra.Command{
-		Use:   "get <draft-id>",
-		Short: "Show a draft",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <draft-id>",
+		Short:       "Show a draft",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if bodyKind != "text" && bodyKind != "html" {
 				return fmt.Errorf("gmail: --body must be text or html, got %q", bodyKind)
@@ -167,9 +171,10 @@ func (s *Service) newDraftsGetCmd(token string) *cobra.Command {
 
 func (s *Service) newDraftsSendCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "send <draft-id>",
-		Short: "Send an existing draft",
-		Args:  cobra.ExactArgs(1),
+		Use:         "send <draft-id>",
+		Short:       "Send an existing draft",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]string{"id": args[0]}
 			body, err := s.call(cmd.Context(), token, http.MethodPost, "/users/me/drafts/send", nil, payload)
@@ -194,9 +199,10 @@ func (s *Service) newDraftsSendCmd(token string) *cobra.Command {
 
 func (s *Service) newDraftsDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <draft-id>",
-		Short: "Delete a draft",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <draft-id>",
+		Short:       "Delete a draft",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := s.call(cmd.Context(), token, http.MethodDelete, "/users/me/drafts/"+url.PathEscape(args[0]), nil, nil); err != nil {
 				return err

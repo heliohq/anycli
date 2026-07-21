@@ -16,9 +16,10 @@ func (s *Service) newTextInsertCmd(token string) *cobra.Command {
 	var at int
 	var appendEnd bool
 	cmd := &cobra.Command{
-		Use:   "insert <presentation-id-or-url> --object <element-id> --text <string>",
-		Short: "Insert text into a shape/text box (default at the start; --at index or --append)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "insert <presentation-id-or-url> --object <element-id> --text <string>",
+		Short:       "Insert text into a shape/text box (default at the start; --at index or --append)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if objectID == "" {
 				return fmt.Errorf("slides: --object is required")
@@ -85,9 +86,10 @@ func (s *Service) newTextReplaceCmd(token string) *cobra.Command {
 	var matchCase bool
 	var slides []string
 	cmd := &cobra.Command{
-		Use:   "replace <presentation-id-or-url> --find <string> --replace <string>",
-		Short: "Replace all occurrences of a string (the template-placeholder path: --find '{{name}}')",
-		Args:  cobra.ExactArgs(1),
+		Use:         "replace <presentation-id-or-url> --find <string> --replace <string>",
+		Short:       "Replace all occurrences of a string (the template-placeholder path: --find '{{name}}')",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if find == "" {
 				return fmt.Errorf("slides: --find is required")
@@ -132,9 +134,10 @@ func (s *Service) newTextReplaceCmd(token string) *cobra.Command {
 func (s *Service) newTextDeleteCmd(token string) *cobra.Command {
 	var objectID, textRange string
 	cmd := &cobra.Command{
-		Use:   "delete <presentation-id-or-url> --object <element-id>",
-		Short: "Delete text from an element (all text by default; --range A:B for a fixed span)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <presentation-id-or-url> --object <element-id>",
+		Short:       "Delete text from an element (all text by default; --range A:B for a fixed span)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if objectID == "" {
 				return fmt.Errorf("slides: --object is required")

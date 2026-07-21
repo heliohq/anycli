@@ -3,6 +3,7 @@ package figma
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -11,10 +12,23 @@ import (
 
 const operationIDAnnotation = "figma-operation-id"
 
+// sideEffectAnnotation is the anycli side-effect fact key (design 318): "true"
+// when the command may issue a mutating provider API call under any input.
+const sideEffectAnnotation = "anycli.side_effect"
+
 type operationCommandSpec struct {
 	Use         string
 	Short       string
 	OperationID string
+}
+
+// operationSideEffect derives the anycli.side_effect fact from the pinned
+// catalog's HTTP method: GET never mutates; every other method may.
+func operationSideEffect(method string) string {
+	if method == http.MethodGet {
+		return "false"
+	}
+	return "true"
 }
 
 func (s *Service) newOperationCommand(token string, spec operationCommandSpec) *cobra.Command {
@@ -24,6 +38,9 @@ func (s *Service) newOperationCommand(token string, spec operationCommandSpec) *
 			Use:   spec.Use,
 			Short: spec.Short,
 			Args:  cobra.NoArgs,
+			// The intended operation is unknown when the catalog lookup
+			// fails, so take the safe-side default explicitly.
+			Annotations: map[string]string{sideEffectAnnotation: "true"},
 			RunE: func(*cobra.Command, []string) error {
 				return fmt.Errorf("build Figma command %s: %w", spec.Use, err)
 			},
@@ -35,10 +52,13 @@ func (s *Service) newOperationCommand(token string, spec operationCommandSpec) *
 	var bodyOptions jsonBodyOptions
 
 	cmd := &cobra.Command{
-		Use:         spec.Use,
-		Short:       spec.Short,
-		Args:        cobra.NoArgs,
-		Annotations: map[string]string{operationIDAnnotation: operation.ID},
+		Use:   spec.Use,
+		Short: spec.Short,
+		Args:  cobra.NoArgs,
+		Annotations: map[string]string{
+			operationIDAnnotation: operation.ID,
+			sideEffectAnnotation:  operationSideEffect(operation.Method),
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			params := make([]string, 0, len(parameterNames))
 			for index, name := range parameterNames {

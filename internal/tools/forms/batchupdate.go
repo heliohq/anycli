@@ -20,6 +20,8 @@ func (s *Service) newBatchUpdateCmd(token string) *cobra.Command {
 		Use:   "batch-update <form-id> (--requests <json> | --requests-file <path>)",
 		Short: "Apply a batchUpdate Request[] to a form (create/update/delete/move items, form info, settings)",
 		Args:  cobra.ExactArgs(1),
+		// POST /forms/{id}:batchUpdate — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			formID, err := extractFormID(args[0])
 			if err != nil {

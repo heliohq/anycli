@@ -54,6 +54,8 @@ func (s *Service) newEventsListCmd(token string) *cobra.Command {
 		Use:   "list",
 		Short: "List events; a --start/--end window queries /me/calendarView, otherwise /me/events",
 		Args:  cobra.NoArgs,
+		// GET /me/events or /me/calendarView — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if (start == "") != (end == "") {
 				return fmt.Errorf("microsoft-calendar: --start and --end must be given together for a calendar-view window")
@@ -122,6 +124,8 @@ func (s *Service) newEventsGetCmd(token string) *cobra.Command {
 		Use:   "get <event-id>",
 		Short: "Show one event (GET /me/events/{id})",
 		Args:  cobra.ExactArgs(1),
+		// GET /me/events/{id} — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/me/events/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -161,6 +165,8 @@ func (s *Service) newEventsCreateCmd(token string) *cobra.Command {
 		Use:   "create",
 		Short: "Create an event (POST /me/events)",
 		Args:  cobra.NoArgs,
+		// POST /me/events — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{
 				"subject": subject,
@@ -215,6 +221,8 @@ func (s *Service) newEventsUpdateCmd(token string) *cobra.Command {
 		Use:   "update <event-id>",
 		Short: "Update an event's time/subject/location (PATCH /me/events/{id})",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /me/events/{id} — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{}
 			if subject != "" {
@@ -257,6 +265,8 @@ func (s *Service) newEventsCancelCmd(token string) *cobra.Command {
 		Use:   "cancel <event-id>",
 		Short: "Cancel an event and notify attendees (POST /me/events/{id}/cancel)",
 		Args:  cobra.ExactArgs(1),
+		// POST /me/events/{id}/cancel — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var payload any
 			if comment != "" {
@@ -291,6 +301,9 @@ func (s *Service) newEventsRespondCmd(token string) *cobra.Command {
 		Use:   "respond <event-id>",
 		Short: "Respond to an invite: accept | decline | tentative",
 		Args:  cobra.ExactArgs(1),
+		// POST /me/events/{id}/{accept|decline|tentativelyAccept} — mutating
+		// provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verb, ok := respondActions[action]
 			if !ok {

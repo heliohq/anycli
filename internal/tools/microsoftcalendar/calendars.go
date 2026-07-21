@@ -13,6 +13,8 @@ func (s *Service) newCalendarsListCmd(token string) *cobra.Command {
 		Use:   "list",
 		Short: "List the signed-in user's calendars (GET /me/calendars)",
 		Args:  cobra.NoArgs,
+		// GET /me/calendars — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/me/calendars", nil, nil)
 			if err != nil {

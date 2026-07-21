@@ -21,6 +21,11 @@ func (s *Service) newFreebusyCmd(token string) *cobra.Command {
 		Use:   "freebusy",
 		Short: "Query busy intervals for calendars (the right way to find a free slot — never events list on someone else's calendar)",
 		Args:  cobra.NoArgs,
+		// POST /freeBusy — POST only because the query carries a body:
+		// freebusy.query is a documented pure read (no mutation is possible
+		// under any input), so it is read-only per the design 318 may-mutate
+		// criterion.
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ids := splitCalendarIDs(calendars)
 			if len(ids) == 0 {

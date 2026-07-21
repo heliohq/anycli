@@ -139,6 +139,9 @@ mongosh flags are fixed and not passed through.`, pin),
 		Use:   "eval <script>",
 		Short: "Run a mongosh JavaScript snippet",
 		Args:  cobra.ExactArgs(1),
+		// eval carries arbitrary reads AND writes in one verb — may-mutate
+		// on some input, so the fact is true (design 318 strict side).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.runMongosh(cmd.Context(), args[0], dsn, *timeout, inv)
 		},
@@ -147,6 +150,8 @@ mongosh flags are fixed and not passed through.`, pin),
 		Use:   "ping",
 		Short: "Verify connectivity and authentication",
 		Args:  cobra.NoArgs,
+		// Connectivity probe (runs a fixed ping script): no input can mutate.
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.runMongosh(cmd.Context(), pingScript, dsn, *timeout, inv)
 		},
@@ -376,6 +381,12 @@ var pinnedMongoshVersion = sync.OnceValue(func() string {
 	}
 	return def.Source.Version
 })
+
+// NewCommandTree returns the full command tree built with an empty
+// connection string for dry-run parsing and traversal (tools.Service seam,
+// design 318). The dsn is only captured by RunE closures, which are never
+// run on this tree.
+func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("", &invocation{}) }
 
 func (s *Service) stdout() io.Writer {
 	if s.Out != nil {

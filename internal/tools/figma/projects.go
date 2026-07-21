@@ -20,6 +20,7 @@ func (s *Service) newTeamProjectsCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "getTeamProjects",
+			sideEffectAnnotation:  "false", // GET team projects
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.callCatalogOperationAndEmit(cmd.Context(), token, "getTeamProjects", []string{"team_id=" + teamID}, nil)
@@ -47,6 +48,7 @@ func (s *Service) newProjectMetaCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "getProjectMeta",
+			sideEffectAnnotation:  "false", // GET project metadata
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.callCatalogOperationAndEmit(cmd.Context(), token, "getProjectMeta", []string{"project_id=" + projectID}, nil)
@@ -66,6 +68,7 @@ func (s *Service) newProjectFilesCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "getProjectFiles",
+			sideEffectAnnotation:  "false", // GET project files
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}

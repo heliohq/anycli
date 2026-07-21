@@ -56,6 +56,9 @@ func (s *Service) newPublishCmd(token string, v publishVerb) *cobra.Command {
 		Use:   v.use,
 		Short: v.short,
 		Args:  cobra.ExactArgs(1),
+		// POST /forms/{id}:setPublishSettings — mutating provider call, all
+		// four verbs (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			formID, err := extractFormID(args[0])
 			if err != nil {

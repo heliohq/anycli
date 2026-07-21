@@ -14,9 +14,10 @@ func (s *Service) newOtherListCmd(token string) *cobra.Command {
 	var pageToken string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List Other Contacts (otherContacts.list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List Other Contacts (otherContacts.list)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("readMask", otherReadMask)
@@ -60,9 +61,10 @@ func (s *Service) newOtherSearchCmd(token string) *cobra.Command {
 	var query string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search Other Contacts by prefix phrase (otherContacts.search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search Other Contacts by prefix phrase (otherContacts.search)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if query == "" {
 				return fmt.Errorf("contacts: --query is required")
