@@ -75,10 +75,13 @@ help-scout
 │   │             --number --query --sort-field --sort-order --page --embed-threads
 │   ├── get       <id> [--embed-threads]
 │   ├── create    --mailbox --subject --customer-email|--customer-id --type email|phone|chat
-│   │             (--text for the initial thread) [--status] [--assign-to] [--tags]
+│   │             (--text for the initial thread) [--status active|closed|pending, default active]
+│   │             [--assign-to] [--tags]
 │   ├── update    <id> [--status] [--assign-to|--unassign] [--subject]      (JSON-Patch PATCH ops)
 │   ├── tag       <id> --tags t1,t2            (PUT /conversations/{id}/tags — replaces the set)
-│   └── snooze    <id> --until <RFC3339>       (PATCH snoozedUntil)
+│   ├── snooze    <id> --until <ISO8601> [--unsnooze-on-customer-reply=true]
+│   │             (PUT /conversations/{id}/snooze — dedicated endpoint, NOT a PATCH path)
+│   └── unsnooze  <id>                          (DELETE /conversations/{id}/snooze)
 ├── thread
 │   ├── list      <conversation-id> [--page]
 │   ├── reply     <conversation-id> --text ... [--customer-id] [--status] [--assign-to] [--draft] [--cc] [--bcc]
@@ -103,7 +106,9 @@ help-scout
 
 Notes:
 - `thread reply` requires `customer` in the body: default it to the conversation's `primaryCustomer` (one extra GET) when `--customer-id` is omitted — the agent-friendly path; `--customer-id` overrides.
-- `conversation update` uses the API's JSON-Patch dialect (`op: replace/remove` on `/status`, `/assignTo`, `/subject`, `/snoozedUntil`); flags compile to ops so the agent never writes patch JSON.
+- `conversation create`: the API requires `status` (allowed values on create: `active`/`closed`/`pending` — narrower than update, which also accepts `spam` via `/status` replace). The CLI defaults `--status` to `active` when omitted and always sends the field; `--status` values are validated client-side against the create set.
+- `conversation update` uses the API's JSON-Patch dialect; the full set of supported paths per official docs (fetched 2026-07-21) is `/subject`, `/primaryCustomer.id`, `/draft`, `/mailboxId`, `/status`, `/assignTo` — flags compile to `replace`/`remove` ops on `/status`, `/assignTo`, `/subject` so the agent never writes patch JSON. `/snoozedUntil` is **not** a PATCH path; snoozing has its own endpoint (next bullet).
+- `conversation snooze` is the dedicated endpoint `PUT /v2/conversations/{id}/snooze` (204 empty on success). Body requires **both** fields: `snoozedUntil` (ISO 8601, must be in the future, not after year 2100) and `unsnoozeOnCustomerReply` (boolean). `--until` maps to `snoozedUntil`; `--unsnooze-on-customer-reply` defaults to `true` (the human-typical "wake me if the customer replies" mode) since the API gives the field no default. `conversation unsnooze` is `DELETE /v2/conversations/{id}/snooze` (204; conversation returns to its home folder and reactivates if needed). Both emit a small JSON receipt (`{"id": <id>, "status": "snoozed"|"unsnoozed"}`) on the empty-204 response, mirroring the 201 `Resource-Id` receipt convention in §3.3.
 - `--query` passes Help Scout's Lucene-style search string through verbatim (documented in the AI-facing sub-doc with examples like `modifiedAt:[NOW-1HOUR TO *]`, `assigned:"Unassigned"`).
 - Everything is non-interactive; all input from flags (AGENTS.md rule).
 
@@ -193,7 +198,7 @@ tool:
 
 | Layer | What runs for help-scout | External creds needed? |
 |---|---|---|
-| **L1** anycli unit | `go test ./internal/tools/helpscout/` + registry/definition tests. httptest fakes asserting: `Authorization: Bearer` injection; request paths/query/body for every subcommand (list filters, JSON-Patch ops for `conversation update`, reply body incl. defaulted `primaryCustomer`); HAL passthrough; `Resource-Id` receipt on 201-empty-body creates; 401→credential-rejection classification; 429 rendering with retry-after; `--json` error envelope; exit codes 0/1/2. TDD: tests first. | No |
+| **L1** anycli unit | `go test ./internal/tools/helpscout/` + registry/definition tests. httptest fakes asserting: `Authorization: Bearer` injection; request paths/query/body for every subcommand (list filters, JSON-Patch ops for `conversation update`, snooze PUT body with both `snoozedUntil` + `unsnoozeOnCustomerReply`, unsnooze DELETE, create body always carrying `status` incl. the defaulted `active`, reply body incl. defaulted `primaryCustomer`); HAL passthrough; `Resource-Id` receipt on 201-empty-body creates; 401→credential-rejection classification; 429 rendering with retry-after; `--json` error envelope; exit codes 0/1/2. TDD: tests first. | No |
 | **L2** dev harness vs real API | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli help-scout -- conversation list --mailbox <id>` etc. Token minted from the lane-1 dev app (a client_credentials token from the same app also works for L2 since it is host-side supplied — but prefer an authorization-code token so L2 exercises the exact token class production serves). Must round-trip real data: list → get → note → reply(draft) → tag → status update. **Gate: real Help Scout test account (lane 2) + registered dev app (lane 1).** | Yes — Help Scout test workspace + dev app token |
 | **L3** generation + suites | Local (uncommitted) `go run ./cmd/provider-gen` + `--check` against the branch bundle; helio-cli build/tests with a local uncommitted `go.mod` `replace github.com/heliohq/anycli => <this worktree>`; integration-service unit suite (bundle validation: runtime contract pins, HTTPS URLs, directory-key equality). Branch CI is expected red on `provider-gen --check` until batch-end — do not commit regens. | No |
 | **L4** singleton + seed | `make run-singleton` (dev), seed via `POST /internal/test-only/connections/seed` with `provider: "help_scout"`, real `access_token` + `refresh_token` from the dev app and a short `expires_at` so the very next call exercises the refresh-and-write-back path against the rotating refresh pair; then `heliox tool help-scout -- conversation list` must return live data through the real token gateway. Requires lane-1 dev client id/secret in local uncommitted `config/cloud.yaml`. | Yes — dev app client id/secret + a real token pair |
