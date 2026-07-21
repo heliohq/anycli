@@ -8,16 +8,26 @@ batch-end. Catalog row 270 (§4 of the 298-integrations rollout plan): product
 ## 0. Audit verification (independent, against official docs)
 
 The 2026-07-21 OAuth audit (row 272 in `oauth-audit.md`) keeps Knock in the
-**api_key** lane: "no viable multi-tenant path". Verified against Knock's own
-docs and **confirmed** — no divergence to record in DESIGN or the rollout doc.
+**api_key** lane: "no viable multi-tenant path". The **lane** is verified
+against Knock's own docs and confirmed. One catalog detail is **not** confirmed
+and is corrected here: Knock secret keys are opaque, **plain `sk_`-prefixed**
+tokens with **no** environment token in the prefix (there is no `sk_test_` /
+`sk_live_` format — that pairing is a Stripe-style illustrative placeholder, not
+Knock's real scheme).
 
 - Knock's data API (`https://api.knock.app/v1`) authenticates with a single
-  **environment-scoped secret key** (`sk_test_…` / `sk_live_…`) passed as
-  `Authorization: Bearer sk_…`. Source: docs.knock.app/developer-tools/api-keys
-  ("secret keys … can perform any API request to Knock"; "each Knock
-  environment has its own unique set of API keys") and the API reference
-  ("You must pass your API key to Knock as a Bearer token using the
-  `Authorization` header").
+  **environment-scoped secret key** — prefix `sk_` (public keys `pk_`), with the
+  environment resolved **server-side by which environment-scoped key is used**,
+  not by any token embedded in the prefix. Source:
+  docs.knock.app/developer-tools/api-keys ("they start with `pk_` for a public
+  key, vs `sk_` for a secret key"; "each environment has its own unique set of
+  API keys") and the API reference ("You must pass your API key to Knock as a
+  Bearer token using the `Authorization` header").
+- Environments are **open-ended**: an account starts with Development and
+  Production but can add arbitrary custom environments (e.g. Staging), inserted
+  below Production in the promotion chain (docs.knock.app/concepts/environments).
+  A binary test/live label therefore cannot represent the real environment set —
+  another reason the prefix-derived label in §4 is dropped.
 - There is **no** multi-tenant authorization-code OAuth flow: no
   `authorize`/`token` endpoints, no "one registered app that arbitrary Knock
   customers authorize". The only credential a customer can produce for
@@ -137,8 +147,9 @@ signal the Helio side relies on given the no-network-verify identity choice
 
 ## 3. Credential fields and the exact auth flow
 
-**Credential:** one field — the Knock **secret key** (`sk_test_…` in test,
-`sk_live_…` in production). The user creates/reads it in the Knock dashboard
+**Credential:** one field — the Knock **secret key** (opaque, `sk_`-prefixed;
+the environment it targets is chosen by *which* environment's key the user
+pastes, not by the prefix). The user creates/reads it in the Knock dashboard
 under Developers → API keys (per environment). It is long-lived, non-expiring,
 and carries no refresh cycle (there is nothing to refresh — a static secret).
 
@@ -184,34 +195,58 @@ So identity must be **derived from the credential**, exactly the design-317
 `manual_credentials` model that `dsnHostIdentityDeriver` already uses for
 mongodb/braze (no provider-side request; a bad secret surfaces at first tool
 use via AnyCLI `CredentialRejected`). Knock differs only in *what* is derived,
-since a secret key has no readable host:
+since a secret key has no readable host.
+
+> **Hard prerequisite — NOT on main today.** On `main`,
+> `composeProviderRegistration` (integration-service
+> `service/provider_registry.go`) binds **every** `manual_credentials` provider
+> unconditionally to `dsnHostIdentityDeriver`, which `url.Parse`es the secret and
+> requires a DSN host. A Knock `sk_...` key has no host, so on main it returns
+> `manualCredentialFormatError` and **rejects the connect**. There is currently
+> **no deriver-selection mechanism** on main and **no**
+> `bearerKeyFingerprintIdentityDeriver`; both live only on the unmerged sibling
+> branch `tool/amplitude` (the `#deriver-selection` work). Knock's bundle is
+> therefore **not landable on its own** — it is batch-serialized behind that
+> capability. Both pieces (a) the deriver-selection wiring in
+> `composeProviderRegistration` and (b) the new fingerprint deriver must be built
+> and merged before Knock's connect can compose. This is tracked as blocking
+> **Open Decision 1**, not a confirmation.
 
 - **Recommended (Option A): a reusable `bearerKeyFingerprintIdentityDeriver`**
-  selected via the design-317 deriver-selection mechanism (amplitude
-  `#deriver-selection` precedent). It does **no** network call and derives:
-  - **label** = the environment token parsed from the key prefix
-    (`sk_test_…` → `test`, `sk_live_…` → `live`) so the connected account reads
-    as e.g. "Knock (live)" rather than a hash (honoring the dsnHost OQ2
-    "readable label" constraint as far as the key structure allows);
+  selected via the (to-be-merged) deriver-selection mechanism. It does **no**
+  network call and derives:
   - **stable_key (dedup)** = a deterministic truncated SHA-256 fingerprint of
-    the full secret, so two distinct keys never collide on
-    `(org, assistant, provider, account_key)` and re-pasting the same key is
-    idempotent. The secret never enters connection metadata (only its
+    the full secret — the actually load-bearing value. Two distinct keys never
+    collide on `(org, assistant, provider, account_key)` and re-pasting the same
+    key is idempotent. The secret never enters connection metadata (only its
     fingerprint), matching the dsnHost "secret-free metadata" rule.
+  - **label** = a **static `"Knock"`** (optionally suffixed with the
+    fingerprint's short form, e.g. `Knock · a1b2c3`, to disambiguate two
+    connected keys). There is **no documented way to obtain a readable
+    environment name from the credential** — the environment is server-side
+    state keyed by the opaque secret, and the account's environment set is
+    open-ended (Development / Production / custom Staging, §0) — so any
+    environment-in-the-label scheme is **out of scope**. The earlier
+    prefix-derived `"Knock (live)"` idea is dropped: `sk_test_`/`sk_live_` is not
+    Knock's real key format (§0), so it would produce wrong or empty labels and
+    fall back to exactly the raw hash that dsnHost OQ2 forbids.
 
   This deriver is **not Knock-specific**: rows 268–272 (Iterable, Courier,
   Knock, Novu, Loops) plus Mailjet are the same shape — one opaque Bearer
   secret, no whoami. Build it once as the cluster's reusable capability, not a
   per-tool fork (rollout "prefer growing one reviewed capability").
 
-- **Alternative (Option B, only if reviewers want a positive connect-time
-  signal):** a network verify — `GET /messages?page_size=1` with
-  `Authorization: Bearer <key>` — reusing the Bearer-scheme manual-token
-  verifier capability (tally precedent) to confirm `200` before the Vault
-  write, still fingerprinting for the account key. Rejected as the default:
-  it adds request surface for marginal value, since AnyCLI already classifies
-  the `401` at first use, and it needs a workflow-free read path (message list
-  is safe and always exists).
+- **Alternative (Option B — adopt if reviewers want a positive connect-time
+  signal, or to avoid depending on the unbuilt deriver-selection path):** a
+  network verify — `GET /messages?page_size=1` with `Authorization: Bearer
+  <key>` — reusing the Bearer-scheme manual-token verifier capability (tally
+  precedent, `manual_api_token` + `declarativeManualTokenVerifier`) to confirm
+  `200` before the Vault write, still fingerprinting for the account key. This
+  path does **not** depend on the deriver-selection mechanism, so it is the
+  lower-risk option if that mechanism slips. Trade-off: it adds request surface
+  for marginal value, since AnyCLI already classifies the `401` at first use,
+  and it needs a workflow-free read path (message list is safe and always
+  exists).
 
 Bundle sketch (copy exact `credential.fields` source-token and `tool.kind`
 form from a shipped `manual_credentials` bundle — mixpanel / braze / segment —
@@ -232,7 +267,7 @@ auth:
   owner: individual
   credential_input:
     fields:
-      - {name: api_key, label_key: api_key, secret: true, required: true, placeholder: "sk_live_..."}
+      - {name: api_key, label_key: api_key, secret: true, required: true, placeholder: "sk_..."}
     setup_url: https://dashboard.knock.app     # Developers → API keys
   # display-only capability disclosure (rendered via i18n tools.scopes.<slug>)
   api_key:
@@ -271,10 +306,10 @@ tool:
 | Layer | What it proves for knock | External creds? |
 |---|---|---|
 | **L1** anycli `go test ./...` | Definition unit test (field→env binding) + service cobra tests against httptest fakes: trigger body assembly (recipients/data/actor/tenant/idempotency), list pagination passthrough, message mark states, error/exit-code mapping (401→exit 1 API error, bad `--data` JSON→exit 2), verbatim JSON emit. | No |
-| **L2** `anycli knock -- …` dev harness vs REAL api.knock.app | `ANYCLI_CRED_api_key=sk_test_…`; run read-safe `message list` and `user list` first, then `user identify` + `workflow trigger --sandbox` (needs a workflow `key` to exist in the test env — otherwise assert the 404 path and keep the live send to a configured workflow). | **Yes** — a real Knock **test-environment secret key**, and (for trigger) one workflow configured in that env. |
-| **L3** `provider-gen --check` + both repos' unit suites | Bundle strict-decode + closed-contract validation; `manual_credentials` + `identity.source: strategy` accepted; deriver-selection wiring compiles; resolver test unchanged (no divergence entry). Run `provider-gen` locally on-branch, do **not** commit projections. | No |
-| **L4** singleton + seed + `heliox tool knock -- …` | `POST /internal/test-only/connections/seed` with `provider:"knock"`, `access_token:"sk_test_…"` (api_key providers are seedable; seed `access_token` only — no refresh cycle). Then `heliox tool knock -- message list` reaches live Knock through the token gateway → real JSON. | **Yes** — a real Knock test key to seed (L4 success = seeded key reaches the live API). |
-| **L5** full connect flow, once, before visible flip | **api_key key-entry path** (agent-drivable, master-plan §2): open `heliox tool knock auth` connect link → paste the `sk_test_…` key through the real connect UI (`POST /connections/credentials`) → connection shows connected/configured in `GET /connections` (immediate — no network verify) → one **unseeded** live command (`heliox tool knock -- message list`, or `workflow trigger --sandbox` against a configured workflow) succeeds through the token gateway. That unseeded run is the completion signal. | **Yes** — a real Knock test key, pasted through the UI; agent-driven with human fallback on UI breakage. |
+| **L2** `anycli knock -- …` dev harness vs REAL api.knock.app | `ANYCLI_CRED_api_key=sk_…` (a Development-environment key); run read-safe `message list` and `user list` first, then `user identify` + `workflow trigger --sandbox` (needs a workflow `key` to exist in the test env — otherwise assert the 404 path and keep the live send to a configured workflow). | **Yes** — a real Knock **test-environment secret key**, and (for trigger) one workflow configured in that env. |
+| **L3** `provider-gen --check` + both repos' unit suites | Bundle strict-decode + closed-contract validation; `manual_credentials` + `identity.source: strategy` accepted; resolver test unchanged (no divergence entry). Run `provider-gen` locally on-branch, do **not** commit projections. **Note:** the deriver-selection wiring and the fingerprint deriver are prerequisites that do **not** exist on main (see §4 hard-prerequisite box); this layer proves the bundle validates, not that connect composes — connect/composition only passes once the Open-Decision-1 capability (Option A) or the Option-B verifier lands and merges. | No |
+| **L4** singleton + seed + `heliox tool knock -- …` | `POST /internal/test-only/connections/seed` with `provider:"knock"`, `access_token:"sk_…"` (api_key providers are seedable; seed `access_token` only — no refresh cycle). Then `heliox tool knock -- message list` reaches live Knock through the token gateway → real JSON. | **Yes** — a real Knock test key to seed (L4 success = seeded key reaches the live API). |
+| **L5** full connect flow, once, before visible flip | **api_key key-entry path** (agent-drivable, master-plan §2): open `heliox tool knock auth` connect link → paste the `sk_…` key through the real connect UI (`POST /connections/credentials`) → connection shows connected/configured in `GET /connections` (immediate — no network verify) → one **unseeded** live command (`heliox tool knock -- message list`, or `workflow trigger --sandbox` against a configured workflow) succeeds through the token gateway. That unseeded run is the completion signal. | **Yes** — a real Knock test key, pasted through the UI; agent-driven with human fallback on UI breakage. |
 
 External-credential summary: **L2, L4, L5 each need a real Knock
 test-environment secret key** (one key covers all three); L2/L5 additionally
@@ -283,22 +318,40 @@ rather than a read. **L1 and L3 need no external credentials.**
 
 ## 6. Rollout
 
-Ship hidden (`visible: false`), land the anycli service + definition and the
-`manual_credentials` bundle + the reusable fingerprint deriver, pass L1–L4 on
+Ship hidden (`visible: false`). The anycli service + definition land
+independently, but the Helio bundle's connect path is **gated on the
+deriver-selection capability + fingerprint deriver landing on main** (Open
+Decision 1 / §4 hard-prerequisite box) — until that merges (or Option B's
+Bearer verifier is adopted instead), the bundle validates (L3) but connect does
+not compose. Sequence: land the capability (Option A) or the verifier (Option
+B), then the `manual_credentials` (or `manual_api_token`) bundle, pass L1–L4 on
 branch, then the batch-end merge (one pin bump, one `provider-gen`, one plugin
 publish). Run the L5 key-entry sweep after batch-end while still hidden; only
 then flip `presentation.visible: true` + regenerate as the single go-live
-change. Wave 3, no review clock (api_key) — the only gate on "done" is L5.
+change. Wave 3, no review clock (api_key) — the gates on "done" are the
+capability prerequisite and L5.
 
 ## 7. Open decisions for the implementer
 
-1. **Deriver capability (stage-1 flag).** Confirm the design-317
-   deriver-selection mechanism is present on the integration-service base, then
-   add `bearerKeyFingerprintIdentityDeriver` as the shared
-   opaque-Bearer-secret deriver (label = env prefix, stable_key = truncated
-   SHA-256). If reviewers prefer connect-time verification, take Option B
-   (Bearer-scheme network verify) instead — but build it as the same reusable
-   capability serving the rows-268–272 cluster, not a Knock-only path.
+1. **Deriver capability (BLOCKING prerequisite, stage-1 flag).** Neither the
+   design-317 deriver-selection mechanism **nor** a fingerprint deriver is on
+   `main` today — on main `composeProviderRegistration` binds all
+   `manual_credentials` providers to `dsnHostIdentityDeriver`, which rejects a
+   hostless `sk_` key (§4 hard-prerequisite box). This must be resolved before
+   Knock's connect can compose; it is not a confirmation. Two ways to unblock:
+   - **Option A (recommended):** land the deriver-selection wiring in
+     `composeProviderRegistration` **and** add a shared
+     `bearerKeyFingerprintIdentityDeriver` (no network call; **label = static
+     `"Knock"`**, optionally `+ short fingerprint`; **stable_key = truncated
+     SHA-256** of the secret). **Do not** derive the label from the key prefix —
+     `sk_test_`/`sk_live_` is not Knock's real format and a readable environment
+     name is not obtainable from the credential (out of scope). Build it as the
+     reusable capability serving the rows-268–272 cluster, not a Knock-only path.
+   - **Option B (fallback that avoids the unbuilt deriver-selection path):**
+     ship as `manual_api_token` with a Bearer-scheme `declarativeManualTokenVerifier`
+     doing `GET /messages?page_size=1` (tally precedent), still fingerprinting
+     for the account key. Pick this if the deriver-selection capability slips or
+     reviewers want a positive connect-time signal.
 2. **Trigger safety.** Default `workflow trigger` to require an explicit
    `--recipients`; surface `--sandbox`/`--skip-delay` prominently in the
    AI-facing doc so a teammate can dry-run a send before a real fan-out.
