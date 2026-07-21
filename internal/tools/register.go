@@ -17,6 +17,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/microsoftoutlook"
 	"github.com/heliohq/anycli/internal/tools/mongodb"
 	"github.com/heliohq/anycli/internal/tools/notion"
+	"github.com/heliohq/anycli/internal/tools/outreach"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -33,6 +34,7 @@ func init() {
 	RegisterService("bitly", &bitly.Service{})
 	RegisterService("slack", &slack.Service{})
 	RegisterService("notion", &notion.Service{})
+	RegisterService("outreach", &outreach.Service{})
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("slides", &slides.Service{})
