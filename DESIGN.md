@@ -39,9 +39,13 @@ literal "api_key" path) is not buildable for MailerLite: `ValidateRuntimeContrac
 (`runtime_contract.go`) requires `AuthAPIKey` bundles to declare
 `identity.source: userinfo` — a JSON identity endpoint the verifier GETs. The
 MailerLite Connect API has **no `/me`, account, or user-info endpoint** (verified
-against developers.mailerlite.com — its only sections are Subscribers, Groups,
-Segments, Fields, Automations, Campaigns, Forms, Batching, Webhooks, Timezones,
-Campaign languages; none returns an account id/name). With no userinfo endpoint,
+against developers.mailerlite.com and the official CLI's resource groups — its
+sections are Subscribers, Groups, Segments, Fields, Automations, Campaigns, Forms,
+Batching, Webhooks, Timezones, Campaign languages, **and an E-commerce API**
+(Shops, Products, Categories, Customers, Orders, Carts, Cart Items, Bulk Import);
+none returns a stable **account** identity — the nearest thing, a shop id, is a
+user-created resource id, not an account identifier, so it cannot key the
+connection). With no userinfo endpoint,
 the buildable mechanism is the **design-317 `credentials` / `manual_credentials`**
 path — exactly what semrush and moz (also opaque keys with no userinfo endpoint)
 use. So the bundle sets `auth.type: credentials` even though the lane label is
@@ -77,14 +81,52 @@ Deliberately **out of scope** for v1: the batch endpoint
 request-envelope surface an agent rarely needs one-shot; the CLI's per-verb
 calls cover the same ground more legibly. Add later if a real workflow needs
 bulk. `import` (`POST /subscribers/import`) is async/job-shaped and can wait
-on demand.
+on demand. The **E-commerce API** (Shops, Products, Categories, Customers,
+Orders, Carts, Cart Items, Bulk Import) **exists** but is a deliberate v1
+scope cut, not an omission: shop/customer/order sync is a distinct
+storefront-integration workflow with its own `--shop`-scoped surface, orthogonal
+to the ESP list/campaign core an AI teammate drives day-to-day. Defer to a v2
+scope decision once a real e-commerce workflow demands it.
 
 ## 3. anycli definition (stage 1 + 2)
 
-**Tool form: `service` type.** No official MailerLite CLI exists; the surface
-is a plain JSON REST API with Bearer auth. Fails the `cli`-type rubric
-(no provisionable `--json` binary), so it is a `service`-type implementation
-against the HTTP API — matching 21/23 shipped tools and every ESP sibling.
+**Tool form: `service` type — chosen over a real cli-type alternative.**
+An official MailerLite CLI **does exist** and must be engaged honestly, not
+denied: `github.com/mailerlite/mailerlite-cli`, published under the MailerLite
+GitHub org, documented at <https://developers.mailerlite.com/cli>. Verified
+against the repo, it satisfies **all four** stage-1 `cli`-type rubric
+conditions (the `github`→`gh` model the skill names):
+
+1. *Official CLI exists* — yes, MailerLite-org owned.
+2. *Non-interactive / agent-friendly* — a global `--json` flag on every
+   command emits raw JSON; the TUI is an opt-in `dashboard` subcommand, not
+   the default.
+3. *Env/flag credential injection* — reads `MAILERLITE_API_TOKEN` from the
+   environment (the exact env var this design injects for service-type).
+4. *Provisionable binary* — pre-built Linux/macOS/Windows release binaries
+   plus `go install github.com/mailerlite/mailerlite-cli@latest`.
+
+So the cli-vs-service call is a genuine tradeoff, not a foregone conclusion.
+**I still choose `service` type**, on legitimate grounds:
+
+- **CLI immaturity / stability risk.** The binary is very young: created
+  2026-02-15, latest tag **v1.0.2 (2026-02-19)**, **6 commits, 3 stars, 0
+  forks**, single-author. Its output contract (the `--json` shape we would
+  parse) has no track record and could break or be abandoned between our pin
+  bumps — a fragile foundation for a shipped tool versus wrapping the stable,
+  versioned Connect REST API directly.
+- **Runtime image size (master-plan §6 cli-type gate).** Any cli-type
+  proposal triggers an image-size check; adding another Go binary to the
+  runtime image for a surface we can hit over HTTP with zero footprint is not
+  justified while the binary is this immature.
+- **Long-term maintenance & consistency.** Service type keeps MailerLite on
+  the same HTTP/httptest-fake pattern as 21/23 shipped tools and every ESP
+  sibling, so there is one code shape to maintain and no third-party binary
+  provisioning to track. If mailerlite-cli matures (stable releases, adoption,
+  a committed output contract), revisiting cli-type is a clean future swap.
+
+Net: `service`-type implementation against the Connect HTTP API — chosen
+against the real cli-type alternative, not in ignorance of it.
 
 **Definition** `definitions/tools/mailerlite.json` (axis ②
 `name: "mailerlite"`):
