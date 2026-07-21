@@ -38,6 +38,14 @@ no longer exists:
     deprecation is the vendor's own statement that the API is gone.
   - The Qualtrics sunset notice and the vendor sunset landing page
     (`delighted.com/?page_id=25877`) carry the same message.
+  - **Live re-verification (2026-07-22):** the production REST base
+    `GET https://api.delighted.com/v1/metrics.json` now returns **HTTP 410
+    Gone** — a deliberate "permanently removed" tombstone, not a transient
+    outage. This is direct, first-hand confirmation (stronger than "does not
+    respond") that the API is decommissioned. The official Sunset FAQ was also
+    re-read the same day and re-confirms: platform "completely deprecated and
+    shut down" as of 2026-07-01, with all account data deleted after the final
+    sunset date.
 
 - Master plan §3 already **DROPPED** two tools on exactly this "API viability"
   reasoning — Medium ("write API effectively closed") and Wave ("API restricted
