@@ -2,7 +2,9 @@
 
 **Status:** Stage-1 design (pre-implementation). Scratch file on branch `tool/outreach`; the batch lead strips it at batch-end.
 **Catalog row:** #66 — Outreach | anycli id `outreach` | provider key `outreach` | lane `oauth_light` | wave 2 | Sales Engagement.
-**Official docs verified:** 2026-07-21 — https://developers.outreach.io/api (overview), https://developers.outreach.io/api/oauth (OAuth), https://developers.outreach.io/api/getting-started (scopes/limits), https://developers.outreach.io/api/making-requests (JSON:API conventions).
+**Official docs verified:** 2026-07-21 (write-surface re-verified 2026-07-22) — https://developers.outreach.io/api (overview), https://developers.outreach.io/api/oauth (OAuth), https://developers.outreach.io/api/getting-started (scopes/limits), https://developers.outreach.io/api/making-requests (JSON:API conventions, filter/action syntax), https://developers.outreach.io/api/reference/tag/Sequence-State/ (sequenceState actions).
+
+**Review-divergence note (write surface, per official docs — see §2/§3):** A stage-1 review flagged `filter[q]` and the task-complete/snooze + sequenceState pause/resume actions as wrong or unverified. Re-checking the official `making-requests` page and the Sequence State reference on 2026-07-22 shows the opposite on two of the three sub-claims: (a) task completion is corrected to `markComplete` with the note as the `actionParams[completionNote]` **query** param (review was right — fixed below); (b) `filter[q]` IS an officially documented global/full-text filter, but **only for Accounts and Prospects** (review was wrong — kept, with the resource restriction now recorded); (c) task `snooze` and sequenceState `finish`/`pause`/`resume` are all documented actions (review treated them as inferred — kept, with a light L2 casing-confirmation item retained rather than removing the verbs).
 
 ## 1. Auth-lane verification (independent, against official docs)
 
@@ -27,19 +29,23 @@ Wrapped surface — all under `https://api.outreach.io/api/v2` (JSON:API 1.0, `C
 
 | Resource | Endpoints | Why |
 |---|---|---|
-| prospects | GET list (+`filter[q]`, `filter[emails]`…), GET/POST/PATCH by id | core CRM object; global search supported |
-| accounts | GET list (+`filter[q]`), GET/POST/PATCH | company context for prospects |
+| prospects | GET list (+`filter[q]`, `filter[emails]`, `filter[name]`…), GET/POST/PATCH by id | core CRM object; `filter[q]` global search documented (see note ¹) |
+| accounts | GET list (+`filter[q]`, `filter[name]`), GET/POST/PATCH | company context; `filter[q]` global search documented (note ¹) |
 | sequences | GET list, GET | pick the cadence to enroll into |
-| sequenceStates | GET list, **POST (enroll prospect: relationships prospect+sequence+mailbox)**, POST actions `pause`/`resume`/`finish` | the core sales-engagement write |
+| sequenceStates | GET list, **POST (enroll prospect: relationships prospect+sequence+mailbox)**, POST actions `finish`/`pause`/`resume` (Sequence State reference) | the core sales-engagement write |
 | sequenceSteps | GET list (filter by sequence) | inspect cadence content |
 | mailboxes | GET list | required relationship for enroll |
 | mailings | GET list (filter by prospect/state), GET | email outcomes: delivered/opened/clicked/replied |
 | calls | GET list, GET | call activity read |
-| tasks | GET list, GET, POST, POST actions (`complete`, `snooze`) | teammate works the task queue |
+| tasks | GET list, GET, POST, POST actions (`markComplete` — note via `actionParams[completionNote]` query; `snooze`) | teammate works the task queue |
 | opportunities | GET list, GET | pipeline reporting |
 | users | GET list, GET | owner resolution / assignment |
 | templates | GET list, GET | inspect email templates referenced by steps |
 | stages, personas | GET list | ids needed when creating/updating prospects |
+
+**Note ¹ — `filter[q]` scope.** Per the official `making-requests` page, `filter[q]` is a documented global/full-text filter (`filter[q]=aaa`; attribute-scoped `filter[q]=aaa,custom1`; exact `_aaa_`; `_NULL_`/`_NOTNULL_`) that **works only for Accounts and Prospects** — exactly the two resources exposing `--q` here, so no other resource wraps it. Field-based filters (`filter[emails]`, `filter[name]`, `filter[state]`, `filter[owner][id]`…) are the documented alternative; values containing `,` or `..` (e.g. emails) require the `newFilterSyntax=true` query param, and relationship filtering is restricted to `[id]` (two-step lookup) since the May-2023 deprecation. The CLI keeps `--q` for prospect/account and uses field filters elsewhere.
+
+**Action endpoints (official).** Actions are `POST /{resource}/{id}/actions/{name}` returning 200 (or 422/400 on bad params). Confirmed on the `making-requests` page: `tasks/{id}/actions/markComplete?actionParams[completionNote]=…` and `tasks/{id}/actions/snooze`. Confirmed on the Sequence State reference: `sequenceStates/{id}/actions/finish|pause|resume`. Exact casing is re-checked at L2 (§4) before the httptest fakes hard-code the paths.
 
 Out of scope v1: snippets, callDispositions/callPurposes, webhooks, custom objects, Kaia recordings, S2S auth. Deletes are omitted v1 (destructive; `*.all` scopes are requested only where create/update is needed).
 
@@ -77,6 +83,7 @@ outreach mailbox    list
 outreach mailing    list|get                    (--prospect-id, --state)
 outreach call       list|get                    (--prospect-id)
 outreach task       list|get|create|complete|snooze  (--due, --note, --prospect-id, --action)
+                    # CLI verb `complete` → API action `markComplete`; --note → actionParams[completionNote] query param (NOT a JSON body)
 outreach opportunity list|get
 outreach user       list|get
 outreach template   list|get
@@ -164,13 +171,15 @@ tool:
   kind: oauth
 ```
 
-Zero integration-service code (`standard_oauth` golden path). Config: `oauth.providers.outreach.{client_id,client_secret}` appended by lane 1 to `config/` + the Helm Secret in `deploy/` together (Config Sync rule); dev credentials ride agents' **uncommitted** local `config/cloud.yaml` until then. Icon: `ui/helio-app/src/integrations/icons/outreach.svg` + manual `providerIcons.ts` registration (batch-end). AI docs: `agents/plugins/heliox/skills/tool/outreach.md` (flat providers get a single sub-doc; google/microsoft use dirs because they are groups) + plugin version bump + publish, riding the batch-end merge.
+Zero integration-service code — **conditional on** the `declarativeIdentityResolver` userinfo fetch succeeding against `/api/v2` as-is (verification item 2). If L2 shows the 415 Content-Type guard / Accept-header mismatch, the identity fetch needs a **reviewed generic-capability header option** (a shared, reviewed addition to the capability set — *not* a per-provider adapter), and the batch lead should budget for that reviewed change. Absent that issue, this stays on the `standard_oauth` golden path with no integration-service code. Config: `oauth.providers.outreach.{client_id,client_secret}` appended by lane 1 to `config/` + the Helm Secret in `deploy/` together (Config Sync rule); dev credentials ride agents' **uncommitted** local `config/cloud.yaml` until then. Icon: `ui/helio-app/src/integrations/icons/outreach.svg` + manual `providerIcons.ts` registration (batch-end). AI docs: `agents/plugins/heliox/skills/tool/outreach.md` (flat providers get a single sub-doc; google/microsoft use dirs because they are groups) + plugin version bump + publish, riding the batch-end merge.
 
 ### Verification items to close before the bundle merges (L2/L4)
 
 1. **Identity JSON pointers.** Official docs confirm `GET /api/v2` returns "information about your current OAuth application and token, as well as attributes related to your organization", but publish no example body; no `/users/me` exists. Pin `stable_key` / `label_candidates` against the real root response at L2 (first real-token harness session; a plain `curl` alongside). Expected candidates: user email + org shortname. If the root turns out to expose only org-level fields (no user identity), fall back to `stable_key: /data/attributes/org/shortname` — account key would then be org-scoped, which is acceptable for per-assistant isolated connections but must be a recorded decision.
 2. **Root endpoint header tolerance.** `fetchUserInfo` sends only `Authorization` + `Accept: application/json`; Outreach's 415 guard is documented for `Content-Type` on requests. Confirm at L2 that a body-less GET to `/api/v2` without `Content-Type: application/vnd.api+json` returns 200; if not, the identity fetch needs the generic capability set to grow a reviewed header option (do NOT write a one-off adapter first — per provider-yaml.md guidance).
 3. **Scope-string casing** for camelCase resources (`sequenceStates.all`, `sequenceSteps.read`) — verify accepted verbatim at app registration + authorize.
+4. **Action name + param casing (L2).** The action verbs are documented (`markComplete`/`snooze` on the `making-requests` page; `finish`/`pause`/`resume` on the Sequence State reference), but the httptest fakes hard-code exact paths, so confirm verbatim at L2 against a real token: `POST /tasks/{id}/actions/markComplete?actionParams[completionNote]=…` (200 + note applied), `POST /tasks/{id}/actions/snooze`, and `POST /sequenceStates/{id}/actions/{finish|pause|resume}`. Only correct here if the reference page casing differs from the `making-requests` example — do not build the verbs on assumption.
+5. **Prospect/account `filter[q]` behavior (L2, low-risk).** `filter[q]` is officially documented (global/full-text, Accounts + Prospects only). Spot-check one `prospect list --q` and one `account list --q` call returns the expected narrowed set; confirm no other wrapped resource silently accepts `filter[q]` (it should 4xx/ignore elsewhere, per the docs' resource restriction).
 
 ### Risk note: rotating refresh tokens under `refresh_lease: none`
 
