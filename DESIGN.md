@@ -68,8 +68,12 @@ Verified on official pages (`/creating-an-oauth-app`, `/authentication`,
   Helio `token_exchange_style: form_basic`. Response: `access_token`,
   `refresh_token`, `expires_in`, `scope`, plus `owner`/`organization` URIs
   (extra fields are harmless to the standard exchanger).
-- **Access-token lifetime**: short-lived; `expires_in` is authoritative per
-  response (official docs give no fixed number — do not hard-code one).
+- **Access-token lifetime**: the official OAuth guide
+  (`/how-to-access-calendly-data-on-behalf-of-authenticated-users`) documents a
+  **2-hour** access-token lifetime (refresh tokens "don't expire until they are
+  used"). Operative rule is unchanged: treat `expires_in` from each token
+  response as authoritative — do not hard-code the 2h; the documented figure is
+  orientation only.
 - **Refresh rotation (the critical nuance)**: refresh tokens are
   **single-use** and rotate on every `grant_type=refresh_token` call;
   Calendly enforces this for all integrations by **August 31, 2026**. Reuse
@@ -80,11 +84,17 @@ Verified on official pages (`/creating-an-oauth-app`, `/authentication`,
   `refresh_lease: credential` serializes concurrent refreshes per credential
   so parallel `heliox tool` calls cannot burn the token — both are required
   for Calendly, not optional.
-- **Scopes are app-level, not wire-level**: scopes are selected at app
-  registration; the documented authorize request carries no `scope` param,
-  and new apps have **zero API access until scopes are granted on the app**.
-  So the bundle sets `display_scopes` only (Notion/Bitly pattern) and lane 1
-  must tick the scope set below when creating the app. Scope set (write
+- **Scopes are wire-level AND app-level** (verified on `/scopes`): the official
+  Scopes page documents a **space-separated `scope` param on the authorize
+  request** (example: `…/oauth/authorize?…&scope=scheduled_events:read
+  webhooks:write`), directs apps to "request the minimum set of scopes needed,"
+  and — on the granular-scopes model — states newly created apps get **no API
+  access until scopes are explicitly requested and approved**. So the bundle
+  **sends `scopes:` on the wire** (google_calendar precedent — the generator
+  supports wire scopes) *and* lane 1 ticks the identical set at app
+  registration; `display_scopes` is retained only for consent-page disclosure.
+  Omitting wire scopes risks a zero-scope token where even identity resolution
+  via `/users/me` (needs `users:read`) 403s and L5 fails. Scope set (write
   scopes include their read twin): `users:read`, `event_types:read`,
   `availability:read`, `scheduled_events:write`, `scheduling_links:write`,
   `organizations:read`.
@@ -180,14 +190,24 @@ auth:
     token_exchange_style: form_basic   # documented Basic client auth on token endpoint
     pkce: s256                         # OAuth 2.1; Calendly directs S256 for all apps
     authorize_params: {}
-    # Scopes are configured on the Calendly app at registration, not sent on
-    # the wire (no scope param in the documented authorize request) — so no
-    # `scopes:`; display-only disclosure below, Notion/Bitly pattern.
+    # Official /scopes documents a space-separated wire `scope` param and a
+    # granular-scopes model (new apps have zero API access until scopes are
+    # requested/approved). Send scopes on the wire (google_calendar precedent)
+    # AND tick the identical set at app registration; display_scopes is
+    # consent-page disclosure only.
+    scopes: [users:read, event_types:read, availability:read,
+             scheduled_events:write, scheduling_links:write, organizations:read]
     display_scopes: [users:read, event_types:read, availability:read,
                      scheduled_events:write, scheduling_links:write,
                      organizations:read]
     single_active_token: false
     refresh_lease: credential          # single-use rotating refresh tokens (enforced 2026-08-31)
+    revoke:
+      url: https://auth.calendly.com/oauth/revoke   # officially documented (Revoke Access/Refresh Token)
+      client_auth: form                # revoke body carries client_id + client_secret
+      token: refresh_token
+      fallback_token: access_token
+      token_type_hint: none
 
 identity:
   source: userinfo
@@ -197,7 +217,7 @@ identity:
 
 connection:
   mode: isolated
-  disconnect_mode: local_only          # see open question 2
+  disconnect_mode: provider_revoke     # Calendly documents OAuth token revoke (see auth.oauth.revoke)
   runtime_strategy: standard_oauth     # no adapter: standard token JSON + userinfo identity
 
 resources:
@@ -241,22 +261,32 @@ anycli worktree.
 
 1. **No lane divergence**: official docs confirm `oauth_light` (self-serve
    registration, immediate credentials, no review). Nothing to escalate.
-2. **Disconnect revoke**: an `https://auth.calendly.com/oauth/revoke`
-   endpoint is believed to exist but was not verifiable from the fetchable
-   official pages during this design pass. v1 ships `disconnect_mode:
-   local_only`; if the revoke endpoint is confirmed in the API reference
-   during implementation, upgrade to `provider_revoke` with a declarative
-   `revoke:` block (google_calendar precedent) in the same change.
-3. **Wire `scope` param**: if L5 shows the sandbox app ignoring/accepting a
-   `scope` authorize param, consider pinning `scopes:` in the bundle as
-   defense-in-depth; until observed, app-level scopes only.
-4. **`book create` plan gate**: the Scheduling API requires the connected
+2. **`book create` plan gate**: the Scheduling API requires the connected
    Calendly account to be paid. Keep the verb, surface Calendly's 403
    verbatim, and document it — do not silently degrade (no-silent-fallback
    rule). If the lane-2 test account is free-tier, L2/L4 for this one verb
    are consent-blocked and it is exercised in L5 or with a paid test
    account.
-5. **Range limits drift**: official pages currently say ≤31 days for
-   `event_type_available_times` and ≤7 days for `user_busy_times` (older
-   community material says 7 for both). Enforce nothing client-side beyond
-   passing params through; let the API's own validation error surface.
+3. **Range limits — re-verified, not drifting**: the current official guides
+   (`/schedule-events-with-ai-agents`: "can retrieve up to 31 days of available
+   times per request"; `/view-event-type-and-user-calendar-availability-data`:
+   `event_type_available_times` "cannot be a range greater than 31 days",
+   `user_busy_times` "cannot be a range greater than 7 days") both confirm
+   **≤31 days for `event_type_available_times`** and **≤7 days for
+   `user_busy_times`**. A review pass claimed both endpoints share a 7-day cap;
+   that is **not** what the official pages say and is rejected here. §2/§4 keep
+   31/7. The tool enforces nothing client-side beyond passing params through;
+   let the API's own validation error surface, and re-confirm the live caps at
+   L2. Recorded as a divergence-from-review per the "official docs win" rule.
+
+### Resolved during review revision
+
+- **Scopes (was OQ "wire `scope` param")**: `/scopes` documents a wire-level
+  space-separated `scope` param and a granular-scopes "no access until
+  approved" model, so scopes ship **on the wire** (`auth.oauth.scopes`) plus
+  the same set at app registration — see §3/§5. No longer open.
+- **Disconnect revoke (was OQ "disconnect revoke")**: Calendly officially
+  documents Revoke Access/Refresh Token
+  (`POST https://auth.calendly.com/oauth/revoke`, `client_id`/`client_secret`/
+  `token`), so v1 ships `disconnect_mode: provider_revoke` with a declarative
+  `revoke:` block (`client_auth: form`) — see §5. No longer open.
