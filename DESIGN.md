@@ -295,6 +295,32 @@ docs published + icon registered + visible flip.
   header, add a reviewed constant-header field to the userinfo resolver
   (narrow, calcom-precedented) — otherwise skip.
 
+## 7. Implementation-confirmed divergences (post-build)
+
+Verified against the official docs during the build; these firm up §3/§6 from
+"contingent" to decided:
+
+- **Identity is `userinfo`, not `token_response` (settled, not contingent).**
+  The official OAuth reference confirms the token response carries **no**
+  account/store id (only `access_token`/`refresh_token`/`scope`/`token_type`/a
+  ~292-year `expires_in`). So the §4 PRIMARY token-response path is not viable;
+  identity resolves via `GET /api/brands/current` (scope `brands.read`).
+- **The `Omnisend-Version` header on the userinfo GET became a real, reviewed
+  capability.** `standard_oauth`'s `fetchUserInfo` only sent Authorization +
+  Accept. Added `identity.headers` (a userinfo-only constant-header map;
+  forbids overriding Authorization/Accept; no secrets/templating; sorted,
+  deterministic Go projection) — the calcom-precedented growth §6 flagged, now
+  built. Pointers `/brandID` + `/website` are best-effort from Omnisend's
+  `…ID` naming; L5 confirms them before the visible flip.
+- **anycli writes use a raw `--data '<json>'` passthrough**, not the §2
+  structured-flag sketch. Omnisend's write bodies (contact `identifiers` +
+  `channels` nesting, event/segment/batch payloads) are not fully documented
+  publicly; passthrough keeps the tool honest and correct rather than baking an
+  unverified nested shape into flags. Reads stay structured.
+- **Pagination cursor is `paging.cursors.after` (passed back as `?after=`)**,
+  not the assumed `paging.next`. Handled by verbatim JSON passthrough + an
+  `--after` flag, so the tool is decoupled from the exact envelope field names.
+
 ## Sources
 
 - OAuth flow: https://api-docs.omnisend.com/reference/oauth
