@@ -317,3 +317,36 @@ regen); complete L1–L4 while hidden; run L5; flip `visible: true` + regenerate
 the single go-live change **only after** TikTok's app audit clears the
 `video.publish`/`video.upload` scopes. Per master-plan §6, a TikTok review stall
 just leaves the tool code-complete-hidden — zero waste.
+
+---
+
+## 7. Implementation divergences from §5 (corrected against the actual generator/model contracts)
+
+Four bundle fields in §5 did not match the shipped integration-service
+contracts and were corrected during implementation:
+
+1. **`identity.source: userinfo` → `token_response`.** The generator forbids a
+   query string on `identity.url` (`validateHTTPSURL`), but TikTok's User Info
+   endpoint **requires** a `?fields=` query (mandatory, no-fields ⇒ error). So
+   the declarative `userinfo` GET cannot be expressed. `token_response` uses the
+   token endpoint's `open_id` (present in the raw token response) as the stable
+   key + label — this is exactly the fallback §5 flagged. No userinfo call is
+   made; open_id is the account_key.
+2. **`disconnect_mode: strategy` → `provider_revoke`.** On `standard_oauth`, the
+   registry's revoker selector only accepts `provider_revoke` (declarative
+   revoke) or `local_only`; `strategy` is reserved for compiled named strategies
+   (x, linkedin_oidc, …) and fails the runtime contract. Declarative revoke via
+   the bundle `revoke:` block is `provider_revoke`.
+3. **`revoke.client_auth: body` → `form`.** The reviewed enum for revoke client
+   auth is `none | basic | form`; client creds in the form body is `form`.
+4. **`refresh_lease: provider` → `credential`.** `provider` scope serializes
+   *all* refreshes for the provider globally — only correct for a global
+   single-token constraint (X). TikTok's tokens are independent per connection,
+   so per-`credential` serialization is right for the rotating refresh token.
+   This also required a reviewed growth of the `standard_oauth` runtime contract
+   from a single pinned lease value to the allowed set `{none, credential}`
+   (mirrors the keap/signnow/hootsuite precedent), landed as its own commit.
+
+The two §5 capability fields (`client_id_param: client_key`,
+`scope_separator: ","`) landed as designed, honored across authorize URL, token
+exchange, the (rewritten, non-oauth2-library) refresh, and declarative revoke.
