@@ -9,6 +9,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/drive"
 	"github.com/heliohq/anycli/internal/tools/figma"
 	"github.com/heliohq/anycli/internal/tools/forms"
+	"github.com/heliohq/anycli/internal/tools/front"
 	"github.com/heliohq/anycli/internal/tools/gmail"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
@@ -43,6 +44,7 @@ func init() {
 	RegisterService("discord", &discord.Service{})
 	RegisterService("figma", &figma.Service{})
 	RegisterService("forms", &forms.Service{})
+	RegisterService("front", &front.Service{})
 	RegisterService("linkedin", &linkedin.Service{})
 	RegisterService("meet", &meet.Service{})
 	RegisterService("tasks", &tasks.Service{})
