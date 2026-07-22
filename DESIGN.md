@@ -10,8 +10,10 @@
 
 All three naming axes are identical (`sendgrid`/`sendgrid`/`sendgrid`), so **no
 `toolToProvider` divergence entry** is added in `resolver.go`, no `tool.command`
-override, and no `tool.group`. Simplest naming shape (same as `loops`,
-`postmark`, `resend`).
+override, and no `tool.group`. Simplest naming shape — the same all-identical
+axes as the shipped `bitly` / `notion` tools on this base (the email-lane
+siblings `loops` / `postmark` / `resend` are parallel-program branches, not yet
+on this base).
 
 ---
 
@@ -39,9 +41,27 @@ correct — **no divergence to record on the auth lane**:
   - **Billing Access** — billing endpoints only.
   A least-privilege AI-teammate deployment would use a **Restricted key with
   `mail.send`** (± marketing scopes) — this shapes the identity design in §4.
+- **Reading a key's own scopes is itself scope-gated (corrected — verify at
+  stage 1).** An earlier draft asserted `GET /v3/scopes` is a "universal"
+  endpoint readable by *any* valid key. **That is wrong.** Reading the API-Keys
+  scope list is a permission a `mail.send`-only Restricted key does **not**
+  carry, so such a key returns **`403` Access Forbidden** on `GET /v3/scopes`,
+  not `200`. This is well documented: SendGrid's endpoint reference lists a
+  `403` response for that route, SendGrid support and multiple integrator
+  threads (Courier/Workato/Strapi) confirm a restricted key `403`s there, and
+  `403` is the *healthy* signal — RFC 9110 §15.5.4 `403` means the server
+  authenticated the key but refuses the request for insufficient scope, whereas
+  a genuinely dead/missing key returns **`401` Unauthorized**. The
+  `401`-vs-`403` split is the load-bearing fact the verifier design in §4 rests
+  on, and it is a **stage-1/L2 gate**, not a settled premise: test `GET
+  /v3/scopes` (and any candidate identity endpoint) with **both** a Full Access
+  key **and** a real `mail.send`-only Restricted key before building the
+  verifier (§6 L2).
 
 **Divergence on the auth lane: none.** Official docs agree with both the catalog
-lane (`api_key`) and the audit verdict.
+lane (`api_key`) and the audit verdict. The only sub-claim that changed on
+review is the endpoint-readability property above (`/v3/scopes` is scope-gated,
+not universal); the `api_key` lane itself is unaffected and correct.
 
 **One host divergence worth recording (data residency).** SendGrid offers EU
 data residency: the default/global host is `https://api.sendgrid.com` and the EU
@@ -69,8 +89,9 @@ account-setup territory a human configures in the SendGrid UI — not what a
 teammate drives from chat.
 
 So the tool wraps the **send + hygiene + read core**, mirroring the shaped
-subset the sibling `loops` / `postmark` / `resend` / `brevo` tools expose.
-Endpoints, all verified against the official v3 reference:
+subset the email-lane siblings (`loops` / `postmark` / `resend` / `brevo`, all
+parallel-program branches — not on this base) expose. Endpoints, all verified
+against the official v3 reference:
 
 | Command | Method + path | Purpose |
 |---|---|---|
@@ -91,9 +112,10 @@ Endpoints, all verified against the official v3 reference:
 campaigns/automations authoring, single-sends, segments builder, subusers, IP
 pools/warmup, domain/link authentication, event-webhook + inbound-parse
 settings, alerts, teammates, SSO. These are low-frequency admin/authoring
-operations. Following the `loops` precedent, v1 ships **without** a generic
-`sendgrid api <method> <path>` passthrough — add one only if a concrete teammate
-need appears; do not pre-build the tree.
+operations. Following the thin-surface principle the parallel-program email
+siblings adopt, v1 ships **without** a generic `sendgrid api <method> <path>`
+passthrough — add one only if a concrete teammate need appears; do not pre-build
+the tree.
 
 ### Request/response quirks (load-bearing for the impl)
 
@@ -116,7 +138,8 @@ need appears; do not pre-build the tree.
   `--bcc`, `--reply-to` — and builds the `personalizations`/`content` arrays
   itself, plus a `--json '<full v3 body>'` escape hatch for advanced sends
   (multiple personalizations, attachments, categories, send_at, ASM). This
-  mirrors `loops`' first-class-flags approach.
+  first-class-flags-plus-`--json`-escape-hatch shape is the same pattern the
+  email-lane siblings adopt.
 - **`contact upsert` is asynchronous and eventually consistent.**
   `PUT /v3/marketing/contacts` returns `202` with a JSON `{job_id}` — the
   contacts are **queued**, not yet stored
@@ -127,12 +150,20 @@ need appears; do not pre-build the tree.
   requires at least one identifier (`email`, `phone_number`, or external id) per
   contact; the CLI exposes `--email`, `--first-name`, `--last-name`, repeatable
   `--custom-field key=value`, and `--json` for bulk.
-- **Scopes endpoint is universal.** `GET /v3/scopes` returns
-  `{"scopes":["mail.send","alerts.read",…]}` for **any** valid key (it reports
-  the key's own scopes; not itself scope-gated) and `401` on an invalid key.
-  This is the only endpoint every valid key — including a restricted
-  `mail.send`-only key — can read, which is why it is both the verify and the
-  identity endpoint (§4).
+- **Scopes endpoint is itself scope-gated — `401`-vs-`403` is the validity
+  signal.** `GET /v3/scopes` returns `{"scopes":["mail.send",…]}` (`200`) **only
+  for a key that carries API-Keys read permission** (Full Access, or a Restricted
+  key that included the scopes/API-Keys read scope). A least-privilege
+  `mail.send`-only Restricted key **lacks** that permission and returns **`403`
+  Access Forbidden** — the key authenticated fine, it just may not read the
+  scope list. A missing/invalid/revoked key returns **`401` Unauthorized**. The
+  same gating applies to `/v3/user/*` (email/profile/account), so there is **no**
+  read endpoint a `mail.send`-only key can `200` on. The verifier (§4) therefore
+  does **not** rely on reading any endpoint for a restricted key; it treats the
+  `401`-vs-`403` distinction itself as the connect-time validity signal:
+  `200` → verified (+scopes captured), `403` → valid-but-restricted (still
+  connects), `401` → rejected. Verifying this exact status split with a real
+  restricted key is the §6 L2 gate.
 
 ---
 
@@ -140,9 +171,9 @@ need appears; do not pre-build the tree.
 
 **Type: `service`** (per stage-1 rubric). No official non-interactive
 `--json`-capable SendGrid binary exists to wrap (there are language SDKs, not a
-CLI); the tool is a thin cobra tree over the v3 REST API — identical shape to
-`bitly` / `notion` / `loops`. 21 of 23 shipped definitions are `service` type;
-this is one more.
+CLI); the tool is a thin cobra tree over the v3 REST API — identical shape to the
+shipped `bitly` / `notion` service tools on this base. Most shipped definitions
+are `service` type; this is one more.
 
 ### `definitions/tools/sendgrid.json`
 
@@ -169,8 +200,8 @@ request.
 
 ### `internal/tools/sendgrid/` (service impl)
 
-Copy the `bitly`/`loops` package shape (the in-tree `service`-type + Bearer-auth
-precedent):
+Copy the `bitly`/`notion` package shape (the in-tree `service`-type + Bearer-auth
+precedent on this base):
 
 - `sendgrid.go` — `Service{ BaseURL, HC, Out, Err }`, `Execute(ctx, args, env)`
   reads `SENDGRID_API_KEY` (empty → stderr + exit 1), builds the cobra root,
@@ -182,10 +213,14 @@ precedent):
   `Authorization: Bearer <token>`, `Accept: application/json`, JSON body when
   present. Non-2xx → typed `apiError` (SendGrid error bodies are
   `{"errors":[{"field","message"}]}` — extract `message`(s) for the failure
-  text); **401 → `execution.RejectCredential`** so the token gateway learns the
-  key is dead. **`202` with empty body is a success path** (not an error, not a
-  decode) — the `mail send` handler reads `X-Message-Id` from the response
-  header and emits a synthetic acceptance object.
+  text); **only `401` → `execution.RejectCredential`** (dead/revoked key) so the
+  token gateway learns the key is unusable. A runtime **`403` is a normal scope
+  error** (the key is valid but lacks the scope for *this* operation, or the
+  `from` isn't a verified sender) → plain `apiError`/exit 1, **not** a credential
+  rejection — mirroring the connect-time `401`-vs-`403` split (§4). **`202` with
+  empty body is a success path** (not an error, not a decode) — the `mail send`
+  handler reads `X-Message-Id` from the response header and emits a synthetic
+  acceptance object.
 - Resource files: `mail.go` (`mail send`), `template.go`, `contact.go`
   (`contact upsert|search`), `list.go`, `suppression.go`
   (`bounces|unsubscribes|blocks`), `stats.go`, `sender.go`, `scopes.go`.
@@ -197,7 +232,7 @@ precedent):
   real API** (that is L2). TDD: tests first, per anycli AGENTS.md.
 
 **JSON output shape.** Every command emits the provider's JSON response verbatim
-to stdout (+ trailing newline), passthrough style — exactly like `bitly`/`loops`
+to stdout (+ trailing newline), passthrough style — exactly like `bitly`/`notion`
 — **except** `mail send`, whose provider response is an empty `202` body, so it
 emits a synthesized `{"status":"accepted","message_id":"<X-Message-Id>"}`. A
 persistent `--json` flag is accepted for uniformity. **Exit codes:** `0`
@@ -225,76 +260,94 @@ bearer token. No secret pair, no refresh, no expiry.
    write-only `POST /connections/credentials` path into Vault — never in the
    bundle).
 2. integration-service **verifies before storing** by GETing
-   `https://api.sendgrid.com/v3/scopes` with `Authorization: Bearer <key>`.
-   - **Success (`200`)** → `{"scopes":[…]}`; the key is valid and its scope set
-     is captured into connection identity metadata.
-   - **`401/403`** → verifier maps to `invalid_provider_credential`; connect
-     fails cleanly before anything reaches Vault.
+   `https://api.sendgrid.com/v3/scopes` with `Authorization: Bearer <key>` and
+   **branches on the exact status code** (the `401`-vs-`403` split from §2):
+   - **`200`** → `{"scopes":[…]}`; the key is valid **and** carries scope-read
+     permission. Capture the scope set into connection identity metadata.
+   - **`403`** → the key **authenticated** but lacks scope-read permission — this
+     is the healthy signal for a least-privilege `mail.send`-only Restricted key.
+     Treat as **valid-but-restricted**: the connection still succeeds (no scopes
+     captured). This is the key case the design exists to support.
+   - **`401`** → missing/invalid/revoked key → `invalid_provider_credential`;
+     connect fails cleanly before anything reaches Vault.
 3. Runtime: the token gateway serves the stored key; heliox injects it into
    anycli's credential map (`api_key`), anycli sets `SENDGRID_API_KEY`, and the
    service sends `Authorization: Bearer <key>` to the live API.
 
-### The two capability gaps SendGrid hits (and why a bespoke verifier is right)
+The design goal is **"a valid key always connects, even a restricted one; only a
+dead key is rejected."** Because `/v3/scopes` (and every `/v3/user/*` endpoint)
+is scope-gated (§2), there is **no read endpoint a `mail.send`-only key can
+`200` on** — so the verifier must **not** demand a positive read; it uses the
+`403` (authenticated-but-forbidden) as its own positive-validity signal and
+reserves rejection for `401` alone. Mapping `403 → invalid_provider_credential`
+(as the generic `manual_credential.go:81-84` path does for both `401` **and**
+`403`) would reject exactly the recommended least-privilege key — that is the
+connect-time regression this design must avoid.
 
-The stock `declarativeManualTokenVerifier`
-(`service/manual_token_verifier.go`) on this worktree base does **two** things
-that SendGrid breaks:
+### Why a bespoke verifier, and the two stock-path gaps it works around
+
+The stock `declarativeManualTokenVerifier` (`service/manual_token_verifier.go`)
+on this worktree base does **two** things that don't fit SendGrid:
 
 1. It sets the identity header to the **raw token**
    (`req.Header.Set(APIKey.Header, token)`) — no `Bearer ` prefix. SendGrid
-   requires `Authorization: Bearer <key>`, so the raw token would be rejected
-   `401` even for a valid key. (No `scheme: bearer` capability exists on this
-   base — I grepped `model/catalog.go`, `cmd/provider-gen/manifest.go`,
-   `manual_token_verifier.go`; the `loops`/`tally` "Bearer scheme" growth has
-   not landed here.)
-2. It **requires a non-empty string** at `Identity.StableKey` (errors otherwise).
-   `GET /v3/scopes` returns `{"scopes":[…]}` — an **array, no identity string**.
-   And SendGrid exposes **no** universally-readable identity: `/v3/user/email`,
-   `/v3/user/profile`, `/v3/user/username`, `/v3/user/account` are all
-   **scope-gated** and return `403` for a least-privilege `mail.send`-only key,
-   which is exactly the key a security-conscious teammate deployment uses. So
-   there is no field the declarative verifier can point `stable_key` at that
-   works for every valid key.
+   requires `Authorization: Bearer <key>`, so a raw token is rejected `401` even
+   for a valid key. (No `scheme: bearer` capability exists on this base — I
+   grepped `model/catalog.go`, `cmd/provider-gen/manifest.go`,
+   `manual_token_verifier.go`.)
+2. It **requires a non-empty string** at `Identity.StableKey` and, crucially,
+   funnels **both** `401` and `403` to `invalid_provider_credential` via
+   `manual_credential.go:81-84`. SendGrid needs `403` to be a **success** path,
+   and `GET /v3/scopes` returns an **array** (`{"scopes":[…]}`) with no identity
+   string to point `stable_key` at.
 
-Both gaps mean the declarative path can't serve SendGrid as-is. The right move
-is a **small provider-registered verifier**, following the established program
-pattern (`courierBrandsVerifier`, `sproutClientVerifier`, and the fullstory /
-moz / semrush verifiers are all registered per-provider in
-`service/provider_registry.go` alongside the default
-`declarativeManualTokenVerifier`). Proposed **`sendgridScopesVerifier`**:
+Neither gap is expressible in the declarative path, so the right move is a
+**small provider-registered verifier** wired through the same mechanism the
+default one uses — the `manualTokenVerifier` interface
+(`service/manual_token_verifier.go:16`, `Verify(ctx, client, def, token) →
+(identity map[string]any, label, accountKey string, err error)`) and the
+`registration.manual` field on the provider registry
+(`service/provider_registry.go:45`, defaulted to `declarativeManualTokenVerifier{}`
+at line 85, wired into the runtime at 210-211). On this base only the default
+verifier is registered; SendGrid registers a bespoke one alongside it.
+
+Proposed **`sendgridScopesVerifier`** (`Verify` semantics):
 
 - `GET {Identity.URL}` (`…/v3/scopes`) with `Authorization: Bearer <token>`.
-- `200` → **valid**. Capture granted scopes into the returned `identity`
-  metadata map (useful signal for the UI/AI: is `mail.send` present?).
-- `401/403` → `manualTokenHTTPError{status}` so `manual_credential.go` maps it to
-  `invalid_provider_credential` (that mapping already exists, lines 81-84).
-- **Identity (account_key + label) — best-effort, degrade honestly.** After the
-  `200`, attempt a best-effort `GET /v3/user/email` (or `/v3/user/account`):
-  - **succeeds** (full-access or user-scoped key) → label = the account email;
-    `account_key` = the SendGrid account/user identity (so two keys from the
-    same account upsert to **one** connection — the newer key supersedes, which
-    is the desired behavior).
-  - **`403`** (restricted `mail.send`-only key, no user scope) → fall back to a
-    generic label (`"SendGrid"`, or `"SendGrid (EU)"` if region-tagged) and a
-    **deterministic** `account_key` derived from the key (truncated SHA-256 of
-    the token — stable, one-way, keeps idempotent replace working). This is a
-    deliberate, documented deviation from the repo's "human-readable, never a
-    hash" account-key preference, justified because SendGrid publishes **no**
-    universally-readable stable id for a least-privilege key. See §7 open
-    decision 1.
+- **`200`** → **valid + full/scope-readable.** Decode `{"scopes":[…]}`; put the
+  scope list into the returned `identity` map (useful UI/AI signal: is
+  `mail.send` present?). Then attempt a **best-effort** `GET /v3/user/email` for
+  a human label: on success → `label` = account email, `accountKey` = that stable
+  account identity (two keys from one account upsert to **one** connection,
+  newer supersedes); on `403` → fall through to the restricted-label path below.
+- **`403`** → **valid-but-restricted.** Return **success** (nil error) — **not**
+  a `manualTokenHTTPError`, so `manual_credential.go` does not reject it. No
+  scopes captured; `label` = a generic `"SendGrid"` (`"SendGrid (EU)"` if
+  region-tagged); `accountKey` = a **deterministic** value derived from the key
+  (truncated SHA-256 of the token — stable, one-way, keeps idempotent replace
+  working). This is a deliberate, documented deviation from the repo's
+  "human-readable, never a hash" account-key preference, justified because
+  SendGrid publishes **no** stable id a least-privilege key can read. See §7
+  open decision 1.
+- **`401`** → return `manualTokenHTTPError{401}` so `manual_credential.go:81-84`
+  maps it to `invalid_provider_credential`. **This is the only reject path.**
+- **Other non-2xx (5xx / network)** → wrap and return a plain error → the caller
+  surfaces `Internal` (transient), not a credential rejection.
 
-This is the honest "fail fast, no silent fallback" shape: a valid key always
-connects (even a restricted one), an invalid key is rejected pre-Vault, and the
-label is as good as the key's scopes allow. The **runtime path is unaffected**
-by all of this — anycli always builds its own `Bearer` header; the verifier
-touches **connect-time verification/identity only**.
+This is the honest "fail fast, no silent fallback" shape done correctly for a
+scope-gated provider: a valid key always connects (restricted included via the
+`403` path), only a genuinely dead `401` key is rejected pre-Vault, and the
+label is as good as the key's scopes allow. The **runtime path is unaffected** —
+anycli always builds its own `Bearer` header; the verifier touches
+**connect-time verification/identity only**.
 
-**Reuse-first note.** If a sibling Bearer-scheme `scheme` capability
-(`loops`/`tally`) lands on main in the same batch, SendGrid could reuse it for
-the *validity* check — but SendGrid still needs the no-identity-string +
-best-effort-label handling that the declarative verifier cannot express, so a
-bespoke `sendgridScopesVerifier` is the right call **regardless**. Coordinate
-with the batch lead so exactly one branch owns any shared `scheme` growth.
+**Reuse-first note.** A sibling Bearer-scheme `scheme` capability is being grown
+in parallel program branches (loops/tally); if one lands on main in the same
+batch, SendGrid could reuse it for the *validity* header — but SendGrid still
+needs the `403`-is-success + no-identity-string + best-effort-label handling that
+the declarative verifier cannot express, so a bespoke `sendgridScopesVerifier`
+is the right call **regardless**. Coordinate with the batch lead so exactly one
+branch owns any shared `scheme` growth.
 
 ---
 
@@ -325,9 +378,11 @@ auth:
 
 identity:
   source: userinfo
-  url: https://api.sendgrid.com/v3/scopes   # universal verify endpoint (§4)
-  # No stable_key/label_candidates: the sendgridScopesVerifier derives
-  # account_key + label itself (scopes has no identity string).
+  url: https://api.sendgrid.com/v3/scopes   # verify endpoint; 200/403 = valid, 401 = reject (§4)
+  # No stable_key/label_candidates: /v3/scopes is scope-gated (a mail.send-only
+  # key 403s, not 200), so the sendgridScopesVerifier branches on status itself
+  # and derives account_key + label — 403 is a valid-but-restricted success, not
+  # a rejection.
 
 connection:
   mode: isolated
@@ -340,7 +395,8 @@ resources:
   enforcement: none
 
 # Single secret stored through the existing UpsertUserToken write path
-# (token.access_token), exactly like mongodb/loops — zero new CredentialSource.
+# (token.access_token), exactly like the shipped mongodb bundle on this base
+# — zero new CredentialSource.
 credential:
   fields:
     api_key: token.access_token
@@ -387,11 +443,11 @@ lane 1 entirely.
 
 | Layer | What it proves for SendGrid | Needs external creds? |
 |---|---|---|
-| **L1** | anycli `go test ./...`: `sendgrid` service + definition unit tests against `httptest` fakes — asserts method/path/query, `Authorization: Bearer <key>` header, request bodies (personalizations/content assembly from `--to/--from/--subject/--text/--html`, template send with `dynamic_template_data`, contact upsert), the **`202`/empty-body/`X-Message-Id` mail-send success path**, `--region eu` host swap, SendGrid `{"errors":[…]}` error rendering (plain + `--json`), `401`→`RejectCredential`, exit codes 0/1/2. | No (fakes) |
-| **L2** | Dev harness against the **real** SendGrid API: `ANYCLI_CRED_API_KEY=<key> anycli sendgrid -- scopes` (expect `{"scopes":[…]}`), then `sender list`, `mail send` to a real inbox (expect `202` + a real `X-Message-Id`), `template list`, `contact upsert` + `contact search`, `suppression bounces`, `stats`. Proves field names + Bearer injection + the `202`/empty-body handling + request shapes match the live API. | **Yes** — a real SendGrid account API key + a verified sender (test-account pool, master plan lane 2) |
-| **L3** | `provider-gen --check` (run locally on-branch; expected red in CI until batch end) + both repos' unit suites: `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/`, and `make test-integration-service` including the new `sendgridScopesVerifier` test (200→identity, 401/403→`invalid_provider_credential`, restricted-key best-effort fallback). Point `helio-cli/go.mod` at the anycli branch via a **local, uncommitted** `replace`. | No |
+| **L1** | anycli `go test ./...`: `sendgrid` service + definition unit tests against `httptest` fakes — asserts method/path/query, `Authorization: Bearer <key>` header, request bodies (personalizations/content assembly from `--to/--from/--subject/--text/--html`, template send with `dynamic_template_data`, contact upsert), the **`202`/empty-body/`X-Message-Id` mail-send success path**, `--region eu` host swap, SendGrid `{"errors":[…]}` error rendering (plain + `--json`), `401`→`RejectCredential` **and `403`→plain error (no credential rejection)**, exit codes 0/1/2. | No (fakes) |
+| **L2** | Dev harness against the **real** SendGrid API. **First, the blocker gate:** run `scopes` with **both** a Full Access key **and** a `mail.send`-only Restricted key and **record the actual status codes** — the design predicts `200` (Full) and `403` (Restricted), and also that `/v3/user/email` `403`s on the Restricted key; the `sendgridScopesVerifier` branches (§4) are gated on this result and must be corrected here if SendGrid behaves differently. Then, with a Full Access key: `ANYCLI_CRED_API_KEY=<key> anycli sendgrid -- scopes` (expect `{"scopes":[…]}`), `sender list`, `mail send` to a real inbox (expect `202` + a real `X-Message-Id`), `template list`, `contact upsert` + `contact search`, `suppression bounces`, `stats`. Proves field names + Bearer injection + the `202`/empty-body handling + request shapes match the live API — **and** that a restricted key still connects. | **Yes** — a real SendGrid account with **two** keys (one Full Access, one `mail.send`-only Restricted) + a verified sender (test-account pool, master plan lane 2) |
+| **L3** | `provider-gen --check` (run locally on-branch; expected red in CI until batch end) + both repos' unit suites: `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/`, and `make test-integration-service` including the new `sendgridScopesVerifier` test with all three branches: **`200`** → verified + scopes captured (+ best-effort label); **`403`** → **valid-but-restricted success** (connection created, generic label, deterministic token-hash `account_key`, **not** rejected); **`401`** → `invalid_provider_credential`. The `403`-is-success assertion is the regression test for the connect-time blocker. Point `helio-cli/go.mod` at the anycli branch via a **local, uncommitted** `replace`. | No |
 | **L4** | Singleton + seed a real key through the token gateway: `POST /internal/test-only/connections/seed` with `provider: sendgrid`, `access_token: <real key>`, a **real** seeded org/assistant identity → `201`; then `heliox tool sendgrid -- scopes` and `heliox tool sendgrid -- mail send …` reach the live API. Seeds `access_token` only (no refresh/expiry — non-expiring key). | **Yes** — real key + verified sender (same as L2) |
-| **L5** | One full connect flow, still hidden, via the **api_key key-entry path** (master plan §2, human lane 3, agent-drivable): open the connect link → paste the key through the real connect UI → integration-service verifies it via `sendgridScopesVerifier` against `GET /v3/scopes` (identity/label derived) → connection shows connected/configured in `GET /connections` → one **unseeded** `heliox tool sendgrid -- scopes` (and a real `mail send`) succeeds through the real token gateway. | **Yes** — real key + verified sender |
+| **L5** | One full connect flow, still hidden, via the **api_key key-entry path** (master plan §2, human lane 3, agent-drivable): open the connect link → paste the key through the real connect UI → integration-service verifies it via `sendgridScopesVerifier` against `GET /v3/scopes` (`200`→scopes captured, `403`→valid-but-restricted, identity/label derived per §4) → connection shows connected/configured in `GET /connections` → one **unseeded** `heliox tool sendgrid -- scopes` (and a real `mail send`) succeeds through the real token gateway. **Run the connect once with the Full Access key and once with the `mail.send`-only Restricted key** — both must reach connected/configured (the restricted one via the `403` path); a genuinely bogus key must be rejected `invalid_provider_credential`. | **Yes** — real key(s) + verified sender |
 
 **Externally-supplied-credential layers: L2, L4, L5** — all need one real
 SendGrid account API key **plus a verified sender identity** from the
@@ -410,13 +466,16 @@ change.
 ## 7. Open decisions
 
 1. **Identity for restricted keys (the account-key deviation).** A least-privilege
-   `mail.send`-only key can't read `/v3/user/*` (all `403`), so no
-   human-readable account identity is available. Recommended (§4): best-effort
-   `/v3/user/email` for a nice label when scopes allow, else generic label +
-   **deterministic token-hash `account_key`** to preserve idempotent replace.
-   The alternative — hard-requiring a user-scoped key — would reject exactly the
-   least-privilege keys we want to encourage, so it's rejected. Revisit only if
-   the token-hash account key proves confusing in the UI.
+   `mail.send`-only key `403`s on both `/v3/scopes` and every `/v3/user/*`
+   endpoint (§2), so no human-readable account identity is available — the key is
+   proven valid by the `403` itself, not by any readable field. Recommended (§4):
+   best-effort `/v3/user/email` for a nice label when scopes allow (the `200`
+   path), else generic label + **deterministic token-hash `account_key`** to
+   preserve idempotent replace. The alternative — hard-requiring a user-scoped
+   key (option (a): verify via `/v3/scopes` and reject anything that isn't `200`)
+   — would reject exactly the least-privilege keys we want to encourage, so it's
+   rejected in favor of the `403`-is-valid contract. Revisit only if the
+   token-hash account key proves confusing in the UI.
 2. **EU data residency host.** v1 defaults to the global host with an anycli
    `--region eu` runtime flag (§3). Two follow-ups if EU demand appears: (a) the
    integration-service verifier host is fixed to `api.sendgrid.com`, so an
@@ -428,7 +487,8 @@ change.
 3. **Generic passthrough / builder surface.** Marketing campaigns, single-sends,
    segments, subusers, IP/domain auth, webhooks are out of v1 scope. Revisit
    with a single generic `sendgrid api <method> <path>` passthrough only if a
-   concrete teammate need appears — do not pre-build the tree (loops precedent).
+   concrete teammate need appears — do not pre-build the tree (the thin-surface
+   principle the parallel-program email siblings adopt).
 4. **`contact upsert` async confirmation.** v1 surfaces the raw `job_id` and
    documents the `contact search`-to-confirm pattern rather than auto-polling
    the import-status endpoint. A `contact upsert --wait` that polls
