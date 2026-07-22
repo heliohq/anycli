@@ -282,7 +282,7 @@ auth:
     pkce: s256
     scopes: [posts:read, posts:write, ideas:read, ideas:write, account:read, offline_access]
     single_active_token: false
-    refresh_lease: provider               # rotating single-use refresh; gateway writes back
+    refresh_lease: credential             # rotating single-use refresh; per-connection lock; gateway writes back
 identity:
   source: post_userinfo                   # capability growth (§4 option 1); else adapter
   url: https://api.buffer.com
@@ -304,9 +304,14 @@ tool:
 ```
 
 Axis notes: ① `tool.command` unset (flat, not a family group like
-google/microsoft). `refresh_lease: provider` is a candidate value — confirm it
-is in the standard_oauth allowed-set at stage-2 (several prior tools grew that
-set, e.g. hootsuite/signnow); the intent is "gateway persists the rotated
+google/microsoft). `refresh_lease: credential` serializes a refresh
+**per-connection** (lease key includes the credentialID), which is the correct
+scope for Buffer: each connection has its own independent single-use rotating
+refresh token, so the only hazard is a concurrent double-refresh of the *same*
+connection — not a provider-wide one. The provider-wide `provider` scope is
+reserved for genuinely single-token providers (X). Confirm `credential` is in
+the standard_oauth allowed-set at stage-2 (several prior tools grew that set,
+e.g. hootsuite/signnow); the intent is "gateway persists the rotated
 refresh_token each refresh." `disconnect_mode: local_only` because Buffer
 documents no OAuth token-revocation endpoint; if one is found at stage-1, use
 `strategy` with a declarative revoker instead.
@@ -428,6 +433,20 @@ additions (both DESIGN-mandated in §4/§5, both with sibling-branch precedent):
    GraphQL `errors` array in the identity response fails Connect fast.
 2. **`standard_oauth` refresh-lease allowed-set** — the standard_oauth runtime
    contract previously pinned `refresh_lease: none` exactly; it now accepts
-   `{none, provider}`. Buffer selects `refresh_lease: provider` so refreshes of
-   its single-use rotating refresh token are serialized per-connection across
-   replicas (a concurrent double-refresh would otherwise invalidate the grant).
+   `{none, credential}`. Buffer selects `refresh_lease: credential` so refreshes
+   of its single-use rotating refresh token are serialized **per-connection**
+   (the lease key includes the credentialID) across replicas — a concurrent
+   double-refresh of the *same* connection would otherwise invalidate its grant,
+   while unrelated connections never queue behind each other. The provider-wide
+   `provider` scope (one global lock for every connection of a provider) is
+   intentionally NOT used: it is reserved for genuinely single-token providers
+   (X), and applying it to isolated per-connection tokens like Buffer's would be
+   a single-point serialization bottleneck across all orgs/users.
+
+   **Review-finding divergence (recorded per task contract):** an earlier draft
+   of this bundle set `refresh_lease: provider`, whose lease key is the
+   provider-wide `refresh:buffer`. That serialized every Buffer connection on one
+   global lock and contradicted this section's own "per-connection" claim.
+   Corrected to `refresh_lease: credential` (per-connection, keyed by
+   credentialID), which the token gateway's `acquireRefreshLease` already keys
+   correctly.
