@@ -24,7 +24,7 @@ audit/catalog are called out; none change the `oauth_light` lane.
 |---|---|---|---|
 | OAuth model | OAuth 2.0 authorization-code (Rails Doorkeeper provider), self-serve app creation, no review | gumroad.com/api; audit row 176 | No — confirms `oauth_light` |
 | Authorize URL | `https://gumroad.com/oauth/authorize` | official | — |
-| Token URL | `https://api.gumroad.com/oauth/token` (host **differs** from authorize) | official | New detail |
+| Token URL | `https://gumroad.com/oauth/token` (**same host** as authorize) | official `antiwork/omniauth-gumroad` (`token_url: https://gumroad.com/oauth/token`) + Whyounes PHP client + live probe | Corrects earlier draft |
 | Token exchange | `POST` form-urlencoded: `client_id`, `client_secret`, `code`, `grant_type=authorization_code`, `redirect_uri` → `form_secret` | official; Whyounes ref client | — |
 | Access-token expiry | **Non-expiring** (Doorkeeper `access_token_expires_in nil`) | Doorkeeper config | Refines audit |
 | Refresh token | **Issued** (`use_refresh_token` enabled), but unused because access token never expires | Doorkeeper config | Audit implied none; net effect = `refresh_lease: none` |
@@ -34,10 +34,11 @@ audit/catalog are called out; none change the `oauth_light` lane.
 | API base | `https://api.gumroad.com/v2/`, `Authorization: Bearer <token>` | official | — |
 | Identity endpoint | `GET /v2/user` → `{"success":true,"user":{"user_id","name","email","url",…}}` | official | — |
 
-**Net:** golden-path multi-tenant OAuth. `oauth_light` stands. The only
-corrections to record are cosmetic (asymmetric authorize/token hosts; refresh
-tokens exist but are inert because tokens don't expire) — logged here per the
-"record the divergence" instruction, no lane change.
+**Net:** golden-path multi-tenant OAuth. `oauth_light` stands. Both the authorize
+**and** token endpoints live on `gumroad.com` (Doorkeeper); only the v2 REST
+resources live on `api.gumroad.com`. The only corrections to record are cosmetic
+(refresh tokens exist but are inert because tokens don't expire) — logged here
+per the "record the divergence" instruction, no lane change.
 
 ## 2. API surface wrapped, and why
 
@@ -56,14 +57,16 @@ discount codes, verify software licenses. The wrapped surface is the Gumroad
 | Offer codes | `GET /products/:product_id/offer_codes`, `GET /products/:product_id/offer_codes/:id`, `POST/PUT/DELETE …/offer_codes[/:id]` | Create/adjust discount campaigns |
 | Variant categories | `GET/POST/PUT/DELETE /products/:product_id/variant_categories[/:id]` (+ nested `/variants`) | Product tiers/options (secondary) |
 | Custom fields | `GET/POST/PUT/DELETE /products/:product_id/custom_fields[/:name]` | Checkout form fields (secondary) |
-| Licenses | `POST /licenses/verify` (no auth), `PUT /licenses/enable`, `PUT /licenses/disable`, `PUT /licenses/decrement_uses_count` | Software-license validation/seat management |
+| Licenses | `POST /licenses/verify` (no auth), `PUT /licenses/enable`, `PUT /licenses/disable`. **Deferred:** `PUT /licenses/decrement_uses_count` (see below) | Software-license validation/seat management |
 | Resource subscriptions | `GET /resource_subscriptions?resource_name=…`, `PUT /resource_subscriptions`, `DELETE /resource_subscriptions/:id` | Webhook wiring (advanced) |
 
 **In scope (v1 of the tool):** user, products, sales, subscribers, offer codes,
-licenses. **Deferred / thin coverage:** variant categories, custom fields,
-resource subscriptions — lower-frequency for an assistant and safe to add later
-without a schema change. **Excluded:** none needed; there is no separate
-analytics API (the `view_sales` sales list covers revenue reporting).
+licenses (verify/enable/disable). **Deferred / thin coverage:** variant
+categories, custom fields, resource subscriptions, and
+`licenses/decrement_uses_count` (rarely useful for an assistant; not wired into
+the §3 verb tree — add later without a schema change). **Excluded:** none needed;
+there is no separate analytics API (the `view_sales` sales list covers revenue
+reporting).
 
 **Verb → requested scope (least-privilege check — every shipped verb maps to a
 requested scope, and every requested scope is exercised by ≥1 verb):**
@@ -72,7 +75,8 @@ requested scope, and every requested scope is exercised by ≥1 verb):**
 |---|---|
 | `user get` | `view_profile` |
 | `product get`/`list` (read) | `view_profile` |
-| `product enable`/`disable`/`delete`, `offer-code create`/`update`/`delete`, `license enable`/`disable` | `edit_products` |
+| `product enable`/`disable`/`delete`, `offer-code create`/`update`/`delete` | `edit_products` |
+| `license enable`/`disable` | `edit_products` (**TBC at L2** — official scope docs don't explicitly tie license enable/disable to a scope; `edit_products` is the assumed owner and is already requested, so the requested scope set is unaffected either way; confirm against the live API at L2) |
 | `sale list`/`get`, `subscriber list`/`get`, `offer-code list`/`get` (read) | `view_sales` |
 | `sale mark-shipped` | `mark_sales_as_shipped` |
 | `sale refund` (and receipt-resend, if added) | `edit_sales` |
@@ -184,7 +188,7 @@ batch agents as **uncommitted local `config/cloud.yaml`** entries for L4/L5.
    (non-existent — `edit_sales` grants refunds) and no `view_payouts` (no
    payouts verb).
 2. User consents on Gumroad → callback with `code` (valid 10 min).
-3. Token exchange: `POST https://api.gumroad.com/oauth/token` form-urlencoded
+3. Token exchange: `POST https://gumroad.com/oauth/token` form-urlencoded
    (`client_id`, `client_secret`, `code`, `grant_type=authorization_code`,
    `redirect_uri`) → `{access_token, refresh_token, scope, token_type}`.
    → `token_exchange_style: form_secret`, `pkce: none`.
@@ -194,8 +198,14 @@ batch agents as **uncommitted local `config/cloud.yaml`** entries for L4/L5.
    false`. The issued `refresh_token` is stored but never exercised (no expiry
    to refresh against); the resolver caches under `defaultTokenTTL`.
 
-**Pitfall recorded:** authorize host (`gumroad.com`) ≠ token host
-(`api.gumroad.com`) — do not collapse them.
+**Host note (recorded):** authorize **and** token endpoints are both on
+`gumroad.com` (Doorkeeper: `https://gumroad.com/oauth/authorize` +
+`https://gumroad.com/oauth/token`); only the v2 REST API base is
+`https://api.gumroad.com/v2/`. Do not move the token endpoint onto
+`api.gumroad.com` — that host only fronts Bearer-guarded `/v2` resources.
+(Verified: official `antiwork/omniauth-gumroad` sets `token_url:
+https://gumroad.com/oauth/token`; live probe of `gumroad.com/oauth/token`
+returns a Doorkeeper `invalid_client` OAuth body.)
 
 ## 5. Helio provider bundle plan
 
@@ -223,7 +233,7 @@ auth:
   required_config_fields: [oauth.client_id, oauth.client_secret]
   oauth:
     authorize_url: https://gumroad.com/oauth/authorize
-    token_url: https://api.gumroad.com/oauth/token
+    token_url: https://gumroad.com/oauth/token   # same host as authorize; only /v2 REST is api.gumroad.com
     token_exchange_style: form_secret
     pkce: none
     # Exactly the verbs' union of real Gumroad scopes (§2 map). refund is
