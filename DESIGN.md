@@ -28,9 +28,10 @@ findings and their resolution:
 1. **`--environment test|live` is unsound against a single stored, live-fixed
    credential.** Correct. The connect verifier is live-fixed (§4) and connect
    therefore only ever stores a **live** key; a per-call `--environment test`
-   would send that live key to a test host → `401/403` → the tool's own
-   `401/403 → execution.RejectCredential` rule (§2) would mark a *valid* live
-   credential rejected and strand the connection. **Resolution: there is no
+   would send that live key to a test host → `401` → the tool's own
+   `401 → execution.RejectCredential` rule (§2, now narrowed to 401 only) would
+   mark a *valid* live credential rejected and strand the connection.
+   **Resolution: there is no
    `--environment` flag on the connected surface at all.** The connected tool
    is **live-only** (environment is a property of the credential/connection,
    not a per-call choice). The Adyen **test** host is reachable *only* through
@@ -193,11 +194,32 @@ server or `management-test.adyen.com`, `X-API-Key: <key>` on every request (raw
 key, **no** `Bearer` prefix — matches Adyen and the
 `declarativeManualTokenVerifier`), the documented exit-code contract (0 success;
 1 runtime/API failure via typed `apiError`; 2 usage/parse), `--json` structured
-error envelope, and **`401`/`403` → `execution.RejectCredential`** so the token
-gateway sees a rejected credential. Because v1 is Management-only and live-only
-on the connected surface, a `401/403` here is an unambiguous credential-rejection
-signal — there is no environment-mismatch path that could reject a valid key
-(§0 finding #1).
+error envelope, and a **credential-rejection rule scoped to authentication
+failures only**:
+
+- **`401` → `execution.RejectCredential`.** Per Adyen's official error docs a
+  401 is an authentication failure — the API key is missing or incorrect (error
+  `000` "Unauthorised", errorType `security`). Re-pasting a valid key cannot be
+  what's wrong, so this is a true credential rejection the token gateway should
+  see. Because the connected surface is live-only (§0 finding #1), a live key
+  can no longer produce a spurious environment-mismatch 401, so the 401 rule
+  cannot fire on a valid key for that reason either.
+- **`403` is NOT a credential rejection by default → ordinary passthrough API
+  error at exit 1.** Per Adyen's official error docs a 403 means the key
+  *authenticated successfully* but lacks the endpoint's role (errorType
+  `security`, errorCode `010` "The API credential is missing required roles").
+  This is self-service-fixable by adding the role in the Customer Area —
+  re-pasting the same key cannot help. Mapping it to `RejectCredential` would
+  poison a **valid** credential (the identical "valid key marked rejected"
+  failure §0 closes for the environment axis, now on the *role* axis: the v1
+  command set spans several granular read roles — §3 — and a key that passes the
+  `GET /me` connect verifier can still 403 on `merchant list` etc. purely for
+  lacking that endpoint's role). So role/permission `403`s pass through in the
+  `{"error":...}` envelope at exit 1, surfacing Adyen's `errorCode`/`message`
+  plus actionable "add role X in the Customer Area" text — never a rejection.
+  (If a response is ever observed carrying a genuinely *credential-class* 403
+  errorCode, that specific code MAY be added to the RejectCredential set; the
+  default 403 path stays passthrough.)
 
 **v1 subcommand tree** (Management only; resource-grouped verbs; every command
 emits the provider JSON verbatim on stdout):
@@ -256,11 +278,29 @@ definition.
 - **Wire auth:** `X-API-Key: <key>` header on every Management request. (Adyen
   also supports Basic-auth web-service users; the tool standardises on the
   API-key header — the modern, recommended path.)
-- **Required key roles (document loudly in setup + AI-facing doc):** the connect
-  **verifier hits Management `GET /me`**, so the pasted key **must have
-  Management API access**. For v1 that is the only role the connected surface
-  needs. (v2 Checkout adds a Checkout API role requirement; setup guidance then
-  becomes "generate one key with both Management and Checkout API roles.")
+- **Required key roles (document loudly in setup + AI-facing doc).** The connect
+  **verifier hits Management `GET /me`**, which per Adyen's docs is invokable
+  with **any** Management API role — so passing connect does **not** prove the
+  key can run the v1 command set. Adyen's Management API uses **granular
+  per-endpoint roles**, and the v1 read/config commands span several distinct
+  **read** roles; a key provisioned with only enough for `/me` will `403`
+  mid-use (errorCode `010`, handled as a passthrough error, not a rejection —
+  §2). Provision the key with **all** of these Management API roles so it won't
+  403 after a successful connect:
+  - **Management API — Accounts read** → `whoami` (`/me`), `merchant list/get`,
+    `company list/get`
+  - **Management API — Payment methods read** → `payment-methods list`
+    (`/paymentMethodSettings`)
+  - **Management API — Webhooks read** → `webhook list/get`
+  - **Management API — Stores read** → `store list`
+  - **Management API — Terminals read** (a.k.a. the terminal/"Assign Terminal"
+    read role) → `terminal list`
+
+  L2/stage-1 **MUST** pull the exact role name each endpoint's API Explorer page
+  lists ("to make this request, your API credential must have one of the
+  following roles") and reconcile any naming drift before the pin bump. (v2
+  Checkout adds a Checkout API role; setup then becomes "one key carrying **all**
+  the Management read roles above **plus** the Checkout API role.")
 - **Token semantics:** Adyen API keys are **long-lived, non-expiring**
   (rotated/revoked manually in Customer Area). Seed `access_token` only — **no
   `refresh_token`/`expires_at`** (the token-gateway serves it directly; there is
@@ -385,9 +425,12 @@ flag that an agent cannot invoke and that can strand a valid credential.
 `tools.desc.adyen` i18n string; AI-facing sub-doc under
 `agents/plugins/heliox/skills/tool/` (must document, for the v1 Management
 surface: that it is **live-only, read/config only — no money movement**; the
-"list transactions is unsupported" gap; the required **Management** API key
-role; and that payment links / refunds are a **v2** capability, not yet
-available).
+"list transactions is unsupported" gap; the required **Management API read
+roles** (Accounts read, Payment methods read, Webhooks read, Stores read,
+Terminals read — the exact names from §3, so a key that passes connect won't
+403 mid-use); the fact that a **403 means "add the missing role in the Customer
+Area", not "reconnect"** (§2); and that payment links / refunds are a **v2**
+capability, not yet available).
 
 ---
 
@@ -395,7 +438,7 @@ available).
 
 | Layer | For Adyen | External creds? |
 |---|---|---|
-| **L1** anycli unit | `go test ./...`: `httptest` fakes for Management v3; assert `X-API-Key` header set to the raw key (no `Bearer`), `BaseURL` defaults to the live Management host and is overridden only via the harness base-URL seam (no `--environment`/`--live-url-prefix` flags exist), passthrough JSON on success, `{"error":...}` envelope + exit code on `errorCode` bodies, and `401/403 → RejectCredential`. | No |
+| **L1** anycli unit | `go test ./...`: `httptest` fakes for Management v3; assert `X-API-Key` header set to the raw key (no `Bearer`), `BaseURL` defaults to the live Management host and is overridden only via the harness base-URL seam (no `--environment`/`--live-url-prefix` flags exist), passthrough JSON on success, `{"error":...}` envelope + exit code on `errorCode` bodies, `401` (auth failure) → `RejectCredential`, and a role/permission `403` (errorCode `010`) → **passthrough** `{"error":...}` at exit 1, **not** `RejectCredential` (§2). | No |
 | **L2** harness real-API | `ADYEN_CRED_ACCESS_TOKEN=<test key> ANYCLI_<base-url override to management-test> anycli adyen -- management whoami` (and `management merchant list`) against a **free Adyen test company account**. Confirms header shape and `/me` body (verify `/id` present for the stable_key decision). The test host is reached via the harness base-URL override, never a tool flag. **Mandatory before the pin bump.** | **Yes — free Adyen test account** (self-serve) |
 | **L3** generate + suites | From `go-services/integration-service`: `go run ./cmd/provider-gen` + `--check` (5 projections, on-branch only — not committed); `helio-cli` build with a local `go.mod replace` at the anycli branch; both repos' unit suites. Bundle is expected to fail `--check` in CI until the batch-end regen (master plan §2). | No |
 | **L4** singleton + seed | Singleton (`env: dev`), `POST /internal/test-only/connections/seed` with `provider:"adyen"`, `access_token` = a **test** key, **no** refresh/expiry (non-expiring key class). Then `heliox tool adyen -- management whoami`. Success = real Adyen **test** data through the token gateway → anycli. Seed bypasses the connect verifier, so a test key is fine here. | **Yes — free Adyen test account** |
@@ -404,6 +447,21 @@ available).
 **Rollout:** land hidden; L1–L4 on test creds; only the single pre-flip L5 run
 needs the live account; then flip `visible: true` + regenerate as the go-live
 change (stage 10).
+
+**Visible-flip decision (review finding #3 — fit-for-real-usage).** v1's net
+surface is account/webhook/store/terminal **introspection** only: it can't move
+money, create payment links (the headline agent action), or list transactions
+(a real Adyen gap, §1). That is honestly disclosed and defensibly deferred
+(hidden-first + a concrete v2 plan), but the value at a v1 visible flip is
+genuinely thin. **Decision: do NOT flip `visible: true` on the read-only
+surface alone.** Keep Adyen **hidden** (usable via direct connect for the
+introspection value, but not surfaced) until **v2 (payment links) lands**, then
+flip both together. This makes the visible "Adyen" tool carry real agent value
+at first sight and prevents a thin read-only tool from sitting visible
+indefinitely. (If the batch lead instead judges the read-only surface worth
+flipping on its own, that is an explicit, recorded override of this decision —
+not a silent default.) The v2 Checkout DESIGN branch (§4, §6) is therefore the
+committed trigger that gates the visible flip.
 
 ---
 
