@@ -62,7 +62,9 @@ provider** with its own token — not an axis on this one.
 
 Base URL for all endpoints: `https://api.postmarkapp.com`. All requests set
 `Accept: application/json`; write requests set `Content-Type: application/json`
-(Postmark returns error `409` if these are missing).
+(Postmark returns HTTP `415` Unsupported Media Type — surfaced with application
+`ErrorCode` `409` "JSON required" — if these are not `application/json`). The
+service always sets both headers, so this is non-load-bearing.
 
 ### Endpoint surface (all require `X-Postmark-Server-Token`)
 
@@ -167,16 +169,30 @@ v1 surface tight around single-send + activity + diagnostics.
 `server get` prints a **redacted** subset, never `ApiTokens`). `--json` on
 error emits the standard anycli envelope `{"error":{"code","message",…}}`.
 
-**Postmark error dialect (important, Slack-like).** Postmark returns a JSON
-body `{"ErrorCode":<int>,"Message":"…"}` on failures — and on `POST /email` a
-**200** can still carry a non-zero `ErrorCode` (e.g. `406` inactive recipient,
-`300` invalid email). The batch endpoints return `200` with a **per-message**
-array where individual entries may carry a non-zero `ErrorCode`. The service
-therefore keys success on **`ErrorCode == 0`**, not solely on HTTP status:
-map non-zero `ErrorCode` to exit `1` with the provider `Message` surfaced.
-`401` (bad token) and `422`/`4xx` map to exit `1`; malformed local flags →
-exit `2`. Unit tests assert this ErrorCode-over-status classification and the
-injected `X-Postmark-Server-Token` header against an `httptest` fake.
+**Postmark error dialect (important).** Postmark returns a JSON body
+`{"ErrorCode":<int>,"Message":"…"}` on every response. The single-send vs.
+batch contracts differ, and the design keys on the union of both:
+
+- **Single send (`POST /email`, `POST /email/withTemplate` — the v1 surface).**
+  Success is HTTP **200** with `ErrorCode 0`. Validation failures (`300`
+  invalid email request, `406` inactive recipient, unconfirmed sender
+  signature, etc.) come back as HTTP **422** with a non-zero `ErrorCode`; a bad
+  token is HTTP **401** (`ErrorCode 10`). The single-send API never returns
+  `200` with a non-zero `ErrorCode` — validation errors are HTTP 4xx. (Verified
+  against postmarkapp.com/developer/api/overview.)
+- **Batch (`POST /email/batch`, `POST /email/batchWithTemplates` — deferred to
+  v1.1).** These return HTTP **200** with a **per-message array** where
+  individual entries may carry a non-zero `ErrorCode` while the transport status
+  stays `200`. This is the only surface where `200` + non-zero `ErrorCode`
+  occurs, and it becomes load-bearing once batch lands.
+
+The service therefore keys success on **`ErrorCode == 0`** rather than solely on
+HTTP status — a rule that is correct for single send today (200 ⇔ ErrorCode 0)
+and stays correct when the batch per-message array arrives in v1.1. Any non-zero
+`ErrorCode` maps to exit `1` with the provider `Message` surfaced; `401` (bad
+token) and `422`/other `4xx` map to exit `1`; malformed local flags → exit `2`.
+Unit tests assert this `ErrorCode`-and-status classification and the injected
+`X-Postmark-Server-Token` header against an `httptest` fake.
 
 The test-token value `POSTMARK_API_TEST` (Postmark's documented no-delivery
 sandbox token for `POST /email`) is used in L2 send tests to avoid real
@@ -317,7 +333,7 @@ or `deploy/` change** — Postmark has nothing in the seventh shared surface
 
 | Layer | Postmark specifics | Needs external creds? |
 |---|---|---|
-| **L1** anycli unit (`go test ./...`) | `httptest` fake for `api.postmarkapp.com`: assert `X-Postmark-Server-Token` header injection, `Accept`/`Content-Type` set on writes, request shape for `POST /email` + `send-template` + each GET; assert **ErrorCode-over-HTTP-status** classification (200 + non-zero `ErrorCode` → exit 1) and the `--json` error envelope; assert `server get` redacts `ApiTokens`. | No — fakes only |
+| **L1** anycli unit (`go test ./...`) | `httptest` fake for `api.postmarkapp.com`: assert `X-Postmark-Server-Token` header injection, `Accept`/`Content-Type` set on writes, request shape for `POST /email` + `send-template` + each GET; assert the single-send error contract — a `422` + non-zero `ErrorCode` (e.g. `406` inactive recipient) → exit 1 with `Message` surfaced, `200` + `ErrorCode 0` → exit 0 — plus the `ErrorCode == 0` success key (which also covers the v1.1 batch `200` + per-message non-zero `ErrorCode` case once added) and the `--json` error envelope; assert `server get` redacts `ApiTokens`. | No — fakes only |
 | **L2** dev-harness real API (`anycli postmark -- …` + `ANYCLI_CRED_SERVER_TOKEN`) | Run against a **real Postmark server**: `server get`, `message list-outbound`, `template list`, `bounce list`, and a `email send` using the `POSTMARK_API_TEST` sandbox token (no real delivery) + one real send to a controlled inbox. Proves field names + header injection match the live contract. | **Yes** — a real Server API Token (test account pool, lane 2) |
 | **L3** `provider-gen --check` + both repos' unit suites | Regenerate the five projections locally (uncommitted); confirm `postmark` bundle strict-decodes, `manual_api_token` needs no config fields, `identity.source: userinfo` + `identity.url` validate, `tool.kind: api-key`. helio-cli builds with a local `replace` → anycli branch. | No |
 | **L4** singleton + seed endpoint | `POST /internal/test-only/connections/seed` with `provider: postmark`, `access_token: <real server token>`, a real seeded assistant/org identity; then `heliox tool postmark -- server get` reaches the live API through the token gateway. Seed **access_token only**. | **Yes** — a real Server API Token (same as L2) |
