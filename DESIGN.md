@@ -97,7 +97,7 @@ reference; re-confirm at stage 1):**
 | `/v2/slots` | `2024-09-04` |
 | `/v2/bookings` (list/get/create/cancel/reschedule) | `2024-08-13` |
 | `/v2/schedules` | `2024-06-11` |
-| `/v2/me` | `2024-06-14` (docs example omits it, but v2 defaults-to-older / 404s without it — pin it; §4) |
+| `/v2/me` | `2024-06-14` **only on the header-required branch** — the docs example omits it and v2 may default-to-older / 404 without it; whether calcom's userinfo GET sends it is the §4 stage-1 gate, and if it does it requires §4a capability growth (the anycli service already sends per-route versions, but the connect-time `/v2/me` fetch is integration-service's `declarativeIdentityResolver`, not anycli). |
 
 An AI teammate uses Cal.com as a **scheduling actuator**: inspect what meeting
 types the user offers, find open time, book/cancel/reschedule on the user's
@@ -230,27 +230,89 @@ Flow, verified against official docs:
 **Identity resolution** (`identity` block): `source: userinfo`,
 `url: https://api.cal.com/v2/me`, `stable_key: /data/id`,
 `label_candidates: [/data/email, /data/username]` (RFC-6901 pointers into the v2
-`data` envelope). **The fixed `cal-api-version` header on the userinfo GET is an
-expected requirement, not a contingency.** The `declarativeIdentityResolver`
-issues a plain bearer `GET` and is not the anycli service, so the per-route
-version map from §1/§2 never applies to it — the header must be set on the
-userinfo request itself. Since v2 endpoints silently default-to-older / `404`
-without the header, a version-less `/v2/me` GET would very likely break
-stable-key resolution in the connect flow. So **plan the reviewed fixed-header
-field into the `standard_oauth` userinfo request from the start**, pinned to
-`/v2/me`'s version **`2024-06-14`** (the docs example shows only `Authorization`,
-so confirm this exact value at stage 1 from the official `/v2/me` reference
-before wiring). This is the sanctioned `standard_oauth` capability-growth path —
-a reviewed fixed-header field on the userinfo request, analogous to how the
-anycli service always sends the version header. Do **not** reach for a compiled
-`service/adapter_*.go` — this is standard-shaped OAuth (provider-yaml.md: a new
-standard OAuth provider should never need an adapter).
+`data` envelope).
+
+**The version header on `/v2/me` is NOT a declarative field today — it is a
+stage-1 decision that may force shared-contract capability growth (§4a).**
+Verified against integration-service `main`, not assumed:
+- The declarative identity contract is exactly four fields —
+  `ProviderIdentity{Source, URL, StableKey, LabelCandidates}`
+  (`model/catalog.go`) / `identityManifest{source, url, stable_key,
+  label_candidates}` (`cmd/provider-gen/manifest.go`). There is **no header
+  field**, and `provider-gen` strict-decodes (`decoder.KnownFields(true)` in
+  `manifest.go`), so a bundle that writes `header:` under `identity:` **fails
+  the build** (`TestDecodeManifestRejectsUnknownField`).
+- The userinfo fetch (`service/declarative_identity.go` → `fetchUserInfo` in
+  `service/oauth_exchange.go`) sets only `Authorization: Bearer` and
+  `Accept: application/json`. There is **no mechanism** to send
+  `cal-api-version` on the userinfo GET.
+- The `Header` field an earlier draft leaned on lives on `APIKeyPolicy` /
+  `apiKeyManifest` — the `manual_api_token` verifier lane
+  (`service/manual_token_verifier.go`), unrelated to `standard_oauth` userinfo.
+  No shipped bundle sends any custom header on the OAuth userinfo GET.
+
+So delivering `/v2/me` identity with a version header is **not free/declarative**;
+it is real shared-contract capability growth (§4a). It is still **not** a compiled
+`service/adapter_*.go` — this stays standard-shaped OAuth (provider-yaml.md: a new
+standard OAuth provider should never need an adapter); the growth is a *generic*
+capability on the shared identity contract, reusable by any future provider.
+
+**Stage-1 gate (decides whether §4a runs at all).** At L2, empirically call
+`GET https://api.cal.com/v2/me` with only `Authorization: Bearer <token>` (no
+`cal-api-version`) against the dev account:
+- **If it returns a usable `{status:success, data:{id,email,username}}`
+  envelope** → keep the plain `declarativeIdentityResolver`: **no header, no §4a,
+  zero integration-service change** — and drop every header claim from this doc.
+- **If it `404`s or silently downgrades** → execute §4a and pin `/v2/me` to
+  `2024-06-14` (confirm the exact value from the official `/v2/me` reference at
+  stage 1). Cal.com's own docs and third-party integration guides state
+  `cal-api-version` is required for v2 and that omitting it may `404` or default
+  to an older version, so **this is the expected outcome** — but it is confirmed
+  empirically at stage 1, not assumed here.
 
 **Nothing secret in the bundle.** `client_id`/`client_secret` land only in
 integration-service config — `config/` locally and the Helm Secret in `deploy/`
 together (Config Sync hard rule), as lane-1 per-provider appends. All fields
 absent ⇒ `configured: false` (Connect disabled), safe to ship hidden; partial
 config fails startup, so id+secret land in the same change.
+
+## 4a. integration-service capability growth (CONDITIONAL on the §4 stage-1 gate)
+
+Run this section **only if** the stage-1 `/v2/me` check shows the version header
+is required. It is a **generic, shared-contract** fixed-header capability on the
+declarative identity path — reusable by any provider, not a Cal.com adapter. The
+integration-service AGENTS.md mandates exactly this shape ("a response shape or
+lifecycle outside that closed capability set needs a compiled generic capability
+… never an unbounded YAML expression"), and it mirrors how sibling Wave-1 tools
+carve out a capability task when one is genuinely needed (e.g. hubspot numeric
+stable-key, salesforce `instance_url` metadata). Work items:
+
+1. **Manifest + model field** — add a closed fixed-header field (e.g.
+   `header_name` + `header_value`, non-secret constant — it is a version pin,
+   never a credential) to `identityManifest` (`cmd/provider-gen/manifest.go`)
+   and the matching field(s) to `model.ProviderIdentity` (`model/catalog.go`).
+2. **Validation** — extend `validateDeclarativeIdentity`
+   (`service/declarative_identity.go`): the header is legal only for
+   `source: userinfo`; reject it on `token_response` / `strategy`.
+3. **Fetch wiring** — thread the header into `fetchUserInfo`
+   (`service/oauth_exchange.go`) and its caller `loadDeclarativeIdentity`,
+   setting it on the userinfo GET alongside `Authorization` / `Accept`.
+4. **Projection** — regenerate all five provider-gen outputs
+   (`model/provider_catalog.gen.go`, `ui/helio-app/.../providerCatalog.gen.ts`,
+   `helio-sdk/src/connectionProviders.gen.ts`,
+   `helio-sdk/src/toolCatalogDefaults.gen.ts`,
+   `helio-cli/.../tool/providers_gen.go`); the header value is runtime-contract
+   data, so it lands in the Go catalog projection
+   `model/provider_catalog.gen.go` (the UI/SDK/heliox projections regenerate
+   unchanged for calcom). Then `provider-gen --check`.
+5. **Tests** (§6 L1/L3): a generator unit test that the new field decodes and
+   projects into the Go catalog, and that an unknown `identity:` field still
+   fails `KnownFields(true)`; a `fetchUserInfo` / resolver unit test asserting
+   the userinfo GET carries `cal-api-version: 2024-06-14`.
+
+"Zero integration-service code" is therefore true only on the header-free
+branch; §5 states both branches explicitly instead of claiming the bundle is
+always code-free.
 
 ## 5. Helio provider bundle plan (hidden-first)
 
@@ -260,11 +322,16 @@ config fails startup, so id+secret land in the same change.
 `consent_domain: cal.com`, an `order` slotted with the other Scheduling tools.
 `tool: {name: calcom, kind: oauth}`. `resources: {selection|discovery|
 enforcement: none}`. Bundle uses `runtime_strategy: standard_oauth` → **no
-provider-specific integration-service Go code** (the golden path composes the
-exchanger, the `declarativeIdentityResolver`, and the no-op revoker). The one
-declarative addition is the reviewed fixed-header field on the userinfo request
-(`cal-api-version: 2024-06-14`, §4) — a `standard_oauth` capability field, not a
-provider adapter.
+provider-specific integration-service *adapter*** (the golden path composes the
+exchanger, the `declarativeIdentityResolver`, and the no-op revoker). Whether
+there is **any** integration-service Go change is decided by the §4 stage-1 gate:
+- **Header-free branch** (stage-1 `/v2/me` works without `cal-api-version`):
+  **zero integration-service code** — pure declarative bundle.
+- **Header-required branch**: §4a adds a *generic, shared-contract* userinfo-header
+  capability (manifest field + `ProviderIdentity` + `fetchUserInfo` wiring +
+  generator projection), exercised by any provider — still **not** a Cal.com
+  adapter. This is the only integration-service Go change, and it is net-new
+  shared capability, not a declarative freebie.
 
 Companion (batch-end, ride the single provider-gen run):
 - UI icon `ui/helio-app/src/integrations/icons/calcom.svg` + hand-register in
@@ -286,7 +353,7 @@ go-live change (SKILL.md stage 10).
 |---|---|---|
 | **L1** anycli `go test ./...` | `internal/tools/calcom` unit tests against an `httptest` fake: request shape (path, `Authorization: Bearer`, and the **correct per-endpoint `cal-api-version`** — assert `slot list` sends `2024-09-04`, `booking *` send `2024-08-13`, `event-type *`/`me` send `2024-06-14`, `schedule list` sends `2024-06-11`; a single fixed value would be a bug), `{status,data}` unwrap, booking-create body assembly, `--json` vs plain error rendering, exit codes 0/1/2. Pin the failure mode: a route sending the wrong/absent version is a defect the fake must catch. Never hits the real API. | No |
 | **L2** `anycli calcom -- <args>` harness, `ANYCLI_CRED_ACCESS_TOKEN=<tok>` | Real `api.cal.com/v2` calls: `me`, `event-type list`, `slot list`, `booking create`+`cancel`. **Go/no-go gate** (§0): also exercise the real `POST /v2/auth/oauth2/token` exchange + refresh from the dev app to confirm the third-party OAuth endpoint works (calcom#27686 / #24016). | **Yes** — a Cal.com test account access token (account pool, lane 2) + the dev-mode OAuth app (lane 1) |
-| **L3** `provider-gen --check` + both repos' unit suites | Bundle strict-decodes, closed field/enum contract, directory==key, HTTPS URLs; helio-cli builds against the local anycli `replace`; resolver identity (no divergence entry) holds. Run locally on-branch; expected to be red in CI until batch-end regen. | No |
+| **L3** `provider-gen --check` + both repos' unit suites | Bundle strict-decodes, closed field/enum contract, directory==key, HTTPS URLs; helio-cli builds against the local anycli `replace`; resolver identity (no divergence entry) holds. Run locally on-branch; expected to be red in CI until batch-end regen. **Conditional on §4a (header-required branch):** an integration-service generator unit test that the new userinfo-header field decodes + projects into `provider_catalog.gen.go` and that an unknown `identity:` field still fails `KnownFields(true)`; a `fetchUserInfo` / resolver unit test asserting the userinfo GET carries `cal-api-version: 2024-06-14`. On the header-free branch these tests do not exist (no capability added). | No |
 | **L4** singleton + `POST /internal/test-only/connections/seed` + `heliox tool calcom -- me` | Seed `access_token`+`refresh_token` with a short `expires_at` for a real seeded assistant identity; the next call forces the token-gateway refresh-and-write-back path, then reaches live `/v2/me`. Proves gateway→anycli wiring end to end (bypasses authorize). | **Yes** — real Cal.com access+refresh tokens; dev OAuth app id/secret in local uncommitted `config/cloud.yaml` for the refresh path |
 | **L5** `heliox tool calcom auth` → consent → run | One full authorize→callback→`oauth_connected` event→unseeded live `booking`/`me` run, once before the visible flip. Human-in-the-loop (oauth L5, lane 3): a real Cal.com consent on the **admin-approved** dev app. | **Yes** — real Cal.com account consent; requires the client's pending→approved gate cleared |
 
@@ -299,5 +366,5 @@ gate that decides whether calcom stays in its Wave-1 batch or slips.
 - Master plan: `docs/design/008-300-integrations-rollout-plan.md` (row 42; §2 execution, §3 naming).
 - Audit verdict: `docs/design/008-300-integrations-rollout-plan/oauth-audit.md` (row 42, oauth_review, high confidence).
 - Pipeline: Helio `.claude/skills/helio-tool-provider/SKILL.md` + `references/{anycli-development,provider-yaml,integration-testing}.md`.
-- Precedent: anycli `internal/tools/notion/` (service shape, version header, exit-code contract); Helio `integrations/providers/notion/` (standard_oauth `owner: assistant` bundle).
+- Precedent: anycli `internal/tools/notion/` (service shape, version header, exit-code contract); Helio `integrations/providers/notion/` — precedent **only** for the `owner: assistant` / `standard_oauth` / `refresh_lease: none` bundle shape. Notion uses `identity.source: token_response` (`stable_key: /workspace_id` read straight from the token response); it performs **no** userinfo GET and sends **no** custom header. So no shipped bundle exercises a fixed header on the OAuth userinfo GET — that path (§4a) is net-new shared capability, not established precedent (tie to the §4 stage-1 `/v2/me` check).
 - Official Cal.com: API v2 introduction (`cal.com/docs/api-reference/v2/introduction`), OAuth (`cal.com/docs/api-reference/v2/oauth`), calcom#19456 / #27686 / #24016.
