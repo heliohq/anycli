@@ -7,10 +7,6 @@
       {
         "source": {"field": "api_key"},
         "inject": {"type": "env", "env_var": "RECURLY_API_KEY"}
-      },
-      {
-        "source": {"field": "region"},
-        "inject": {"type": "env", "env_var": "RECURLY_REGION"}
       }
     ]
   }
