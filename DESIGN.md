@@ -61,7 +61,7 @@ marked *inferred* — those are confirmed at anycli stage 1 before coding):
 | `subscription get-by-email` | `GET /publications/{pub}/subscriptions/by_email/{email}` (URL-encoded email) | `subscriptions:read` |
 | `subscription list` | `GET /publications/{pub}/subscriptions` *(inferred: index of the create path)* | `subscriptions:read` |
 | `subscription create` | `POST /publications/{pub}/subscriptions` (body below) | `subscriptions:write` |
-| `subscription update` | `PATCH /publications/{pub}/subscriptions/{subId}` *(inferred)* | `subscriptions:write` |
+| `subscription update` | `PUT /publications/{pub}/subscriptions/{subId}` | `subscriptions:write` |
 | `segment list` | `GET /publications/{pub}/segments` | `segments:read` |
 | `custom-field list` | `GET /publications/{pub}/custom_fields` | `custom_fields:read` |
 | `tier list` | `GET /publications/{pub}/tiers` | `tiers:read` |
@@ -76,6 +76,16 @@ marked *inferred* — those are confirmed at anycli stage 1 before coding):
 Stage-1 rule: any endpoint marked *inferred* is confirmed against the live
 api-reference page before its verb is implemented; if a show/list/update path
 does not exist, that verb is dropped rather than faked (no silent fallback).
+
+**Stage-1 verification result (against `developers.beehiiv.com` api-reference +
+`llms.txt`, 2026-07-22):** every previously-inferred path exists — `posts/show`,
+`subscriptions/index`, `subscriptions/get-by-id`, `subscriptions/update`. One
+correction: the subscription update endpoint is **`PUT`**, not `PATCH`
+(`subscriptions/put` → `PUT /publications/{pub}/subscriptions/{subscriptionId}`,
+all body fields optional). The tool implements `PUT`. `subscription create`'s
+body confirmed as documented (`email` required; the rest optional). The email
+segment of `by_email/{email}` is URL-encoded (`@`→`%40`, `+`→`%2B`) via
+`url.QueryEscape`.
 
 ## 4. anycli definition (stage-1 rubric → `service` type)
 

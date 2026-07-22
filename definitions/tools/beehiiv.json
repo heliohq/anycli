@@ -1,0 +1,13 @@
+{
+  "name": "beehiiv",
+  "type": "service",
+  "description": "beehiiv newsletter platform (publications, posts, subscribers, segments)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "BEEHIIV_API_KEY"}
+      }
+    ]
+  }
+}
