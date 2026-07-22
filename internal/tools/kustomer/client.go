@@ -22,6 +22,14 @@ type usageError struct{ msg string }
 
 func (e *usageError) Error() string { return e.msg }
 
+// configError is a missing-configuration / credential error: a required env var
+// (the bearer token) is absent. It is a runtime failure, not a parameter
+// mistake, so it maps to exit code 1 and kind "config" — keeping the exit code
+// and the envelope kind consistent (unlike usage, which is exit 2).
+type configError struct{ msg string }
+
+func (e *configError) Error() string { return e.msg }
+
 // apiError is a runtime / API error: a Kustomer non-2xx response or a transport
 // failure. It maps to exit code 1 and kind "api". status is the HTTP status (0
 // for transport/network failures). It wraps the underlying cause so errors.As
@@ -157,8 +165,11 @@ func readBody(data, file string) (any, error) {
 }
 
 // buildQuery composes the query string for a list request from the pagination
-// convenience flags and any repeated --query key=value pairs. Explicit --query
-// pairs win over the convenience flags on key collision (they append after).
+// convenience flags and any repeated --query key=value pairs. On a key
+// collision both values are sent (url.Values.Encode emits every value), e.g.
+// `--page 2 --query page=5` yields `page=2&page=5` — neither overrides the
+// other; the provider decides. Under normal use the two sources address
+// disjoint keys, so no collision arises.
 func buildQuery(page, pageSize int, extra []string) (string, error) {
 	q := url.Values{}
 	if page > 0 {

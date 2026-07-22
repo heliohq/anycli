@@ -151,8 +151,10 @@ func TestMissingTokenJSONEnvelope(t *testing.T) {
 	if err := json.Unmarshal([]byte(errBuf.String()), &env); err != nil {
 		t.Fatalf("stderr is not a JSON error envelope: %v (%s)", err, errBuf.String())
 	}
-	if env.Error.Kind != "usage" {
-		t.Errorf("kind = %q, want usage", env.Error.Kind)
+	// A missing credential is exit 1 (runtime/credential failure), so the
+	// envelope kind must not be the exit-2 "usage" class — it is "config".
+	if env.Error.Kind != "config" {
+		t.Errorf("kind = %q, want config", env.Error.Kind)
 	}
 }
 
@@ -241,7 +243,7 @@ func TestConversationGetListCreateUpdate(t *testing.T) {
 		{"get", []string{"conversation", "get", "k1"}, http.MethodGet, "/conversations/k1"},
 		{"list", []string{"conversation", "list"}, http.MethodGet, "/conversations"},
 		{"create", []string{"conversation", "create", "--data", `{"x":1}`}, http.MethodPost, "/conversations"},
-		{"update", []string{"conversation", "update", "k1", "--data", `{"status":"done"}`}, http.MethodPatch, "/conversations/k1"},
+		{"update", []string{"conversation", "update", "k1", "--data", `{"status":"done"}`}, http.MethodPut, "/conversations/k1"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

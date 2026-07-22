@@ -67,7 +67,11 @@ func (s *Service) newConversationCreateCmd(base, token string) *cobra.Command {
 	return cmd
 }
 
-// newConversationUpdateCmd: PATCH /conversations/{id} (status/priority/assignee/tags).
+// newConversationUpdateCmd: PUT /conversations/{id} (status/priority/assignee/tags).
+// Kustomer's "Update conversation" endpoint is PUT and applies patch-like
+// partial-update semantics by default (only fields present in the body change);
+// it does not accept PATCH. A separate PATCH endpoint exists for a different
+// purpose (conversation attributes).
 func (s *Service) newConversationUpdateCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <id>",
@@ -80,7 +84,7 @@ func (s *Service) newConversationUpdateCmd(base, token string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		body, err := s.call(cmd.Context(), base, token, http.MethodPatch, "/conversations/"+url.PathEscape(args[0]), payload)
+		body, err := s.call(cmd.Context(), base, token, http.MethodPut, "/conversations/"+url.PathEscape(args[0]), payload)
 		if err != nil {
 			return err
 		}

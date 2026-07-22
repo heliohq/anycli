@@ -58,7 +58,7 @@ Sources verified:
 | conversation get | `GET /conversations/{id}` | load one ticket |
 | conversation list | `GET /conversations` | recent/open tickets (paginated) |
 | conversation create | `POST /conversations` / `POST /customers/{id}/conversations` | open a ticket |
-| conversation update | `PATCH /conversations/{id}` | change status/priority/assignee/tags |
+| conversation update | `PUT /conversations/{id}` | change status/priority/assignee/tags (PUT applies patch-like partial-update semantics by default; Kustomer's update endpoint is PUT, not PATCH) |
 | message list | `GET /conversations/{id}/messages` | read the thread |
 | message create | `POST /conversations/{id}/messages` | reply to the customer |
 | note list | `GET /conversations/{id}/notes` | read internal notes |
