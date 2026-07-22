@@ -196,10 +196,47 @@ hosts):
 Business/Enterprise). For the send/track/retrieve/cancel loop as the individual
 user, request the **`:self`** tier:
 `agreement_read:self agreement_write:self agreement_send:self
-library_read:self user_login:self`. `offline_access` is **not** required for a
-refresh token on Adobe Sign (the standard token response includes
-`refresh_token` directly) — verified against the official token guide; do not
-add it.
+library_read:self user_login:self`.
+
+**`offline_access` must NOT be added — official-docs divergence, rebutting a
+review finding (verified 2026-07-22).** A review of this design flagged the
+missing `offline_access` scope as a blocker, quoting Adobe text that a
+refresh token is issued *"only if `offline_access` is included ... in your GET
+request to `/authorize`."* **That text is from a different Adobe OAuth system
+and does not apply here.** Two facts settle it against the official docs:
+
+1. **Acrobat Sign's native OAuth returns `refresh_token` unconditionally — no
+   `offline_access` involved.** The Acrobat Sign developer guide's
+   "Getting the access token" step states the token response is *"a JSON body
+   containing the access token **and the refresh token**"* with **no**
+   `offline_access` in the flow, and Adobe's own sample authorize URL scope is
+   literally `user_login:self+agreement_send:self+agreement_write:self+agreement_read:self+agreement_retention:self+library_read:self`
+   — `offline_access` does not appear. The `/oauth/v2/refresh` guide (§4.3)
+   likewise never mentions it. The word `offline_access` appears **nowhere** in
+   the Acrobat Sign developer guide (OAuth, Getting Started, or Managing OAuth
+   Tokens pages).
+2. **The quoted `offline_access` requirement is from Adobe IMS, a distinct
+   OAuth stack this design explicitly rejects (§5 identity).** The
+   *"must include `offline_access`"* rule lives in the **Adobe Developer
+   Console / IMS User Authentication** guide (`developer.adobe.com/developer-console/...`,
+   host `ims-na1.adobelogin.com`) — the OAuth used by Creative Cloud / Analytics
+   / Experience Platform APIs. Acrobat Sign's REST API v6 uses its **own**
+   OAuth (`secure.adobesign.com/public/oauth/v2`, shard `api_access_point`
+   hosts, `/oauth/v2/token` + `/oauth/v2/refresh`) — the whole §4 flow — **not**
+   IMS. The finding conflated the two Adobe stacks.
+
+**Adding `offline_access` would be actively harmful, not merely redundant.**
+Adobe requires *"scopes provided in the Authorization URL [to] match exactly
+with the scopes provided in the Adobe Sign application,"* and `offline_access`
+is **not** a selectable Acrobat Sign API-Application scope (the scope catalog is
+`user_login` / `agreement_*` / `library_*` / `widget_*` / `workflow_*` with
+`self`/`group`/`account` modifiers — no `offline_access`). Requesting a scope
+the app does not enable yields an authorize-time error. So the correct scope set
+stays exactly the five `:self` scopes above; the refresh apparatus in
+§4.1/§4.3/§5/§6 operates on the `refresh_token` Acrobat Sign issues *directly*
+in the token response, as verified. The finding is **not adopted**; this
+divergence is recorded per the ground-truth rule (official docs override the
+review verdict).
 
 **Token TTL.** Access token `expires_in: 3600` (1 hour) is present in the token
 response, so **no `assumed_ttl_seconds` is needed** (contrast Salesforce, which
@@ -478,6 +515,9 @@ auth:
     token_exchange_style: form_secret     # client creds in FORM BODY (NOT form_basic — the DocuSign divergence)
     pkce: none                            # confidential client
     scopes: [agreement_read:self, agreement_write:self, agreement_send:self, library_read:self, user_login:self]
+    # NO offline_access: that scope belongs to Adobe IMS OAuth, NOT Acrobat Sign's native OAuth (§4.1). Acrobat
+    # Sign returns refresh_token directly in the token response with no offline_access; offline_access is not a
+    # selectable Acrobat Sign app scope and requesting it fails the exact-scope-match check. Verified 2026-07-22.
     display_scopes: [agreement_read, agreement_write, agreement_send, library_read]
     single_active_token: false
     refresh_lease: none    # MANDATORY enum (validate.go:249; RefreshLease has no omitempty, manifest.go:90) — an omitted
@@ -636,8 +676,12 @@ only — the shard-hosted adapter path is already fixed by the docs).**
   OAuth or discovery call.
 - **Auth:** Authorization Code Grant, confidential client, **`form_secret`**
   token exchange (form-body client creds — NOT Basic), scopes
-  `agreement_read/write/send:self library_read:self user_login:self` (no
-  `offline_access`), 1-hour access token (`expires_in` present, no
+  `agreement_read/write/send:self library_read:self user_login:self` (**no
+  `offline_access`** — that is an Adobe *IMS* scope, not an Acrobat Sign native
+  OAuth scope; Acrobat Sign returns `refresh_token` directly in the token
+  response, and requesting `offline_access` would fail the exact-scope-match
+  check. §4.1 records this as an official-docs divergence rebutting a review
+  finding), 1-hour access token (`expires_in` present, no
   `assumed_ttl`), **non-rotating** refresh token with 60-day idle expiry
   (**`refresh_lease: none`, set explicitly — mandatory enum, not omittable**),
   `local_only` disconnect.
