@@ -473,14 +473,37 @@ is deferred to v2 with the capability-growth + idempotency plan in §0/§4. This
 closes the three review findings by subtraction rather than by a per-call
 `--environment`/`--live-url-prefix` flag.
 
-*For v1 stage-1/L2 to confirm:*
+### Stage-1 verification findings (2026-07-22, resolved during implementation)
 
-1. **`/me` stable_key** — confirm `/id` is present & non-empty on a real
-   response; else switch to `/username`.
-2. **Management response shapes** — re-confirm `GET /me`, `/merchants`,
-   `/companies`, `/paymentMethodSettings`, `/webhooks`, `/stores`, `/terminals`
-   response bodies at v3 against the live API (API Explorer resisted headless
-   fetch), and pagination params for the `list` verbs.
+Confirmed against Adyen's official Management v3 API Explorer docs, with two
+corrections to the endpoint sketch above baked into the shipped anycli service:
+
+1. **`/me` stable_key confirmed `/id`.** The `GET /me` 200 response guarantees
+   `id`, `companyName`, and `username` as always-present top-level fields, so
+   `stable_key: /id` with `label_candidates: [/companyName, /username]` stands —
+   no fallback to `/username` needed.
+2. **Terminals is the TOP-LEVEL `GET /terminals`, not `/merchants/{id}/terminals`.**
+   Management v3 exposes terminals as a top-level list filtered by `merchantIds`
+   (plus `storeIds`, `pageNumber`, `pageSize`, etc.), not a merchant-nested path.
+   The shipped `management terminal list` command therefore hits `GET /terminals`
+   with an optional `--merchant` → `merchantIds` filter (list-all when omitted),
+   correcting §1 row 4 / §2's `terminal list <merchantId>` sketch.
+3. **Pagination params are `pageSize` + `pageNumber`** (offset-based; default
+   pageSize 10, terminals 20; max 100), surfaced as `--page-size` / `--page` and
+   omitted when unset so Adyen applies its own defaults — corrects the loose
+   `--page-size N` sketch.
+
+Everything else (X-API-Key raw header, base URLs, `/me`, `/merchants`,
+`/companies`, `/paymentMethodSettings`, `/webhooks`, `/stores`) matched the
+sketch. **L2 against a real test account is still owed before the pin bump** to
+confirm exact response bodies end-to-end (the account-pool lane owns it).
+
+*Still owed at v1 stage-1/L2:*
+
+1. **Live-API body confirmation** — run the L2 harness against a free Adyen test
+   company account to confirm the response bodies for each command match the
+   passthrough expectation (the API Explorer JS pages resisted headless fetch,
+   so shapes are validated at L2, not scraped).
 
 *Deferred to the v2 Checkout DESIGN (do NOT block v1):*
 
