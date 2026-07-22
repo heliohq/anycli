@@ -1,0 +1,13 @@
+{
+  "name": "later",
+  "type": "service",
+  "description": "Later Influence Reporting API (read-only creator/social campaign analytics)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "LATER_CREDENTIALS"}
+      }
+    ]
+  }
+}
