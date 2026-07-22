@@ -457,3 +457,54 @@ against the official docs and the audit rubric (§1). The catalog stands; no §6
 amendment. The single fallback branch (`api_key` Basic-secret) triggers only if
 Technology-Partner enrollment is wholly unavailable to Helio at stage 1, which
 the public, documented partner onboarding does not indicate.
+
+---
+
+## 8. As-built notes & divergences from this design
+
+Recorded for the batch lead. All verified against the official Razorpay docs
+(July 2026) and the actual branch-base code.
+
+1. **`json_secret` needs a JSON *refresh* branch too, not only the exchanger
+   (§4 refinement).** §4 called for the `json_secret` exchange-style enum + the
+   `service/oauth_exchange.go` exchanger branch. That is necessary but not
+   sufficient: Razorpay's `/token` is `Content-Type: application/json` with the
+   client creds in the body for **both** grants, and its access token expires in
+   90 days with a **rotating** refresh token — so refresh *is* exercised (L4
+   forces it with a short `expires_at`). The stock refresh path
+   (`token_refresh.go`) uses `golang.org/x/oauth2`, which posts
+   form-encoded and would be rejected. Implemented `refreshTokenJSONSecret` +
+   `refreshOAuthTokenJSONSecret`: a JSON `refresh_token` grant, with non-2xx
+   wrapped as `*oauth2.RetrieveError` so the existing `isPermanentRefreshError`
+   classifier treats 4xx as reconnect-required and 5xx/transport as transient —
+   identical semantics to the oauth2-library path, A3 strict write-back intact.
+2. **`standard_oauth` refresh_lease allowed-set had to grow (§4 assumption
+   corrected).** §4 said "confirm the `standard_oauth` `refresh_lease`
+   allowed-set already carries `credential`." On the branch base it does **not**
+   — the runtime contract pinned a single `refreshLeaseScope: OAuthLeaseNone`,
+   and the generator rejected `credential` (`requires auth.oauth.refresh_lease
+   "none"`). Grew `oauthRuntimeContract.refreshLeaseScope` (single) to
+   `refreshLeaseScopes []OAuthLeaseScope` and set standard_oauth to
+   `[none, credential]` (reviewed capability growth in `model/runtime_contract.go`
+   + tests). This is the same growth the Xero/Sage/SignNow rotating-refresh
+   bundles need; whoever lands first, the second's identical change conflicts at
+   the batch-end merge — batch lead resolves.
+3. **`account get` (whoami) deferred — no gateway-scope self-account endpoint.**
+   §2/§4 listed an `account get` verb for connection labeling + L5 whoami.
+   Against the official docs there is **no** self-account read usable with the
+   granted gateway OAuth token: the `/v2/accounts/:id` Partner endpoint requires
+   *partner* auth (the platform's own key/scope), not the sub-merchant's gateway
+   Bearer token, so it would 403. The `account` resource is therefore **not**
+   shipped; the anycli tool exposes the seven fully-doc-verified data resources.
+   **L5 whoami uses `razorpay payment list --count 1`** (a guaranteed read under
+   `read_only`/`read_write`). Identity/label still resolve from the connect-time
+   `razorpay_account_id` (`identity.source: token_response`), which needs no
+   account GET. If stage-1 surfaces a cheap merchant-facing account endpoint,
+   add `account get` + a business-name label pointer then.
+4. **Confirmed exactly as designed:** `json_secret` exchange style; provider
+   `disconnect_mode: provider_revoke` with the `auth.oauth.revoke` block
+   (`client_auth: form`, `token: refresh_token`, `token_type_hint:
+   refresh_token`); `identity.source: token_response` on `/razorpay_account_id`;
+   `owner: individual`; `refresh_lease: credential`; `pkce: none`. The bundle
+   validates and `provider-gen --check` fails only on the expected batch-end
+   regen drift (§6 / master-plan §2).
