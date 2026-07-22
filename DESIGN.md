@@ -253,3 +253,29 @@ in the wave board.
 4. **Refresh-token rotation** — Apollo revokes the prior token pair on every
    refresh. Not a lane change, but a hard requirement on the gateway's
    write-back (verified live at L4). Recorded so it is not missed.
+5. **Endpoint-method corrections (implementation truth, re-verified against
+   docs.apollo.io on 2026-07-22).** The scratch surface in §1/§2 was corrected
+   during implementation: contact update and account update are **PATCH**
+   (not PUT); sequence list is **POST `/emailer_campaigns/search`** (not GET);
+   contact stages is `GET /contact_stages` (confirmed). The
+   master-API-key-gated set is **wider** than §2 flagged — deal list
+   (`GET /opportunities/search`) and deal update (`PATCH /opportunities/{id}`)
+   also require a master key and return 403 to an OAuth token, joining people
+   search and sequence add/stop in the L2-conditional set. All are shipped as
+   subcommands regardless (a 403 carries an actionable access hint); L2 drops
+   any the OAuth token provably cannot reach.
+6. **Output shape — verbatim passthrough, not the `{ok,data}` envelope of §2.**
+   The scratch design proposed wrapping responses in `{ "ok": true, "data": … }`.
+   Every shipped anycli tool (notion, bitly, and the whole `internal/tools/`
+   set) instead emits the provider's JSON on stdout **verbatim** + newline; the
+   implementation follows that convention so an agent sees one consistent output
+   shape across all `heliox tool` commands (the master-plan §6 quality-drift
+   contract). Errors still use the notion-style `{"error":{message,kind,status}}`
+   envelope on stderr under `--json`.
+7. **Identity endpoint host — `api.apollo.io`.** The OAuth partner doc names the
+   token-owner endpoint as `app.apollo.io/api/v1/users/api_profile`; the
+   dedicated "Get Current User Profile" reference page gives
+   `api.apollo.io/api/v1/users/api_profile`. The bundle uses the `api.apollo.io`
+   host — same host as every other API call, no host sprawl. Both resolve to the
+   same backend; the exact JSON pointers (`/id`, `/email`, `/name`) are
+   L2-confirmed against a live response.
