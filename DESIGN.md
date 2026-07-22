@@ -224,50 +224,79 @@ userinfo URL is read from the well-known document at stage 1 (§7 open item),
 since the docs point to well-known as *"the source of truth"* rather than
 printing the userinfo URL inline.
 
-### 3.5 The one load-bearing technical open item — token-response `expires_in`
+### 3.5 The one load-bearing technical fact — token-response `expires_in` is documented ABSENT
 
-**This is the single fact that decides capability growth, and it must be
-confirmed at L2 before the bundle is finalized.** The docs' **authorization-code**
-token-response example lists only `access_token`, `refresh_token`,
-`token_type: "bearer"` — it does **not** show `expires_in`. The **client-
-credentials** example (a different grant we do not use) *does* show `expires_in`.
+**This is the single fact that decides capability growth.** The official docs
+were re-verified for this revision. The **authorization-code** token-response
+example lists only `access_token`, `refresh_token`, `token_type: "bearer"` and
+**deliberately omits `expires_in`**, while the **client-credentials** example (a
+different grant we do not use) *explicitly shows* `expires_in: 3600`. Brex prints
+the field in one grant and drops it in the other — that is a **structured signal
+that the omission is intentional, not a truncation artifact**. The expected case
+is therefore that the auth-code token response carries **no** `expires_in`.
 
 Two cases, both already precedented in this program:
 
-1. **Expected case — `expires_in` IS returned** (the OIDC/Okta `/v1/token`
-   endpoint standardly returns it; the auth-code example is almost certainly
-   truncated). Then Brex is **pure stock `standard_oauth`**: the generic
-   exchanger reads `expires_in`, persists a real `Expiry`, `needsRefresh()`
-   fires at ~1 h, the refresh path uses the 90-day refresh token. **Zero
-   integration-service growth.** This is the assumed outcome.
-2. **Fallback case — `expires_in` is genuinely absent** from the auth-code
-   response. Then this is the **exact Stripe/Salesforce failure mode**: a nil
-   persisted `Expiry` makes `needsRefresh()` read the token as non-expiring, the
-   refresh never fires, and every connection 401s ~1 h after connect. The fix is
-   the already-designed **assumed-TTL** capability — bundle field
-   `oauth.access_token_ttl_seconds: 3600` projected to
-   `OAuthEndpoints.AssumedAccessTokenTTL`, synthesizing the documented 1-hour
-   expiry at exchange time (the returned value always wins when present, so it is
-   a fallback, never an override). Salesforce (`assumed_ttl`) and Stripe
-   (`access_token_ttl_seconds`) both add this on sibling branches; Brex is a
-   Wave-2 Finance tool, so that capability will have merged to Brex's build base
-   by dev time — **reuse it, do not re-invent it.**
+1. **Expected case — `expires_in` is absent** (as documented). This is the
+   **exact Stripe/Salesforce failure mode**: a nil persisted `Expiry` makes
+   `needsRefresh()` read the token as non-expiring, the refresh never fires, and
+   every connection 401s ~1 h after connect. The fix is the already-designed
+   **assumed-TTL** capability — bundle field `oauth.access_token_ttl_seconds:
+   3600` projected to `OAuthEndpoints.AssumedAccessTokenTTL`, synthesizing the
+   documented 1-hour expiry at exchange time (a returned value always wins when
+   present, so it is a fallback, never an override). Salesforce (`assumed_ttl`)
+   and Stripe (`access_token_ttl_seconds`) add this on sibling branches; **that
+   field is NOT yet on this worktree's `oauthManifest`** (verified —
+   `provider-gen` would reject it today), so Brex carries a **real ordering
+   dependency**: the assumed-TTL capability must merge to Brex's Wave-2 base
+   before Brex's bundle can set the field. See §4.
+2. **Unlikely case — `expires_in` IS returned** after all (the live Okta
+   `/v1/token` returns it despite the doc example). Then Brex is **pure stock
+   `standard_oauth`** with no growth: the generic exchanger reads `expires_in`,
+   persists a real `Expiry`, refresh fires at ~1 h. This is now the *fallback*
+   reading, not the baseline.
 
-So the plan is: **assume stock `standard_oauth` (case 1); confirm `expires_in` at
-L2 against the real staging token endpoint; if absent, add the single
-`access_token_ttl_seconds: 3600` bundle field (case 2, reusing the merged
-assumed-TTL capability).** No new bespoke adapter either way — this is the
-skill's "grow one reviewed enum/field, not an adapter" guidance.
+So the plan is: **assume the assumed-TTL path (case 1) is required; keep the L2
+confirmation against the real staging `…/v1/token` endpoint as the gate that
+flips to case 2 only if `expires_in` unexpectedly appears.** No new bespoke
+adapter either way — this is the skill's "grow one reviewed enum/field, not an
+adapter" guidance; here Brex **consumes** the salesforce/stripe field rather than
+authoring it.
 
-### 3.6 Disconnect — real OAuth revoke
+### 3.6 Disconnect — real OAuth revoke (`provider_revoke`)
 
-Brex exposes a standard **`…/v1/revoke`** endpoint. So `disconnect_mode` should
-perform a real provider-side token revoke on disconnect (revoke the refresh
-token), not `local_only`, **if** the merged `standard_oauth` revoke capability on
-Brex's build base supports a declarative revoke URL (the same one used by other
-OIDC bundles). Confirm the capability at stage 2; if the base's declarative
-revoker cannot target `…/v1/revoke`, fall back to `local_only` (vault + local
-delete) and record it — never invent a bespoke revoke adapter for hidden-first.
+Brex exposes a standard **`…/v1/revoke`** endpoint, so the bundle sets
+`connection.disconnect_mode: provider_revoke` with a declarative
+`auth.oauth.revoke:` block. This is a **hard validator rule, not a preference**:
+`provider_revoke` on `standard_oauth` REQUIRES the revoke block
+(`validate.go:503-506`), and `revoke` is **not** a valid mode value (the closed
+enum is `provider_revoke | local_only | strategy`, `validate.go:402`). The
+declarative revoker is best-effort — a failed revoke never blocks disconnect (the
+mandatory part is the vault delete + status flip).
+
+Revoke request shape, cross-checked against `oauthRevokeManifest` and the gmail
+OIDC bundle (not invented shorthand):
+
+- **URL**: `https://accounts-api.brex.com/oauth2/default/v1/revoke` (prod) — an
+  **Okta-hosted** auth server (`/oauth2/default/v1/*` is Okta's layout).
+- **`client_auth: form`** — `client_id` + `client_secret` in the request body,
+  the same confidential-client style as the `form_secret` token exchange. The
+  in-tree declarative revoker (`service/revoke.go`) POSTs
+  `application/x-www-form-urlencoded` and appends `client_id`/`client_secret` to
+  the form when `client_auth: form`. Okta's `/v1/revoke` is RFC 7009 and accepts
+  exactly this.
+- **`token: refresh_token`** — revoke the 90-day refresh grant on disconnect.
+
+**Divergence recorded (see §7).** Brex's *doc example* for `/v1/revoke` renders a
+**JSON-shaped body** (`token`/`client_id`/`client_secret`) and, tellingly,
+specifies **no `Content-Type`** — a doc-quality gap, not a stated contract.
+Because the server is Okta (whose real `/v1/revoke` is form-urlencoded RFC 7009),
+the declarative **form** revoker is the correct first choice, to be **confirmed at
+L2** against the staging endpoint. The in-tree revoker only emits form bodies (its
+own comment: providers needing "non-form bodies… remain explicit compiled
+strategies"), so if L2 proves Brex genuinely requires a JSON body, the fallback is
+`disconnect_mode: local_only` (drop the revoke block) — **never** a bespoke JSON
+revoke adapter for hidden-first.
 
 ### 3.7 Config fields (integration-service, per environment)
 
@@ -283,18 +312,21 @@ the same change, before this provider's L5.
 
 ## 4. Helio integration-service capability growth
 
-**Expected: NONE (pure `standard_oauth`).** Brex is a textbook confidential-
-client authorization-code + refresh OIDC provider: form-body client auth
-(`form_secret`), declarative `userinfo`/`/sub` identity, refresh-token
-write-back, declarative revoke. Every axis is already expressible on
-`standard_oauth`.
+**Expected: ONE reused field — the assumed-TTL capability (§3.5), consumed not
+authored.** Every other axis is already stock `standard_oauth`: form-body client
+auth (`form_secret`), declarative `userinfo`/`/sub` identity, refresh-token
+write-back, and the declarative `provider_revoke` block (§3.6). But because the
+official docs document `expires_in` as **absent** from the auth-code response
+(§3.5), the expected build needs `oauth.access_token_ttl_seconds: 3600` — and
+that field is **not yet on this worktree's `oauthManifest`** (verified). It is the
+salesforce/stripe assumed-TTL capability landing on sibling branches; Brex
+**consumes** it (one bundle field), it does not author it.
 
-The only *conditional* growth is the §3.5 fallback — the assumed-TTL field — and
-that is **not net-new to the program**: it is the salesforce/stripe capability
-that will already be on Brex's Wave-2 build base. Brex would consume it (one
-bundle field), not author it. If, at stage 2, that capability has somehow not
-merged AND L2 proves `expires_in` absent, the batch lead sequences Brex behind
-the assumed-TTL landing — a scheduling note, not a Brex-specific adapter.
+So Brex carries a **probable ordering dependency**, not a merely conditional one:
+the batch lead should sequence Brex's bundle behind the assumed-TTL landing on
+its Wave-2 base. The L2 check against the real staging `…/v1/token` endpoint is
+the confirmation gate — it flips this to "no growth" only in the unlikely event
+`expires_in` turns out to be present. No Brex-specific adapter either way.
 
 Refresh-token rotation: Brex refresh tokens are **not** documented as rotating on
 each exchange (unlike Stripe), so the default refresh write-back suffices; no
@@ -342,9 +374,17 @@ auth:
     token_exchange_style: form_secret     # client_id + client_secret in the form body
     pkce: none
     display_scopes: [openid, offline_access, <api scopes for §1 resources>]
-    # access_token_ttl_seconds: 3600       # ADD ONLY IF §3.5 L2 proves expires_in absent
     single_active_token: false
+    # access_token_ttl_seconds: 3600       # EXPECTED (§3.5): the official docs OMIT expires_in from the auth-code
+    #                                      # token response, so Brex almost certainly needs the synthesized 1-hour
+    #                                      # expiry. NOT yet in this base's oauthManifest — depends on the
+    #                                      # salesforce/stripe assumed-TTL field landing on Brex's Wave-2 base first
+    #                                      # (§4). Uncomment once that capability merges; a returned value always wins.
     # refresh_lease: credential            # ADD ONLY IF §4 L2 proves refresh-token rotation
+    revoke:                                # §3.6 — Okta-style RFC 7009 endpoint; disconnect revokes the refresh grant
+      url: https://accounts-api.brex.com/oauth2/default/v1/revoke
+      client_auth: form                    # client_id + client_secret in the request body (matches form_secret exchange)
+      token: refresh_token
 
 identity:
   source: userinfo                          # OIDC; userinfo URL from the well-known doc (§3.4, stage-1 confirm)
@@ -353,7 +393,10 @@ identity:
 
 connection:
   mode: isolated
-  disconnect_mode: revoke                   # real …/v1/revoke (§3.6); fall back to local_only if base can't target it
+  disconnect_mode: provider_revoke          # real …/v1/revoke (§3.6). provider_revoke on standard_oauth REQUIRES the
+                                            # auth.oauth.revoke block above (validate.go:503-506); `revoke` is not a
+                                            # valid mode. Fall back to local_only (and DROP the revoke block) only if
+                                            # L2 proves the form revoker can't target the endpoint (§3.6).
   runtime_strategy: standard_oauth
 
 resources:
@@ -390,7 +433,7 @@ Non-generated companions landing on the batch-end merge:
 |---|---|---|
 | **L1** anycli unit | `httptest` fakes per resource: assert path/method, `Authorization: Bearer` injection, `--cursor`/`--limit`, the `next_cursor` envelope, and typed `apiError` in text + `--json`. | No |
 | **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli brex -- transaction card-primary --limit 3` against a **real Brex account** (a `bxt_` user token from the account pool doubles as a valid `api.brex.com` bearer for the *data-plane* harness). Proves field names, Bearer injection, pagination, error shape. **This layer also resolves the §3.5 `expires_in` question** by exercising the real staging `…/v1/token` endpoint with the staging partner app and inspecting the token response. | **Yes** — a Brex account/token (account pool) + a staging partner app (lane 1). |
-| **L3** generation + suites | `provider-gen` + `provider-gen --check` accept the bundle; if §3.5 case 2, integration-service unit test for the assumed-TTL exchange path (a no-`expires_in` Brex-shaped response persists a non-nil `Expiry` ≈ `now+1h`); `helio-cli` builds against the anycli branch via local `replace`; both repos' unit suites green. | No |
+| **L3** generation + suites | `provider-gen` + `provider-gen --check` accept the bundle (only after the assumed-TTL field is on the base, per §3.5/§4 expected case); integration-service unit test for the assumed-TTL exchange path (a no-`expires_in` Brex-shaped response persists a non-nil `Expiry` ≈ `now+1h`); `helio-cli` builds against the anycli branch via local `replace`; both repos' unit suites green. | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` a `brex` connection with `access_token` + `refresh_token` (+ an aged expiry per §3.5 so the next `heliox tool brex -- account cash` forces the token gateway's refresh-and-write-back through `…/v1/token`). Success = live Brex data, not a replayed seed. | **Yes** — a real OAuth access+refresh pair from the staging partner app (dev-cred issuance gates this; lane 1 distributes `client_id`/`client_secret` as uncommitted local `config/cloud.yaml` entries). |
 | **L5** full connect | Once, hidden, pre-flip: `heliox tool brex auth` → consent on the Brex authorize screen (staging or prod partner app) → `oauth_connected` system event → one **unseeded** live `heliox tool brex` run. Human-in-the-loop (oauth L5, plan lane 3). | **Yes** — live Brex consent on a real account; human consent session. |
 
@@ -423,19 +466,27 @@ Brex developer support (issuance gates the flip, never dev/L4/merge).
   accounts can be served; gates the visible flip, not dev), but recorded so the
   batch lead knows lane 1's Brex task is an **email loop with Brex developer
   support** (start early), not a self-serve console submission.
-- **`expires_in` in the auth-code token response is UNCONFIRMED and load-bearing
-  (§3.5).** The documented auth-code example omits it; the client-credentials
-  example includes it. If absent, Brex needs the merged salesforce/stripe
-  assumed-TTL field (`access_token_ttl_seconds: 3600`); if present (expected),
-  Brex is pure stock `standard_oauth`. **Resolved at L2** against the real
-  staging token endpoint before the bundle is finalized. Flagged now, per the
-  skill's "flag adapter/credential-kind candidates at stage 1" rule.
+- **`expires_in` is documented ABSENT from the auth-code response — the
+  assumed-TTL path is the EXPECTED case, not a conditional fallback (§3.5/§4).**
+  The official docs show `expires_in: 3600` in the client-credentials example and
+  deliberately omit it from the authorization-code example — a structured signal
+  the omission is intentional. So Brex almost certainly needs the salesforce/stripe
+  assumed-TTL field (`oauth.access_token_ttl_seconds: 3600`), which is **not yet on
+  this worktree's `oauthManifest`** (verified — `provider-gen` rejects it today).
+  This is a **probable ordering dependency**: the batch lead sequences Brex behind
+  the assumed-TTL landing. **L2** against the real staging token endpoint is the
+  gate that would flip it to "no growth" only if `expires_in` unexpectedly appears.
 - **Userinfo URL is read from the well-known document at stage 1**, since the
   docs point to well-known as the source of truth rather than printing the
   userinfo endpoint inline.
-- **Refresh-token rotation and revoke-endpoint targeting are L2/stage-2
-  confirmations** (§3.6, §4): default to declarative `revoke` + no lease; fall
-  back to `local_only`/add `refresh_lease: credential` only if the real API
-  proves rotation, never inventing a bespoke adapter.
+- **Revoke body format is a documented divergence; refresh-token rotation is an
+  L2 confirm (§3.6, §4).** The bundle ships `disconnect_mode: provider_revoke`
+  with a declarative **form** revoke block (Okta RFC 7009 `…/v1/revoke`). Brex's
+  doc example renders a JSON-shaped revoke body with **no `Content-Type`**; since
+  the server is Okta and the in-tree revoker (`service/revoke.go`) only emits form
+  bodies, the form revoker is the first choice, confirmed at L2 — fall back to
+  `local_only` (drop the block) only if L2 proves a JSON body is mandatory, never
+  a bespoke JSON adapter. Refresh-token rotation defaults to no lease; add
+  `refresh_lease: credential` only if the real API proves rotation.
 - **No `toolToProvider` entry** (id == key == `brex`), and **no grouped
   command** (Brex is not a corporate family in this catalog).
