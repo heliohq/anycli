@@ -69,6 +69,26 @@ Verified against the official reference (developers.gorgias.com/reference):
 | Satisfaction Surveys | `GET /api/satisfaction-surveys` | CSAT reporting |
 | Account | `GET /api/account` | identity / health-check |
 
+**Write contract (verified — `POST /tickets`, `POST /tickets/{id}/messages`).**
+Per the official create docs (developers.gorgias.com/docs/create-a-ticket-using-api,
+/docs/create-a-new-message-in-ticket-via-api), a ticket message **always**
+requires `channel` **and** `via`; a ticket create additionally repeats
+`channel` + `via` + `from_agent` at the ticket level. Valid `channel` values are
+`api | email | phone | sms | internal-note`; valid `via` values are
+`api | email | internal-note`. The `email`/`phone`/`sms` channels also require a
+`source` object routing addresses (`source.from.address` + `source.to[].address`);
+for email the from-address must be an email integration already connected to
+Gorgias. The tool therefore **defaults `--channel api`** (delivers into the
+ticket with no routing setup), always emits `via` (derived from the channel or
+set with `--via`), and exposes `--source-from` / `--source-to` for the routed
+channels. Earlier drafts defaulted `--channel email` and omitted `via`, which the
+live API rejects — corrected during code review.
+
+**Pagination limit.** The official pagination reference documents only a
+**default of 30** for `?limit=` and specifies **no maximum**; the tool sends
+`limit` only when the caller sets it and its help text asserts no unverified
+upper bound.
+
 **Why these and not the whole API:** the master plan's built-in-service
 conventions favor a provider-neutral, agent-shaped slice over 1:1 API
 mirroring. Tickets + Ticket Messages + Customers + Users cover the read/reply/
@@ -104,10 +124,10 @@ service definitions (`notion` is the reference shape; `zendesk` on
 ```
 heliox tool gorgias -- ticket list      [--status open|closed] [--assignee <id>] [--view <id>] [--cursor <c>] [--limit N]
 heliox tool gorgias -- ticket get       <ticket-id>
-heliox tool gorgias -- ticket create    --customer-email <e> --subject <s> --body <b> [--channel email]
+heliox tool gorgias -- ticket create    --customer-email <e> --subject <s> --body <b> [--channel api] [--via ...] [--source-from <a>] [--source-to <a>]
 heliox tool gorgias -- ticket update    <ticket-id> [--status ...] [--assignee <id>] [--add-tag <t>]
 heliox tool gorgias -- message list     <ticket-id> [--cursor <c>]
-heliox tool gorgias -- message create   <ticket-id> --body <b> [--channel email] [--from-agent <id>] [--public|--internal]
+heliox tool gorgias -- message create   <ticket-id> --body <b> [--channel api] [--via ...] [--from-agent] [--sender-email <e>] [--source-from <a>] [--source-to <a>]
 heliox tool gorgias -- customer list    [--email <e>] [--cursor <c>]
 heliox tool gorgias -- customer get     <customer-id>
 heliox tool gorgias -- customer search  --query <q>
@@ -346,6 +366,20 @@ which is the expected on-branch state (bundles ride the batch-end merge, and
 CI red-until-batch-end is normal per master plan §2). The Gorgias bundle
 consumes this capability; it does not fork its own. If Zendesk's batch lands
 the capability first, Gorgias needs zero integration-service code.
+
+**SSRF allowlist is NOT pinned by the committed bundle (visible-flip gate).**
+The `.gorgias.com` host-suffix allowlist currently exists only as a *comment* in
+`provider.yaml` — there is no machine-readable `auth.oauth.instance` block yet,
+because the decoder that would strict-parse it is part of the unlanded shared
+capability (adding the block now would break `provider-gen` strict decode ahead
+of the capability). So nothing in the committed bundle actually enforces the
+allowlist: enforcement depends entirely on item 1 above once it lands. This is a
+hard precondition for going visible. At batch integration, confirm the shared
+capability derives/enforces `.gorgias.com` (from `consent_domain` or an explicit
+instance block) and that the subdomain input + URL templating are validated
+against it — do **not** flip `presentation.visible: true` until that is verified
+end-to-end (the L5 connect run below). The bundle ships `visible: false` until
+then.
 
 ### 4.4 Config (lane 1, Config Sync hard rule)
 

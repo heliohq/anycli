@@ -38,21 +38,23 @@ func (s *Service) newMessageListCmd(token, base string) *cobra.Command {
 }
 
 func (s *Service) newMessageCreateCmd(token, base string) *cobra.Command {
-	var body, channel, senderEmail string
+	var body, channel, via, senderEmail, sourceFrom string
+	var sourceTo []string
 	var fromAgent bool
 	cmd := &cobra.Command{
 		Use:   "create <ticket-id>",
 		Short: "Post a reply to a ticket (POST /tickets/{id}/messages)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload := map[string]any{
-				"channel":    channel,
-				"from_agent": fromAgent,
-				"body_text":  body,
-			}
-			if senderEmail != "" {
-				payload["sender"] = map[string]any{"email": senderEmail}
-			}
+			payload := buildMessage(messageParams{
+				channel:     channel,
+				via:         via,
+				body:        body,
+				fromAgent:   fromAgent,
+				senderEmail: senderEmail,
+				sourceFrom:  sourceFrom,
+				sourceTo:    sourceTo,
+			})
 			resp, err := s.call(cmd.Context(), token, base, http.MethodPost,
 				"/tickets/"+url.PathEscape(args[0])+"/messages", nil, payload)
 			if err != nil {
@@ -62,9 +64,12 @@ func (s *Service) newMessageCreateCmd(token, base string) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&body, "body", "", "message body (text)")
-	cmd.Flags().StringVar(&channel, "channel", "email", "channel: email|chat|phone|...")
+	cmd.Flags().StringVar(&channel, "channel", "api", "channel: api|email|phone|sms|internal-note")
+	cmd.Flags().StringVar(&via, "via", "", "delivery via: api|email|internal-note (default: derived from --channel)")
 	cmd.Flags().BoolVar(&fromAgent, "from-agent", false, "the message is from an agent")
 	cmd.Flags().StringVar(&senderEmail, "sender-email", "", "email of the message sender")
+	cmd.Flags().StringVar(&sourceFrom, "source-from", "", "email/phone/sms: sender routing address (email must be a connected Gorgias integration)")
+	cmd.Flags().StringArrayVar(&sourceTo, "source-to", nil, "email/phone/sms: recipient routing address (repeatable)")
 	_ = cmd.MarkFlagRequired("body")
 	return cmd
 }

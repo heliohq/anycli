@@ -72,24 +72,31 @@ func (s *Service) newTicketGetCmd(token, base string) *cobra.Command {
 }
 
 func (s *Service) newTicketCreateCmd(token, base string) *cobra.Command {
-	var customerEmail, subject, body, channel string
+	var customerEmail, subject, body, channel, via, sourceFrom string
+	var sourceTo []string
 	var fromAgent bool
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Open a ticket with an initial message (POST /tickets)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			message := map[string]any{
-				"channel":    channel,
-				"from_agent": fromAgent,
-				"body_text":  body,
-			}
-			if customerEmail != "" {
-				message["sender"] = map[string]any{"email": customerEmail}
-			}
+			// The initial message's sender references the customer the ticket is
+			// for (an incoming, customer-voiced ticket by default).
+			message := buildMessage(messageParams{
+				channel:     channel,
+				via:         via,
+				body:        body,
+				fromAgent:   fromAgent,
+				senderEmail: customerEmail,
+				sourceFrom:  sourceFrom,
+				sourceTo:    sourceTo,
+			})
+			// Gorgias requires channel + via + from_agent at the ticket level too.
 			payload := map[string]any{
-				"channel":  channel,
-				"messages": []any{message},
+				"channel":    channel,
+				"via":        resolveVia(via, channel),
+				"from_agent": fromAgent,
+				"messages":   []any{message},
 			}
 			if subject != "" {
 				payload["subject"] = subject
@@ -107,8 +114,11 @@ func (s *Service) newTicketCreateCmd(token, base string) *cobra.Command {
 	cmd.Flags().StringVar(&customerEmail, "customer-email", "", "email of the customer the ticket is for")
 	cmd.Flags().StringVar(&subject, "subject", "", "ticket subject")
 	cmd.Flags().StringVar(&body, "body", "", "initial message body (text)")
-	cmd.Flags().StringVar(&channel, "channel", "email", "channel: email|chat|phone|...")
+	cmd.Flags().StringVar(&channel, "channel", "api", "channel: api|email|phone|sms|internal-note")
+	cmd.Flags().StringVar(&via, "via", "", "delivery via: api|email|internal-note (default: derived from --channel)")
 	cmd.Flags().BoolVar(&fromAgent, "from-agent", false, "the initial message is from an agent (default: from the customer)")
+	cmd.Flags().StringVar(&sourceFrom, "source-from", "", "email/phone/sms: sender routing address (email must be a connected Gorgias integration)")
+	cmd.Flags().StringArrayVar(&sourceTo, "source-to", nil, "email/phone/sms: recipient routing address (repeatable)")
 	_ = cmd.MarkFlagRequired("body")
 	return cmd
 }

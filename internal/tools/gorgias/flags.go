@@ -8,7 +8,8 @@ import (
 )
 
 // pageFlags holds the cursor-pagination flags shared by every Gorgias list
-// endpoint: cursor, limit (1–100, provider default 30), and order_by.
+// endpoint: cursor, limit (provider default 30; no maximum is documented), and
+// order_by.
 type pageFlags struct {
 	cursor  string
 	limit   int
@@ -20,7 +21,7 @@ type pageFlags struct {
 // apply its own default of 30).
 func (p *pageFlags) register(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&p.cursor, "cursor", "", "pagination cursor (from meta.next_cursor)")
-	cmd.Flags().IntVar(&p.limit, "limit", 0, "page size (1-100, provider default 30)")
+	cmd.Flags().IntVar(&p.limit, "limit", 0, "page size (provider default 30 when unset)")
 	cmd.Flags().StringVar(&p.orderBy, "order-by", "", "sort attribute, e.g. created_datetime:desc")
 }
 
