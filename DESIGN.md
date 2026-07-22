@@ -205,7 +205,7 @@ presentation:
 
 auth:
   type: oauth
-  owner: assistant
+  owner: individual   # the provider sees a person (GET /users/me → a Copper user); per-user token
   required_config_fields: [oauth.client_id, oauth.client_secret]
   oauth:
     authorize_url: https://app.copper.com/oauth/authorize
@@ -219,9 +219,9 @@ auth:
 
 identity:
   source: userinfo                    # token response has no id; GET /users/me
-  url: https://api.copper.com/developer_api/v1/users/me   # flat field (bitly/gmail shape)
-  stable_key: /id                     # Copper user id (OAuth token is per-user)
-  label_candidates: [/name, /email, /id]
+  url: https://api.copper.com/developer_api/v1/users/me
+  stable_key: /email                  # unique per Copper user, string-valued (see rationale); /id is numeric
+  label_candidates: [/name, /email]
 
 connection:
   mode: isolated
@@ -247,12 +247,47 @@ tool:
 copper` = axis ②; no `tool.command`/`tool.group` (flat command, axis ① =
 `copper`). No grouped family, no `experiment` gate (GA once visible).
 
-**Identity choice rationale.** Copper's OAuth token is per-user, and
-`GET /users/me` returns that user (`id`/`name`/`email`) — the correct unique
-stable key for an isolated per-assistant connection. `/account` (org-level id)
-would collide across users in the same Copper account, so `/users/me` is the
-right `userinfo` source. Both work with Bearer-only auth (verified), so the
-generic resolver needs no capability growth.
+**Owner rationale (`individual`).** Copper's OAuth token is per-user: the
+connecting person authorizes their own Copper login and `GET /users/me` resolves
+to a **person** (`id`/`name`/`email`), not a workspace/bot install. That is
+exactly the shipped **bitly** / **gmail** / all `google_*` / `microsoft_*` /
+linkedin / x shape — `owner: individual`. `owner: assistant` is reserved for
+bot/workspace-install semantics (slack/lark self-built-app, discord bot-install,
+notion workspace bot) and changes real behavior on `main`: it gates the connect
+flow on the connecting user being an org admin
+(`oauth_start.go:46,100` — `def.Owner == OwnerAssistant && !isOrgAdmin`) and
+routes the credential through the SA/app-bot path
+(`oauth_credentials.go` `writeAssistantCredential`, design 227 §5.1) instead of
+the user-owned credential + trust-delegation path (`writeIndividualCredential`).
+Both are wrong for a personal Copper login, so `individual` is required.
+
+**Stable-key rationale (`/email`, a string).** `GET /users/me` returns the
+per-user identity; `/account` (org-level id) would collide across users in the
+same Copper account, so `/users/me` is the right `userinfo` source. **But
+Copper's `id` is a numeric integer** (official example: `"id": 159258`,
+unquoted), and the generic declarative resolver's `jsonPointerString`
+(`service/declarative_identity.go`) extracts the stable key via a
+`value.(string)` type assertion — **it does not coerce numbers to strings on
+`main`** (verified against current `main`: a numeric `/id` resolves to
+"identity has no string value at stable key"). So `/id` is *not* usable without
+a numeric stable-key coercion capability growth, which is **not shipped on
+`main`** — this corrects the assumption that hubspot/typefully verified such
+coercion there. To keep this bundle inside the already-shipped capability set
+(the design's zero-capability-growth thesis), the stable key is Copper's
+**`/email`** — string-valued, present, and unique per Copper user (it is the
+login identity). The precedent is therefore the **bitly `/login`** /
+**gmail `/sub`** *string-from-userinfo* shape (both are string keys — not
+numeric; the earlier "flat field, bitly/gmail shape" note is retained only for
+the userinfo-fetch shape, not the key type). Tradeoff: `/email` is a login
+identity a user can in principle change, so a reconnect after an email change
+would mint a new `AccountKey`; this is acceptable for an isolated per-assistant
+connection and is the only unique string Copper exposes (there is no stable
+string subject id). If numeric stable-key coercion later lands on `main`
+(the hubspot/typefully direction), the durable numeric `/id` becomes the
+preferred key and this bundle can switch — a strict identity improvement, no
+migration for existing string-keyed rows required beyond the usual reconnect.
+Both `/users/me` and the (unused) `/account` work with Bearer-only auth
+(verified), so the generic resolver needs no header capability growth.
 
 **Config sync (human lane 1 landing):** `client_id`/`client_secret` land
 together (partial config fails integration-service startup) in **both**
