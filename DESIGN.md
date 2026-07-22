@@ -41,14 +41,36 @@ prompt's "record divergence" instruction):
   (multi-tenant authorization-code required to leave `api_key`), the `api_key`
   verdict is **correct and re-confirmed** — the credential is a user-supplied
   secret pair, exactly the api_key lane's shape.
-- **Divergence 3 — host/version ambiguity to resolve at L2.** Official docs
-  sample requests use host **`api.hotjar.io`** with a `/v1/...` path
-  (`GET /v1/sites/{site_id}/surveys`, `Authorization: Bearer <token>`).
-  Third-party guides cite `https://api.hotjar.com/v1`; one source calls the
-  export surface "v2". Hotjar is now part of Contentsquare and docs are
-  migrating. **Do not hardcode the host/version from this doc** — pin the exact
-  base URL, token-exchange path, and version at **stage-1 research → L2 harness**
-  against a live Ask-Scale account, then freeze it in the definition.
+- **Divergence 3 — host/version RESOLVED at stage-1 research (2026-07-22).**
+  Verified against Hotjar's own API docs (help.hotjar.com API Reference +
+  Contentsquare Responses API reference) and cross-checked against a public
+  reference implementation (`yasin749/hotjar-mcp-server`). Frozen contract:
+  - Base host **`https://api.hotjar.io`**, single global version **`/v1`** (no
+    "v2"; the third-party `api.hotjar.com` cite is wrong).
+  - Token exchange **`POST /v1/oauth/token`**, `application/x-www-form-urlencoded`
+    body `grant_type=client_credentials&client_id=…&client_secret=…` →
+    `{"access_token","token_type":"Bearer","expires_in":3600}`. (Note the path is
+    `/v1/oauth/token`, NOT snov's `/v1/oauth/access_token`.)
+  - Data calls carry `Authorization: Bearer <token>`. Cursor pagination: send
+    `limit` + `cursor`; response carries `next_cursor` (null when exhausted).
+    Rate limit 3000/min → **429**. Missing header → **401**; bad/insufficient
+    token → **403**.
+  - Endpoints (see §2 table): `GET /v1/sites/{site_id}/surveys`,
+    `GET /v1/sites/{site_id}/surveys/{survey_id}`,
+    `GET /v1/sites/{site_id}/surveys/{survey_id}/responses` (newest-first),
+    `POST /v1/organizations/{organization_id}/user-lookup`.
+- **Divergence 4 — user-lookup and deletion are the SAME endpoint (new, safety-
+  critical).** Contrary to §2's original assumption of two separate endpoints,
+  there is ONE endpoint `POST /v1/organizations/{organization_id}/user-lookup`
+  whose JSON body carries a **`delete_all_hits`** boolean: `false` looks up the
+  data subject's captured data, `true` **silently purges it**. The deletion
+  "verb" DESIGN excluded is not a separate path we can simply omit — it is a flag
+  on the lookup path. Consequence for the implementation: the `user lookup`
+  subcommand **hardcodes `delete_all_hits: false`** and exposes **no flag** that
+  can flip it; a unit test asserts the outgoing body always carries
+  `delete_all_hits=false`. This makes the destructive capability structurally
+  unreachable from the toolset while still delivering the read-only lookup, and
+  is a stronger guarantee than "we just didn't add a delete command."
 
 **Residual risk that keeps it in 3-hold: account procurement, not feasibility.**
 The survey-export surface is gated to **Ask Scale** plan; user-lookup/deletion to
@@ -65,17 +87,19 @@ data), the tool wraps the **Survey Responses API** as the primary surface, with
 **User lookup** as a secondary GDPR/ops surface. Endpoints below are the *shape*
 to implement; exact paths/host are frozen at L2 (Divergence 3).
 
-| Verb (subcommand) | Method + path (verify at L2) | Purpose |
+| Verb (subcommand) | Method + path (frozen at stage-1) | Purpose |
 |---|---|---|
-| `survey list` | `GET /v1/sites/{site_id}/surveys` | Enumerate surveys for a site (site picker for `responses`). |
-| `survey responses` | `GET /v1/sites/{site_id}/surveys/{survey_id}/responses` | Export responses, sorted newest-first, cursor-paginated. Primary read. |
-| `user lookup` | `POST /v1/.../lookup` (body `data_subject_email`) | Find a data subject's captured data (GDPR/ops). |
+| `survey list` | `GET /v1/sites/{site_id}/surveys` | Enumerate surveys for a site (site picker for `responses`). `--cursor`/`--limit`. |
+| `survey get` | `GET /v1/sites/{site_id}/surveys/{survey_id}` | One survey's detail; `--with-questions` includes question metadata. |
+| `survey responses` | `GET /v1/sites/{site_id}/surveys/{survey_id}/responses` | Export responses, sorted newest-first, cursor-paginated. Primary read. `--cursor`/`--limit`. |
+| `user lookup` | `POST /v1/organizations/{organization_id}/user-lookup` (JSON body `data_subject_email`, `delete_all_hits:false` hardcoded) | Find a data subject's captured data (GDPR/ops). Read-only by construction (Divergence 4). |
 
-**Explicitly excluded from v1 of the tool: the deletion request endpoint.** It is
-destructive (`delete_all_hits: true` immediately purges captured data) and has no
-place in an unattended AI-teammate toolset by default. A teammate exporting
-survey feedback must not be one malformed argument away from deleting a customer's
-Hotjar data. If a deletion verb is ever wanted, it is a separate, human-gated
+**Explicitly excluded from v1 of the tool: any deletion capability.** Deletion is
+not a separate endpoint but the `delete_all_hits: true` mode of the user-lookup
+endpoint (Divergence 4), which immediately and silently purges captured data. The
+`user lookup` subcommand therefore hardcodes `delete_all_hits: false` with no
+override flag, so a teammate exporting survey feedback is not one malformed
+argument away from deleting a customer's Hotjar data. If a deletion verb is ever wanted, it is a separate, human-gated
 follow-up — noted here so the decision is explicit, not accidental. The
 client-side **Identify API** / JS SDK (`hj('identify', …)`) and Events API are
 browser instrumentation, out of scope for a server-side passthrough tool.
@@ -90,7 +114,8 @@ browser instrumentation, out of scope for a server-side passthrough tool.
   structured output + error envelope.
 - **Credential shape — two manual fields, exchange done in-service.** The
   service receives `client_id` + `client_secret` (see §4), performs the
-  **client-credentials token exchange** itself (POST `grant_type=client_credentials`
+  **client-credentials token exchange** itself (`POST /v1/oauth/token`,
+  form-urlencoded `grant_type=client_credentials`
   → `{access_token, token_type:"Bearer"}`), caches the bearer for the process
   lifetime, and calls the data endpoints with `Authorization: Bearer <token>`.
   This keeps the whole OAuth-ish dance inside anycli (which "knows nothing about
