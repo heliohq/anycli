@@ -95,7 +95,6 @@ embeddable-core contract requires.
 **Command tree** (grouped by resource, mirroring notion):
 
 ```
-docusign whoami                       # GET /oauth/userinfo — accounts + base_uri (debug/selection aid)
 docusign envelope send                # POST /envelopes  (--template-id | --document <pdf>, --signer-email, --signer-name, --subject)
 docusign envelope list                # GET /envelopes   (--from-date, --status, --count)
 docusign envelope get     <id>        # GET /envelopes/{id}
@@ -106,12 +105,20 @@ docusign template list                # GET /templates
 docusign template get     <id>        # GET /templates/{id}
 ```
 
-Note `docusign whoami` reads `/oauth/userinfo`, which lives on the **auth host**
-(`account.docusign.com` / `account-d.docusign.com`), not on `base_uri`. The
-service therefore needs the auth host too for `whoami` only; it is injected as a
-fourth field `DOCUSIGN_AUTH_HOST` (production `account.docusign.com` by default,
-overridden per environment — see §4/§6). The signing commands never touch the
-auth host.
+**No `whoami` command in v1 — and therefore no `DOCUSIGN_AUTH_HOST` field.**
+Account and base-path discovery happens entirely **Helio-side at connect time**
+(§4.2 Option A): the connect flow already calls `/oauth/userinfo` for identity,
+and the same call captures `base_uri` + `account_id` onto the connection. The
+anycli service only ever receives the three sourced fields above and never talks
+to the auth host. A runtime `whoami` (calling `/oauth/userinfo` from the service
+to let an assistant enumerate accounts and pick a non-default one) is
+**deferred**: `/oauth/userinfo` lives on the auth host (`account.docusign.com` /
+`account-d.docusign.com`), which is a per-environment config axis, not a token
+field or connection-metadata value — so no `credential.fields` sourcing entry
+can supply it (§4 credential-bindings table has no such source). Adding `whoami`
+later requires first defining how a bundle/config-derived static auth host
+reaches the service (distinct from the token-gateway sourcing map); it is not in
+scope for v1 and nothing in the v1 loop depends on it.
 
 **JSON output shape** — provider-neutral, `--json` flips every command to a
 structured envelope. Illustrative:
@@ -217,17 +224,72 @@ cannot express.
 **Recommended — Option A (Helio-side capture, thin anycli):** capture
 `base_uri` + `account_id` from the default account **during the identity
 resolution the connect flow already performs** (identity `source: userinfo` is
-required anyway for `sub`), and inject both as credential fields — the same
-end-shape as Salesforce (`credential.fields` carrying an account-scoped base and
-an injected `access_token`), just sourced from userinfo. Because default-account
-selection exceeds a static pointer, this needs a **small reviewed capability**:
-a DocuSign userinfo metadata deriver that, given the `/oauth/userinfo` response,
-picks the `is_default` account and emits `base_uri` + `account_id`. This is the
-same class of narrow, per-provider deriver the pipeline has already added many
-times (crisp keypair, amplitude first-colon-split, iterable region-prefix,
-mailerlite, braze DSN-host, …) and keeps anycli a pure executor. **This is the
-proposed integration-service capability growth for this tool** (Helio-side,
-`service/` — the bundle stays `standard_oauth`, no compiled `adapter_*.go`).
+required anyway for `sub`), persist them as connection metadata, and inject both
+as credential fields so anycli receives an already-account-scoped base plus an
+`access_token` and stays a pure executor.
+
+**This is real, net-new capability cost — not reuse of shipped machinery.** As
+sketched, the bundle **cannot generate on `main` today**. Three distinct
+integration-service items are required, none present on `main`:
+
+1. **A `connection.metadata_capture` manifest field that accepts a deriver
+   source.** `connectionManifest` (`cmd/provider-gen/manifest.go:109-113`) has
+   only `mode` / `disconnect_mode` / `runtime_strategy`, and the decoder runs
+   `decoder.KnownFields(true)` (`manifest.go:203-204`) — so an unknown
+   `metadata_capture:` key is a **strict-decode failure**, not an ignored
+   extra. The YAML field, its Go struct member, and the connect-time projection
+   that runs the deriver all have to be added.
+2. **Two new credential sources** — `connection.metadata.base_uri` and
+   `connection.metadata.account_id` (or one generalized `connection.metadata.*`
+   source). `knownCredentialSources` (`cmd/provider-gen/validate.go:53-59`) is
+   today exactly `{token.access_token, connection.account_key,
+   connection.metadata.person_urn, credential.app_id, credential.brand}`, and
+   `validateCredentials` (`validate.go:545-562`) rejects any other
+   `credential.fields` source as "unsafe" — so the sketched `base_uri` /
+   `account_id` sources fail the allowlist until added.
+3. **The deriver itself** — a DocuSign userinfo metadata deriver that, given the
+   `/oauth/userinfo` response, selects the `is_default` account and emits
+   `base_uri` + `account_id`.
+
+**The cited precedents do not cover this (verified against `main`):**
+
+- **Salesforce `metadata_capture` is itself unmerged** — a separate in-flight
+  branch, absent from `main` — and even there it is a **static RFC-6901 pointer
+  into the token response** (`instance_url: /instance_url`), *not* a userinfo
+  deriver. It establishes neither the deriver-sourced `metadata_capture` field
+  nor the new credential sources DocuSign needs.
+- **The `dsnHostIdentityDeriver` family** (crisp / amplitude / iterable /
+  mailerlite / braze) runs on the **`manual_credentials`** path
+  (`service/manual_credentials_identity.go` — a `Verify` deriving
+  identity/`account_key`/label from a pasted secret). Its output feeds
+  `account_key` + the human label, **not** an injected OAuth `credential.fields`
+  value on a `standard_oauth` connection. Different path, different output slot.
+- **The only OAuth-path precedent for injecting a derived value as a credential
+  — LinkedIn `person_urn` — is produced by a COMPILED adapter**
+  (`service/adapter_linkedin.go:34` sets `identity["person_urn"]`; the token
+  gateway then projects the already-shipped `connection.metadata.person_urn`
+  source). That is exactly the compiled-adapter path this design otherwise rules
+  out — so "no compiled adapter" and "reuses shipped capabilities" cannot both
+  be true.
+
+**So the honest choice is one of two, not "reuse shipped capabilities":**
+
+- **(a) Declarative machinery (recommended for reuse):** add the
+  `metadata_capture`-with-deriver field, the two `connection.metadata.*`
+  credential sources, and the deriver — justified on its own terms as the
+  general "capture-a-value-from-userinfo-onto-the-connection" capability that
+  freshdesk-class instance-scoped providers will reuse. Bundle stays
+  `standard_oauth`, no `adapter_*.go`.
+- **(b) Narrow compiled adapter (LinkedIn precedent, likely shorter):** a
+  DocuSign adapter whose `Identity` selects the `is_default` account and
+  populates `base_uri` / `account_id` into connection metadata, projected
+  through the (still net-new) `connection.metadata.*` credential source(s). This
+  reuses the existing adapter seam and drops item 1, but makes the bundle
+  non-pure-declarative.
+
+This design **recommends (a)**, but records (b) explicitly so the Helio-side
+implementer chooses deliberately rather than discovering the
+strict-decode/allowlist failures at generation time.
 
 **Rejected — Option B (anycli self-discovery):** let the docusign service call
 `/oauth/userinfo` itself at runtime from just `access_token`. Rejected because
@@ -237,10 +299,12 @@ every command against DocuSign's per-user hourly userinfo rate limit, and it
 pushes account-selection policy into the executor — against the embeddable-core
 boundary. Option A captures once at connect time and caches on the connection.
 
-`whoami` still exposes `/oauth/userinfo` at runtime as a **debug/selection
-aid** (so an assistant can see all accounts and pick a non-default one via a
-future `--account-id`), which is why the service also accepts the injected
-`DOCUSIGN_AUTH_HOST`; it does not depend on that call for normal operation.
+Option A captures once at connect time and caches on the connection, so the
+anycli service needs **no** auth-host value and makes **no** runtime
+`/oauth/userinfo` call. A future runtime account-enumeration/`--account-id`
+selection aid (a `whoami`-style command) is deferred precisely because it would
+reintroduce an auth-host dependency the sourcing map cannot express (§3); it is
+out of scope for v1.
 
 ### 4.3 oauth_review lane — verified, with a divergence noted
 
@@ -318,7 +382,11 @@ connection:
   disconnect_mode: local_only            # no declarative user-token revoke endpoint
   runtime_strategy: standard_oauth
   # base_uri + account_id captured from the DEFAULT userinfo account at connect
-  # time via the docusign userinfo metadata deriver (§4.2 Option A capability).
+  # time via the docusign userinfo metadata deriver (§4.2 Option A).
+  # NET-NEW FIELD: connectionManifest has no metadata_capture and the generator
+  # decodes with KnownFields(true) — this key fails strict-decode until the field
+  # is added (§4.2 item 1). Assumes Option A(a); Option A(b) drops this block and
+  # populates the same metadata from a compiled adapter instead.
   metadata_capture:
     base_uri: docusign_default_account   # deriver output (not a static pointer)
     account_id: docusign_default_account
@@ -328,6 +396,10 @@ resources: { selection: none, discovery: none, enforcement: none }
 credential:
   fields:
     access_token: token.access_token
+    # NET-NEW SOURCES: connection.metadata.base_uri / .account_id are absent from
+    # knownCredentialSources (validate.go:53-59), so validateCredentials rejects
+    # them as "unsafe" until added — either as two entries or one generalized
+    # connection.metadata.* source (§4.2 item 2).
     base_uri: connection.metadata.base_uri
     account_id: connection.metadata.account_id
     account_key: connection.account_key
@@ -344,11 +416,23 @@ tool:
   batch-lead/lane-1 decision at app-creation time (the client id/secret are
   themselves environment-specific). Recorded here as an open item, not silently
   assumed.
-- **Capability growth needed (Helio side):** exactly one — the DocuSign userinfo
-  metadata deriver (§4.2). No compiled `service/adapter_*.go`; the bundle stays
-  `standard_oauth`. Everything else (`form_basic`, `refresh_lease: credential`,
-  userinfo identity, `local_only` disconnect, `metadata_capture` + injected
-  credential fields) reuses existing, shipped capabilities.
+- **Capability growth needed (Helio side) — three net-new items, not one, and
+  not "shipped" (see §4.2):** (1) a `connection.metadata_capture` manifest field
+  that accepts a deriver source — it is **not** on `connectionManifest`
+  (`manifest.go:109-113`) and `KnownFields(true)` strict-decode rejects the
+  sketch as written; (2) the credential sources
+  `connection.metadata.base_uri` / `connection.metadata.account_id` (or one
+  generalized `connection.metadata.*`) — absent from `knownCredentialSources`
+  (`validate.go:53-59`), so `validateCredentials` rejects them today; (3) the
+  userinfo → `is_default` deriver itself. **Genuinely shipped and reused:**
+  `form_basic`, `refresh_lease: credential` (SignNow §4a set), userinfo
+  identity, and `local_only` disconnect. The `metadata_capture` field and the
+  injected metadata credential fields are **not** shipped — do not treat them as
+  such. **Open decision carried from §4.2:** build this as declarative machinery
+  — Option A(a), recommended — vs. a narrow compiled adapter à la LinkedIn
+  `person_urn` — Option A(b), likely shorter but non-declarative. The bundle
+  sketch above assumes A(a); either way the two `connection.metadata.*`
+  credential sources are net-new.
 - **Shared surfaces** touched at batch end (per master plan §2): anycli
   `register.go` + pin bump, `provider-gen` (5 projections), `providerIcons.ts`
   append (`ui/helio-app/src/integrations/icons/docusign.svg`), plugin docs
@@ -363,9 +447,9 @@ tool:
 
 | Layer | DocuSign specifics | Needs external creds? |
 |---|---|---|
-| **L1** anycli unit | `httptest` fake of the eSignature API: assert base path `{base_uri}/restapi/v2.1/accounts/{account_id}`, `Authorization: Bearer` header, envelope send/list/get/recipients/void/download request shapes, template list/get, and both plain + `--json` error rendering (401/409). Fake `/oauth/userinfo` for `whoami` and for the Option-A deriver's default-account selection (`is_default` true not at index 0). | No |
-| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN` + `ANYCLI_CRED_BASE_URI` + `ANYCLI_CRED_ACCOUNT_ID` (+ `ANYCLI_CRED_AUTH_HOST` for `whoami`) from a DocuSign **developer (demo)** account; run `envelope list`, `envelope send` to a template, `envelope get`, `template list` against `account-d` / `demo.docusign.net`. Proves field names + request shapes match the live API. | **Yes** — DocuSign demo account (free); token minted from the demo app (lane 1). |
-| **L3** generation + suites | `provider-gen` + `provider-gen --check` (5 projections) green; the new userinfo-deriver unit test green; helio-cli + integration-service suites green. On-branch: local `replace` to the anycli branch + local regen (not committed). | No |
+| **L1** anycli unit | `httptest` fake of the eSignature API: assert base path `{base_uri}/restapi/v2.1/accounts/{account_id}`, `Authorization: Bearer` header, envelope send/list/get/recipients/void/download request shapes, template list/get, and both plain + `--json` error rendering (401/409). The `is_default`-account selection is a **Helio-side** deriver concern (§4.2), unit-tested on that side, not in anycli. | No |
+| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN` + `ANYCLI_CRED_BASE_URI` + `ANYCLI_CRED_ACCOUNT_ID` from a DocuSign **developer (demo)** account; run `envelope list`, `envelope send` to a template, `envelope get`, `template list` against `account-d` / `demo.docusign.net`. Proves field names + request shapes match the live API. No auth-host credential — v1 has no `whoami`. | **Yes** — DocuSign demo account (free); token minted from the demo app (lane 1). |
+| **L3** generation + suites | `provider-gen` + `provider-gen --check` (5 projections) green **only after the §4.2 growth lands** (the new `metadata_capture` field + `connection.metadata.*` credential sources — without them the bundle fails strict-decode / the credential-source allowlist); the new userinfo-capture unit test green (deriver for A(a) or adapter `Identity` for A(b)); helio-cli + integration-service suites green. On-branch: local `replace` to the anycli branch + local regen (not committed). | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` with `provider:"docusign"`, seeding `access_token` (+ short `expires_at`) **and** the captured `base_uri`/`account_id` metadata + `refresh_token`, then `heliox tool docusign -- envelope list`. Exercises the token gateway → deriver-populated metadata → anycli path. Seed the metadata explicitly since L4 bypasses the connect-time deriver. | **Yes** — a real demo access token + its refresh token, base_uri, account_id (lane 1 dev app). |
 | **L5** full connect (pre-flip, once) | `heliox tool docusign auth` → real DocuSign consent on the demo app → confirm `oauth_connected` event → confirm the userinfo deriver captured `base_uri`/`account_id` on the connection → run `envelope list` unseeded through the new connection. Human-in-the-loop (oauth L5). Gates the visible flip together with **Go-Live review clearance**. | **Yes** — human consent on a real DocuSign account (lane 3 + lane 1 review). |
 
@@ -381,16 +465,24 @@ and L3 are fully self-contained.
 - **Type:** `service`; package `internal/tools/docusign/`; id/key/command all
   `docusign` (no `toolToProvider`, no group).
 - **API:** eSignature REST API v2.1 — envelopes (send/list/get/recipients/void/
-  download), templates (list/get), plus `/oauth/userinfo` for identity + base
-  path.
+  download), templates (list/get). `/oauth/userinfo` is called **Helio-side at
+  connect time** for identity + base-path capture, not by anycli at runtime; v1
+  has no `whoami`, so anycli receives no auth-host value.
 - **Auth:** Authorization Code Grant, confidential client, `form_basic` token
   exchange, scopes `signature extended`, `refresh_lease: credential` (rotating
   refresh; reuses SignNow's shipped allowed-set), `local_only` disconnect,
   8h access token (no `assumed_ttl`). oauth_review = Go-Live production
   promotion review (streamlined Oct 2025 → hours-to-48h, not weeks); gates only
   the visible flip.
-- **Only new Helio capability:** a DocuSign userinfo **metadata deriver** that
-  selects the `is_default` account and emits `base_uri` + `account_id`
-  (§4.2 Option A). No compiled adapter; bundle stays `standard_oauth`.
+- **New Helio capability — three net-new items (§4.2/§5), not "shipped":** (1) a
+  `connection.metadata_capture` manifest field accepting a deriver source
+  (`connectionManifest` lacks it; `KnownFields(true)` rejects it today); (2) the
+  `connection.metadata.base_uri` / `connection.metadata.account_id` credential
+  sources (or a generalized `connection.metadata.*`), absent from
+  `knownCredentialSources`; (3) the userinfo → `is_default` deriver. **Open
+  build choice:** declarative machinery (Option A(a), recommended) vs. a narrow
+  compiled DocuSign adapter à la LinkedIn `person_urn` (Option A(b), shorter but
+  non-declarative). "No adapter" and "reuses shipped capabilities" are **not**
+  both true — the earlier draft's claim is corrected here.
 - **Open item for lane 1 / batch lead:** demo-vs-prod host handling during the
   hidden phase (env-specific config vs `account-d` hosts).
