@@ -197,7 +197,7 @@ auth:
   oauth:
     authorize_url: https://app.beehiiv.com/oauth/authorize
     token_url: https://app.beehiiv.com/oauth/token
-    token_exchange_style: form_secret     # client creds in the form body; confirm form vs basic at L5
+    token_exchange_style: form_secret     # resolved: client creds in the form body (not Basic)
     pkce: none                            # confidential client uses client_secret
     display_scopes: [publications, posts, subscriptions, segments, custom_fields, tiers, automations]
     single_active_token: false
@@ -205,9 +205,9 @@ auth:
 
 identity:
   source: userinfo
-  url: https://app.beehiiv.com/oauth/token/info   # see identity note
-  stable_key: /workspace_id
-  label_candidates: [/workspace_name, /workspace_id]
+  url: https://api.beehiiv.com/v2/workspaces/identify   # GET, identify:read scope; { data: { id, name, owner_email } }
+  stable_key: /data/id                                  # work_… prefixed workspace id
+  label_candidates: [/data/name, /data/owner_email, /data/id]
 
 connection:
   mode: isolated
@@ -229,26 +229,25 @@ tool:
   kind: oauth
 ```
 
-**Identity note (the one open decision — resolve at stage 1/2).** A beehiiv
-OAuth token is workspace-scoped and can span multiple publications, so the
-stable account identity is the *workspace*, not a single publication. The
-recommended `identity.source: userinfo` against `GET /oauth/token/info` (the
-token-metadata endpoint under the default `identify:read` scope) needs its
-exact JSON keys confirmed against a live response before the stable_key /
-label pointers above are final. Two fallbacks if `token/info` does not expose a
-stable workspace id: (a) `POST /oauth/introspect`, or (b) `userinfo` against
-`GET /publications` extracting the first publication's `/data/0/id` +
-`/data/0/name` (weaker — order/emptiness sensitive). This is a bundle-config
-choice only; it needs **zero** service code and stays on the `standard_oauth`
-golden path.
+**Identity note (resolved).** A beehiiv OAuth token is workspace-scoped and can
+span multiple publications, so the stable account identity is the *workspace*,
+not a single publication. Resolved to `identity.source: userinfo` against
+`GET /v2/workspaces/identify` (the official "Identify workspace" endpoint under
+the default `identify:read` scope), which returns
+`{ data: { id, name, owner_email } }` where `id` is the `work_…`-prefixed
+workspace id — so `stable_key: /data/id` with
+`label_candidates: [/data/name, /data/owner_email, /data/id]`. This is a
+bundle-config choice only; it needs **zero** service code and stays on the
+`standard_oauth` golden path.
 
 **standard_oauth fit — no adapter.** beehiiv is a textbook authorization-code
 provider: form/JSON token exchange, JSON-pointer identity extraction, bearer
 credential projection — all inside the closed `standard_oauth` capability set
 (`token_exchange_style` + `declarativeIdentityResolver` + no-op/declarative
 revoker). No `service/adapter_*.go`, no integration-service capability growth
-is expected. If L5 shows the token endpoint wants Basic client auth, flip
-`token_exchange_style: form_basic` — still config-only.
+is expected. The token endpoint takes client creds in the form body
+(`token_exchange_style: form_secret`, verified at L5) — no Basic-auth flip
+needed.
 
 Other stages: UI icon `ui/helio-app/src/integrations/icons/beehiiv.svg` +
 `providerIcons.ts` append (manual); AI-facing sub-doc under
