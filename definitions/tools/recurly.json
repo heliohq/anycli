@@ -1,0 +1,17 @@
+{
+  "name": "recurly",
+  "type": "service",
+  "description": "Recurly subscription billing as a tool (V3 REST API, private API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "RECURLY_API_KEY"}
+      },
+      {
+        "source": {"field": "region"},
+        "inject": {"type": "env", "env_var": "RECURLY_REGION"}
+      }
+    ]
+  }
+}
