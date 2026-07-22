@@ -371,8 +371,42 @@ func TestMissingTokenFailsFast(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.ExitCode == 0 {
-		t.Errorf("missing token should be non-zero exit")
+	// A missing injected credential is a runtime/environment precondition
+	// failure, not a usage error → exit 1 (never the usage-error exit 2).
+	if result.ExitCode != 1 {
+		t.Fatalf("exit = %d, want 1 (runtime failure)", result.ExitCode)
+	}
+	if result.CredentialRejected {
+		t.Errorf("a never-injected credential is not a provider rejection")
+	}
+}
+
+// TestMissingTokenRuntimeEnvelope pins the JSON error envelope for a missing
+// credential to the runtime (not usage) convention: code must not be the
+// usage-error "invalid_request", and no HTTP status is attached.
+func TestMissingTokenRuntimeEnvelope(t *testing.T) {
+	var out, errBuf strings.Builder
+	svc := &Service{Out: &out, Err: &errBuf}
+	result, err := svc.Execute(t.Context(), []string{"me", "--json"}, map[string]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.ExitCode != 1 {
+		t.Fatalf("exit = %d, want 1 (runtime failure)", result.ExitCode)
+	}
+	env := decodeJSON(t, errBuf.String()).(map[string]any)
+	errObj := env["error"].(map[string]any)
+	if errObj["code"] == "invalid_request" {
+		t.Errorf("missing-credential code must not use the usage-error convention: %v", errObj["code"])
+	}
+	if errObj["code"] != "unauthenticated" {
+		t.Errorf("code = %v, want unauthenticated", errObj["code"])
+	}
+	if _, hasStatus := errObj["status"]; hasStatus {
+		t.Errorf("client-side precondition error must not carry an HTTP status: %v", errObj["status"])
+	}
+	if msg, _ := errObj["message"].(string); !strings.Contains(msg, "HOOTSUITE_ACCESS_TOKEN is not set") {
+		t.Errorf("message = %v", errObj["message"])
 	}
 }
 

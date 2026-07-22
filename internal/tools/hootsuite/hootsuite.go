@@ -5,7 +5,8 @@
 // envelope; this service unwraps it and prints the inner value so agents see a
 // provider-neutral result. Errors are non-2xx with a JSON body carrying an
 // errors[] array of numeric code/message; 401 rejects the credential. Usage
-// errors (bad flags, non-UTC send times) exit 2; API/runtime failures exit 1.
+// errors (bad flags, non-UTC send times) exit 2; API/runtime failures — including
+// a never-injected credential — exit 1.
 package hootsuite
 
 import (
@@ -49,11 +50,27 @@ type usageError struct{ msg string }
 
 func (e *usageError) Error() string { return e.msg }
 
+// runtimeError is a client-side runtime/environment precondition failure that is
+// NOT the caller's usage mistake — e.g. the credential binding never injected
+// HOOTSUITE_ACCESS_TOKEN. It exits 1 (like an API/transport failure), and its
+// JSON envelope carries code (never the usage-error "invalid_request") with no
+// HTTP status.
+type runtimeError struct {
+	code string
+	msg  string
+}
+
+func (e *runtimeError) Error() string { return e.msg }
+
 // Execute runs one hootsuite subcommand with the resolved credentials in env.
 func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvAccessToken]
 	if token == "" {
-		s.renderError(hasJSONArg(args), &usageError{msg: "HOOTSUITE_ACCESS_TOKEN is not set"})
+		// A never-injected credential is a runtime precondition failure, not a
+		// caller usage mistake → exit 1 with the runtime (not usage) envelope.
+		// The check runs before cobra parses flags, so detect --json in the raw
+		// args to honor the structured error-envelope contract.
+		s.renderError(hasJSONArg(args), &runtimeError{code: "unauthenticated", msg: "HOOTSUITE_ACCESS_TOKEN is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(token)
@@ -97,6 +114,7 @@ func (s *Service) renderError(jsonMode bool, err error) {
 	errObj := map[string]any{}
 	var apiErr *apiError
 	var useErr *usageError
+	var runErr *runtimeError
 	switch {
 	case errors.As(err, &apiErr):
 		code := apiErr.code
@@ -106,6 +124,13 @@ func (s *Service) renderError(jsonMode bool, err error) {
 		errObj["code"] = code
 		errObj["message"] = apiErr.message
 		errObj["status"] = apiErr.status
+	case errors.As(err, &runErr):
+		code := runErr.code
+		if code == "" {
+			code = "runtime_error"
+		}
+		errObj["code"] = code
+		errObj["message"] = runErr.Error()
 	case errors.As(err, &useErr):
 		errObj["code"] = "invalid_request"
 		errObj["message"] = useErr.Error()
