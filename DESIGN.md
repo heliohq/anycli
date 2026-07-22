@@ -73,6 +73,45 @@ API docs, not inheriting assumptions. Results:
 
 ---
 
+## 0a. Stage-1 gate RESOLVED (implementation update, 2026-07-22)
+
+Independent re-verification against Cal.com's official docs during implementation
+**resolved the §4 stage-1 `/v2/me` version-header gate to the header-free branch —
+§4a does NOT run, and there is ZERO integration-service Go change.** The resolution
+is a divergence from this doc's original assumption (that the version-gated
+`api.cal.com/v2/me` was the only identity option), so it is recorded here:
+
+- **Identity uses `GET https://app.cal.com/api/auth/oauth/me`, not `api.cal.com/v2/me`.**
+  Cal.com's official OAuth reference documents a purpose-built OAuth credential
+  endpoint — `GET https://app.cal.com/api/auth/oauth/me` with only
+  `Authorization: Bearer <token>` — for exactly the "who is this token" question
+  identity resolution asks. It is **not** under the version-gated `/v2` surface, so
+  it needs **no `cal-api-version` header**. This is the header-free branch: the plain
+  `declarativeIdentityResolver` reaches it with only `Authorization` + `Accept` (the
+  two headers `fetchUserInfo` already sends), so the §4a shared-contract header
+  capability is unnecessary. Subtracting §4a is the orthogonal-minimal outcome:
+  identity gets its own dedicated non-versioned endpoint instead of growing the
+  shared identity contract to carry a Cal.com version pin.
+- **Token response carries no identity, confirming userinfo is required.** The v2
+  third-party token exchange returns only `access_token` + `refresh_token` (no `id`,
+  no `expires_in`), so Notion-style `identity.source: token_response` is impossible;
+  `source: userinfo` against `oauth/me` is the correct and only declarative option.
+- **The anycli `me` command is separate and DOES send the version header.** The
+  data-plane `calcom me` → `GET api.cal.com/v2/me` sends `cal-api-version: 2024-06-14`
+  (anycli sends per-route versions natively). Only integration-service's connect-time
+  identity fetch uses the non-versioned `oauth/me` endpoint. Clean separation; no
+  code path needs a version header it cannot send.
+- **All five per-endpoint versions re-confirmed against each endpoint's official
+  reference:** event-types `2024-06-14`, slots `2024-09-04`, bookings `2024-08-13`,
+  schedules `2024-06-11`, me `2024-06-14`. (Some third-party blogs claim event-types
+  uses `2024-08-13`; the official `/v2/event-types` reference says `2024-06-14` — the
+  blogs conflated versions. This doc's §1 table stands.)
+- **Modern scopes are UPPERCASE, space-separated** (`BOOKING_READ BOOKING_WRITE
+  EVENT_TYPE_READ SCHEDULE_READ PROFILE_READ`), passed via the bundle `scopes:` list
+  which the standard authorize-URL builder space-joins into the `scope` param. The
+  legacy lowercase `READ_PROFILE`/`READ_BOOKING` scopes are deprecated. `display_scopes`
+  (lowercase UI labels) stays separate.
+
 ## 1. Official API surface wrapped — and why
 
 **Base:** `https://api.cal.com/v2`. **Auth:** `Authorization: Bearer <access_token>`.
