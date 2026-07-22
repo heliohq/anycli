@@ -46,8 +46,11 @@ Endpoint groups, by AI relevance:
   Optional `Idempotency-Key` request header (unique per request, 24h TTL,
   ≤256 chars) — surfaced as a flag so retried agent sends don't double-deliver.
   Success: `{"id": "<uuid>"}`.
-- `POST /emails/batch` — send up to 100 emails in one call (array of the same
-  objects). Returns `{"data":[{"id":…}, …]}`.
+- `POST /emails/batch` — send up to 100 emails in one call (array of email
+  objects). **Not full parity with single-send:** the batch endpoint does
+  **not** support `attachments` (official docs: "The `attachments` field is not
+  supported yet"); it **does** support `scheduled_at` and `tags`. Returns
+  `{"data":[{"id":…}, …]}`.
 - `GET /emails/{id}` — retrieve a sent email's delivery status.
 - `PATCH /emails/{id}` — reschedule a not-yet-sent email (`scheduled_at`).
 - `POST /emails/{id}/cancel` — cancel a scheduled email.
@@ -70,8 +73,11 @@ Endpoint groups, by AI relevance:
 **API keys — deliberately NOT exposed as AI verbs.** `POST /api-keys` /
 `DELETE /api-keys/{id}` are credential-management/privilege-escalation surface
 (an assistant could mint itself a full-access key). Excluded from the command
-tree. `GET /api-keys` is used only as the connect-time verification probe
-(§3), not surfaced as a teammate command.
+tree. The connect-time verification probe (§3) is **`GET /domains`**, not
+`/api-keys`: a restricted (sending-only) key returns `401 restricted_api_key`
+on `/api-keys` while remaining a valid, send-capable key, so `/api-keys` is a
+false-negative liveness probe. `/domains` is the lightweight read a full key is
+expected to have. Neither is surfaced as a teammate command.
 
 Scope decision: ship **`email` (send/batch/get/update/cancel)** + **`domain`
 (list/get, plus create/verify/update/delete)** in v1 as the core, and
@@ -125,7 +131,8 @@ resource grouping.
   but relying on it is fragile — set it explicitly). Flag this in the L2 run.
 - Cobra tree (`--` passthrough from heliox):
   - `resend email send   --from --to --subject [--html|--text] [--cc --bcc --reply-to --scheduled-at --attachments <json> --tags <json> --headers <json> --idempotency-key]`
-  - `resend email batch   --emails <json-array>` (≤100)
+  - `resend email batch   --emails <json-array>` (≤100; **batch does NOT
+    support `attachments` — Resend rejects them 422; `scheduled_at`/`tags` OK**)
   - `resend email get     <id>`
   - `resend email update  <id> --scheduled-at <ts>`
   - `resend email cancel  <id>`
@@ -148,20 +155,57 @@ stdout verbatim + newline (bitly/notion `emit`). No client-side reshaping.
   `{"statusCode":<n>,"name":"<slug>","message":"<text>"}` — `apiMessage`
   extracts `message` (fallback `name`, fallback raw body). Confirm exact field
   names in the L1 fake and the L2 real run.
-- **`401`** (missing key) **and `403`** (invalid key) → wrap in
-  `execution.RejectCredential(...)` so the token gateway marks the credential
-  rejected (bitly only maps 401; Resend uses 403 for a *bad* key and 401 for a
-  *missing* one, so map **both**). Verify this 401-vs-403 split in L2.
+- **Credential reject keys on the parsed error `name`, NOT the raw HTTP
+  status.** Verified against Resend's official errors page
+  (https://resend.com/docs/api-reference/errors): both statuses are overloaded,
+  so a raw-status rule false-rejects valid keys.
+  - **403 is not credential-exclusive.** `invalid_api_key` is 403, but so are
+    three `validation_error` variants — most importantly **unverified sending
+    domain** (`403 validation_error`, message "…domain is not verified…"), plus
+    testing-restriction and domain-already-registered. Unverified-domain is the
+    *default* state of every new account until DNS verification, so a raw
+    `403 → RejectCredential` rule would tear down a **valid** `re_…` key the
+    first time an agent sends from an unverified `from`. This is a concrete
+    false-positive, not a hypothetical.
+  - **401 is not credential-exclusive either.** `missing_api_key` is 401, but so
+    is `restricted_api_key` — a *valid* sending-only key.
+  - Decision, by parsed `name`:
+    - `name ∈ {invalid_api_key, missing_api_key}` → wrap in
+      `execution.RejectCredential(...)` (genuinely bad/absent key; token gateway
+      marks it rejected).
+    - `name == restricted_api_key` → **plain passthrough error, NOT a reject**:
+      the key is live, just scoped to sending-only. Tearing it down would brick
+      a working send credential.
+    - **every other 401/403** — notably `403 validation_error` /
+      unverified-domain — → **plain passthrough API error** the agent acts on
+      (verify the domain, fix the `from`), never a credential reject.
+    - If the body is unparseable (no `name`), fall back to a plain error — do
+      **not** reject on bare status, so a malformed-but-non-credential 4xx can't
+      brick a good key.
 - `429` (rate limit, 10 rps/team) → plain error (not a credential reject);
   passthrough the body so the agent can back off.
+
+Confirm the name-based split in L2 (a valid key sending from an unverified
+domain must NOT be rejected).
 
 ### 2.4 Unit tests (L1, TDD-first)
 
 `resend_test.go` + per-group `*_test.go` with an `httptest.Server` fake:
 assert method/path/query, `Authorization: Bearer …` + `User-Agent` headers,
 request JSON body for `email send`/`batch`, passthrough stdout, and both
-plain-text and `--json` error rendering for 401/403/422/429. Never hit the
-real API from a unit test.
+plain-text and `--json` error rendering. **Credential-reject matrix — pins the
+name-based contract of §2.3:**
+
+| Fake response | Expect |
+|---|---|
+| `403 invalid_api_key` | RejectCredential |
+| `401 missing_api_key` | RejectCredential |
+| `403 validation_error` (unverified domain, valid key) | **NO reject** — plain passthrough |
+| `401 restricted_api_key` (live sending-only key) | **NO reject** — plain passthrough |
+| `422 invalid_attachment` / `429 rate_limit_exceeded` | plain passthrough |
+| 4xx with unparseable body (no `name`) | plain passthrough, NOT reject |
+
+Never hit the real API from a unit test.
 
 ## 3. Helio provider bundle (`integrations/providers/resend/provider.yaml`)
 
@@ -194,7 +238,9 @@ auth:
     setup_url: https://resend.com/api-keys
 
 identity:
-  source: strategy          # no team-identity userinfo endpoint (see below)
+  source: strategy          # selects the NEW opaqueKeyIdentityDeriver (below),
+                            # NOT mongodb's dsnHostIdentityDeriver — a re_… key
+                            # has no DSN host to parse (see decision block)
 
 connection:
   mode: isolated
@@ -219,27 +265,56 @@ tool:
 **Identity / verify decision (the one capability question).** Resend keys are
 **team-scoped** and the API exposes **no `/me`/userinfo endpoint** returning a
 stable team id or name — so there is no clean field to use as `stable_key`
-(unlike Notion's `/workspace_id`). Two viable shapes:
+(unlike Notion's `/workspace_id`).
 
-1. **No-verify (mongodb precedent, safest default for hidden-first):**
-   `identity.source: strategy`, store the key without a provider round-trip; a
-   bad key surfaces at first `heliox tool resend` call via
-   `RejectCredential` (401/403). Account label is a static/user-supplied label.
-   Zero integration-service capability growth. **Recommended for the initial
-   hidden landing.**
-2. **Verify-on-connect (loops/tally Bearer-verifier precedent):** if the batch
-   base already carries a generic Bearer-scheme identity/verifier capability,
-   reuse it against `GET https://api.resend.com/domains` (200 = valid key,
-   401/403 = reject) to fail a bad key at connect time and, optionally, derive
-   the label from the first domain name. **Only reuse an existing shared
-   capability — do NOT add a Resend-specific adapter** (`service/adapter_*.go`
-   is reserved for non-standard response/lifecycle shapes; a bearer key with a
-   standard GET probe is not one). If no such capability exists on the base,
-   ship shape (1) and let verification land when the shared verifier does.
+**Ground truth on this worktree base** (verified in
+`go-services/integration-service/service/provider_registry.go`,
+`composeProviderRegistration`): the `manual_credentials` runtime strategy is
+wired **unconditionally** to `dsnHostIdentityDeriver{}`, which `url.Parse`es
+the secret and derives the account_key/label from the DSN **host**. There is
+**no** deriver-selection switch and **no** opaque/fingerprint deriver on this
+base. An opaque `re_…` bearer key has no host, so `dsnHostIdentityDeriver`
+returns `manualCredentialFormatError` ("requires a connection string with a
+host") and **rejects a perfectly valid Resend key at connect time.** So the
+mongodb analogy does **not** transfer, and `identity.source: strategy` is **not
+zero-growth** here — a structureless bearer credential needs its own deriver,
+exactly as the sibling api_key tools in this program budgeted theirs (amplitude
+first-colon-split, iterable region-prefix, **knock fingerprint** — task #328's
+completed fingerprint identity deriver over a structureless key is the direct
+precedent). Two viable shapes, **both requiring a small, bounded capability**:
 
-Either way: **no new CredentialSource, no token-gateway change** — the key
-rides `token.access_token`, exactly like mongodb's DSN. Seedable at L4 (api_key
-auth type is seedable; only minted providers like github are rejected).
+1. **Opaque-key deriver + deriver selection (recommended, matches the sibling
+   api_key precedent).** Add a `manual_credentials` deriver selection in
+   `composeProviderRegistration` (the switch that today hardcodes
+   `dsnHostIdentityDeriver`) keyed off a bundle field, plus a new
+   `opaqueKeyIdentityDeriver` that does **no** provider round-trip and derives a
+   stable, secret-free account_key by **fingerprinting** the key (short `re_…`
+   prefix + a truncated hash — never the raw secret in Connection metadata),
+   with a static/user-supplied account **label**. This is the smallest
+   orthogonal growth and the direct analogue of the knock fingerprint deriver.
+   **Recommended for the initial hidden landing.**
+2. **Verify-on-connect against `GET /domains` (only if a shared
+   Bearer-verifier capability already exists on the batch base).** Probe
+   `GET https://api.resend.com/domains`: `200` = valid key (optionally derive
+   the label from the first domain name); parsed `name == invalid_api_key`
+   (403) = reject at connect; parsed `name == restricted_api_key` (401) =
+   **accept** — a live sending-only key legitimately 401s on reads, so do NOT
+   reject it, and fall back to the fingerprint account_key. This is the same
+   probe endpoint named in §1 (reconciled: `/domains`, never `/api-keys`, since
+   a restricted key 401s on `/api-keys`). **Only reuse an existing shared
+   capability — do NOT add a Resend-specific `service/adapter_*.go`.** If no
+   shared verifier exists on the base, ship shape (1).
+
+Either shape still needs the fingerprint deriver: a restricted key can't read
+`/domains`, so verify-on-connect can't be the *only* source of account_key.
+**Do not claim zero integration-service growth** — budget the one small deriver
++ its selection, land it with tests alongside the bundle, and record it in the
+batch capability-growth ledger the way the sibling api_key tools did.
+
+The growth is confined to the identity/registry layer: **no new
+CredentialSource, no token-gateway change** — the key still rides
+`token.access_token`, exactly like mongodb's DSN. Seedable at L4 (api_key auth
+type is seedable; only minted providers like github are rejected).
 
 `auth.required_config_fields` is **empty** — there is no OAuth client id/secret,
 so integration-service needs **zero `config/` + `deploy/` credential appends**
@@ -257,7 +332,10 @@ lane-1 config-landing gate that OAuth tools carry.
 - **AI-facing doc:** provider sub-doc under
   `agents/plugins/heliox/skills/tool/` — emphasize `email send` (from must be a
   verified-domain address; `to` ≤50; use `--idempotency-key` for retriable
-  sends; `--scheduled-at` for later), bump plugin version + publish at batch end.
+  sends; `--scheduled-at` for later), and call out that **`email batch` does
+  NOT support `attachments`** (single-send only — a batch send with
+  `attachments` returns an opaque 422); bump plugin version + publish at batch
+  end.
 - **Generation:** `provider-gen` + `--check` from
   `go-services/integration-service`; five projections commit together at
   batch-end (never on this branch — expected to fail `--check` in CI until the
@@ -268,7 +346,7 @@ lane-1 config-landing gate that OAuth tools carry.
 | Layer | What runs | Needs external creds? |
 |---|---|---|
 | **L1** | anycli `go test ./...` — `resend` service + definition unit tests vs `httptest` fakes (headers incl. User-Agent, send/batch body, 401/403/422/429 rendering, `--json` envelope) | No |
-| **L2** | `ANYCLI_CRED_API_KEY=re_… anycli resend -- email send --from "onboarding@<verified-domain>" --to <inbox> --subject hi --text hi`, plus `email get <id>`, `domain list` against the **real** api.resend.com | **Yes** — a real Resend API key + a verified sending domain + a deliverable test inbox (account pool). Confirms field names, the User-Agent 403 behavior, and the 401(missing)-vs-403(invalid) split |
+| **L2** | `ANYCLI_CRED_API_KEY=re_… anycli resend -- email send --from "onboarding@<verified-domain>" --to <inbox> --subject hi --text hi`, plus `email get <id>`, `domain list` against the **real** api.resend.com | **Yes** — a real Resend API key + a verified sending domain + a deliverable test inbox (account pool). Confirms field names, the User-Agent 403 behavior, that the error `name` field is populated (so §2.3's name-based reject fires correctly), and that a send from an **unverified** `from` returns `403 validation_error` as a **passthrough** error (NOT a credential reject) |
 | **L3** | `provider-gen --check` + both repos' unit suites; `helio-cli` build with a local uncommitted `go.mod replace` → anycli branch, then `go test ./cmd/heliox/cmds/tool/` | No |
 | **L4** | singleton + `POST /internal/test-only/connections/seed` (provider `resend`, `access_token`=real `re_…`) → `heliox tool resend -- email send …` reaches the live API through the token gateway | **Yes** — same real key seeded (non-expiring key, seed `access_token` only, no refresh/expires_at) + real seeded org/assistant/user identities |
 | **L5** | Hidden-still: open connect link → paste `re_…` through the real connect UI (`POST /connections/credentials`) → appears connected in `GET /connections` → one **unseeded** live `email send` succeeds. This is the **api_key key-entry L5 path** (master plan §2), agent-drivable via agent-browser, human fallback | **Yes** — real key + verified domain + test inbox |
