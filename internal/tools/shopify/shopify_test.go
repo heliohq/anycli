@@ -202,7 +202,17 @@ func TestInventoryAdjustBuildsChanges(t *testing.T) {
 	if res.result.ExitCode != 0 {
 		t.Fatalf("exit = %d, stderr = %s", res.result.ExitCode, res.stderr)
 	}
-	_, vars := bodyOf(t, reqs[0].Body)
+	query, vars := bodyOf(t, reqs[0].Body)
+	// As of Admin API 2026-04 the @idempotent directive is mandatory on
+	// inventoryAdjustQuantities; the tool pins 2026-07, so the mutation must
+	// carry it, bound to the $idempotencyKey variable, and the key must default
+	// to a non-empty per-invocation UUID.
+	if !strings.Contains(query, "@idempotent(key: $idempotencyKey)") {
+		t.Errorf("mutation missing required @idempotent directive: %s", query)
+	}
+	if key, _ := vars["idempotencyKey"].(string); key == "" {
+		t.Errorf("idempotencyKey variable must default to a non-empty UUID, got %v", vars["idempotencyKey"])
+	}
 	input, _ := vars["input"].(map[string]any)
 	changes, _ := input["changes"].([]any)
 	if len(changes) != 1 {
@@ -217,6 +227,25 @@ func TestInventoryAdjustBuildsChanges(t *testing.T) {
 	}
 	if ch["delta"] != float64(5) {
 		t.Errorf("delta = %v, want 5", ch["delta"])
+	}
+}
+
+// TestInventoryAdjustHonorsIdempotencyKeyFlag verifies an explicit
+// --idempotency-key is forwarded verbatim (deliberate cross-invocation retry
+// safety) instead of a fresh UUID.
+func TestInventoryAdjustHonorsIdempotencyKeyFlag(t *testing.T) {
+	var reqs []capturedRequest
+	body := `{"data":{"inventoryAdjustQuantities":{"inventoryAdjustmentGroup":{"reason":"correction","changes":[]},"userErrors":[]}}}`
+	srv := newServer(t, &reqs, 200, body)
+	defer srv.Close()
+
+	res := runAgainst(t, srv, "inventory", "adjust", "--item", "11", "--location", "22", "--delta", "5", "--idempotency-key", "fixed-key-123")
+	if res.result.ExitCode != 0 {
+		t.Fatalf("exit = %d, stderr = %s", res.result.ExitCode, res.stderr)
+	}
+	_, vars := bodyOf(t, reqs[0].Body)
+	if key, _ := vars["idempotencyKey"].(string); key != "fixed-key-123" {
+		t.Errorf("idempotencyKey = %v, want fixed-key-123", vars["idempotencyKey"])
 	}
 }
 

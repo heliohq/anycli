@@ -156,6 +156,21 @@ but inside `data`). The service MUST treat a non-empty `userErrors` as exit 1
 with the messages in the error envelope — never report a no-op mutation as
 success.
 
+**Divergence (verified 2026-07-23, follow-official-docs): the `@idempotent`
+directive is MANDATORY on `inventoryAdjustQuantities`.** A naive design would
+send the bare mutation. But Shopify made an idempotency key **optional as of
+2026-01 and required as of 2026-04** on `inventoryAdjustQuantities` (and
+`inventorySetQuantities` / refund mutations); a 2026-04+ request that omits the
+`@idempotent` directive is rejected
+(https://shopify.dev/changelog/making-idempotency-mandatory-for-inventory-adjustments-and-refund-mutations).
+Because this tool pins **2026-07 (≥ 2026-04)**, the `inventory adjust` mutation
+carries `... @idempotent(key: $idempotencyKey)` with a fresh per-invocation
+RFC-4122 v4 UUID (Shopify's own docs bind the directive to a variable), and a
+`--idempotency-key` flag lets a caller reuse one key for a deliberate retry so
+Shopify collapses the duplicate to a single effect. Without this the very first
+real-API `inventory adjust` (L2/L4) would fail — this is a live-contract fix,
+not a nicety.
+
 **L1 unit tests** (TDD, httptest fakes, never the live API): assert the request
 POSTs to `/admin/api/2026-07/graphql.json`, carries `X-Shopify-Access-Token`,
 sends the expected query/variables per subcommand, and renders both plain and
