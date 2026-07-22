@@ -51,7 +51,7 @@ that back those jobs, and no more:
 | Lead (company/account) | `GET/POST /lead/`, `GET/PUT/DELETE /lead/{id}/` | The central CRM object; create/inspect/update accounts. |
 | Contact (person) | `GET/POST /contact/`, `GET/PUT/DELETE /contact/{id}/` | People on a lead — emails/phones for outreach. |
 | Opportunity (deal) | `GET/POST /opportunity/`, `GET/PUT/DELETE /opportunity/{id}/` | Pipeline value/stage; advance or report on deals. |
-| Activity | `GET /activity/`; per-type `GET/POST /activity/note|call|email|sms|meeting/`, `GET/DELETE /activity/{type}/{id}/` | Log and read the interaction history that drives follow-ups. |
+| Activity | Read all types: `GET /activity/`, `GET /activity/{type}/{id}/` (type ∈ note\|call\|email\|sms\|meeting). Write v1: `POST /activity/note\|call\|email/`, `DELETE /activity/{type}/{id}/` (sms/meeting writes deferred, §3). | Log and read the interaction history that drives follow-ups. |
 | Task | `GET/POST /task/`, `GET/PUT/DELETE /task/{id}/` | Follow-up reminders the assistant creates/completes. |
 | Search | `POST /data/search/` (advanced query DSL); `GET /lead/?query=` (simple) | Find leads/contacts by structured or free-text query — the entry point for most agent workflows. |
 | Me / User | `GET /me/`, `GET /user/`, `GET /user/{id}/` | Identity + org resolution (also the identity/verify endpoint, §4). |
@@ -116,6 +116,10 @@ close lead        list | get | create | update | delete
 close contact     list | get | create | update | delete
 close opportunity list | get | create | update | delete
 close activity    list | note-add | call-log | email-log | get | delete
+                  # list/get/delete cover all activity types (note/call/email/
+                  # sms/meeting); write verbs ship note/call/email only in v1 —
+                  # sms-send and meeting-log writes are deferred to a later
+                  # revision (§2 advertises the full read family).
 close task        list | get | create | update | complete | delete
 close search      -- --query '<smart-query>' [--type lead|contact]
 close me
@@ -171,6 +175,24 @@ zero service adapter.** Every axis of the standard exchanger maps cleanly:
 
 - `token_exchange_style: form_secret` — form-encoded body with client
   id/secret in the body (matches the verified request format).
+- `refresh_lease: credential` (`OAuthLeaseCredential`) — **required** because
+  Close rotates its refresh token on every refresh: the official OAuth guide
+  states "the authorization server issues a new Refresh Token and the client
+  must discard the old" and "revokes the old Refresh Token after issuing a new
+  one." `RefreshLeaseScope` exists precisely to serialize refreshes across
+  replicas (catalog.go comment: "defines how refreshes are serialized across
+  replicas"); omitting it defaults to `none` (independent concurrent
+  refreshes). Under the repo's mandatory "design for horizontal scale" rule,
+  two runtime replicas hitting the 1h-expired token concurrently would both
+  refresh, Close revokes the loser's now-stale refresh token, and with A3
+  strict write-back (integration-service CLAUDE.md: a permanent connection
+  brick for rotation-type providers) and no per-credential lease to force
+  `reloadRefreshSnapshot`, the connection can be permanently bricked. The
+  credential-scoped lease keys on the credential id (`refresh:<provider>:<credID>`,
+  token_refresh.go) so concurrent refreshes serialize and the loser reloads the
+  rotated snapshot instead of replaying a revoked token. This matches the
+  same-program rotating providers keap (task #152) and signnow (#189), which
+  both set `refresh_lease: credential`.
 - `auth.oauth.pkce: false`.
 - `auth.oauth.authorize_url: https://app.close.com/oauth2/authorize/`
 - `auth.oauth.token_url: https://api.close.com/oauth2/token/`
@@ -184,13 +206,23 @@ zero service adapter.** Every axis of the standard exchanger maps cleanly:
 - `auth.required_config_fields: [oauth.client_id, oauth.client_secret]`.
 - `presentation.visible: false` (hidden-first).
 
-**Capability-growth check:** none expected. Close is a textbook
-`standard_oauth` provider — rotating refresh, form_secret exchange, userinfo
-identity, and declarative revoke are all inside the existing closed capability
-set (the same shape shipped for pipedrive/hubspot-class OAuth CRMs). If bundle
-review surfaces a gap, grow the generic enum rather than add a `close`-specific
-`service/adapter_*.go` (per provider-yaml.md guidance). Do **not** reach for an
-adapter speculatively.
+**Capability-growth check:** no new capability code is needed — form_secret
+exchange, userinfo identity, declarative revoke, and the credential-scoped
+refresh lease are all inside the existing closed capability set. But this is
+**not** the pipedrive/hubspot shape on the refresh axis: those set
+`refresh_lease: none` because their refresh tokens do **not** rotate. Close's
+rotating refresh forces the `refresh_lease: credential` selection (above),
+matching keap/signnow — an established, expected decision, not a gap. So the
+work is a config selection on an existing field, not a generic-enum growth. If
+bundle review still surfaces a genuine gap, grow the generic enum rather than
+add a `close`-specific `service/adapter_*.go` (per provider-yaml.md guidance).
+Do **not** reach for an adapter speculatively.
+
+> L4 caveat: the L4 "seed a short `expires_at` to force the refresh path" check
+> is single-threaded and exercises refresh + rotated write-back, but does **not**
+> exercise the concurrent-refresh race that `refresh_lease: credential` guards.
+> The lease is validated by the standard-exchanger contract test + the
+> integration-service refresh-lease unit tests, not by L4/L5.
 
 ### Three naming axes (all identical → no divergence)
 
