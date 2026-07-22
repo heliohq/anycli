@@ -65,9 +65,14 @@ type Service struct {
 // non-2xx, GraphQL errors, non-empty userErrors, transport failure) are exit 1.
 // Errors render to stderr — JSON under --json, plain text otherwise.
 func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
+	// Absent credentials are a runtime/environment failure — the connection was
+	// never injected — not a caller-fixable usage error. Render them as an
+	// apiError so the emitted kind ("api" = the API/runtime category) agrees
+	// with the exit 1 below; a usageError would emit kind "usage" (exit 2) and
+	// disagree.
 	token := env[EnvAccessToken]
 	if token == "" {
-		s.renderError(hasJSONArg(args), &usageError{msg: EnvAccessToken + " is not set"})
+		s.renderError(hasJSONArg(args), &apiError{msg: EnvAccessToken + " is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
 	store := s.Store
@@ -77,7 +82,7 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	// When BaseURL is set (tests), the store host is not required to build the
 	// endpoint; otherwise the per-store host is mandatory.
 	if s.BaseURL == "" && normalizeStore(store) == "" {
-		s.renderError(hasJSONArg(args), &usageError{msg: EnvStore + " is not set"})
+		s.renderError(hasJSONArg(args), &apiError{msg: EnvStore + " is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
 

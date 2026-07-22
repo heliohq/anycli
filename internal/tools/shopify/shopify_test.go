@@ -344,6 +344,43 @@ func TestMissingStoreFailsFast(t *testing.T) {
 	}
 }
 
+// TestMissingCredentialJSONKindMatchesExit pins the emitted error kind to the
+// exit code for both missing-credential cases. Absent credentials are a
+// runtime/environment failure (the connection was never injected), so they are
+// exit 1 — and under --json the kind must agree ("api" = the API/runtime
+// category), never "usage" (which would imply exit 2 and a caller-fixable flag
+// mistake). Regression guard for the kind/exit disagreement fixed alongside the
+// same quickbooks fix.
+func TestMissingCredentialJSONKindMatchesExit(t *testing.T) {
+	cases := []struct {
+		name string
+		env  map[string]string
+	}{
+		{"missing token", map[string]string{EnvStore: "myshop.myshopify.com"}},
+		{"missing store", map[string]string{EnvAccessToken: "shpat_x"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &Service{}
+			var out, errb strings.Builder
+			svc.Out = &out
+			svc.Err = &errb
+			res, err := svc.Execute(context.Background(), []string{"--json", "shop", "info"}, tc.env)
+			if err != nil {
+				t.Fatalf("Execute error: %v", err)
+			}
+			if res.ExitCode != 1 {
+				t.Fatalf("exit = %d, want 1", res.ExitCode)
+			}
+			env := decodeJSON(t, strings.TrimSpace(errb.String()))
+			errObj, _ := env["error"].(map[string]any)
+			if errObj == nil || errObj["kind"] != "api" {
+				t.Fatalf("kind must agree with exit 1 (want \"api\"), got: %s", errb.String())
+			}
+		})
+	}
+}
+
 func TestUnknownSubcommandIsUsage(t *testing.T) {
 	var reqs []capturedRequest
 	srv := newServer(t, &reqs, 200, `{}`)
