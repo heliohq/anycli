@@ -1,0 +1,17 @@
+{
+  "name": "kustomer",
+  "type": "service",
+  "description": "Kustomer as a tool (support CRM: customers, conversations, messages, notes)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "KUSTOMER_API_TOKEN"}
+      },
+      {
+        "source": {"field": "account_key"},
+        "inject": {"type": "env", "env_var": "KUSTOMER_ORG_NAME"}
+      }
+    ]
+  }
+}
