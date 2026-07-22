@@ -239,14 +239,24 @@ key the whole connection model rests on; it is confirmable from public docs and
 is **not** a stage-1 open item. (An earlier draft used `stable_key: /id`, which
 resolves to nothing against this body and would fail identity extraction.)
 
-### Disconnect
+### Disconnect (verified — fully expressible, no open item)
 
-Pennylane exposes `POST https://app.pennylane.com/oauth/revoke` (accepts
-access or refresh token, returns 200 empty body) → `disconnect_mode:
-provider_revoke` with the standard_oauth declarative revoker (token param in
-form body). If the revoke request shape needs a client-auth header the
-declarative revoker can't express, fall back to `local_only` — but the
-endpoint is a vanilla RFC 7009 revoke, so `provider_revoke` should hold.
+Pennylane exposes `POST https://app.pennylane.com/oauth/revoke`, a vanilla RFC
+7009 revoke. **Confirmed from the official OAuth 2.0 walkthrough**: it takes
+`client_id` + `client_secret` + `token` (access *or* refresh) as
+`application/x-www-form-urlencoded` POST **body** form fields — the credentials
+are NOT an HTTP Basic header — and returns HTTP 200 with an empty body. This is
+exactly what the declarative revoker expresses via `client_auth: form`
+(render_symbols.go:113-115 `OAuthRevokeClientAuthForm`; validate.go:480 oneOf
+`none`/`basic`/`form`), and it mirrors `token_exchange_style: form_secret` (same
+credentials-in-body shape). So `disconnect_mode: provider_revoke` is **settled
+now**, and the §4 bundle carries the required `auth.oauth.revoke:` block that the
+generator hard-requires for a `provider_revoke` + `standard_oauth` bundle
+(validate.go:504-505). There is **no** `local_only` fallback: Pennylane offers a
+working revoke, so downgrading to `local_only` would leave live rotating refresh
+tokens un-revoked — a silent security downgrade barred by the repo's
+no-silent-fallback rule. Revoke `refresh_token` first (RTR: kill the rotating
+credential), with `access_token` as the fallback token.
 
 ### Credential fields (bundle → anycli)
 
@@ -301,6 +311,12 @@ auth:
                      ledger_accounts:readonly, trial_balance:readonly]
     single_active_token: false
     refresh_lease: credential             # RTR — rotated refresh persisted
+    revoke:                               # required for provider_revoke (validate.go:504-505)
+      url: https://app.pennylane.com/oauth/revoke
+      client_auth: form                   # client_id+client_secret in POST body (RFC 7009), matches form_secret
+      token: refresh_token                # RTR: kill the rotating refresh token first
+      fallback_token: access_token
+      token_type_hint: none
 
 identity:
   source: userinfo
@@ -366,7 +382,7 @@ Runs at batch-end with the batch lead, not mid-branch:
 | Layer | Pennylane specifics | Needs external creds? |
 |---|---|---|
 | **L1** anycli unit | httptest fake for `/api/external/v2/*`: assert Bearer header injection, request shape per verb, cursor pass-through, and both plain + `--json` error rendering. No real API. | No |
-| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli pennylane -- customer list`. Proves field names, injection, and real v2 request/response shape (incl. the customer read-vs-create path asymmetry and `GET /me` → `/company/id`). **Only remaining stage-1 gate: the `/oauth/revoke` request shape for `provider_revoke`** (token_exchange_style, identity endpoint, and scopes are all doc-confirmed in §3). | **Yes** — a real Pennylane access token from the test-account pool (lane 2). |
+| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli pennylane -- customer list`. Proves field names, injection, and real v2 request/response shape (incl. the customer read-vs-create path asymmetry and `GET /me` → `/company/id`). No open stage-1 items remain: token_exchange_style, identity endpoint, scopes, **and** the `/oauth/revoke` shape (`client_auth: form`) are all doc-confirmed in §3 — the L2 revoke run just confirms an already-settled bundle. | **Yes** — a real Pennylane access token from the test-account pool (lane 2). |
 | **L3** generate + suites | `provider-gen --check` green locally; anycli `go test ./...`; `helio-cli` build with `replace` + `go test ./cmd/heliox/cmds/tool/`; integration-service unit suite (no new capability expected → no new tests beyond generation). | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` for provider `pennylane` with a **real** 24h access token **and** refresh token, short `expires_at`, so the next `heliox tool pennylane -- customer list` is forced through the gateway refresh-and-writeback (exercises the RTR credential-lease path, not just token replay). Seed uses a real existing org/assistant/owner identity. | **Yes** — real access+refresh token (needs the dev-mode app from lane 1 to mint). |
 | **L5** full connect | `heliox tool pennylane auth` → consent on Pennylane's **dev/test app** on a real company account → confirm `oauth_connected` event → one unseeded live `customer list`. Human-in-the-loop (oauth L5, lane 3) — French-account 2FA defeats automation. Run once, hidden, before the visible flip. | **Yes** — dev app (client_id/secret) + a real Pennylane company account with consent. |
@@ -414,10 +430,13 @@ review clearance only for the *visible flip*, not for the run itself.
   load-bearing) and `display_scopes:` (consent copy) — both are real
   bundle-schema fields (`manifest.go:87-88`), matching the sage/quickbooks
   precedent. Not a rename of one to the other.
-- **Remaining open item (L2, does not change the lane)**: revoke request shape
-  for `provider_revoke` (RFC 7009 `POST /oauth/revoke`); confirm the exact
-  client-auth/param form with a real token. Not a blocker to
-  code-complete-hidden.
+- **Revoke shape**: `provider_revoke` fully expressed by the declarative
+  revoker — `POST /oauth/revoke` with `client_id`+`client_secret`+`token` as
+  form-body fields (`client_auth: form`), **confirmed** from the OAuth
+  walkthrough. The §4 bundle carries the `auth.oauth.revoke:` block the
+  generator hard-requires (validate.go:504-505). No `local_only` fallback (it
+  would strand live refresh tokens — barred by no-silent-fallback). **No open
+  item**; the L2 revoke run confirms a settled bundle rather than an unknown.
 
 Sources: [OAuth 2.0 walkthrough](https://pennylane.readme.io/docs/oauth-20-walkthrough),
 [v2 scopes](https://pennylane.readme.io/docs/v2-scopes),
