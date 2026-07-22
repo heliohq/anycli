@@ -1,0 +1,13 @@
+{
+  "name": "square",
+  "type": "service",
+  "description": "Square as a tool (OAuth 2.0 access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SQUARE_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
