@@ -200,9 +200,13 @@ zero service adapter.** Every axis of the standard exchanger maps cleanly:
 - `identity.source: userinfo` — separate `GET /api/v1/me/`; RFC-6901 JSON
   Pointer `stable_key` from `/id`, `label_candidates` `[/email,
   /organizations/0/name, /first_name]`.
-- `connection.disconnect_mode: revoke` — declarative revoker against
+- `connection.disconnect_mode: provider_revoke` — declarative revoker against
   `https://api.close.com/oauth2/revoke/`, form body `client_id`,
-  `client_secret`, `token`.
+  `client_secret`, `token`. (`provider_revoke` is the generator enum value —
+  `oneOf("provider_revoke","local_only","strategy")` in provider-gen
+  `validate.go`; the literal `revoke` fails strict validation. It also requires
+  `auth.oauth.revoke` to be set, which the revoke URL above satisfies. Matches
+  sibling bundles, e.g. gmail.)
 - `auth.required_config_fields: [oauth.client_id, oauth.client_secret]`.
 - `presentation.visible: false` (hidden-first).
 
@@ -252,7 +256,7 @@ provider's L5 run.
 | Layer | What runs for `close` | External creds needed? |
 |---|---|---|
 | **L1** | `go test ./...` in anycli: `internal/tools/close/` unit tests against an `httptest` fake — request shape per resource, injected `Bearer` header, pagination flags, `--json` success + error (`{"error":…, "field-errors":…}`) rendering, exit codes 0/1/2. | No — fakes only. |
-| **L2** | `make build-harness` then `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli close -- me` and one `search`/`lead list`/`note-add` round trip against the **real** `api.close.com`. Mandatory before the pin bump. | **Yes** — a real Close account token (from the test-account pool). An OAuth access token or, for L2 convenience, a Close API key works since both hit the same API (but the shipped path is OAuth Bearer). |
+| **L2** | `make build-harness` then `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli close -- me` and one `search`/`lead list`/`note-add` round trip against the **real** `api.close.com`. Mandatory before the pin bump. | **Yes** — a real Close **OAuth access token** (Bearer) from the test-account pool. A Close **API key does not work here**: per Close's official api-key-authentication doc, API keys authenticate only via HTTP Basic (`curl -u yourapikey:`, key as username / blank password), never as a Bearer token — and the service sends `Authorization: Bearer <token>` exclusively (§3, no Basic-auth path). An API key injected as `CLOSE_ACCESS_TOKEN` and sent as Bearer returns 401, so L2 must use an OAuth access token. |
 | **L3** | `provider-gen` + `provider-gen --check` (from `go-services/integration-service`); anycli `go test ./...`; `helio-cli` build with a local `replace` → `go build ./... && go test ./cmd/heliox/cmds/tool/`. Expect `--check` to fail in CI on-branch until the batch-end regen (do not commit local regens). | No. |
 | **L4** | Singleton (`env: dev`) + `POST /internal/test-only/connections/seed` with a real seeded assistant identity, `provider: close`, seed `access_token` + `refresh_token` + a short `expires_at` (forces the gateway refresh path, since Close tokens live 1h), then `heliox tool close -- me` returns live data through the token gateway. | **Yes** — a real Close OAuth access + refresh token pair from the dev app + test account. Depends on lane-1 dev-app creation. |
 | **L5** | Once, hidden, before the visible flip: `heliox tool close auth` → complete Close consent on the dev/private app → assert `oauth_connected` system event → run one unseeded `heliox tool close -- me` through the new connection. | **Yes** — human-in-the-loop OAuth consent on a real Close account (oauth L5, master-plan lane 3). |
