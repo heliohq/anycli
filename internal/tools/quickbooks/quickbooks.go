@@ -56,12 +56,17 @@ type Service struct {
 func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvAccessToken]
 	realm := env[EnvRealmID]
+	// Absent credentials are a runtime/environment failure — the connection was
+	// never injected — not a caller-fixable usage error. Render them as an
+	// apiError so the emitted kind ("api" = the API/runtime category) agrees
+	// with the exit 1 below; a usageError would emit kind "usage" (exit 2) and
+	// disagree.
 	if token == "" {
-		s.renderError(hasJSONArg(args), &usageError{msg: "QUICKBOOKS_ACCESS_TOKEN is not set"})
+		s.renderError(hasJSONArg(args), &apiError{msg: "QUICKBOOKS_ACCESS_TOKEN is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
 	if realm == "" {
-		s.renderError(hasJSONArg(args), &usageError{msg: "QUICKBOOKS_REALM_ID is not set"})
+		s.renderError(hasJSONArg(args), &apiError{msg: "QUICKBOOKS_REALM_ID is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
 

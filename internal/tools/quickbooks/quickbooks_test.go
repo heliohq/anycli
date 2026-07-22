@@ -285,6 +285,35 @@ func TestMissingRealmExit1(t *testing.T) {
 	}
 }
 
+// TestMissingCredentialJSONKindMatchesExit pins the emitted error kind to the
+// exit code for the missing-credential case. Absent credentials are a runtime/
+// environment failure (the connection was never injected), so it is exit 1 —
+// and under --json the kind must agree ("api" = the API/runtime category), not
+// "usage" (which would imply exit 2 and a caller-fixable flag mistake).
+func TestMissingCredentialJSONKindMatchesExit(t *testing.T) {
+	var out, errb bytes.Buffer
+	svc := &Service{Out: &out, Err: &errb}
+	// Missing access token, --json requested.
+	res, err := svc.Execute(context.Background(), []string{"--json", "company", "get"}, map[string]string{})
+	if err != nil {
+		t.Fatalf("Execute err: %v", err)
+	}
+	if res.ExitCode != 1 {
+		t.Fatalf("exit=%d want 1", res.ExitCode)
+	}
+	var env struct {
+		Error struct {
+			Kind string `json:"kind"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(errb.String())), &env); err != nil {
+		t.Fatalf("stderr not JSON envelope: %v (%s)", err, errb.String())
+	}
+	if env.Error.Kind != "api" {
+		t.Fatalf("kind=%q want %q (must agree with exit 1)", env.Error.Kind, "api")
+	}
+}
+
 func TestBaseURLForSandbox(t *testing.T) {
 	if got := baseURLFor("sandbox"); got != sandboxBaseURL {
 		t.Fatalf("sandbox base=%q want %q", got, sandboxBaseURL)
