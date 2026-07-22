@@ -1,0 +1,13 @@
+{
+  "name": "mailjet",
+  "type": "service",
+  "description": "Mailjet email as a tool: send transactional email, manage contacts/lists/templates, read messages and stats",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "MAILJET_BASIC_AUTH"}
+      }
+    ]
+  }
+}
