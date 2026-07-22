@@ -132,8 +132,8 @@ browser instrumentation, out of scope for a server-side passthrough tool.
   "description": "Hotjar as a tool (survey responses export + user lookup)",
   "auth": {
     "credentials": [
-      { "source": {"field": "client_id"},     "inject": {"type": "env", "env_var": "HOTJAR_CLIENT_ID"} },
-      { "source": {"field": "client_secret"}, "inject": {"type": "env", "env_var": "HOTJAR_CLIENT_SECRET"} }
+      { "source": {"field": "client_id"},  "inject": {"type": "env", "env_var": "HOTJAR_CLIENT_ID"} },
+      { "source": {"field": "api_secret"}, "inject": {"type": "env", "env_var": "HOTJAR_CLIENT_SECRET"} }
     ]
   }
 }
@@ -161,19 +161,36 @@ adapter, no integration-service config (client id/secret are the *user's*, paste
 through the connect UI, not env config).
 
 - `auth.type: credentials`, `owner: individual`.
-- `auth.credential_input.fields`: `client_id` (secret) and `client_secret`
+- `auth.credential_input.fields`: `client_id` (secret) and `api_secret`
   (secret), both `required: true`; `setup_url` → Hotjar Settings → API page.
+  **Field is `api_secret`, NOT `client_secret`** — see Divergence 5.
 - `connection.runtime_strategy: manual_credentials`, `mode: isolated`,
   `disconnect_mode: local_only`.
-- `identity.source: strategy` — no cheap HTTPS userinfo endpoint; derive the
-  human-readable `account_key` from `client_id` (the `snov` client_id-deriver
-  precedent), never a hash. Verify a `client_id`-based deriver exists in
-  integration-service; if not, that is the one small capability-growth item
-  (a reviewed deriver enum value), analogous to `snov`/`crisp`.
-- `credential.fields`: project both `client_id` and `client_secret` from the
-  stored token payload to the runtime (multi-field manual credential — confirm
-  `mixpanel`/`snov` multi-field `manual_credentials` projection is on main; it is
-  the same shape, so expected **zero** new capability beyond the deriver).
+- `identity.source: strategy` — no cheap HTTPS userinfo endpoint; the generic
+  `multiFieldClientIdentityDeriver` (design 317 D8) derives the human-readable
+  `account_key` from the first connect-form field (`client_id`), never a hash.
+- `credential.fields`: `client_id: token.client_id`, `api_secret:
+  token.api_secret`, `account_key: connection.account_key` — the two secrets are
+  stored as a JSON composite in the token payload and projected to AnyCLI as two
+  named fields (design 317 D8 multi-field face).
+
+- **Divergence 5 — multi-field manual_credentials is NOT free on this branch's
+  main; it is real capability growth (the DESIGN's cost estimate was wrong).**
+  The DESIGN assumed `mixpanel`/`snov` multi-field `manual_credentials` was
+  already on main, so only a deriver was needed. On this branch's actual main
+  base, `model.validateCredentialInputSchema` still enforces the design 317 D5
+  **single-secret** rule (exactly one required field), and the credential-source
+  denylist forbids any field named `client_secret`. Two-secret Hotjar therefore
+  requires the design 317 D8 multi-field capability, which the sibling
+  multi-field tools (`snov`/`mixpanel`/`lusha`) each grow identically on their
+  branches: (1) relax `validateCredentialInputSchema` to allow N≥1 required
+  fields for `AuthCredentials` (JSON-composite storage); (2) add credential
+  sources `token.client_id` + `token.api_secret` (`api_secret`, not
+  `client_secret`, to keep the denylist intact); (3) the generic
+  `multiFieldClientIdentityDeriver` (first-field account key). This tool applies
+  that **identical** shared-capability diff so it merges as a no-op with the
+  siblings at batch end — it is not a new hotjar-specific capability, and Hotjar
+  ships **zero** provider-specific service code.
 - `tool.name: hotjar`, `tool.kind: api-key` (wire-compat value; drawer routes by
   auth_type). No `tool.group`, no `experiment` gate (GA once flipped).
 - UI icon `ui/helio-app/src/integrations/icons/hotjar.svg` + `providerIcons.ts`
