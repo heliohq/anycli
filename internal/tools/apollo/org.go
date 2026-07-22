@@ -20,14 +20,14 @@ func (s *Service) newOrgCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// newOrgSearchCmd wraps POST /mixed_companies/api_search.
+// newOrgSearchCmd wraps POST /mixed_companies/search.
 func (s *Service) newOrgSearchCmd(token string) *cobra.Command {
 	var body string
 	var industries, locations []string
 	var employeesMin, employeesMax, page, perPage int
 	cmd := &cobra.Command{
 		Use:   "search",
-		Short: "Search for companies by industry/location/size (POST /mixed_companies/api_search)",
+		Short: "Search for companies by industry/location/size (POST /mixed_companies/search)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
@@ -47,7 +47,7 @@ func (s *Service) newOrgSearchCmd(token string) *cobra.Command {
 				b["organization_num_employees_ranges"] = []string{strconv.Itoa(lo) + "," + strconv.Itoa(hi)}
 			}
 			applyPageBody(b, page, perPage)
-			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/mixed_companies/api_search", nil, b)
+			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/mixed_companies/search", nil, b)
 			if err != nil {
 				return err
 			}

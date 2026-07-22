@@ -52,6 +52,32 @@ func TestPeopleSearchPathAndPaginationInBody(t *testing.T) {
 	}
 }
 
+func TestOrgSearchPathAndPaginationInBody(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"organizations":[],"pagination":{"page":2}}`, &got)
+	defer srv.Close()
+
+	exit, _, _ := run(t, srv, "org", "search", "--industry", "software", "--location", "California", "--page", "2", "--per-page", "25")
+	if exit != 0 {
+		t.Fatalf("exit = %d, want 0", exit)
+	}
+	if got.Method != http.MethodPost || got.Path != "/mixed_companies/search" {
+		t.Fatalf("request = %s %s, want POST /mixed_companies/search", got.Method, got.Path)
+	}
+	b := decodeBody(t, got.Body)
+	if b["page"] != float64(2) || b["per_page"] != float64(25) {
+		t.Fatalf("pagination = page:%v per_page:%v, want 2/25", b["page"], b["per_page"])
+	}
+	tags, ok := b["q_organization_keyword_tags"].([]any)
+	if !ok || len(tags) != 1 || tags[0] != "software" {
+		t.Fatalf("q_organization_keyword_tags = %v, want [software]", b["q_organization_keyword_tags"])
+	}
+	locs, ok := b["organization_locations"].([]any)
+	if !ok || len(locs) != 1 || locs[0] != "California" {
+		t.Fatalf("organization_locations = %v, want [California]", b["organization_locations"])
+	}
+}
+
 func TestOrgEnrichUsesGetQuery(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"organization":{}}`, &got)

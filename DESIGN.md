@@ -31,7 +31,7 @@ Endpoints the tool wraps, grouped by the object an agent reasons about:
 |---|---|---|
 | `people search` | `POST /mixed_people/api_search` | Net-new prospecting by title/seniority/location/industry filters. Returns people (no contact details). ⚠ master-key-gated — see §7. |
 | `people enrich` | `POST /people/match` ; `POST /people/bulk_match` | Resolve one / up to 10 people to verified email + phone (the credit-consuming enrichment step). |
-| `org search` | `POST /mixed_companies/api_search` | Find target accounts by size/industry/location. |
+| `org search` | `POST /mixed_companies/search` | Find target accounts by size/industry/location. |
 | `org enrich` | `GET /organizations/enrich` ; `POST /organizations/bulk_enrich` | Company firmographics from a domain. |
 | `contacts` | `POST /contacts` ; `POST /contacts/bulk_create` ; `PUT /contacts/{id}` ; `POST /contacts/search` ; `GET /contact_stages` | Persist a prospect into the team's DB (prerequisite for sequencing), update stage, list existing contacts. |
 | `accounts` | `POST /accounts` ; `PUT /accounts/{id}` ; `POST /accounts/search` | Account (saved company) CRUD + search. |
@@ -257,7 +257,10 @@ in the wave board.
    docs.apollo.io on 2026-07-22).** The scratch surface in §1/§2 was corrected
    during implementation: contact update and account update are **PATCH**
    (not PUT); sequence list is **POST `/emailer_campaigns/search`** (not GET);
-   contact stages is `GET /contact_stages` (confirmed). The
+   contact stages is `GET /contact_stages` (confirmed); org search is
+   **POST `/mixed_companies/search`** (not `/mixed_companies/api_search` — the
+   `api_search` suffix is People-only; the earlier §1 path was copy-pasted from
+   the People-search pattern and is corrected here and in §1). The
    master-API-key-gated set is **wider** than §2 flagged — deal list
    (`GET /opportunities/search`) and deal update (`PATCH /opportunities/{id}`)
    also require a master key and return 403 to an OAuth token, joining people
