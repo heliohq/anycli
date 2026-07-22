@@ -244,3 +244,35 @@ sub-batch of Wave 3 on pure agent throughput up to the L5 sweep.
   spectrum otherwise: single self-serve secret, no client id/secret. The only
   shared-surface touches are the registry entry, icon, i18n, and docs at batch
   end.
+
+## 8. Implementation notes (divergences confirmed at build time)
+
+Recorded per the pipeline's "verify against base, record divergences" rule.
+
+- **Identity is a compiled verifier, not the assumed reusable Bearer verifier.**
+  The base (`origin/main`) `declarativeManualTokenVerifier` sends the token as a
+  raw header value (no `Bearer ` scheme) and requires a *string* stable key via
+  JSON Pointer; it cannot select the `PERSONAL` entry out of the `/v1/profiles`
+  ARRAY. The numeric-stable-key coercion the risk note flagged (hubspot/kit path)
+  is **not present** on this base. Rather than grow three orthogonal generic
+  capabilities (scheme + array-select + numeric coercion) for one provider, Wise
+  binds a narrow compiled `wiseProfileVerifier` (Helio
+  `go-services/integration-service/service/manual_wise.go`), selected by provider
+  key in the `manual_api_token` branch — matching the batch's existing
+  compiled-verifier precedent (mastodon/postmark/sendgrid/…). Bearer scheme,
+  PERSONAL-from-array selection, numeric id → string stable key, and
+  firstName+lastName label all live in that ~90-line file.
+- **Bundle `auth.type` is `api_key`, not `credentials` (§5 said credentials).**
+  A single Bearer personal token with an HTTPS identity endpoint is the api_key
+  drawer's exact shape (single token field, generic "Personal access token"
+  copy), so no per-field `credential_input` / `wise_api_token` label is needed —
+  only `tools.desc.wise`. `identity.source: userinfo` + `identity.url:
+  https://api.wise.com/v1/profiles` gives the compiled verifier a testable
+  endpoint; the declared `stable_key` / `label_candidates` satisfy the schema and
+  are superseded by the verifier at runtime.
+- **Sandbox host.** anycli tool base is production `https://api.wise.com`,
+  switchable per-invocation with `--base-url` (confirmed sandbox host
+  `https://api.wise-sandbox.com` for L2/L4). The Helio connect-time verifier
+  hardcodes production `/v1/profiles`; a production personal token verifies
+  cleanly at L5 (a sandbox-only token would 401 the production verifier — pin a
+  production token for the L5 connect sweep).
