@@ -183,9 +183,14 @@ v1 surface tight around single-send + activity + diagnostics.
 `server get` prints a **redacted** subset, never `ApiTokens`). `--json` on
 error emits the standard anycli envelope `{"error":{"code","message",…}}`.
 
-**Postmark error dialect (important).** Postmark returns a JSON body
-`{"ErrorCode":<int>,"Message":"…"}` on every response. The single-send vs.
-batch contracts differ, and the design keys on the union of both:
+**Postmark error dialect (important).** The `{"ErrorCode":<int>,"Message":"…"}`
+envelope is present on **all error responses** (any endpoint) and on **send
+responses** (a successful send carries `ErrorCode 0`). Successful **reads**
+(`GET /server`, `/templates`, `/messages/outbound`, `/bounces`, …) return their
+data object/list directly, with **no `ErrorCode` field at all** — so the
+success key below is "HTTP 2xx AND (`ErrorCode` absent OR `== 0`)", which Go's
+zero-value default satisfies for the absent case. The single-send vs. batch
+contracts differ, and the design keys on the union of both:
 
 - **Single send (`POST /email`, `POST /email/withTemplate` — the v1 surface).**
   Success is HTTP **200** with `ErrorCode 0`. Validation failures (`300`
@@ -200,11 +205,14 @@ batch contracts differ, and the design keys on the union of both:
   stays `200`. This is the only surface where `200` + non-zero `ErrorCode`
   occurs, and it becomes load-bearing once batch lands.
 
-The service therefore keys success on **`ErrorCode == 0`** rather than solely on
-HTTP status — a rule that is correct for single send today (200 ⇔ ErrorCode 0)
-and stays correct when the batch per-message array arrives in v1.1. Any non-zero
-`ErrorCode` maps to exit `1` with the provider `Message` surfaced; `401` (bad
-token) and `422`/other `4xx` map to exit `1`; malformed local flags → exit `2`.
+The service therefore keys success on **HTTP 2xx AND (`ErrorCode` absent OR
+`== 0`)** rather than solely on HTTP status — the `absent` arm covers the
+successful reads (whose body carries no `ErrorCode`, so Go decodes the field to
+its `0` zero value), the `== 0` arm covers a successful send, and the rule stays
+correct when the batch per-message array (where a `200` entry may carry a
+non-zero `ErrorCode`) arrives in v1.1. Any non-zero `ErrorCode` maps to exit `1`
+with the provider `Message` surfaced; `401` (bad token) and `422`/other `4xx`
+map to exit `1`; malformed local flags → exit `2`.
 Unit tests assert this `ErrorCode`-and-status classification and the injected
 `X-Postmark-Server-Token` header against an `httptest` fake.
 
@@ -261,6 +269,23 @@ redaction list — NOT arbitrary provider scripting:
   pointer deletion (`ApiTokens` is top-level), matching the existing
   `accountIdentityFromToken` top-level-key strip.
 
+**Denylist vs. allowlist — a deliberate choice, flagged for the shared-capability
+reviewer.** `identity.redact` is a **denylist**: it names the pointers to strip
+and persists everything else. The safer-by-default alternative is an
+**allowlist** — since the framework only ever reads the declared `stable_key`
+and `label_candidates` pointers, it could persist *only* those referenced nodes
+and drop the rest, so any future secret-echoing identity field would be safe
+without anyone having to enumerate it. This DESIGN deliberately chooses the
+denylist because it **extends the existing, already-reviewed
+`accountIdentityFromToken` invariant** (itself a denylist keyed on
+`access_token`/`refresh_token`/`id_token`) rather than introducing a second,
+divergent redaction model, and because it is lower blast radius — it changes
+what one map drops, not what the whole identity-persistence path keeps. The
+tradeoff (a future secret-echoing field silently leaks until added to `redact`)
+is real; the owner of the shared `identity.redact` capability should make the
+denylist-vs-allowlist call knowingly. Postmark itself is safe either way — its
+one secret-bearing pointer (`/ApiTokens`) is explicitly listed.
+
 **Why not the alternative (a secret-free identity endpoint).** The reviewer's
 option (b) — verify against a Server-token endpoint that does not echo the
 credential — is not free and is rejected: `GET /server` is the **only**
@@ -290,7 +315,11 @@ presentation:
 
 auth:
   type: api_key
-  owner: assistant            # the AI teammate's own connection (isolated), like notion
+  owner: individual           # the connecting human owns the pasted secret —
+                              # the manual_api_token contract pins owner to
+                              # individual (mongodb precedent); per-connection
+                              # isolation comes from connection.mode: isolated,
+                              # not from owner (see §3).
   api_key:
     header: X-Postmark-Server-Token
     setup_url: https://postmarkapp.com/support/article/1008-what-are-the-account-and-server-api-tokens
