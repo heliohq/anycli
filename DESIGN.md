@@ -1,0 +1,289 @@
+# Tool design — Hootsuite
+
+Scratch design file for branch `tool/hootsuite` (both repos). Batch lead strips
+it at batch end. Follows the `helio-tool-provider` pipeline; per-tool decisions
+only — no architecture changes.
+
+## 0. Catalog row & naming (master plan §3, §4 row 132)
+
+| Axis | Value |
+|---|---|
+| ① CLI command word (`tool.command`) | `hootsuite` (flat command; not a grouped family) |
+| ② anycli tool id (`definitions/tools/<id>.json`) | `hootsuite` |
+| ③ provider catalog key (bundle dir / `key:`) | `hootsuite` |
+| Go package (`internal/tools/<pkg>/`) | `hootsuite` |
+| `RegisterService` string | `hootsuite` |
+
+② == ③ == ① — **no ②↔③ divergence**, so **no `toolToProvider` entry** in
+`helio-cli/internal/toolcred/resolver.go` (that map holds only divergent pairs).
+Auth lane: **`oauth_review`**. Wave: **2**. Category: **Marketing**.
+
+**Lane verification against official docs (independent judgment).** The catalog
+lists `oauth_review`; the OAuth audit has no row for Hootsuite because it was
+already `oauth_review` pre-audit (the audit only re-laned `api_key` tools).
+Verified against the provider's own docs: Hootsuite's REST API uses a
+multi-tenant authorization-code OAuth flow (one registered app, arbitrary member
+accounts authorize) — but the client id/secret are only visible once **"API
+access has been approved"** for the app in the Developer Portal
+(`developer.hootsuite.com/docs/getting-started-with-the-rest-api`). That approval
+is a human review gate before any external account can authorize, which is
+exactly the `oauth_review` rubric ("a human review, partner-program,
+verification, or publish gate before external accounts can authorize"). **Catalog
+lane confirmed; no divergence to record.** Consequence per master plan §2 lane 1:
+a **dev/test-mode** app can be created pre-approval, so dev + L1–L4 + the
+batch-end merge are **not** gated on review; only the `presentation.visible: true`
+flip waits for API-access approval to clear.
+
+## 1. API surface wrapped, and why
+
+Hootsuite is a social-media management platform: one account fans a post out to
+many connected social profiles (X, LinkedIn, Facebook, Instagram, Pinterest,
+TikTok, …), on a schedule, with an approval workflow and team/org structure. An
+AI teammate's real jobs are: **draft and schedule social posts**, **see what's
+already queued**, **unschedule/cancel**, **attach media**, and **discover which
+social profiles/teams it may post to**. That maps to a small, stable slice of the
+**Hootsuite REST API v1** (base `https://platform.hootsuite.com/v1`, `Bearer`
+token, JSON, every response wrapped in a top-level `{"data": …}` envelope).
+
+Endpoints the tool wraps (all verified against `developer.hootsuite.com` /
+`apidocs.hootsuite.com`):
+
+| Job | Method + path | Notes |
+|---|---|---|
+| Identity / whoami | `GET /v1/me` | member `{data:{id,email,fullName,organizationIds}}` — identity stable key + org discovery |
+| Member's orgs | `GET /v1/me/organizations` | orgs the member belongs to |
+| List social profiles | `GET /v1/socialProfiles` | the target set for any post; `id` feeds `socialProfileIds` |
+| Get one social profile | `GET /v1/socialProfiles/{id}` | |
+| Profile teams | `GET /v1/socialProfiles/{id}/teams` | team access graph |
+| **Schedule / send a post** | `POST /v1/messages` | body `{text, socialProfileIds[], scheduledSendTime, media?, tags?, targeting?, location?, emailNotification?, webhookUrls?}`; `scheduledSendTime` **must** be UTC ISO-8601 ending in `Z`; omit it for "soonest possible" |
+| List scheduled/queued posts | `GET /v1/messages` | filters: `state`, `startTime`, `endTime`, `socialProfileIds` |
+| Get one message | `GET /v1/messages/{id}` | |
+| Unschedule / delete | `DELETE /v1/messages/{id}` | |
+| Approve / reject (workflow) | `POST /v1/messages/{id}/approve`, `/reject` | approver flows |
+| Generate media upload URL | `POST /v1/media` | `{sizeBytes, mimeType}` → `{id, uploadUrl, expiresAt}`; caller PUTs bytes to `uploadUrl`, then references `id` in a message's `media` |
+| Media status | `GET /v1/media/{id}` | poll until `READY` before scheduling |
+
+Why this slice and not more: the analytics/Amplify/enterprise-admin surfaces are
+either a separate product (`amplify.hootsuite.com`) or admin-only org management
+that an AI teammate won't drive; message scheduling + profile discovery is the
+90% path and matches the provider's own "Getting Started" arc (list profiles →
+schedule message → verify via `/v1/me`). **Pinterest caveat** (documented): a
+Pinterest post cannot be bundled with other profiles and needs an
+`extendedInfo{boardId,destinationUrl}` object; the `message schedule` verb
+surfaces `--board-id`/`--destination-url` flags for that case. **Media caveat**:
+images and video cannot be mixed in one message, and video must be scheduled
+≥15 min out.
+
+## 2. anycli definition — `service` type
+
+**Form decision (skill stage 1): `service` type.** There is no official
+Hootsuite CLI to wrap (fails the `cli`-type gate), so this is an HTTP `service`
+against the REST API — the 21-of-23 default. Reference implementation to copy the
+shape of: `internal/tools/notion/` (cobra tree grouped by resource, injectable
+`BaseURL`/`HC`/`Out`/`Err`, `--json` structured error envelope, exit codes 0/1/2).
+
+`definitions/tools/hootsuite.json`:
+
+```json
+{
+  "name": "hootsuite",
+  "type": "service",
+  "description": "Hootsuite as a tool (schedule and manage social posts; OAuth 2.0 user token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "HOOTSUITE_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
+```
+
+Single credential field — unlike `x`/`linkedin` (which inject an extra
+`user_id`/`person_urn`), the Hootsuite service resolves its own actor via
+`GET /v1/me`, so only the bearer `access_token` is injected. Field name
+`access_token` matches the bundle's `credential.fields.access_token` projection.
+
+**Subcommand tree (`internal/tools/hootsuite/`):**
+
+```
+hootsuite me                                  GET /v1/me
+hootsuite org list                            GET /v1/me/organizations
+hootsuite profile list                        GET /v1/socialProfiles
+hootsuite profile get <id>                    GET /v1/socialProfiles/{id}
+hootsuite profile teams <id>                  GET /v1/socialProfiles/{id}/teams
+hootsuite message schedule                    POST /v1/messages
+    --text <s> --profile <id>... [--send-time <RFC3339Z>]
+    [--tag <s>...] [--email-notification] [--media-id <id>...]
+    [--board-id <id> --destination-url <url>]   # Pinterest
+hootsuite message list                        GET /v1/messages
+    [--state <s>] [--start <RFC3339Z>] [--end <RFC3339Z>] [--profile <id>...]
+hootsuite message get <id>                     GET /v1/messages/{id}
+hootsuite message delete <id>                  DELETE /v1/messages/{id}
+hootsuite message approve <id>                 POST /v1/messages/{id}/approve
+hootsuite message reject <id> [--reason <s>]   POST /v1/messages/{id}/reject
+hootsuite media create --size-bytes <n> --mime-type <s>   POST /v1/media
+hootsuite media get <id>                       GET /v1/media/{id}
+```
+
+**JSON output shape.** Provider-neutral for agents: unwrap Hootsuite's `{"data":
+…}` envelope and print the inner value (object or array) as the command result;
+lists print the array directly. On failure, exit non-zero with the notion-style
+`--json` error envelope `{"error":{"code","message","status"}}` derived from
+Hootsuite's error body (which carries numeric error codes, e.g. `1005` token
+could not be retrieved, `1006` token removal failed) and the HTTP status. Client
+input errors (bad flags, non-`Z` send time) exit `2`; API/runtime failures exit
+`1`; success `0`. `--send-time` is validated to be UTC ending in `Z` before the
+POST (fail fast — Hootsuite rejects ambiguous/offset timestamps).
+
+**Validate-before-leaving-anycli (L2):** run the dev harness against the real API
+with a real token: `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli hootsuite -- profile
+list` and `… -- me`. Unit tests (L1) use `httptest` fakes asserting request path,
+`Authorization: Bearer` header, JSON body shape for `message schedule`, envelope
+unwrapping, and both plain/`--json` error rendering — never the live API.
+
+## 3. Credential fields & the exact OAuth flow (oauth_review lane)
+
+**Registration model.** Create an app in the Hootsuite Developer Portal; request
+REST API access; on approval the app's **REST API Client ID** and **REST API
+Client Secret** become visible. Redirect/callback URI is registered with the app
+(default is the Postman callback; changeable on request). This approval step is
+the `oauth_review` gate (dev-mode app usable before approval for L1–L4).
+
+**Endpoints (verified):**
+- Authorize: `GET https://platform.hootsuite.com/oauth2/auth`
+  — params `response_type=code`, `client_id`, `redirect_uri`, `scope=offline`,
+  `state` (≥8 chars if supplied).
+- Token / refresh: `POST https://platform.hootsuite.com/oauth2/token`
+  — client authenticates with **HTTP Basic** (`client_id:client_secret`); body is
+  form-encoded `grant_type=authorization_code&code=…&redirect_uri=…` then
+  `grant_type=refresh_token&refresh_token=…` on refresh.
+
+**Scope.** The only valid scope value is **`offline`** (its presence is what
+returns a refresh token). Token response echoes `"scope":"offline"`.
+
+**Token semantics (verified).** Access token `token_type: bearer`, `expires_in:
+3599` (~1 hour) — **short-lived, must refresh**. A `refresh_token` is returned.
+No PKCE documented (→ `pkce: none`). No standalone REST **revoke** endpoint exists
+(revocation is App-Directory-uninstall or dashboard-side) → disconnect is
+`local_only`.
+
+**Mapping to `standard_oauth` (the golden path — zero provider Go).** The token
+exchange is form-body + Basic client auth → `token_exchange_style: form_basic`
+(existing enum, `model/catalog.go`). This composes `standardOAuthExchanger` +
+`declarativeIdentityResolver` with no compiled adapter.
+
+- **`refresh_lease` — the one capability question.** The `standard_oauth` runtime
+  contract on `main` (`model/runtime_contract.go`) currently pins
+  `singleActiveToken:false, refreshLeaseScope:OAuthLeaseNone` — i.e. a bundle
+  must declare `refresh_lease: none`. `none` does **not** mean "never refresh":
+  the exchanger still refreshes an expired token; the lease only serializes
+  concurrent refreshes across gateway replicas. Default plan: **`refresh_lease:
+  none`**, contract-conformant as-is. **Caveat to resolve at implementation:** if
+  L2/L5 shows Hootsuite **rotates** the refresh token (one-time-use), concurrent
+  replica refreshes could invalidate it — then grow `standard_oauth`'s allowed
+  refresh-lease set to include `credential` and set `refresh_lease: credential`,
+  following the already-in-flight `keap`/`signnow` §4a capability-growth precedent
+  in this same wave (by the time Hootsuite's batch lands, that growth may already
+  be on `main`; reuse it, don't re-add). This is a decision point, not a blocker —
+  ship `none` unless rotation is observed.
+- **Identity.** The token response has no member identifier, so identity is
+  resolved via a userinfo GET: `identity.source: userinfo`,
+  `url: https://platform.hootsuite.com/v1/me`, `stable_key: /data/id`,
+  `label_candidates: [/data/email, /data/fullName, /data/id]` (RFC-6901 pointers
+  into the `{data:{…}}` envelope). `standard_oauth` permits `userinfo` identity.
+
+**What never enters the bundle** (per `provider-yaml.md`): client id/secret live
+only in integration-service config — `config/` locally and the Helm Secret under
+`deploy/`, landed together (Config Sync). Bundle declares only
+`required_config_fields: [oauth.client_id, oauth.client_secret]`.
+
+## 4. Helio provider bundle plan — `integrations/providers/hootsuite/provider.yaml`
+
+Hidden-first (`presentation.visible: false`). Proposed manifest:
+
+```yaml
+schema: helio.provider/v1
+key: hootsuite
+go_name: Hootsuite
+
+presentation:
+  name: Hootsuite
+  description_key: hootsuite
+  consent_domain: hootsuite.com
+  visible: false            # hidden-first; flip is the single go-live change after review clears + L5
+  order: <next-free>        # batch lead assigns to avoid collisions
+
+auth:
+  type: oauth
+  owner: assistant          # the AI teammate holds the social-posting connection (notion/slack precedent)
+  required_config_fields: [oauth.client_id, oauth.client_secret]
+  oauth:
+    authorize_url: https://platform.hootsuite.com/oauth2/auth
+    token_url: https://platform.hootsuite.com/oauth2/token
+    token_exchange_style: form_basic
+    pkce: none
+    scopes: [offline]
+    single_active_token: false
+    refresh_lease: none     # see §3 caveat; grow to `credential` only if refresh-token rotation is confirmed
+
+identity:
+  source: userinfo
+  url: https://platform.hootsuite.com/v1/me
+  stable_key: /data/id
+  label_candidates: [/data/email, /data/fullName, /data/id]
+
+connection:
+  mode: isolated
+  disconnect_mode: local_only   # no public REST revoke endpoint
+  runtime_strategy: standard_oauth
+
+resources:
+  selection: none
+  discovery: none
+  enforcement: none
+
+credential:
+  fields:
+    access_token: token.access_token
+    account_key: connection.account_key
+
+tool:
+  name: hootsuite
+  kind: oauth
+```
+
+Adjacent required artifacts (batch-end merged, per §2 shared-surface rules):
+- **Generation:** `provider-gen` + `provider-gen --check` from
+  `go-services/integration-service`; the **five** projections commit together with
+  the bundle (never hand-edited, never committed on the tool branch — batch lead
+  produces the one canonical regen).
+- **Service code:** none. `standard_oauth` + `form_basic` + `userinfo` identity is
+  fully declarative; no `service/adapter_*.go`. (Only revisit if refresh-token
+  rotation forces the `refresh_lease` capability growth in §3 — that is an
+  integration-service enum edit, still not a per-provider adapter.)
+- **Config:** `oauth.client_id` / `oauth.client_secret` appended to `config/` and
+  the `deploy/` Helm Secret **together** (partial config fails service startup;
+  fully-absent renders `configured:false` and is safe hidden).
+- **UI icon:** `ui/helio-app/src/integrations/icons/hootsuite.svg` +
+  register in `ui/helio-app/src/integrations/providerIcons.ts` (manual, never
+  generated). `description_key: hootsuite` needs an i18n label entry.
+- **AI-facing doc:** provider sub-doc under
+  `agents/plugins/heliox/skills/tool/`; bump plugin version + publish
+  (one publish per batch).
+
+## 5. Test plan — five layers
+
+| Layer | Concretely for Hootsuite | External creds needed |
+|---|---|---|
+| **L1** anycli unit | `go test ./...` — `httptest` fakes for `me`, `profile list`, `message schedule` (assert path, `Bearer` header, JSON body, `Z`-suffix send-time validation, envelope unwrap, `--json` error from Hootsuite numeric codes 1005/1006). | No — fakes only |
+| **L2** real-API harness | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli hootsuite -- me` and `-- profile list`, and a `message schedule` to a sandbox profile with a future `scheduledSendTime`, then `message delete`. Confirms field names + injection match live API. **This is where refresh-token rotation is observed** to settle the §3 `refresh_lease` decision. | **Yes** — real Hootsuite access token from the test-account pool (lane 2) |
+| **L3** generation + suites | `provider-gen --check` green; `helio-cli` + `integration-service` unit suites pass with a local `go.mod replace` pointing at this anycli branch. Bundle expected to fail `--check` in CI on-branch until batch-end (§2) — do not commit local regens. | No |
+| **L4** singleton + seeded creds | `POST /internal/test-only/connections/seed` with `provider:"hootsuite"`, real `org_id`/`owner_user_id`/`assistant_id` from a seeded AI-user fixture, seeding **both** `access_token` and `refresh_token` with a short `expires_at` so the next call forces the token-gateway refresh-and-write-back path (Hootsuite tokens are ~1h expiring — the expiring-OAuth guidance, not the bot-token shortcut). Then `heliox tool hootsuite -- profile list` returns live data. Runs against the **hidden** provider as-is. | **Yes** — a real access+refresh token pair from the test account |
+| **L5** full connect flow | Once, hidden, before the visible flip: `heliox tool hootsuite auth` → complete Hootsuite OAuth consent on the dev/sandbox app → `oauth_connected` system event fires on the originating channel → run an unseeded `hootsuite -- message schedule …` through the new connection. Human-in-the-loop (oauth L5, master plan §2 lane 3). | **Yes** — a real Hootsuite login + a registered dev-mode app (lane 1) |
+
+**Blocked-on-humans summary:** dev-mode app registration (lane 1) gates L4/L5;
+API-access **approval** (the `oauth_review` review clearance) gates **only** the
+`visible: true` flip, never dev/L4/merge. Test account with connected social
+profiles (lane 2) gates L2/L4/L5.
