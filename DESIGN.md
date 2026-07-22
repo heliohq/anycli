@@ -537,3 +537,46 @@ model (hidden-first).
 - **Session churn** — one login per invocation (35-min/48-h session, fresh
   process each call). Acceptable; the token gateway caches only the four static
   fields, and anycli caches the resolved credential per its own `CacheUntil`.
+
+---
+
+## 7. Shipped-v1 implementation note (divergence from §4.2–§4.4)
+
+Verified against the **actual worktree base** (branched from `origin/main`),
+not the richly-grown base §4 assumed. On this base:
+
+- `manual_credentials` is a **single-secret, no-verify, DSN-class** contract
+  (design 317 D5/D8, `runtime_contract.go`): it projects only the existing
+  `token.access_token` / `connection.account_key` sources and forbids new
+  `CredentialSource` values.
+- The `CredentialSource` allowlist has **no** `config.*` or multi-field
+  `token.*` sources, `CredentialInputPolicy` P3 still forces **exactly one**
+  required field, and there is **no** custom-verifier registry (only
+  `declarativeManualTokenVerifier` + `dsnHostIdentityDeriver`). The multi-field
+  manual capability + config sources + the precedent verifiers §4.4 named
+  (sprout/zuora/postmark/mastodon) live only on **unmerged sibling branches**.
+
+Growing that whole subsystem for one hidden tool would duplicate work multiple
+sibling branches independently own and would contradict the documented
+single-secret contract. **Subtract before add:** BILL's structured credential
+ships as **one JSON secret** through the existing single-secret path — all the
+multi-field structure and the entire login→call session dance already live in
+anycli (which owns them), so Helio stores one opaque secret and projects it via
+`token.access_token`. The narrow growth is a single local, no-network
+`billcomCredentialIdentityDeriver` (parses `organization_id` from the JSON for
+the account key/label; no secret enters the identity map), mirroring
+`dsnHostIdentityDeriver` and selected per-provider in the `manual_credentials`
+registration — **no** wire/Vault/CredentialSource/generator/P3 changes, **no**
+`config.billcom.dev_key` append (the devKey rides in the per-user JSON secret,
+since no config source exists), and **no** connect-time login verifier (the
+no-verify contract stands; a bad credential surfaces at first use via AnyCLI's
+`CredentialRejected`, exactly like mongodb).
+
+**Deferred to the batch's shared multi-field `manual_credentials` capability**
+(before the visible flip): the §4.2 multi-field connect form
+(`sync_token_name` / `sync_token_value` / `organization_id`) and the §4.4
+Growth #2 connect-time login verifier. The anycli side already accepts either
+shape — individual `BILLCOM_*` env vars OR the `BILLCOM_CREDENTIALS` JSON blob —
+so adopting the multi-field capability later needs only a bundle swap, no anycli
+change. The money-movement carve-out (§1) and the auth-shape divergence (§0)
+are unchanged.
