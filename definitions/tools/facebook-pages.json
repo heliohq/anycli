@@ -1,0 +1,13 @@
+{
+  "name": "facebook-pages",
+  "type": "service",
+  "description": "Facebook Pages as a tool (Graph API; long-lived user OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "FACEBOOK_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
