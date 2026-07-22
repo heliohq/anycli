@@ -210,9 +210,11 @@ Never hit the real API from a unit test.
 ## 3. Helio provider bundle (`integrations/providers/resend/provider.yaml`)
 
 Manual-token (api_key) bundle, **hidden-first** (`presentation.visible: false`).
-Modeled on the manual-credential precedent (`mongodb`), but Resend *does* have
-a validatable HTTPS endpoint, so prefer verify-on-connect over mongodb's
-no-verify.
+In the `manual_credentials` family, but — unlike mongodb's DSN-host derivation —
+Resend's `re_…` key is structureless, so it selects the shared
+`bearer_fingerprint` deriver (knock's, #328) via the closed `identity.deriver`
+enum (see the identity decision below). Verify-on-connect is an optional
+label-only refinement, not the identity source.
 
 ```yaml
 schema: helio.provider/v1
@@ -238,9 +240,17 @@ auth:
     setup_url: https://resend.com/api-keys
 
 identity:
-  source: strategy          # selects the NEW opaqueKeyIdentityDeriver (below),
-                            # NOT mongodb's dsnHostIdentityDeriver — a re_… key
-                            # has no DSN host to parse (see decision block)
+  source: strategy          # marks the manual_credentials family (shared value
+                            # with mongodb/amplitude/iterable/knock) — this is
+                            # NOT the deriver selector and cannot distinguish
+                            # derivers on its own.
+  deriver: bearer_fingerprint  # THE selector: the closed identity.deriver enum
+                            # (default dsn_host) that composeProviderRegistration
+                            # switches on via manualCredentialsDeriver(...).
+                            # bearer_fingerprint == knock's shared hostless,
+                            # whoami-less SHA-256 fingerprint deriver — a re_…
+                            # key has no DSN host and no userinfo endpoint, so
+                            # dsn_host would reject a valid key (see decision).
 
 connection:
   mode: isolated
@@ -269,50 +279,65 @@ stable team id or name — so there is no clean field to use as `stable_key`
 
 **Ground truth on this worktree base** (verified in
 `go-services/integration-service/service/provider_registry.go`,
-`composeProviderRegistration`): the `manual_credentials` runtime strategy is
-wired **unconditionally** to `dsnHostIdentityDeriver{}`, which `url.Parse`es
-the secret and derives the account_key/label from the DSN **host**. There is
-**no** deriver-selection switch and **no** opaque/fingerprint deriver on this
-base. An opaque `re_…` bearer key has no host, so `dsnHostIdentityDeriver`
-returns `manualCredentialFormatError` ("requires a connection string with a
-host") and **rejects a perfectly valid Resend key at connect time.** So the
-mongodb analogy does **not** transfer, and `identity.source: strategy` is **not
-zero-growth** here — a structureless bearer credential needs its own deriver,
-exactly as the sibling api_key tools in this program budgeted theirs (amplitude
-first-colon-split, iterable region-prefix, **knock fingerprint** — task #328's
-completed fingerprint identity deriver over a structureless key is the direct
-precedent). Two viable shapes, **both requiring a small, bounded capability**:
+`composeProviderRegistration`, lines 88-98): the `manual_credentials` runtime
+strategy on this branch's base (`afe2cb51fb`) is wired **unconditionally** to
+`dsnHostIdentityDeriver{}`, which `url.Parse`es the secret and derives the
+account_key/label from the DSN **host**. It does **not** consult
+`identity.source` (or any bundle field) — the base has **no** deriver-selection
+switch and **no** fingerprint deriver. An opaque `re_…` bearer key has no host,
+so `dsnHostIdentityDeriver` returns `manualCredentialFormatError` ("requires a
+connection string with a host") and **would reject a perfectly valid Resend key
+at connect time.** So `identity.source: strategy` is **not** the discriminator —
+it is mongodb's own value (and amplitude's / iterable's / knock's), so it cannot
+distinguish one deriver from another. Following the base's YAML verbatim (source
+`strategy` + runtime_strategy `manual_credentials`) gets the DSN host deriver
+and the false rejection.
 
-1. **Opaque-key deriver + deriver selection (recommended, matches the sibling
-   api_key precedent).** Add a `manual_credentials` deriver selection in
-   `composeProviderRegistration` (the switch that today hardcodes
-   `dsnHostIdentityDeriver`) keyed off a bundle field, plus a new
-   `opaqueKeyIdentityDeriver` that does **no** provider round-trip and derives a
-   stable, secret-free account_key by **fingerprinting** the key (short `re_…`
-   prefix + a truncated hash — never the raw secret in Connection metadata),
-   with a static/user-supplied account **label**. This is the smallest
-   orthogonal growth and the direct analogue of the knock fingerprint deriver.
-   **Recommended for the initial hidden landing.**
-2. **Verify-on-connect against `GET /domains` (only if a shared
-   Bearer-verifier capability already exists on the batch base).** Probe
-   `GET https://api.resend.com/domains`: `200` = valid key (optionally derive
-   the label from the first domain name); parsed `name == invalid_api_key`
-   (403) = reject at connect; parsed `name == restricted_api_key` (401) =
-   **accept** — a live sending-only key legitimately 401s on reads, so do NOT
-   reject it, and fall back to the fingerprint account_key. This is the same
-   probe endpoint named in §1 (reconciled: `/domains`, never `/api-keys`, since
-   a restricted key 401s on `/api-keys`). **Only reuse an existing shared
-   capability — do NOT add a Resend-specific `service/adapter_*.go`.** If no
-   shared verifier exists on the base, ship shape (1).
+**The selection mechanism already exists — reuse it, do not reinvent it.** The
+sibling api_key tools in **this same batch** introduced the single shared
+selector: a closed `identity.deriver` enum on the bundle that
+`composeProviderRegistration` switches on via `manualCredentialsDeriver(...)`
+(default `dsn_host`, so mongodb is unchanged). Its values, already built on
+sibling branches:
 
-Either shape still needs the fingerprint deriver: a restricted key can't read
-`/domains`, so verify-on-connect can't be the *only* source of account_key.
-**Do not claim zero integration-service growth** — budget the one small deriver
-+ its selection, land it with tests alongside the bundle, and record it in the
-batch capability-growth ledger the way the sibling api_key tools did.
+- amplitude (#228) → `deriver: first_colon_split`
+- iterable (#333) → `deriver: region_prefix`
+- **knock (#328) → `deriver: bearer_fingerprint`** — a hostless, whoami-less
+  secret hashed to a stable, secret-free SHA-256 fingerprint account_key.
 
-The growth is confined to the identity/registry layer: **no new
-CredentialSource, no token-gateway change** — the key still rides
+`bearer_fingerprint` **is** Resend's case: a structureless `re_…` bearer key
+with no DSN host and no userinfo endpoint. So the resend bundle sets
+`identity.deriver: bearer_fingerprint` and **converges on knock's already-built
+shared deriver** — it does **not** add a resend-specific `opaqueKeyIdentityDeriver`
+or a parallel selection field. Resend's own worktree base predates both the
+`identity.deriver` enum and the fingerprint deriver, so on this branch they show
+as absent; they arrive at the **batch-end capability-growth reconciliation** when
+the sibling derivers merge. Resend contributes **zero new integration-service
+code** on the identity path as long as knock's `bearer_fingerprint` deriver (or
+the equivalent shared fingerprint deriver the batch settles on) lands first;
+resend must not fork its own.
+
+**Optional label enhancement — verify-on-connect against `GET /domains`.** The
+`bearer_fingerprint` account_key is opaque (a hash), so an optional refinement is
+to derive a **human-readable label** from the account: probe
+`GET https://api.resend.com/domains` and, on `200`, label from the first domain
+name; parsed `name == invalid_api_key` (403) → reject at connect; parsed
+`name == restricted_api_key` (401) → **accept** (a live sending-only key
+legitimately 401s on reads) and fall back to the fingerprint. This is the same
+probe endpoint named in §1 (`/domains`, never `/api-keys` — a restricted key
+401s on `/api-keys`). Do this **only** by reusing an existing shared
+Bearer-verifier capability if the batch base already has one — **never** add a
+Resend-specific `service/adapter_*.go`. If no shared verifier exists, ship the
+fingerprint alone; the account_key never depends on it (a restricted key can't
+read `/domains`), so this stays a pure label nicety, not a required capability.
+
+**Capability-growth accounting.** Resend adds no new CredentialSource, no
+token-gateway change, and — given the shared `identity.deriver` /
+`bearer_fingerprint` convergence — no new deriver or selection switch of its own.
+The one bundle-level change is `identity.deriver: bearer_fingerprint`, and the
+final deriver name / dedup against knock's is deferred to the batch-end
+reconciliation the master plan §6 already calls for. Record the reuse (not a new
+capability) in the batch capability-growth ledger. The key still rides
 `token.access_token`, exactly like mongodb's DSN. Seedable at L4 (api_key auth
 type is seedable; only minted providers like github are rejected).
 
