@@ -1,0 +1,17 @@
+{
+  "name": "hotjar",
+  "type": "service",
+  "description": "Hotjar (Contentsquare) as a tool — survey responses export + GDPR user lookup (OAuth client_credentials)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "client_id"},
+        "inject": {"type": "env", "env_var": "HOTJAR_CLIENT_ID"}
+      },
+      {
+        "source": {"field": "client_secret"},
+        "inject": {"type": "env", "env_var": "HOTJAR_CLIENT_SECRET"}
+      }
+    ]
+  }
+}
