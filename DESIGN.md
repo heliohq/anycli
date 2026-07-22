@@ -249,43 +249,38 @@ Because `api_access_point` is in the **token response**, capturing it is the
 no separate GET, no `is_default`-array selection. This makes Adobe strictly
 **simpler on the capture axis** than DocuSign.
 
-**But that capability is still net-new on this base (verified, not "shipped"):**
+**The one unconditional net-new bundle-side capability (verified, not
+"shipped"):**
 
-1. **`metadata_capture` does not exist on `oauthManifest` or
-   `connectionManifest`.** `oauthManifest` (`cmd/provider-gen/manifest.go:81-91`)
-   is exactly `{AuthorizeURL, TokenURL, TokenExchangeStyle, PKCE,
-   AuthorizeParams, Scopes, DisplayScopes, SingleActiveToken, RefreshLease,
-   Revoke}`; `connectionManifest` (`manifest.go:109-113`) is exactly `{Mode,
-   DisconnectMode, RuntimeStrategy}`. The generator strict-decodes with
-   `decoder.KnownFields(true)`, so any `metadata_capture:` key is a **hard
-   strict-decode failure** until the field is added.
-2. **The `connection.metadata.base_uri` credential source is absent from the
-   allowlist.** `knownCredentialSources` (`cmd/provider-gen/validate.go:53-59`)
-   is exactly `{token.access_token, connection.account_key,
-   connection.metadata.person_urn, credential.app_id, credential.brand}`;
-   `validateCredentials` rejects any other `credential.fields` source as unsafe.
-3. **The projection that reads `/api_access_point` from the token response and
-   writes it to connection metadata** must be wired (the Salesforce-`instance_url`
-   machinery — which is itself *unmerged* on this base; verified: no `assumed_ttl`
-   / `metadata_capture` on `oauthManifest`, so Salesforce's own growth has not
-   landed here).
+- **The `connection.metadata.base_uri` credential source is absent from the
+  allowlist.** `knownCredentialSources` (`cmd/provider-gen/validate.go:53-59`)
+  is exactly `{token.access_token, connection.account_key,
+  connection.metadata.person_urn, credential.app_id, credential.brand}`;
+  `validateCredentials` rejects any other `credential.fields` source as unsafe.
+  This is required **regardless** of how `base_uri` gets into connection
+  metadata — it is the only way anycli receives `base_uri`.
 
-This is the same *class* of net-new work DocuSign needs, but **less** of it:
-Adobe needs a **static token-response pointer**, whereas DocuSign needs a
-userinfo GET + `is_default` array-selection deriver. If the Salesforce
-`instance_url` metadata-capture growth lands first (a sibling review-lane
-branch), Adobe reuses it wholesale by pointing `metadata_capture.base_uri` at
-`/api_access_point` and adding the one `connection.metadata.base_uri`
-credential source.
+**Who writes `base_uri` into connection metadata — the adapter, NOT a declarative
+`metadata_capture` field.** The §4.3 compiled adapter is **mandatory** for this
+tool (the shard-hosted exchange forces it), and during exchange it *already*
+reads `api_access_point`. So the adapter writes `base_uri` into connection
+metadata **directly** — the same value the refresh-path change (§4.3 shape (a))
+reads back. That makes a declarative `connection.metadata_capture` manifest field
+**redundant** for Adobe: declaring both the adapter *and* `metadata_capture`
+would be two mechanisms for one job (non-orthogonal). So:
 
-**Note the interaction with §4.3.** Because the official docs make the token
-exchange + refresh **shard-hosted** (§4.3), the default path is a compiled
-adapter that *already* reads `api_access_point` to target the shard — so that
-adapter can write `base_uri` into connection metadata directly, and the
-declarative `metadata_capture` field is then only the *alternative* mechanism
-(useful if a future declarative simplification lands). Either way, the
-`connection.metadata.base_uri` **credential source** is net-new and required for
-anycli to receive `base_uri`.
+- **`metadata_capture` is NOT required growth for this tool.** It is retained
+  here only as a note: *if* a future declarative simplification lands (a generic
+  host that accepts exchange/refresh for all shards, removing the adapter),
+  `metadata_capture.base_uri: /api_access_point` (a static RFC-6901 pointer into
+  the token response — the simplest Salesforce-`instance_url` variant, no
+  userinfo GET, no array selection) would be the declarative alternative. It is
+  **not** built for v1.
+
+Adobe is strictly **simpler on the capture axis** than DocuSign (a static
+token-response value vs. a userinfo GET + `is_default` array-selection deriver),
+but with the mandatory adapter the capture is not even a declarative field — the
+adapter owns it.
 
 ### 4.3 Per-account OAuth **host** for token exchange + refresh (compiled adapter — the documented-required path)
 
@@ -309,28 +304,74 @@ code→token exchange and the refresh are **shard-hosted on `api_access_point`**
 - Only the **authorize** link is shard-less (generic host, §4.1). Everything
   after the redirect is shard-hosted.
 
-integration-service **cannot** express this declaratively. `token_refresh.go:153`
-builds `endpoint := oauth2.Endpoint{TokenURL: def.OAuth.TokenURL}` — the refresh
-POST reuses the **single fixed `token_url`** through `golang.org/x/oauth2`
-(appending `grant_type=refresh_token`), and `validateHTTPSURL` requires
-`token_url` to be one concrete host. A fixed `token_url` — or a fixed net-new
-`refresh_url` — **cannot** encode a per-account shard host. A purely declarative
-bundle is therefore **not viable** for Adobe.
+integration-service **cannot** express this declaratively, and — critically —
+**the exchange path and the refresh path are two different, independently-wired
+mechanisms.** They must be grown separately:
 
-**→ Option B (compiled adapter) is the default, documented-required path — not a
-contingency.** Precedent: `adapter_slack.go` / `adapter_linkedin.go` /
-`adapter_x.go`, wired via `provider_registry.go`'s
-`composeExplicitOAuthRegistration` (adapter serves as both `tokenExchanger` and
-`identityResolver`). `service/adapter_adobesign.go` would: read
-`api_access_point` from the redirect callback / token response, perform **both**
-the code→token exchange and the `/oauth/v2/refresh` refresh against
-`{api_access_point}`, do the shard-hosted `GET /users/me` identity call (§5),
-and populate `base_uri` into connection metadata (projected through the
-still-net-new `connection.metadata.base_uri` credential source, §4.2). The
-bundle still declares a schema-required `token_url` (a generic placeholder to
-satisfy `validateHTTPSURL`), but the adapter overrides the host at runtime with
-the captured shard. This is the master plan's anticipated "a handful of the
-review lane need a narrow adapter" (§5, Bill.com-class) case.
+- **Code→token exchange** is strategy-dispatched. `composeProviderRegistration`
+  (`provider_registry.go:78`) switches on `RuntimeStrategy`; a compiled adapter
+  reached via `composeExplicitOAuthRegistration` supplies the `tokenExchanger`
+  facet, so the exchange host *can* be overridden by the adapter.
+- **Refresh is NOT strategy-dispatched.** `refreshOAuthToken`
+  (`token_refresh.go:16`) calls `requestOAuthRefresh(ctx, provider, def, td)`
+  (signature at line 148) — it passes **only** `provider, def, td`, never the
+  `Connection`, even though `conn` is in scope at the call site. Inside,
+  `requestOAuthRefresh` builds `endpoint := oauth2.Endpoint{TokenURL:
+  def.OAuth.TokenURL}` (line 153) and refreshes through `golang.org/x/oauth2`
+  (appending `grant_type=refresh_token` to that fixed URL). It **never consults
+  the registry, never sees the adapter, and never sees
+  `connection.metadata.base_uri`.** The `tokenExchanger` interface
+  (`provider_adapter.go:15-20`) exposes **only** `Exchange` (authorization_code);
+  the slack/x/linkedin/discord adapters implement `Exchange` + `Identity` and
+  nothing else, and `composeExplicitOAuthRegistration` (`provider_registry.go:130`)
+  wires **only** `exchanger` + `identity` + `revoker` into `oauthProviderRuntime`
+  (struct at line 29). **There is no refresh facet anywhere in the adapter
+  mechanism.**
+
+So an adapter alone makes only the **initial code-exchange** shard-aware. Refresh
+still POSTs to the fixed placeholder `token_url` (`secure.adobesign.com/oauth/v2/token`),
+which per Adobe fails for shard accounts (community 401 reports on cross-shard
+`.../oauth/v2/token`) — and the correct `/oauth/v2/refresh` *path* is never
+reached either, since `x/oauth2` appends the grant to the fixed `token_url`
+rather than a distinct refresh URL. A fixed `token_url` — or a fixed net-new
+`refresh_url` — still **cannot** encode a per-account shard host. A purely
+declarative bundle is therefore **not viable** for Adobe, **and the compiled
+adapter does not cover refresh.**
+
+**→ The required path is a compiled adapter for exchange+identity PLUS net-new
+refresh-path plumbing in `token_refresh.go`.** Adapter precedent (exchange +
+identity only): `adapter_slack.go` / `adapter_linkedin.go` / `adapter_x.go`,
+wired via `composeExplicitOAuthRegistration`. `service/adapter_adobesign.go`
+would: read `api_access_point` from the redirect callback / token response,
+perform the code→token exchange against `{api_access_point}`, do the
+shard-hosted `GET /users/me` identity call (§5), and **populate `base_uri` into
+connection metadata directly** (so refresh can later read it — see below and
+§4.2). The bundle still declares a schema-required `token_url` (a generic
+placeholder to satisfy `validateHTTPSURL`), but the adapter overrides the host
+at runtime with the captured shard.
+
+**The refresh path is net-new work the adapter does NOT do.** Because refresh is
+not strategy-dispatched, making it shard-aware requires changing
+`token_refresh.go` itself. Two viable shapes (pick one at implementation):
+
+- **(a) Thread the `Connection` into the refresh call.** Change
+  `requestOAuthRefresh` to accept `conn` (already in scope in `refreshOAuthToken`),
+  resolve the refresh host from `connection.metadata.base_uri`, and target
+  `{base_uri}oauth/v2/refresh` explicitly (both a per-account host **and** the
+  distinct `/refresh` path — neither of which the current fixed-`TokenURL` +
+  `x/oauth2` grant-append can produce). This is the smaller change and reuses the
+  `base_uri` the adapter already persisted to connection metadata.
+- **(b) Add a per-strategy `refresher` facet** to the adapter interface
+  (alongside `tokenExchanger`/`identityResolver`), wire it into
+  `oauthProviderRuntime` + `composeExplicitOAuthRegistration`, and dispatch to it
+  from `refreshOAuthToken` when present. More surface, but keeps all shard logic
+  inside the adapter.
+
+Either way, **both the shard host and the `/oauth/v2/refresh` path are net-new in
+`token_refresh.go`** — this is not covered by reusing the slack/x adapter
+mechanism. This is the master plan's anticipated "a handful of the review lane
+need a narrow adapter" (§5, Bill.com-class) case, but for Adobe the "narrow
+adapter" is understated: it is an adapter **plus** a refresh-path change.
 
 **Adapter selection is by `RuntimeStrategy`, a closed enum — so Option B needs a
 net-new runtime strategy.** `provider_registry.go` routes `standard_oauth` to
@@ -403,12 +444,16 @@ specific, so lane 1 records which data center the Helio partner app lives on.
 Directory / `key:` = `adobe_sign` (axis ③). Bundle sketch (final field
 spellings confirmed against `provider-yaml.md` + `provider-gen --check` at
 build time). **Uses the §4.3 compiled adapter (`adapter_adobesign.go`) — the
-documented-required path** — for the shard-hosted exchange, the
-`/oauth/v2/refresh` refresh, and the `GET /users/me` identity. Consequences that
-shape the sketch: `token_url` is declared only to satisfy the schema and is
-host-overridden at runtime; `runtime_strategy` is a **net-new compiled
-strategy**, not `standard_oauth`; and there is **no** `refresh_url` (a fixed URL
-cannot reach a per-account shard).
+documented-required path** — for the shard-hosted **exchange** and the
+`GET /users/me` **identity** (the two facets the adapter interface exposes). The
+shard-hosted **refresh** is NOT the adapter's job — it is net-new plumbing in
+`token_refresh.go` (§4.3), because the refresh path is not strategy-dispatched
+and the adapter has no refresh facet. Consequences that shape the sketch:
+`token_url` is declared only to satisfy the schema and is host-overridden at
+runtime **for exchange**; `runtime_strategy` is a **net-new compiled strategy**,
+not `standard_oauth`; and there is **no** `refresh_url` (a fixed URL cannot reach
+a per-account shard — refresh is fixed instead in `token_refresh.go` by reading
+`connection.metadata.base_uri`).
 
 ```yaml
 schema: helio.provider/v1
@@ -464,11 +509,9 @@ connection:
                                           # via composeExplicitOAuthRegistration (§4.3). Needs a runtimeStrategyContracts
                                           # entry pinning provider=adobe_sign + the oauth/owner/mode/disconnect tuple,
                                           # plus the model.RuntimeStrategy enum value + both provider_registry.go switches.
-  # base_uri = api_access_point, present in the TOKEN response — persisted for anycli via metadata_capture below
-  # (complements the adapter, which owns the shard-aware exchange/refresh/identity).
-  # NET-NEW FIELD: connectionManifest has no metadata_capture and KnownFields(true) rejects it (§4.2 item 1).
-  metadata_capture:
-    base_uri: /api_access_point          # static RFC-6901 pointer into the TOKEN response (not a deriver)
+  # base_uri = api_access_point, present in the TOKEN response. The mandatory adapter_adobesign.go writes it into
+  # connection metadata DIRECTLY during exchange — NO declarative `metadata_capture` field (that would be a second
+  # mechanism for one job; §4.2). The refresh-path change (§4.3 shape (a)) reads base_uri back from connection metadata.
 
 resources: { selection: none, discovery: none, enforcement: none }
 
@@ -476,7 +519,7 @@ credential:
   fields:
     access_token: token.access_token
     # NET-NEW SOURCE: connection.metadata.base_uri absent from knownCredentialSources
-    # (validate.go:53-59) → validateCredentials rejects it until added (§4.2 item 2).
+    # (validate.go:53-59) → validateCredentials rejects it until added (§4.2; §5 growth item 3).
     base_uri: connection.metadata.base_uri
     account_key: connection.account_key
 
@@ -488,41 +531,59 @@ tool:
 **Capability growth needed (Helio side) — verified against this base, honest
 accounting:**
 
-1. **Compiled `service/adapter_adobesign.go` + a net-new
-   `model.RuntimeStrategy` (`adobe_sign_shard`)** — the §4.3
+1. **Compiled `service/adapter_adobesign.go` (exchange + identity only) + a
+   net-new `model.RuntimeStrategy` (`adobe_sign_shard`)** — the §4.3
    documented-required path. `provider_registry.go` routes `standard_oauth` to
    the declarative `standardOAuthExchanger{}`; only a strategy in
    `composeExplicitOAuthRegistration`'s closed set reaches a compiled adapter.
    Growth: the enum value, a `runtimeStrategyContracts` entry (pinning
    provider=`adobe_sign` + the oauth/owner/mode/disconnect tuple), both
-   `provider_registry.go` switches, and the adapter body itself (shard-hosted
-   code→token exchange, `{api_access_point}/oauth/v2/refresh` refresh, and the
-   shard-hosted `GET /users/me` identity). Precedent mechanism:
-   `adapter_slack.go` / `adapter_x.go`.
-2. **`connection.metadata_capture` manifest field** accepting a
-   token-response JSON Pointer — absent from `connectionManifest`
-   (`manifest.go:109-113`); `KnownFields(true)` rejects the sketch. Same field
-   Salesforce/DocuSign need; **Adobe's variant is the simplest** (static token-
-   response pointer, no userinfo GET, no array selection). Persists `base_uri`
-   for the credential projection, complementing the item-1 adapter.
+   `provider_registry.go` switches, and the adapter body. The adapter body covers
+   **only the two facets the interface exposes** (`provider_adapter.go:15-27`):
+   the shard-hosted code→token `Exchange` and the shard-hosted `GET /users/me`
+   `Identity`; it also writes `base_uri` into connection metadata during exchange.
+   Precedent mechanism: `adapter_slack.go` / `adapter_x.go`.
+2. **Net-new refresh-path plumbing in `service/token_refresh.go`** — the
+   part the adapter does **not** cover. Refresh is not strategy-dispatched:
+   `requestOAuthRefresh` (`token_refresh.go:148`) receives only `provider, def,
+   td` and refreshes against the fixed `def.OAuth.TokenURL` (line 153), never
+   seeing the `Connection` or the adapter. To make refresh shard-aware, either
+   **(a)** thread `conn` into `requestOAuthRefresh` and target
+   `{connection.metadata.base_uri}oauth/v2/refresh` (smaller change; reuses the
+   `base_uri` item-1 already persisted), or **(b)** add a per-strategy
+   `refresher` facet to the adapter interface + `oauthProviderRuntime` +
+   `composeExplicitOAuthRegistration` and dispatch to it from `refreshOAuthToken`.
+   **Both the per-account host AND the distinct `/oauth/v2/refresh` path are
+   net-new here** — the current fixed-`TokenURL` + `x/oauth2` grant-append
+   produces neither. This is the single most-understated piece of prior drafts.
 3. **`connection.metadata.base_uri` credential source** — absent from
    `knownCredentialSources` (`validate.go:53-59`); `validateCredentials` rejects
-   it today. Required regardless — it is how anycli receives `base_uri`.
+   it today. Required regardless — it is how anycli receives `base_uri`, and how
+   the item-2 refresh change reads the shard host. The **sole unconditional
+   bundle-side** growth.
+
+**NOT growth (explicitly): `metadata_capture`.** Since the item-1 adapter is
+mandatory and writes `base_uri` into connection metadata directly, a declarative
+`connection.metadata_capture` field is redundant (two mechanisms for one job,
+non-orthogonal — §4.2). Do **not** build the `connectionManifest.metadata_capture`
+field for this tool; it is retained only as a future declarative alternative if
+the adapter is ever removed.
 
 **No `refresh_url`:** an earlier draft proposed a declarative `refresh_url` as
 an "Option A." The official docs make exchange + refresh **shard-hosted**
 (§4.3), which a fixed URL cannot express, so `refresh_url` is *not* the path —
-the item-1 adapter owns refresh instead.
+the item-2 `token_refresh.go` change owns refresh instead.
 
 **Genuinely reused / shipped (not net-new):** `form_secret` token exchange,
 `pkce: none`, `local_only` disconnect, `isolated` connection mode, the generic
-`authorize_url`, and the adapter **mechanism**
+`authorize_url`, and the adapter **mechanism for exchange + identity ONLY**
 (`tokenExchanger`/`identityResolver` + `composeExplicitOAuthRegistration`,
-already used by slack/x/linkedin/discord). **NOT shipped — do not treat as
-such:** the net-new `adobe_sign_shard` runtime strategy + `adapter_adobesign.go`
-body, `metadata_capture`, and the `connection.metadata.base_uri` credential
-source. **`standard_oauth` is NOT usable here** (it forces the declarative
-exchanger).
+already used by slack/x/linkedin/discord). **The adapter mechanism does NOT
+cover refresh** — that is net-new `token_refresh.go` work (item 2). **NOT
+shipped — do not treat as such:** the net-new `adobe_sign_shard` runtime strategy
++ `adapter_adobesign.go` body, the `token_refresh.go` shard-aware refresh, and
+the `connection.metadata.base_uri` credential source. **`standard_oauth` is NOT
+usable here** (it forces the declarative exchanger).
 
 - **`toolToProvider` divergence (required):** add `"adobe-sign":
   "adobe_sign"` to `helio-cli/internal/toolcred/resolver.go` — verified: on this
@@ -548,8 +609,8 @@ exchanger).
 |---|---|---|
 | **L1** anycli unit | `httptest` fake of the v6 API: assert base path `{base_uri}api/rest/v6`, `Authorization: Bearer` header; `transientDocuments` multipart upload → id; `agreement send` two-step (transient-then-create AND `--library-id` single-step); `agreement list/get/members`; `agreement cancel` PUT `/state` body `state:CANCELLED`; `combinedDocument` download to `--out`; `library list/get`; plain + `--json` error rendering (401/404). The `api_access_point` capture and the OAuth host handling are **Helio-side** concerns, unit-tested there, not in anycli. | No |
 | **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN` + `ANYCLI_CRED_BASE_URI` (the shard host) from a real Adobe Sign **developer** account; run `document upload`, `agreement send`, `agreement get`, `agreement list`, `library list` against the account's shard. Proves field names + the two-step send + request shapes match the live v6 API. The §4.3 host question is already settled by the docs (exchange + refresh are shard-hosted → compiled adapter); L2 optionally records whether a generic host *also* accepts exchange/refresh (a future-simplification note only, not a gate). | **Yes** — Adobe Acrobat Sign developer account (free dev tier) + a token minted from a registered app (lane 1). |
-| **L3** generation + suites | `provider-gen` + `provider-gen --check` (5 projections) green **only after the §4.2/§4.3 growth lands** (the `metadata_capture` field + `connection.metadata.base_uri` source + the net-new `adobe_sign_shard` runtime strategy & `adapter_adobesign.go` registration — without them the bundle fails strict-decode / the credential-source allowlist / the runtime-strategy contract); the new metadata-capture + adapter unit tests green; helio-cli + integration-service suites green; `toolToProvider` resolver test covers `adobe-sign`→`adobe_sign`. On-branch: local `replace` to the anycli branch + local regen (not committed). | No |
-| **L4** singleton + seed | `POST /internal/test-only/connections/seed` with `provider:"adobe_sign"`, seeding `access_token` (+ short `expires_at`) **and** `refresh_token` **and** the captured `base_uri` metadata, then `heliox tool adobe-sign -- agreement list`. Exercises token gateway → the `adapter_adobesign.go` refresh (POST `{api_access_point}/oauth/v2/refresh`, §4.3) → metadata-injected `base_uri` → anycli path. Seed `base_uri` explicitly since L4 bypasses the connect-time capture. The short-`expires_at` forces the refresh path — the single best test of the §4.3 shard-hosted-refresh divergence. | **Yes** — a real developer access + refresh token and the shard `base_uri` (lane 1 dev app). |
+| **L3** generation + suites | `provider-gen` + `provider-gen --check` (5 projections) green **only after the §4.2/§4.3 growth lands** (the `connection.metadata.base_uri` credential source + the net-new `adobe_sign_shard` runtime strategy & `adapter_adobesign.go` registration + the `token_refresh.go` shard-aware refresh change — without the credential source the bundle fails the allowlist, without the strategy it fails the runtime-strategy contract; NO `metadata_capture` field is added, the adapter writes `base_uri` directly); the new adapter + refresh-path unit tests green; helio-cli + integration-service suites green; `toolToProvider` resolver test covers `adobe-sign`→`adobe_sign`. On-branch: local `replace` to the anycli branch + local regen (not committed). | No |
+| **L4** singleton + seed | `POST /internal/test-only/connections/seed` with `provider:"adobe_sign"`, seeding `access_token` (+ short `expires_at`) **and** `refresh_token` **and** the `base_uri` connection metadata, then `heliox tool adobe-sign -- agreement list`. Exercises token gateway → the **`token_refresh.go` shard-aware refresh** (POST `{connection.metadata.base_uri}oauth/v2/refresh`, §4.3 item 2 — NOT the adapter; the adapter has no refresh facet) → metadata-injected `base_uri` → anycli path. Seed `base_uri` explicitly since L4 bypasses the connect-time capture the adapter would do. The short-`expires_at` forces the refresh path — the single best test of the §4.3 shard-hosted-refresh divergence, and the specific test that catches a refresh still pointed at the fixed placeholder `token_url`. | **Yes** — a real developer access + refresh token and the shard `base_uri` (lane 1 dev app). |
 | **L5** full connect (pre-flip, once) | `heliox tool adobe-sign auth` → real Adobe consent on the dev/partner app → confirm `oauth_connected` event → confirm `api_access_point` captured as `base_uri` on the connection → run `agreement list` unseeded through the new connection. Human-in-the-loop (oauth L5). Gates the visible flip together with **partner certification clearance**. | **Yes** — human consent on a real Adobe Sign account (lane 3) + partner certification (lane 1 review) before the flip. |
 
 **Layers needing externally supplied credentials:** L2, L4, L5 (an Adobe
@@ -582,25 +643,33 @@ only — the shard-hosted adapter path is already fixed by the docs).**
   `local_only` disconnect.
 - **Three verified divergences from the shipped eSign tools, all Helio-side:**
   (1) `form_secret` not `form_basic`; (2) API base host is the per-account
-  `api_access_point` shard → **`metadata_capture` static token-response pointer
-  `/api_access_point`** (Salesforce pattern, simpler than DocuSign's userinfo
-  deriver) + **`connection.metadata.base_uri` credential source** — both
-  net-new on this base (`manifest.go:109-113` / `validate.go:53-59`); (3)
-  **both token exchange and refresh are shard-hosted on `api_access_point`**
-  (exchange `POST /oauth/v2/token`, refresh `POST /oauth/v2/refresh` — both with
-  `Host: api.na1.adobesign.com`), which `token_refresh.go:153`'s single fixed
-  `token_url` cannot express → a compiled `adapter_adobesign.go` behind a
-  net-new `adobe_sign_shard` runtime strategy (NOT `standard_oauth`).
+  `api_access_point` shard → the mandatory adapter writes `base_uri` into
+  connection metadata during exchange (no declarative `metadata_capture` field —
+  that would be a redundant second mechanism), and the **only** net-new
+  bundle-side capability is the **`connection.metadata.base_uri` credential
+  source** (`validate.go:53-59`); (3) **both token exchange and refresh are
+  shard-hosted on `api_access_point`** (exchange `POST /oauth/v2/token`, refresh
+  `POST /oauth/v2/refresh` — both with `Host: api.na1.adobesign.com`), which
+  `token_refresh.go:153`'s single fixed `token_url` cannot express. Exchange is
+  fixed by a compiled `adapter_adobesign.go` behind a net-new `adobe_sign_shard`
+  runtime strategy (NOT `standard_oauth`); **refresh is fixed by separate net-new
+  plumbing in `token_refresh.go`** (the adapter interface has no refresh facet —
+  the refresh path is not strategy-dispatched), reading the shard host from
+  `connection.metadata.base_uri` to target `{base_uri}oauth/v2/refresh`.
 - **OAuth host (§4.3), settled by the official docs:** token exchange **and**
   refresh are shard-hosted on `api_access_point`, which no fixed
-  `token_url`/`refresh_url` can express → the required path is a **compiled
-  `adapter_adobesign.go` behind a net-new `adobe_sign_shard` runtime strategy**
-  (NOT `standard_oauth`; that forces the declarative exchanger). The adapter
-  owns the shard-aware exchange, `/oauth/v2/refresh`, and the `GET /users/me`
-  identity; `metadata_capture` persists `base_uri`. There is **no declarative
-  "Option A"** — a stage-1 probe for whether a generic host *also* accepts
-  exchange/refresh is only a note for a possible future simplification, not a
-  gate on v1.
+  `token_url`/`refresh_url` can express. The required path is **two distinct
+  net-new pieces, not one**: (i) a **compiled `adapter_adobesign.go` behind a
+  net-new `adobe_sign_shard` runtime strategy** (NOT `standard_oauth`; that
+  forces the declarative exchanger) owning the shard-aware **exchange** + the
+  `GET /users/me` **identity** + writing `base_uri` to connection metadata; and
+  (ii) **net-new refresh-path plumbing in `token_refresh.go`** — because refresh
+  is not strategy-dispatched and the adapter interface (`provider_adapter.go:15-27`)
+  has **no refresh facet**, the shard host and the `/oauth/v2/refresh` path are
+  fixed by threading `connection.metadata.base_uri` into `requestOAuthRefresh`
+  (or adding a refresher facet). There is **no declarative "Option A"** — a
+  stage-1 probe for whether a generic host *also* accepts exchange/refresh is
+  only a note for a possible future simplification, not a gate on v1.
 - **oauth_review:** Adobe **PARTNER** (multi-tenant) app requires **partner
   certification** before production; self-serve dev/test app is immediate, so
   the gate is on the **visible flip only**, not dev/L4/merge. Lane correct
