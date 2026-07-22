@@ -231,13 +231,17 @@ connection:
 
 resources: { selection: none, discovery: none, enforcement: none }
 
-# Both secrets ride the existing UpsertUserToken multi-field write path (design
-# 317 D5 / zoominfo multi-field precedent). No new CredentialSource, no token
-# gateway change.
+# The App API Key (the only secret) rides the single-secret user-token write path
+# (token.access_token); the App ID is the account identity, so it projects from
+# connection.account_key rather than a second token field. No new
+# CredentialSource, no token gateway change. (This supersedes an earlier draft
+# that modeled both as token fields — app_api_key: token.app_api_key /
+# app_id: token.app_id; the shipped single-secret + account_key form below is
+# cleaner and is what integrations/providers/onesignal/provider.yaml carries.)
 credential:
   fields:
-    app_api_key: token.app_api_key
-    app_id: token.app_id
+    app_api_key: token.access_token
+    app_id: connection.account_key
     account_key: connection.account_key
 
 tool:
