@@ -21,6 +21,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
 	"github.com/heliohq/anycli/internal/tools/tasks"
+	"github.com/heliohq/anycli/internal/tools/twitch"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
 
@@ -51,4 +52,5 @@ func init() {
 	RegisterService("microsoft-calendar", &microsoftcalendar.Service{})
 	RegisterService("microsoft-onedrive", &microsoftonedrive.Service{})
 	RegisterService("mongodb", &mongodb.Service{})
+	RegisterService("twitch", &twitch.Service{})
 }
