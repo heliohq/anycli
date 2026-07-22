@@ -171,8 +171,8 @@ Verified against `docs.ramp.com/developer-api/v1/authorization` +
 | Authorize URL | Ramp's OAuth authorization endpoint — **host not printed verbatim in the machine-readable docs**; working value `https://app.ramp.com/v1/authorize`, **confirmed at stage 1** against Ramp's app registration screen (§7 open item). Params (verified): `response_type=code`, `scope`, `client_id`, `redirect_uri`, `state`. |
 | Token URL (exchange **and** refresh) | `https://api.ramp.com/developer/v1/token` (docs: *"requests to /developer/v1/token"*; host `api.ramp.com`). |
 | Client auth at token endpoint | **HTTP Basic** — *"send client_id:client_secret, base64-encoded, in the `Authorization: Basic …` header"* (some clients send them in the form body). → maps to the existing **`token_exchange_style: form_basic`** stock enum value (form-encoded body + Basic client auth), verified present on main (`model/catalog.go:15` `TokenExchangeFormBasic`, `validate.go:243`). **This is the one axis that differs from Brex** (which used `form_secret`); no growth — `form_basic` is already stock. |
-| Scopes | space-delimited `resource:read` scopes for §1: `transactions:read cards:read users:read reimbursements:read departments:read locations:read business:read`. |
-| PKCE | S256 *"supported"* (changelog notes an optional `code_challenge` for the application OAuth handoff), **not required**. → `pkce: none` for the confidential server-side client (the partner secret lives in integration-service); S256 is available if a later posture wants it. |
+| Scopes | space-delimited `resource:read` scopes for §1: `transactions:read cards:read users:read reimbursements:read departments:read locations:read business:read`. **All seven verified present** in Ramp's published scope catalog (`docs.ramp.com/llms-guides/authorization.txt`), not inferred. These are **wire** scopes: the bundle's `auth.oauth.scopes` feeds `DefaultScopes`, which `oauth_start.go:227` joins into the authorize `scope` param — so the §5 bundle MUST set `scopes:` (not `display_scopes:` alone), see §7. |
+| PKCE | **Not documented.** Ramp's authorization guide lists only `response_type`, `scope`, `client_id`, `redirect_uri`, `state` as authorize params — no `code_challenge` / `code_challenge_method` (verified against `docs.ramp.com/llms-guides/authorization.txt`). → `pkce: none` for the confidential server-side client (the partner secret lives in integration-service). No PKCE capability is asserted. |
 | access_token | **opaque** (not JWT), **1-hour** lifetime (docs: *"1 hour (3,600 seconds) for Authorization Code and Refresh Token access tokens"*). |
 | refresh_token | issued for the auth-code flow (*"Use the refresh token to obtain a new access token"*); lifetime/rotation **not documented** → default refresh write-back, rotation confirmed at L2 (§4). Authorization codes last 10 minutes. |
 | API data host | `https://api.ramp.com` (production; `/developer/v1/` prefix). |
@@ -376,8 +376,17 @@ auth:
     authorize_url: https://app.ramp.com/v1/authorize   # host CONFIRM at stage 1 (§3.1/§7); params verified
     token_url: https://api.ramp.com/developer/v1/token
     token_exchange_style: form_basic     # HTTP Basic client auth at the token endpoint (§3.1) — stock enum, no growth
-    pkce: none                           # S256 supported but not required; confidential server-side client
-    display_scopes: [transactions:read, cards:read, users:read, reimbursements:read, departments:read, locations:read, business:read]
+    pkce: none                           # PKCE not documented for the confidential server-side client (§3.1); partner secret lives in integration-service
+    scopes:                              # WIRE scopes → DefaultScopes → the authorize `scope` param (oauth_start.go:227). MUST be set — display_scopes does NOT feed the wire (§7).
+      - transactions:read
+      - cards:read
+      - users:read
+      - reimbursements:read
+      - departments:read
+      - locations:read
+      - business:read
+    # display_scopes omitted: the wire scope strings are already human-readable, so a distinct consent slug set is redundant.
+    # (render_ts.go falls back to `scopes` for the consent page when display_scopes is absent — bitly needs display_scopes only because it has no wire scopes.)
     single_active_token: false
     refresh_lease: none                  # refresh tokens not documented as rotating; ADD credential only if L2 proves rotation
     # access_token_ttl_seconds: 3600     # NOT needed in the expected case — Ramp documents expires_in=3600 (§3.5).
@@ -430,7 +439,7 @@ Non-generated companions landing on the batch-end merge:
 |---|---|---|
 | **L1** anycli unit | `httptest` fakes per resource: assert path/method, `Authorization: Bearer` injection, `--cursor`/`--limit`, the `data` + `page.next` envelope, and typed `apiError` in text + `--json`. | No |
 | **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli ramp -- transaction list --limit 3` against a **real Ramp account** (a dashboard-minted token doubles as a valid `api.ramp.com` bearer for the *data-plane* harness). Proves field names, Bearer injection, the `data`/`page.next` pagination, error shape. **This layer also resolves the §3.5 `expires_in` question** by exercising the real `/developer/v1/token` exchange with the dev partner app and inspecting the token response (present → no growth; absent → assumed-TTL fallback). | **Yes** — a Ramp account/token (account pool) + a dev partner app (lane 1). |
-| **L3** generation + suites | `provider-gen` + `provider-gen --check` accept the bundle (stock `form_basic` + `api` identity; no growth in the expected case); `helio-cli` builds against the anycli branch via local `replace`; both repos' unit suites green. | No |
+| **L3** generation + suites | `provider-gen` + `provider-gen --check` accept the bundle (stock `form_basic` + `userinfo` identity; no growth in the expected case); assert the **generated `DefaultScopes` is non-empty and equals the seven requested wire scopes** (guards the empty-`scope` regression the §7 blocker note describes — a `display_scopes`-only bundle would generate empty `DefaultScopes`); `helio-cli` builds against the anycli branch via local `replace`; both repos' unit suites green. | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` a `ramp` connection with `access_token` + `refresh_token` (+ an aged expiry so the next `heliox tool ramp -- card list` forces the token gateway's refresh-and-write-back through `/developer/v1/token`). Success = live Ramp data, not a replayed seed. | **Yes** — a real OAuth access+refresh pair from the dev partner app (dev-cred issuance gates this; lane 1 distributes `client_id`/`client_secret` as uncommitted local `config/cloud.yaml` entries). |
 | **L5** full connect | Once, hidden, pre-flip: `heliox tool ramp auth` → consent on the Ramp authorize screen (Admin/Business-Owner login on a real account) → `oauth_connected` system event → one **unseeded** live `heliox tool ramp` run. Human-in-the-loop (oauth L5, plan lane 3). | **Yes** — live Ramp consent on a real account; human consent session. |
 
@@ -453,6 +462,42 @@ gates the flip, never dev/L4/merge).
   `oauth_review` is **viable and correct**; the self-serve single-account token is
   single-account-only and rejected as the primary lane (§3.3). **No §6 catalog
   amendment.**
+- **Wire `scopes:` MUST be set in the bundle — `display_scopes:` alone would
+  ship a non-functional tool (§3.1/§5, blocker fix).** Verified against the
+  generator: the authorize request's `scope` param is built from
+  `def.OAuth.DefaultScopes` (`oauth_start.go:227`), and `DefaultScopes` is
+  populated ONLY from the bundle's `oauth.scopes` (`render_go.go:178-180`);
+  `display_scopes` feeds ONLY the consent-page catalog display
+  (`render_ts.go:173-177`). The gmail bundle sets BOTH (wire `scopes` + slug
+  `display_scopes`); bitly sets `display_scopes` alone precisely because Bitly
+  has **no** wire-level scope param. Ramp **does** have wire scopes (the
+  authorization guide describes `scope` as a space-separated list, e.g.
+  `transactions:read business:read`), so an earlier `display_scopes`-only draft
+  would have sent an empty `scope`, yielding a token with **none** of the
+  `resource:read` scopes — every data read AND the `business:read` identity
+  resolution (§3.4) would 403 at connect/first-use, contradicting §3.1's own
+  scopes row. Fixed: §5 now sets `auth.oauth.scopes: [transactions:read,
+  cards:read, users:read, reimbursements:read, departments:read, locations:read,
+  business:read]` (feeds `DefaultScopes` → the authorize `scope` param) and drops
+  the redundant `display_scopes` (the wire strings are already human-readable).
+  §6 L3 adds a generated-`DefaultScopes`-non-empty-and-matches assertion so the
+  regression cannot silently return.
+- **All seven scope strings verified against Ramp's published catalog, not
+  inferred (§1/§3.1).** `reimbursements:read`, `departments:read`, and
+  `locations:read` — flagged in an earlier review as inferred from the uniform
+  `resource:read` pattern — are each confirmed present, alongside
+  `transactions:read`, `cards:read`, `users:read`, `business:read`, in Ramp's
+  machine-readable scope catalog (`docs.ramp.com/llms-guides/authorization.txt`).
+  No longer a stage-1 confirm item.
+- **PKCE claim corrected: not documented → `pkce: none`, no capability asserted
+  (§3.1).** An earlier draft claimed "S256 supported (changelog notes an optional
+  `code_challenge`)". Ramp's authorization guide lists only `response_type`,
+  `scope`, `client_id`, `redirect_uri`, `state` as authorize params and mentions
+  no `code_challenge` / `code_challenge_method` (verified against
+  `/llms-guides/authorization.txt`). The unverified "supported per changelog"
+  justification is dropped; `pkce: none` stands on the confidential
+  server-side-client rationale alone (harmless to correctness — the bundle set
+  `none` either way).
 - **Client auth is HTTP Basic → `form_basic`, the one axis that differs from
   Brex — and it needs NO growth (§3.1/§4).** Ramp authenticates the token request
   with base64 `client_id:client_secret` in the `Authorization: Basic` header,
