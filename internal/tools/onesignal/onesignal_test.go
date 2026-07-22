@@ -27,6 +27,27 @@ func TestExecute_MissingAppID_Exit1(t *testing.T) {
 	}
 }
 
+func TestExecute_MissingCredential_JSONKindMatchesExitCode(t *testing.T) {
+	// The missing-credential branch is exit 1, so its --json envelope must carry
+	// kind "api" — exit 1 pairs with "api" everywhere else in this tool, never
+	// "usage" (which is reserved for exit 2).
+	result, _, stderr := runNoServer(t, map[string]string{EnvAppID: testAppID}, "message", "list", "--json")
+	if result.ExitCode != 1 {
+		t.Fatalf("exit code = %d, want 1", result.ExitCode)
+	}
+	var env struct {
+		Error struct {
+			Kind string `json:"kind"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(stderr)), &env); err != nil {
+		t.Fatalf("stderr is not a JSON envelope: %v (%q)", err, stderr)
+	}
+	if env.Error.Kind != "api" {
+		t.Errorf("kind = %q, want api (to match exit 1)", env.Error.Kind)
+	}
+}
+
 func TestExecute_Unauthorized_RejectsCredential(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusUnauthorized, `{"errors":["Invalid app API key"]}`, &got)

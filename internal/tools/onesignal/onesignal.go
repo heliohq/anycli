@@ -67,7 +67,11 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 		if key != "" {
 			missing = EnvAppID
 		}
-		s.renderError(hasJSONArg(args), &usageError{msg: missing + " is not set"})
+		// A missing host-injected credential is a runtime/credential problem, not
+		// a user usage error: classify it as an apiError so the exit code (1) and
+		// the --json envelope kind ("api") stay consistent with the rest of the
+		// tool, where exit 1 always pairs with kind "api".
+		s.renderError(hasJSONArg(args), &apiError{msg: missing + " is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
 	root := s.newRoot(key, appID)
