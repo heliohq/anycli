@@ -32,9 +32,13 @@ correct. No divergence to record. One nuance the catalog does not capture and
 this design pins down: **Copper access tokens do not expire and there is no
 refresh token** (official flow doc: "access tokens do not expire and do not
 need to be refreshed"). This drives `refresh_lease: none` in the bundle — the
-shipped **bitly** bundle is the exact precedent (non-expiring token, no refresh,
-`form_secret` exchange, `userinfo` identity), not the usual short-expiry refresh
-cycle.
+shipped **bitly** bundle is the precedent on the token/identity axes (non-expiring token, no
+refresh, `form_secret` exchange, `userinfo` identity), not the usual
+short-expiry refresh cycle. It is **not** a full precedent, though: unlike
+bitly, Copper delivers the auth code via an HTTP POST (form_post) to the
+redirect target, which needs a new server-side form_post redirect landing —
+the one genuine capability growth this provider requires (see §3 "Redirect
+binding" and §4).
 
 ## 1. Which official API surface & endpoints, and why
 
@@ -179,17 +183,85 @@ NO wire scope param, so they carry `display_scopes:` only).
 **PKCE:** not documented/supported → `pkce: none`.
 
 **Token exchange style:** form-encoded body with `client_id`+`client_secret`
-**in the body** (not HTTP Basic) → `token_exchange_style: form_secret`.
+**in the body** (not HTTP Basic) → `token_exchange_style: form_secret`. Primary
+anchor is the OAuth registration/index page, which is normative rather than an
+example: "You will receive two credentials, `client_id` and `client_secret`,
+**required for all authorization flows**" (`.../introduction/oauth/index.html`).
+Corroborated by the flow.html / quickstart.html token-exchange curl, which sends
+both credentials in the POST body (`-d "client_id={client_id}"
+-d "client_secret={client_secret}"`). **Divergence note vs. the batch review:** a
+review finding claimed those curl snippets *omit* the client credentials; that is
+**false** against the live docs (verified 2026-07-22 by fetching the raw pages) —
+both curls include `client_id` and `client_secret`. The exchange must therefore
+**not** be "corrected" to a no-secret form on the basis of that finding; the
+registration page is cited as the primary anchor precisely so a later reader does
+not re-derive the style from a curl they misread.
+
+**Redirect binding — POST/form_post code delivery (capability gap, blocker).**
+Copper does **not** return the authorization code via the usual GET query
+redirect. All three official pages state the code is delivered to `redirect_uri`
+via an HTTP **POST** with the code in the request body: flow.html — "Your
+application provides an HTTPS callback endpoint capable of receiving POST
+requests" and "the user is redirected to your app's `redirect_uri` via a POST
+request … the payload includes a `code` parameter"; quickstart.html —
+"redirected back to your application's `redirect_uri` via a POST request. Use the
+`code` parameter supplied in the request body." The authorize request exposes only
+`response_type` / `client_id` / `redirect_uri` / `scope` / `state` — there is **no
+`response_mode`** to force query delivery.
+
+This is incompatible with Helio's shipped redirect target. `oauth.redirect_url`
+points at the client-side SPA route
+`ui/helio-web/src/routes/OAuthToolCallback.tsx` →
+`ui/helio-app/src/web/routes/ConnectCallback.tsx` (`ConnectCallbackPage`), which
+reads code/state **only** from the URL query string (`useSearchParams()`;
+`searchParams.get('code')` / `.get('state')`) and then POSTs `{state, code}` to
+`/connections/oauth/callback` with the clicker's Clerk token. A browser that lands
+on that SPA via a provider POST has an empty `window.location.search`, so `code`
+and `state` resolve to `null`, the page takes its `missingCallbackParams` branch,
+and renders the error card — the exchange never runs. Verified on `main`: no
+server-side POST landing exists at the redirect target today (`grep` for
+`form_post` / `response_mode` in `go-services/integration-service/` returns
+nothing; the configured `oauth.redirect_url` is the hosted
+`…/connections/oauth/callback` SPA page — `provision_slack_test.go:54`). A Copper
+connect therefore **cannot** complete through the standard flow as-shipped; L5 as
+originally written could never pass.
+
+**Required capability growth (integration-service).** Add a form_post redirect
+landing: a server-side HTTP endpoint, registered as Copper's `oauth.redirect_url`,
+that accepts the provider's `POST` (`Content-Type:
+application/x-www-form-urlencoded`), extracts `code` (and `state`, if present)
+from the form body, and issues a `302` to the existing SPA callback
+`…/connections/oauth/callback?code=<code>&state=<state>` — the exact query shape
+`ConnectCallbackPage` already consumes. The whole downstream exchange
+(Clerk-authed POST → code exchange → owner bind → `oauth_connected`) is unchanged;
+only the browser→server hand-off is translated from POST-body to query. Model it
+as a provider flag (e.g. `oauth.redirect_binding: form_post`, default `query`) so
+the landing is provisioned only for form_post providers and the query default is
+untouched for every shipped bundle. This is genuinely new server-side code that
+must be built with its own tests before L5 can pass — it is the single reason this
+provider is **not** zero-capability-growth.
+
+Nuance on `state`: flow.html's callback payload table lists only `code`/`error`
+and does not enumerate `state` in the POST body, while `state` is documented as an
+optional forward-through param on the authorize request. The landing must
+therefore forward whatever `state` is present and the flow's session/CSRF binding
+depends on Copper round-tripping it; if it does not, the landing has no session
+key to forward — a hard implementation check (fail fast), not a silent fallback.
 
 ## 4. Helio provider bundle plan (`integrations/providers/copper/provider.yaml`)
 
-Hidden-first (`presentation.visible: false`). This is a **pure `standard_oauth`
-bundle — zero service-side Go adapter** (the flow is textbook auth-code +
-Bearer; nothing falls outside the closed `standard_oauth` capability set).
-Shape follows the shipped **bitly** bundle (non-expiring token, `refresh_lease:
-none`, `form_secret` exchange, flat `userinfo` identity), since Copper's token
-response carries no account/user id — plus the **gmail** wire-`scopes:` /
-`display_scopes:` split for the required `developer/v1/all` authorize scope.
+Hidden-first (`presentation.visible: false`). The bundle body is `standard_oauth`
+(no per-provider Go *exchange* adapter) and its shape follows the shipped
+**bitly** bundle (non-expiring token, `refresh_lease: none`, `form_secret`
+exchange, flat `userinfo` identity), since Copper's token response carries no
+account/user id — plus the **gmail** wire-`scopes:` / `display_scopes:` split for
+the required `developer/v1/all` authorize scope. **This is NOT a
+zero-capability-growth bundle.** Copper delivers the authorization code to the
+redirect target via an HTTP POST (form_post), which Helio's query-param-only SPA
+callback cannot read, so this provider requires a new server-side form_post
+redirect-landing capability in integration-service (fully specified in §3
+"Redirect binding"). Every *other* axis — exchange style, refresh, identity,
+scopes — is inside the already-shipped set.
 
 ```yaml
 schema: helio.provider/v1
@@ -272,8 +344,10 @@ unquoted), and the generic declarative resolver's `jsonPointerString`
 "identity has no string value at stable key"). So `/id` is *not* usable without
 a numeric stable-key coercion capability growth, which is **not shipped on
 `main`** — this corrects the assumption that hubspot/typefully verified such
-coercion there. To keep this bundle inside the already-shipped capability set
-(the design's zero-capability-growth thesis), the stable key is Copper's
+coercion there. To keep the *identity* axis inside the already-shipped
+capability set (avoiding an unrelated numeric-coercion growth — the form_post
+redirect-binding growth in §3 is the only capability this provider genuinely
+needs), the stable key is Copper's
 **`/email`** — string-valued, present, and unique per Copper user (it is the
 login identity). The precedent is therefore the **bitly `/login`** /
 **gmail `/sub`** *string-from-userinfo* shape (both are string keys — not
@@ -294,15 +368,17 @@ together (partial config fails integration-service startup) in **both**
 `config/` and the `deploy/` Helm Secret per the Config Sync hard rule — as the
 per-provider append, landing before this provider's L5. Never in the bundle.
 
-**Service code:** none. `standard_oauth` with `form_secret` + `pkce: none` +
-flat `userinfo` identity + `refresh_lease: none` is fully within the existing
-declarative capability set — every one of these enum values is already shipped
-on `main` by the **bitly** bundle (`form_secret` + `userinfo` + `refresh_lease:
-none`) and the **gmail** bundle (`form_secret` + wire `scopes:` + `userinfo`).
-If, at
-implementation, `GET /users/me` is found to need any non-Bearer header (it does
-not, per docs), that would be the only trigger to reconsider — flagged here at
-stage 1 per the master plan, expected negative.
+**Service code:** no per-provider Go *exchange* adapter. The bundle's
+token/identity axes — `form_secret` + `pkce: none` + flat `userinfo` identity +
+`refresh_lease: none` — are each already shipped on `main` by the **bitly**
+bundle (`form_secret` + `userinfo` + `refresh_lease: none`) and the **gmail**
+bundle (`form_secret` + wire `scopes:` + `userinfo`). The one axis that is **not**
+shipped is redirect binding: Copper POSTs the code (form_post) and the shipped
+redirect target reads it from the query string only, so a server-side form_post
+landing (§3 "Redirect binding") must be added — genuine new server code, with its
+own tests, that gates L5. If, at implementation, `GET /users/me` is found to need
+any non-Bearer header (it does not, per docs), that would be a further trigger to
+reconsider — flagged here at stage 1 per the master plan, expected negative.
 
 ## 5. Other Helio-side artifacts
 
@@ -324,23 +400,26 @@ stage 1 per the master plan, expected negative.
 |---|---|---|
 | **L1** anycli unit | `go test ./...`: `httptest.Server` fake asserts (a) `Authorization: Bearer` + `Content-Type: application/json` sent, no `X-PW-*`; (b) `list`→`POST /{res}/search` with the assembled JSON body + pagination; (c) `get/create/update/delete` verb→method/path mapping; (d) `find-email`→`POST /people/fetch_by_email`; (e) `--json-body` merged into payload; (f) non-2xx → `apiError` with exit 1, and `--json` error envelope; (g) 401 credential-rejection classification. Never hits real API. | No (fakes) |
 | **L2** harness real-API | `ANYCLI_CRED_ACCESS_TOKEN=<real> anycli copper -- account get` and `-- person list --page-size 1`, `-- user me`. Proves field names, Bearer injection, and the real `POST /search` body shape against live Copper. Mandatory before pin bump. | **Yes** — real Copper OAuth token from the test-account pool (lane 2) |
-| **L3** generation + suites | Local `provider-gen` + `provider-gen --check` against the branch bundle; `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/` with a local `replace` to the anycli branch; integration-service unit suite. No resolver test needed (②==③, no divergence entry). | No |
+| **L3** generation + suites | Local `provider-gen` + `provider-gen --check` against the branch bundle; `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/` with a local `replace` to the anycli branch; integration-service unit suite **including a new test for the §3 form_post redirect landing** (provider POST with form-encoded `code`+`state` → `302` to `…/connections/oauth/callback?code=&state=`; absent-`state` tolerated). No resolver test needed (②==③, no divergence entry). | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` with `provider":"copper"` and a **real** `access_token` (no `refresh_token`/`expires_at` — non-expiring bot-token class, seed `access_token` only), using a real seeded org/assistant/owner identity; then `heliox tool copper -- account get` reaches live Copper through the token gateway. Bypasses the connect UI. | **Yes** — real token seeded (dev-mode app from lane 1 gates this) |
-| **L5** full connect flow | Once, hidden, pre-flip: `heliox tool copper auth` → Copper consent on the registered dev app → confirm `oauth_connected` system event → unseeded `heliox tool copper -- user me` through the new connection. Human-in-the-loop (oauth consent). Gated additionally on review clearance before the visible flip. | **Yes** — registered dev app (lane 1) + real Copper account consent (lane 3) |
+| **L5** full connect flow | **Blocked until the §3 form_post redirect landing ships** — Copper POSTs the code, so without the landing the SPA callback lands with an empty query and renders `missingCallbackParams`; the connect can never complete. Once the landing is in place: once, hidden, pre-flip: `heliox tool copper auth` → Copper consent on the registered dev app → **provider POSTs code+state to the form_post landing → 302 to the SPA callback with `?code=&state=`** → confirm `oauth_connected` system event → unseeded `heliox tool copper -- user me` through the new connection. Human-in-the-loop (oauth consent). Gated additionally on review clearance before the visible flip. | **Yes** — registered dev app (lane 1) + real Copper account consent (lane 3) |
 
 **Credential-dependent layers:** L2, L4, L5 (all need a real Copper OAuth
 token/account and, for L5, the partner-registered dev app). L1 and L3 are fully
 agent-runnable with no external credentials.
 
-**Definition of done:** all five layers green, docs published, icon registered,
+**Definition of done:** the §3 form_post redirect landing shipped (with tests),
+all five layers green, docs published, icon registered,
 then `presentation.visible: true` + regenerate as the single go-live change —
 the visible flip additionally gated on `partners@copper.com` review clearance
 (the `oauth_review` tail), which does not block code-complete-hidden.
 
 ## Sources
 
-- Copper OAuth overview — https://developer.copper.com/introduction/oauth/index.html
+- Copper OAuth overview (client_id/client_secret "required for all authorization flows"; form_secret primary anchor) — https://developer.copper.com/introduction/oauth/index.html
 - Copper OAuth flow (endpoints, non-expiring token) — https://developer.copper.com/introduction/oauth/flow.html
 - Copper OAuth quickstart (Bearer-only API calls) — https://developer.copper.com/introduction/oauth/quickstart.html
 - Copper authentication overview (API-key vs OAuth) — https://developer.copper.com/introduction/authentication.html
 - Copper Fetch API User (`GET /users/me`) — https://developer.copper.com/account-and-users/fetch-api-user.html
+- Helio SPA redirect target (query-param-only; incompatible with Copper's POST delivery) — `ui/helio-web/src/routes/OAuthToolCallback.tsx` (`searchParams.get('code')`), `ui/helio-app/src/web/routes/ConnectCallback.tsx` (`missingCallbackParams` branch)
+- No form_post landing on `main` — `go-services/integration-service/` (grep `form_post`/`response_mode` → none; configured `redirect_url` is the hosted SPA `…/connections/oauth/callback`, `provision_slack_test.go:54`)
