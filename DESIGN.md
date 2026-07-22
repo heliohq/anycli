@@ -163,31 +163,58 @@ the `oauth_review` gate (dev-mode app usable before approval for L1–L4).
 **Scope.** The only valid scope value is **`offline`** (its presence is what
 returns a refresh token). Token response echoes `"scope":"offline"`.
 
-**Token semantics (verified).** Access token `token_type: bearer`, `expires_in:
-3599` (~1 hour) — **short-lived, must refresh**. A `refresh_token` is returned.
-No PKCE documented (→ `pkce: none`). No standalone REST **revoke** endpoint exists
-(revocation is App-Directory-uninstall or dashboard-side) → disconnect is
-`local_only`.
+**Token semantics (verified against official docs).** Access token `token_type:
+bearer`, `expires_in: 3599` (~1 hour) — **short-lived, must refresh**. A
+`refresh_token` is returned; it has **no expiry but is single-use** — every
+`grant_type=refresh_token` exchange returns a **new** `refresh_token` that must
+replace the stored one (documented rotation; drives the `refresh_lease:
+credential` decision in the mapping below and the A3 strict-write-back
+requirement). No PKCE documented (→ `pkce: none`). No standalone REST **revoke**
+endpoint exists (revocation is App-Directory-uninstall or dashboard-side) →
+disconnect is `local_only`.
 
-**Mapping to `standard_oauth` (the golden path — zero provider Go).** The token
+**Mapping to `standard_oauth` (the golden path — no provider Go).** The token
 exchange is form-body + Basic client auth → `token_exchange_style: form_basic`
 (existing enum, `model/catalog.go`). This composes `standardOAuthExchanger` +
-`declarativeIdentityResolver` with no compiled adapter.
+`declarativeIdentityResolver` with no compiled per-provider adapter. The one
+non-declarative dependency is the `refresh_lease: credential` contract growth
+below — an integration-service contract-table edit shared by every rotating-token
+`standard_oauth` provider, still not a Hootsuite-specific adapter.
 
-- **`refresh_lease` — the one capability question.** The `standard_oauth` runtime
-  contract on `main` (`model/runtime_contract.go`) currently pins
-  `singleActiveToken:false, refreshLeaseScope:OAuthLeaseNone` — i.e. a bundle
-  must declare `refresh_lease: none`. `none` does **not** mean "never refresh":
-  the exchanger still refreshes an expired token; the lease only serializes
-  concurrent refreshes across gateway replicas. Default plan: **`refresh_lease:
-  none`**, contract-conformant as-is. **Caveat to resolve at implementation:** if
-  L2/L5 shows Hootsuite **rotates** the refresh token (one-time-use), concurrent
-  replica refreshes could invalidate it — then grow `standard_oauth`'s allowed
-  refresh-lease set to include `credential` and set `refresh_lease: credential`,
-  following the already-in-flight `keap`/`signnow` §4a capability-growth precedent
-  in this same wave (by the time Hootsuite's batch lands, that growth may already
-  be on `main`; reuse it, don't re-add). This is a decision point, not a blocker —
-  ship `none` unless rotation is observed.
+- **`refresh_lease: credential` — an owned capability prerequisite of this batch,
+  not a contingency.** Hootsuite's official auth docs
+  (`developer.hootsuite.com/docs/api-authentication`) state the refresh token
+  **"can only be used once"** and every refresh returns a **new** `refresh_token`
+  that must replace the stored one — i.e. Hootsuite **rotates** the refresh token
+  on every refresh. This is documented behavior, not something to discover at
+  L2/L5. The decision rule ("if the provider rotates the refresh token, grow
+  `standard_oauth` and set `refresh_lease: credential`") is therefore **already
+  triggered by the docs**, so the correct default is **`refresh_lease:
+  credential`**, not `none`. `none` does **not** mean "never refresh" — the
+  exchanger still refreshes an expired token — but it also does **not** serialize
+  concurrent refreshes: under Helio's horizontal-scale mandate, two token-gateway
+  replicas refreshing the same connection would each POST the same single-use
+  refresh token; one wins and writes back the new pair, the other burns an
+  already-consumed token and returns a transient 5xx, and the A3 strict-write-back
+  edge (refreshed-but-unpersisted) risks bricking the connection. The
+  `credential`-scoped lease (`leaseKey = "refresh:<provider>:<credentialID>"`,
+  `service/token_refresh.go`) exists precisely to serialize this per connection.
+  - **Blocking prerequisite (owned by this tool's batch, do NOT assume it landed):**
+    the `standard_oauth` runtime contract in `model/runtime_contract.go` pins
+    `refreshLeaseScope: OAuthLeaseNone` and `ValidateRuntimeContract` enforces it
+    with an **exact-match** check (line ~224), so `refresh_lease: credential` fails
+    `provider-gen --check` **today**. Verified on this branch point: neither the
+    `keap` nor the `signnow` bundle exists and the contract still pins
+    `OAuthLeaseNone`, so the "already-in-flight §4a growth may be on `main`"
+    assumption is **false** — treat the growth as an explicit prerequisite this
+    batch must land, not inherit. The growth is: make `RuntimeStrategyStandardOAuth`
+    accept an **allowed set** `{OAuthLeaseNone, OAuthLeaseCredential}` for
+    `refreshLeaseScope` (the enum value `OAuthLeaseCredential = "credential"`
+    already exists in `model/catalog.go`, and the credential-scoped lease path is
+    already implemented in `token_refresh.go` — only the contract table rejects it).
+    This is an integration-service contract-table edit with its own test, **not** a
+    per-provider Go adapter. If a sibling tool in the same batch lands the identical
+    growth first, reuse it (don't re-add); but plan and test as if this batch owns it.
 - **Identity.** The token response has no member identifier, so identity is
   resolved via a userinfo GET: `identity.source: userinfo`,
   `url: https://platform.hootsuite.com/v1/me`, `stable_key: /data/id`,
@@ -226,7 +253,7 @@ auth:
     pkce: none
     scopes: [offline]
     single_active_token: false
-    refresh_lease: none     # see §3 caveat; grow to `credential` only if refresh-token rotation is confirmed
+    refresh_lease: credential  # Hootsuite rotates the single-use refresh token every refresh (docs-confirmed); serialize concurrent replica refreshes per connection. Requires the §3 standard_oauth contract growth (owned by this batch).
 
 identity:
   source: userinfo
@@ -259,10 +286,14 @@ Adjacent required artifacts (batch-end merged, per §2 shared-surface rules):
   `go-services/integration-service`; the **five** projections commit together with
   the bundle (never hand-edited, never committed on the tool branch — batch lead
   produces the one canonical regen).
-- **Service code:** none. `standard_oauth` + `form_basic` + `userinfo` identity is
-  fully declarative; no `service/adapter_*.go`. (Only revisit if refresh-token
-  rotation forces the `refresh_lease` capability growth in §3 — that is an
-  integration-service enum edit, still not a per-provider adapter.)
+- **Service code:** no per-provider adapter. `standard_oauth` + `form_basic` +
+  `userinfo` identity is fully declarative; no `service/adapter_*.go`. **One
+  required integration-service edit (not a per-provider adapter):** the §3
+  `refresh_lease` contract growth — `RuntimeStrategyStandardOAuth` in
+  `model/runtime_contract.go` must accept `{OAuthLeaseNone, OAuthLeaseCredential}`
+  (currently pins `OAuthLeaseNone`, exact-match). This is a blocking prerequisite
+  of the bundle, owned by this batch; land it with a contract test. Do **not**
+  assume `keap`/`signnow` already landed it — verified absent at this branch point.
 - **Config:** `oauth.client_id` / `oauth.client_secret` appended to `config/` and
   the `deploy/` Helm Secret **together** (partial config fails service startup;
   fully-absent renders `configured:false` and is safe hidden).
@@ -278,7 +309,7 @@ Adjacent required artifacts (batch-end merged, per §2 shared-surface rules):
 | Layer | Concretely for Hootsuite | External creds needed |
 |---|---|---|
 | **L1** anycli unit | `go test ./...` — `httptest` fakes for `me`, `profile list`, `message schedule` (assert path, `Bearer` header, JSON body, `Z`-suffix send-time validation, envelope unwrap, `--json` error from Hootsuite numeric codes 1005/1006). | No — fakes only |
-| **L2** real-API harness | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli hootsuite -- me` and `-- profile list`, and a `message schedule` to a sandbox profile with a future `scheduledSendTime`, then `message delete`. Confirms field names + injection match live API. **This is where refresh-token rotation is observed** to settle the §3 `refresh_lease` decision. | **Yes** — real Hootsuite access token from the test-account pool (lane 2) |
+| **L2** real-API harness | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli hootsuite -- me` and `-- profile list`, and a `message schedule` to a sandbox profile with a future `scheduledSendTime`, then `message delete`. Confirms field names + injection match live API. **Also confirms the docs-stated refresh-token rotation** (POST `grant_type=refresh_token` twice with the first response's `refresh_token`; the second must fail because the token was consumed, and the first response must carry a new `refresh_token`). The default is `refresh_lease: credential` per §3; downgrade to `none` **only** if L2 empirically shows the refresh token is reusable (non-rotating), contradicting the docs. | **Yes** — real Hootsuite access token from the test-account pool (lane 2) |
 | **L3** generation + suites | `provider-gen --check` green; `helio-cli` + `integration-service` unit suites pass with a local `go.mod replace` pointing at this anycli branch. Bundle expected to fail `--check` in CI on-branch until batch-end (§2) — do not commit local regens. | No |
 | **L4** singleton + seeded creds | `POST /internal/test-only/connections/seed` with `provider:"hootsuite"`, real `org_id`/`owner_user_id`/`assistant_id` from a seeded AI-user fixture, seeding **both** `access_token` and `refresh_token` with a short `expires_at` so the next call forces the token-gateway refresh-and-write-back path (Hootsuite tokens are ~1h expiring — the expiring-OAuth guidance, not the bot-token shortcut). Then `heliox tool hootsuite -- profile list` returns live data. Runs against the **hidden** provider as-is. | **Yes** — a real access+refresh token pair from the test account |
 | **L5** full connect flow | Once, hidden, before the visible flip: `heliox tool hootsuite auth` → complete Hootsuite OAuth consent on the dev/sandbox app → `oauth_connected` system event fires on the originating channel → run an unseeded `hootsuite -- message schedule …` through the new connection. Human-in-the-loop (oauth L5, master plan §2 lane 3). | **Yes** — a real Hootsuite login + a registered dev-mode app (lane 1) |
