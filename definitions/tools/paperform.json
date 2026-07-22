@@ -1,0 +1,13 @@
+{
+  "name": "paperform",
+  "type": "service",
+  "description": "Paperform as a tool: read forms, fields, submissions, spaces, and commerce config (api.paperform.co v1)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "PAPERFORM_API_KEY"}
+      }
+    ]
+  }
+}
