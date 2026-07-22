@@ -1,0 +1,17 @@
+{
+  "name": "tiktok",
+  "type": "service",
+  "description": "TikTok as a tool (creator content: profile, videos, posting)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "TIKTOK_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "open_id"},
+        "inject": {"type": "env", "env_var": "TIKTOK_OPEN_ID"}
+      }
+    ]
+  }
+}
