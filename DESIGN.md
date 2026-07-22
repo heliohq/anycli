@@ -201,26 +201,61 @@ zero service adapter.** Every axis of the standard exchanger maps cleanly:
   Pointer `stable_key` from `/id`, `label_candidates` `[/email,
   /organizations/0/name, /first_name]`.
 - `connection.disconnect_mode: provider_revoke` — declarative revoker against
-  `https://api.close.com/oauth2/revoke/`, form body `client_id`,
-  `client_secret`, `token`. (`provider_revoke` is the generator enum value —
+  `https://api.close.com/oauth2/revoke/` with
+  **`auth.oauth.revoke.client_auth: form`** and `token: refresh_token`
+  (`fallback_token: access_token`). Close authenticates the revoke's *client*
+  via `client_id`+`client_secret` **in the form body**, so the client
+  credentials must land in the body — `client_auth: form` is what does that.
+  This is the load-bearing divergence from the gmail precedent: gmail sets
+  `client_auth: none` because Google's revoke endpoint is unauthenticated, so
+  an implementer copying gmail would emit an unauthenticated revoke that Close
+  rejects. `validateOAuthRevocation` (provider-gen `validate.go`) enforces
+  `client_auth ∈ oneOf(none|basic|form)` — empty fails `oneOf`, so the value
+  must be stated explicitly. (`provider_revoke` is the generator enum value —
   `oneOf("provider_revoke","local_only","strategy")` in provider-gen
   `validate.go`; the literal `revoke` fails strict validation. It also requires
-  `auth.oauth.revoke` to be set, which the revoke URL above satisfies. Matches
-  sibling bundles, e.g. gmail.)
+  `auth.oauth.revoke` to be set, which the revoke URL above satisfies.)
 - `auth.required_config_fields: [oauth.client_id, oauth.client_secret]`.
 - `presentation.visible: false` (hidden-first).
 
-**Capability-growth check:** no new capability code is needed — form_secret
-exchange, userinfo identity, declarative revoke, and the credential-scoped
-refresh lease are all inside the existing closed capability set. But this is
-**not** the pipedrive/hubspot shape on the refresh axis: those set
-`refresh_lease: none` because their refresh tokens do **not** rotate. Close's
-rotating refresh forces the `refresh_lease: credential` selection (above),
-matching keap/signnow — an established, expected decision, not a gap. So the
-work is a config selection on an existing field, not a generic-enum growth. If
-bundle review still surfaces a genuine gap, grow the generic enum rather than
-add a `close`-specific `service/adapter_*.go` (per provider-yaml.md guidance).
-Do **not** reach for an adapter speculatively.
+**Capability-growth check — read this before assuming `--check` is green.**
+form_secret exchange, userinfo identity, and declarative revoke are all inside
+the existing closed capability set with no new code. The refresh lease is the
+exception, and it is **not** a mere config selection on stock `main`:
+
+- On stock `main`, `runtimeStrategyContracts[RuntimeStrategyStandardOAuth]`
+  (`go-services/integration-service/model/runtime_contract.go:42`) pins
+  `refreshLeaseScope: OAuthLeaseNone`, and `ValidateRuntimeContract`
+  (`runtime_contract.go:224`) enforces **exact equality** —
+  `definition.OAuth.RefreshLeaseScope != contract.oauth.refreshLeaseScope`
+  errors with `"requires auth.oauth.refresh_lease ... got ..."`. That check is
+  invoked by provider-gen at generation time
+  (`cmd/provider-gen/validate.go` → `validateConnection` →
+  `runtimeContractDefinition` → `model.ValidateRuntimeContract`). So a bundle
+  with `runtime_strategy: standard_oauth` + `refresh_lease: credential`
+  **hard-fails `provider-gen --check`** on stock `main`.
+- Enabling `credential` is therefore an **allowed-set capability change** to
+  the `standard_oauth` contract (grow the pinned `OAuthLeaseNone` to an
+  accepted set that includes `OAuthLeaseCredential`), not a "config selection
+  on an existing field." This is exactly the integration-service
+  capability-growth work the same-program rotating providers required — keap
+  (task #152, `standard_oauth` refresh_lease set) introduced it and signnow
+  (#189, refresh_lease allowed-set) generalized it.
+- **Dependency, stated honestly:** Close adds no NEW capability code **only if**
+  that keap/signnow growth has already merged to `main`. If Close lands first,
+  the standard_oauth credential-lease allowed-set must be grown in
+  integration-service in the same stream of work — it is a real dependency, not
+  free reuse. Do not describe the credential lease as already "inside the closed
+  capability set."
+
+The *decision* to use credential-lease is still correct: Close rotates its
+refresh token on every refresh (above), so `none` would brick the connection
+under the horizontal-scale concurrent-refresh race. What changes here is only
+the scope honesty — this is a capability change on the standard_oauth contract,
+matching keap/signnow, not a pipedrive/hubspot-style `refresh_lease: none` pick.
+If bundle review surfaces any further gap, grow the generic enum rather than add
+a `close`-specific `service/adapter_*.go` (per provider-yaml.md guidance). Do
+**not** reach for an adapter speculatively.
 
 > L4 caveat: the L4 "seed a short `expires_at` to force the refresh path" check
 > is single-threaded and exercises refresh + rotated write-back, but does **not**
@@ -257,7 +292,7 @@ provider's L5 run.
 |---|---|---|
 | **L1** | `go test ./...` in anycli: `internal/tools/close/` unit tests against an `httptest` fake — request shape per resource, injected `Bearer` header, pagination flags, `--json` success + error (`{"error":…, "field-errors":…}`) rendering, exit codes 0/1/2. | No — fakes only. |
 | **L2** | `make build-harness` then `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli close -- me` and one `search`/`lead list`/`note-add` round trip against the **real** `api.close.com`. Mandatory before the pin bump. | **Yes** — a real Close **OAuth access token** (Bearer) from the test-account pool. A Close **API key does not work here**: per Close's official api-key-authentication doc, API keys authenticate only via HTTP Basic (`curl -u yourapikey:`, key as username / blank password), never as a Bearer token — and the service sends `Authorization: Bearer <token>` exclusively (§3, no Basic-auth path). An API key injected as `CLOSE_ACCESS_TOKEN` and sent as Bearer returns 401, so L2 must use an OAuth access token. |
-| **L3** | `provider-gen` + `provider-gen --check` (from `go-services/integration-service`); anycli `go test ./...`; `helio-cli` build with a local `replace` → `go build ./... && go test ./cmd/heliox/cmds/tool/`. Expect `--check` to fail in CI on-branch until the batch-end regen (do not commit local regens). | No. |
+| **L3** | `provider-gen` + `provider-gen --check` (from `go-services/integration-service`); anycli `go test ./...`; `helio-cli` build with a local `replace` → `go build ./... && go test ./cmd/heliox/cmds/tool/`. `--check` fails on-branch for **two** reasons, not one: (a) un-regenerated projections until the batch-end regen (do not commit local regens); **and (b)** the runtime contract — until the `standard_oauth` credential-lease allowed-set (keap #152 / signnow #189) is present in the branch's integration-service, `ValidateRuntimeContract` rejects `refresh_lease: credential` against the pinned `OAuthLeaseNone` (§4). Interpret an on-branch `--check` failure accordingly: a `"requires auth.oauth.refresh_lease none, got credential"` error is the missing capability, not a stale projection. | No. |
 | **L4** | Singleton (`env: dev`) + `POST /internal/test-only/connections/seed` with a real seeded assistant identity, `provider: close`, seed `access_token` + `refresh_token` + a short `expires_at` (forces the gateway refresh path, since Close tokens live 1h), then `heliox tool close -- me` returns live data through the token gateway. | **Yes** — a real Close OAuth access + refresh token pair from the dev app + test account. Depends on lane-1 dev-app creation. |
 | **L5** | Once, hidden, before the visible flip: `heliox tool close auth` → complete Close consent on the dev/private app → assert `oauth_connected` system event → run one unseeded `heliox tool close -- me` through the new connection. | **Yes** — human-in-the-loop OAuth consent on a real Close account (oauth L5, master-plan lane 3). |
 
