@@ -164,29 +164,25 @@ auth:
     token_url: https://api.freshbooks.com/auth/oauth/token
     token_exchange_style: json_secret    # NEW capability — see §5
     pkce: none
-    # scope is NOT an authorize-URL param on FreshBooks (§5): scopes are fixed
-    # in the developer-portal app config. These lists are documentation/UI only;
-    # the concrete `user:*` identifiers are ILLUSTRATIVE placeholders pending L2
-    # confirmation of FreshBooks' exact scope vocabulary against a real app.
+    # NO `scopes:` key — deliberately, matching the notion precedent. FreshBooks
+    # takes no `scope` authorize-URL param (§5, official docs); scopes are fixed
+    # in the developer-portal app config. In provider-gen the bundle `scopes:`
+    # key is NOT inert: manifest.oauthManifest.Scopes → render_go.go DefaultScopes
+    # → oauth_start.go `q.Set("scope", strings.Join(DefaultScopes," "))`, so
+    # declaring `scopes:` WOULD inject a `scope=...` param the endpoint does not
+    # expect. `display_scopes` maps to DisplayScopes/ConsentScopes (consent copy)
+    # and NEVER enters the authorize URL — so it is the only scope list we set.
+    # These are illustrative consent slugs (real vocabulary is portal-defined;
+    # confirm the exact identifiers at L2 — UI copy only, not a connect gate).
     display_scopes: [profile.read, invoices.rw, clients.rw, expenses.rw, estimates.rw, payments.rw]
-    scopes:
-      - user:profile:read
-      - user:invoices:read
-      - user:invoices:write
-      - user:clients:read
-      - user:clients:write
-      - user:expenses:read
-      - user:expenses:write
-      - user:estimates:read
-      - user:estimates:write
-      - user:payments:read
-      - user:payments:write
     single_active_token: false
     refresh_lease: credential  # single-use rotating refresh → serialize per-credential; REQUIRES the standard_oauth refresh-lease allowed-set growth (§5 #2)
 
 identity:
   source: userinfo
   url: https://api.freshbooks.com/auth/api/v1/users/me
+  headers:
+    Api-Version: alpha        # official /users/me example sends this header — pre-planned identity.headers capability (§5 #3), confirm mandatory at L2
   stable_key: /response/id    # JSON NUMBER — requires numeric-stable-key coercion (§4a, verify at L3)
   label_candidates: [/response/email, /response/first_name]
 
@@ -317,6 +313,25 @@ the gateway persists the new refresh token before returning. Unit test: a
 `json_secret` refresh request carries a JSON body with `grant_type=refresh_token`
 + both creds + `redirect_uri`, and the rotated refresh_token is written back.
 
+**Batch reconciliation — `redirect_uri` divergence from Square (flag to the batch
+lead).** The parallel Square branch also lands a `json_secret` JSON-body refresh,
+so the batch lead reconciles a *single* shared `json_secret` refresh
+implementation — but the two refresh bodies are **NOT identical**. FreshBooks'
+official docs REQUIRE `redirect_uri` in the refresh body (verified verbatim:
+`{"grant_type":"refresh_token","client_id":"…","refresh_token":"…",
+"client_secret":"…","redirect_uri":"YOUR_APP_HTTPS_REDIRECT_URI"}` posted to
+`/auth/oauth/token`), whereas Square's `json_secret` refresh body carries no
+`redirect_uri`. A literally-single shared implementation must therefore either
+(a) always include `redirect_uri` and rely on Square tolerating an extra body
+field it ignores, or (b) make `redirect_uri` **conditional per provider** (emit
+it only when the provider bundle supplies a configured callback). Do **not** ship
+a shared refresh that silently drops FreshBooks' `redirect_uri` (→ refresh
+rejected → 401 reconnect within hours) — this is the exact failure #1b guards
+against. The reconciliation note must call this out explicitly: confirm Square
+tolerates the extra field at reconcile time, else take the conditional-per-
+provider path. Flag to the batch lead rather than assuming the branches' refresh
+bodies match.
+
 L4 assertion (see §6): seed a connection with a real refresh_token and a
 short/expired `expires_at`, run `heliox tool freshbooks -- invoice list`, and
 assert the refresh actually rotates and the connection keeps working — proving
@@ -362,15 +377,35 @@ fails. This is the same "standard_oauth refresh_lease allowed-set" growth the
 parallel keap / signnow / hootsuite branches perform; the batch lead reconciles a
 single allowed-set addition. Do not commit projections.
 
-**#3 — identity userinfo static header `Api-Version: alpha` (verify at L2).**
-FreshBooks' identity model doc states `GET /auth/api/v1/users/me` wants an
-`Api-Version: alpha` header. The `declarativeIdentityResolver` issues a plain
-Bearer GET. **L2 must confirm** whether `/users/me` returns identity with only
-`Authorization`; if the header is mandatory, add a small reviewed
-`identity.headers` (static-header) capability on the identity GET — precedent:
-adobe-sign `base_uri` source, docusign userinfo metadata deriver. The
-**accounting** endpoints (verified) do **not** require the header, so this is
-scoped to identity resolution only.
+**#3 — identity userinfo static header `Api-Version: alpha` (REQUIRED — pre-plan,
+confirm at L2).** FreshBooks' official Identity Model doc shows the `/users/me`
+example request with `Api-Version: alpha` in the headers *explicitly* (verbatim:
+`curl -X GET -H 'Authorization: Bearer <…>' -H 'Api-Version: alpha' -H
+'Content-Type: application/json' "https://api.freshbooks.com/auth/api/v1/users/me"`).
+So this is **very likely mandatory, not optional** — treat the identity
+static-header growth as **expected**, not conditional. The
+`declarativeIdentityResolver` issues a plain Bearer GET with **no** custom
+header, so if the header is required, L5 identity extraction fails silently with
+an empty `AccountKey`. Pre-plan a small reviewed `identity.headers`
+(static-header) capability on the identity GET now — precedent: adobe-sign
+`base_uri` source, docusign userinfo metadata deriver — so L5 is not the first
+place the missing header surfaces. Bundle shape (to be projected onto the
+identity resolver):
+
+```yaml
+identity:
+  source: userinfo
+  url: https://api.freshbooks.com/auth/api/v1/users/me
+  headers:
+    Api-Version: alpha
+```
+
+**L2 keeps the confirmation** (send `/users/me` with `Authorization` only and see
+whether it 4xx's or drops identity fields), but the design assumes the header
+**will** be needed and plans the capability accordingly. The **accounting**
+endpoints (verified) do **not** require the header, so this is scoped to identity
+resolution only (the anycli service sends it on `me`/discovery internally, but
+the Helio-side identity resolver needs the capability to send it too).
 
 **Revoke.** FreshBooks revoke (`/auth/oauth/revoke`) also takes a JSON body with
 client creds — it does not fit the declarative revoker's form/Basic shapes
@@ -379,27 +414,43 @@ cleanly. MVP ships `disconnect_mode: local_only` (notion precedent); a
 worth blocking the hidden ship. Flag, don't build.
 
 **Authorize scope param — resolved by official docs: scope is NOT an
-authorize-URL parameter.** The official FreshBooks authentication docs show the
-authorize URL as
+authorize-URL parameter, so the bundle must NOT declare `scopes:`.** The official
+FreshBooks authentication docs show the authorize URL as
 `https://auth.freshbooks.com/oauth/authorize/?response_type=code&redirect_uri=<…>&client_id=<…>`
 — only `response_type`, `redirect_uri`, `client_id` (plus an optional `state`
 that is echoed into the redirect). There is **no `scope` parameter**; the app's
 scopes are fixed in the FreshBooks Developer portal app config, which is the
-authoritative source of truth. So the bundle's `scopes` / `display_scopes` are
-**documentation/UI only** — they do not enter the authorize URL and cannot
-change what the app can access. This is no longer an L2 open item. **Caveat:**
-the concrete scope identifiers listed in the §4 YAML (`user:invoices:read`, etc.)
-are **illustrative** — FreshBooks' exact scope vocabulary is defined in the
-portal, not the public auth doc, so treat those strings as placeholders pending
-L2 confirmation of the exact identifiers against a real registered app (they are
-UI copy only and do not gate the connect path either way).
+authoritative source of truth.
+
+**Critical: the bundle `scopes:` key is NOT inert.** In provider-gen it maps
+`oauthManifest.Scopes` (`cmd/provider-gen/manifest.go:87`) →
+`OAuth.DefaultScopes` (`render_go.go:178-180`), and `buildOAuthAuthorizeURL`
+appends `q.Set("scope", strings.Join(def.OAuth.DefaultScopes, " "))`
+(`service/oauth_start.go:226-227`) whenever `DefaultScopes` is non-empty. So
+declaring `scopes:` in the bundle **would inject a `scope=…` param into the
+FreshBooks authorize URL** — sending scope strings to an endpoint that per the
+official docs expects only `response_type`/`redirect_uri`/`client_id`. This tool
+therefore **omits `scopes:` entirely** and declares **only `display_scopes`**,
+which maps to `DisplayScopes`/`ConsentScopes` (consent copy) and **never** enters
+the authorize URL — matching the notion precedent (notion's bundle has
+`display_scopes` and no `scopes`). With `scopes:` omitted, `DefaultScopes` is
+empty and no `scope` param is emitted, which is exactly what the design wants.
+Only `display_scopes` is "documentation/UI copy"; a populated `scopes:` field is
+the opposite of inert, which is precisely why it is left out.
+
+**Caveat:** the concrete `display_scopes` slugs listed in the §4 YAML
+(`invoices.rw`, etc.) are **illustrative** consent copy — FreshBooks' exact scope
+vocabulary is defined in the portal, not the public auth doc, so treat those
+strings as placeholders pending L2 confirmation of the exact identifiers against
+a real registered app (they are UI copy only and do not gate the connect path
+either way, since they never enter the authorize URL).
 
 ## 6. Five-layer test plan
 
 | Layer | What it proves | Needs external creds |
 |---|---|---|
 | **L1** anycli `go test ./...` | httptest fakes for `/users/me`, invoice list/create, client list, expense create; asserts Bearer injection, `account_id` resolution (single→silent, multi→exit 2 with `--account` guidance, zero→exit 1), `--json` envelope unwrap, plain+`--json` error rendering, exit codes 0/1/2. | No |
-| **L2** `ANYCLI_CRED_ACCESS_TOKEN=… anycli freshbooks -- me` / `invoice list` against the **real** FreshBooks API | Field names, Bearer injection, real request shape; **resolves the remaining open question**: does `/users/me` need `Api-Version: alpha` (#3). Also opportunistically confirms the exact scope identifiers (the §4 `user:*` strings are illustrative; scope is not an authorize param so this is UI copy, not a connect gate). (The authorize URL taking no `scope` param, and refresh `redirect_uri` being required, are already confirmed by official docs — not L2 unknowns.) | **Yes** — a real FreshBooks account + a token minted from a dev app (account pool + lane-1 dev app). |
+| **L2** `ANYCLI_CRED_ACCESS_TOKEN=… anycli freshbooks -- me` / `invoice list` against the **real** FreshBooks API | Field names, Bearer injection, real request shape; **confirms** the `Api-Version: alpha` header on `/users/me` is mandatory (#3 — the identity.headers capability is pre-planned regardless). Also opportunistically confirms the exact `display_scopes` slugs (the §4 slugs are illustrative UI copy; scope is not an authorize param and `scopes:` is omitted, so this never gates the connect path). (The authorize URL taking no `scope` param, and refresh `redirect_uri` being required, are already confirmed by official docs — not L2 unknowns.) | **Yes** — a real FreshBooks account + a token minted from a dev app (account pool + lane-1 dev app). |
 | **L3** `provider-gen --check` + both repos' unit suites (incl. the new `json_secret` synthetic-provider test **and** the `standard_oauth` refresh-lease allowed-set test) | Bundle validity, five projections regen clean, `json_secret` enum wired end to end **for both exchange (#1a) and refresh (#1b)**, the `standard_oauth` runtime contract **accepting `refresh_lease: credential`** (§5 #2 allowed-set growth — without it provider-gen fails), and **numeric-stable-key coercion covers `/response/id`** (§4a) — all proven before implementation, not discovered later. | No |
 | **L4** singleton + `POST /internal/test-only/connections/seed` → `heliox tool freshbooks -- invoice list` | Token-gateway → anycli path with a seeded connection; seed `access_token` + `refresh_token` + short/expired `expires_at` to force the **json_secret refresh-and-write-back** path (#1b). **Asserts the refresh actually rotates and the second call keeps working** — the load-bearing proof that FreshBooks connections survive past the first token expiry. | **Yes** — real access+refresh token from the dev app / test account. |
 | **L5** `heliox tool freshbooks auth` → FreshBooks consent → `oauth_connected` event → unseeded live run | The actual connect UX: authorize URL, `json_secret` code exchange, `/users/me` identity extraction, notification. oauth L5 = human-in-the-loop. | **Yes** — registered dev app (lane 1) + real FreshBooks account consent. |
@@ -415,7 +466,12 @@ Definition of done stays hidden until L1–L4 pass and L5 runs once; the
    `grant_type=refresh_token` + both creds + `redirect_uri`, hand-rolled off
    `x/oauth2`, A3 write-back of the rotated refresh_token) landed + tested
    (§5 #1b) — **required**; this is what keeps connections alive past ~first
-   token expiry. L4 asserts a real seeded refresh rotates.
+   token expiry. L4 asserts a real seeded refresh rotates. **Batch flag:**
+   FreshBooks' refresh body REQUIRES `redirect_uri` (verified in official docs)
+   whereas the parallel Square `json_secret` refresh does not — the reconciled
+   single shared refresh must carry `redirect_uri` (Square tolerating the extra
+   field) or make it conditional per-provider; do not let reconciliation drop it
+   (§5 #1b batch-reconciliation note).
 3. `refresh_lease: credential` set in the bundle **and** the `standard_oauth`
    runtime-contract refresh-lease check grown from exact-equality to an
    allowed-set that admits `OAuthLeaseCredential` (§5 #2) — **required**; the
@@ -426,11 +482,17 @@ Definition of done stays hidden until L1–L4 pass and L5 runs once; the
 4. Numeric-stable-key coercion confirmed on the resolver base and covering
    `/response/id`; grow it (batch-reconciled with hubspot) if absent (§4a) —
    verify at L3, before implementation.
-5. L2: `/users/me` `Api-Version: alpha` requirement → identity static-header
-   capability iff mandatory (§5 #3).
+5. Identity static-header capability (`identity.headers: {Api-Version: alpha}`)
+   pre-planned and landed (§5 #3) — the official `/users/me` example sends the
+   header explicitly, so treat it as **required**, not conditional; L2 confirms
+   mandatory but the capability is planned up front so L5 identity extraction is
+   not the first place a missing header surfaces.
 6. ~~Authorize `scope` param~~ — **resolved by official docs**: scope is not an
-   authorize-URL parameter; scopes are portal-configured, so `scopes` /
-   `display_scopes` are documentation/UI only (§5). Residual (non-blocking): L2
-   confirms the exact scope identifiers, since the §4 `user:*` strings are
-   illustrative placeholders.
+   authorize-URL parameter; scopes are portal-configured. The bundle therefore
+   **omits `scopes:` entirely** (it is NOT inert — it projects to
+   `OAuth.DefaultScopes` → a `scope=…` authorize-URL param) and declares only
+   `display_scopes` (consent copy, never the authorize URL), matching the notion
+   precedent (§5). Residual (non-blocking): L2 confirms the exact
+   `display_scopes` slugs, since the §4 slugs are illustrative UI-copy
+   placeholders.
 7. Revoke stays `local_only` for MVP; `provider_revoke` deferred (§5).
