@@ -166,24 +166,77 @@ exactly `form_secret | form_basic | json_basic`
 - `json_basic` → JSON body but client creds in an `Authorization: Basic` header
   (Square wants them **in the JSON body**; it does not document Basic).
 
-→ **Capability growth required: add a `json_secret` token-exchange style** — JSON
-body with `client_id`/`client_secret` as body fields. This is the minimal
-orthogonal enum addition the integration-service AGENTS.md explicitly sanctions
-("a response shape … outside that closed capability set needs a compiled generic
-capability … never an unbounded YAML expression"), mirroring exactly how
-`json_basic` was added for Notion. Touch points:
-`model/catalog.go` (const + `UsesHTTPBasicClientAuth` stays false for it),
-`service/oauth_exchange.go` (`buildTokenRequest` new case: JSON body including
-`client_id`/`client_secret`; `validateTokenExchangeStyle`),
-`cmd/provider-gen/{validate.go,render_symbols.go}` (allow the value + Go symbol),
-`service/token_refresh.go` (refresh reuses the same JSON-body-with-secret shape).
-Unit tests: exchange builds a JSON body with both creds and no Basic header.
+Square's JSON-body-with-secret contract forces **three distinct capability
+growths**, not one shared enum case. The initial exchange, the refresh path, and
+expiry capture are separate code paths in integration-service; a single
+`buildTokenRequest` case only covers the first. All three land with the bundle.
+
+**Growth A — `json_secret` token-exchange style (initial code exchange).** Add
+`TokenExchangeJSONSecret` to the closed enum: JSON body carrying `client_id` /
+`client_secret` / `code` / `grant_type` / `redirect_uri` as body fields, no
+`Authorization` header. This is the minimal orthogonal enum addition the
+integration-service AGENTS.md sanctions ("a response shape … outside that closed
+capability set needs a compiled generic capability … never an unbounded YAML
+expression"), mirroring how `json_basic` was added for Notion. Touch points:
+`model/catalog.go` (const + `UsesHTTPBasicClientAuth()` **stays false** for it —
+creds go in the body, never Basic), `service/oauth_exchange.go`
+(`buildTokenRequest` new case: JSON body including both creds;
+`validateTokenExchangeStyle`), `cmd/provider-gen/{validate.go,render_symbols.go}`
+(allow the value + Go symbol). Unit test: exchange builds a JSON body with both
+creds and no Basic header.
+
+**Growth B — `json_secret` refresh in `service/token_refresh.go` (larger, not a
+`buildTokenRequest` case).** This is the correction to the original design's
+under-scoping. `buildTokenRequest` is called **only** by `exchangeAuthCode` (the
+initial code exchange); it is never on the refresh path. Refresh runs through
+`requestOAuthRefresh` (`token_refresh.go:148-169`), which builds its request with
+`golang.org/x/oauth2` (`cfg.TokenSource(ctx, …).Token()`). `x/oauth2` **always**
+emits `application/x-www-form-urlencoded` and can never emit a JSON body — so a
+`json_secret` case in `buildTokenRequest` does nothing for refresh, and a Square
+refresh routed through `x/oauth2` would be form-encoded and non-conforming to
+Square's documented JSON-only `/oauth2/token` contract (the same endpoint serves
+`grant_type=refresh_token`, verified in the official ObtainToken reference).
+Required change: for the `json_secret` style, **abandon `oauth2.TokenSource` and
+hand-roll a JSON POST** in `token_refresh.go` — body
+`{grant_type: refresh_token, refresh_token, client_id, client_secret}`,
+`Content-Type: application/json`, no Basic header — reusing the existing
+`tokenResponse` decode. It must preserve its own A3 strict write-back,
+refresh-token carry-forward (`firstNonEmpty(newTok.RefreshToken, td.RefreshToken)`),
+and permanent-vs-transient error classification, exactly as the `x/oauth2` branch
+does today. `UsesHTTPBasicClientAuth()` must stay false for `json_secret`, so the
+existing confidential-client creds guard still applies without forcing Basic.
+Unit test: a `json_secret` refresh request carries a JSON body with **both** creds
+and **no** `Authorization: Basic` header.
+
+**Growth C — capture Square's absolute `expires_at` on BOTH exchange and refresh
+write-back.** Correcting a false claim in the original design: the generic
+`tokenResponse` (`oauth_exchange.go:21-37`) reads **only** `expires_in` (int
+seconds), and `tok.expiry()` returns `nil` when `ExpiresIn <= 0`. Square's token
+response carries **no** `expires_in` — it returns `expires_at` (absolute ISO 8601;
+verified in the official ObtainToken reference). There is currently **zero**
+`expires_at` parsing anywhere on the exchange/refresh path. Consequence if left
+unfixed: after a real exchange, `oauth_credentials.go` stores `Expiry=nil`;
+`token_gateway.go:needsRefresh` (`429-434`) returns `false` whenever
+`Expiry==nil` ("non-expiring"), so the token is **never refreshed** — the Square
+access token silently dies at 30 days and the connection bricks until a manual
+reconnect, precisely the failure the refresh machinery exists to prevent (and a
+poor experience for an AI teammate). The refresh side compounds it: even if
+refresh fired, `x/oauth2` parses `expires_in` too, so `newTok.Expiry` would be
+zero and `refreshed.Expiry` (`token_refresh.go:53-55`) would stay `nil`. Required
+change: an `expires_at`-aware decode (analogous to the `assumed_ttl` /
+metadata-deriver precedents on other providers) that parses Square's absolute
+`expires_at` into the credential `Expiry` on **both** the initial exchange
+write-back (`oauth_credentials.go`) and the `json_secret` refresh write-back
+(`token_refresh.go`). Unit test: after decoding a Square token response, the
+persisted `Expiry` equals the parsed `expires_at` (non-nil, ~30 days out), so
+`needsRefresh` fires as the token nears expiry.
 
 **Token semantics / refresh:**
 - Access token expires in **30 days**; response carries `expires_at` (ISO 8601)
-  and `merchant_id`. The `tokenResponse` struct already captures
-  `access_token`/`refresh_token`; `expires_at` drives the gateway's lazy
-  refresh + A3 strict write-back.
+  and `merchant_id`, and **no** `expires_in`. Growth C parses `expires_at` into
+  the credential `Expiry` on both exchange and refresh write-back so the gateway's
+  lazy refresh + A3 strict write-back actually fire (without it, `Expiry=nil` ⇒
+  `needsRefresh` never triggers ⇒ the token is never refreshed).
 - Code-flow refresh tokens are multi-use, non-expiring, and refreshing does
   **not** invalidate previously issued access tokens (multiple active tokens
   allowed) → **no cross-token invalidation** → `refresh_lease: none`. Verified
@@ -288,8 +341,11 @@ one canonical regen (five projections) and pin bump at batch end.
   registration (manual; never generated).
 - i18n `tools.scopes.*` strings for the display scopes + `description_key`.
 - AI-facing provider sub-doc under `agents/plugins/heliox/skills/tool/`.
-- integration-service `json_secret` capability growth (§3) — lands with the
-  bundle so `provider-gen --check` and the OAuth callback both accept the style.
+- integration-service `json_secret` capability growth (§3, Growths A/B/C) —
+  the exchange style, the hand-rolled JSON refresh in `token_refresh.go`, and the
+  `expires_at`-aware `Expiry` capture all land with the bundle so
+  `provider-gen --check`, the OAuth callback, and the token gateway's refresh
+  cadence are all correct.
 
 ## 5. Test plan — five layers
 
@@ -298,7 +354,7 @@ one canonical regen (five projections) and pin bump at batch end.
 | **L1** anycli `go test ./...` | `square` service unit tests against an `httptest` fake: Bearer + `Square-Version` header injected; POST-search request shapes; verbatim JSON stdout; `errors[]` → exit 1; `--json` error envelope; `side_effect` annotation table. | No (fakes only). |
 | **L2** dev harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<sandbox token> anycli square -- location list` against `connect.squareupsandbox.com` returns real data. Proves field name / injection / request shape match the live API — **mandatory before pin bump**. | **Yes** — a Square **sandbox access token** from a test app (self-serve). |
 | **L3** `provider-gen --check` + both repos' suites | Bundle strict-decodes; the new `json_secret` enum passes validate + the integration-service exchanger/refresh unit tests; `helio-cli` builds with a local `go.mod replace` at the anycli branch. | No. |
-| **L4** singleton + seeded creds | `POST /internal/test-only/connections/seed` a `square` connection (user-token provider, seedable) with a real sandbox `access_token` + `refresh_token` + short `expires_at`, then `heliox tool square -- payment list` reaches the live API through the token gateway; short expiry forces the refresh + A3 write-back path (exercising `json_secret` refresh). | **Yes** — sandbox `access_token`/`refresh_token` from a registered app. |
+| **L4** singleton + seeded creds | `POST /internal/test-only/connections/seed` a `square` connection (user-token provider, seedable) with a real sandbox `access_token` + `refresh_token` + a near-past/short `expires_at`, then `heliox tool square -- payment list` reaches the live API through the token gateway. The seeded short expiry makes `needsRefresh` fire, driving the `json_secret` refresh (Growth B) + A3 write-back; assert the persisted credential afterward carries a **non-nil `Expiry` ~30 days out** parsed from the refresh response's `expires_at` (Growth C) — proving the refresh both fired and re-armed the next refresh, not just fired once. Without Growth C the write-back would persist `Expiry=nil` and the cadence would silently stop, so this assertion is the honest proof, not "a repeating cadence" by itself. | **Yes** — sandbox `access_token`/`refresh_token` from a registered app. |
 | **L5** full connect flow (once, pre-flip) | `heliox tool square auth` → consent on the Square sandbox app → `oauth_connected` event on the auth channel → unseeded live `square` run. Validates the real authorize URL, `json_secret` code exchange, `merchant_id` identity extraction, callback. Human-in-the-loop (oauth L5, master-plan lane 3). | **Yes** — a real Square **dev/sandbox app** (lane 1) + a **sandbox seller account** to consent (lane 2). |
 
 L1/L3 are self-contained. L2/L4/L5 need externally supplied credentials: a Square
