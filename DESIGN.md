@@ -42,6 +42,22 @@ here per the ground-truth rule.
    already shard-hosted and correct either way. This is the one L2/L4-only item;
    L1/L3 are self-contained and green.
 
+   **Official-docs re-verification (2026-07-22, ship-gate):** Adobe's Managing
+   OAuth Tokens guide and the Getting-Started flow document the code→token
+   exchange as POSTed to `{api_access_point}/oauth/v2/token` (the shard host),
+   with `api_access_point` delivered in the **authorization redirect** query
+   params (`code`, `api_access_point`, `state`, `web_access_point`) — the same
+   host is then reused for `/oauth/v2/refresh` and `/oauth/v2/revoke`. This
+   *leans toward* "exchange is strictly shard-hosted," which would make the
+   redirect-param → exchanger plumbing required before L5. It does not *prove*
+   `secure.adobesign.com` rejects the exchange (many providers accept a code
+   exchange on the primary domain and echo the shard back), so the residual
+   stands as a genuine L2/L4 test against a real account — but the prior is now
+   toward "plumbing needed." The as-built adapter fails fast (no silent
+   fallback) if the token response carries no `api_access_point`, so a
+   shard-only exchange surfaces as an explicit, diagnosable error rather than a
+   masked one.
+
 - **Catalog row 220** — Product: Adobe Acrobat Sign · anycli id `adobe-sign` ·
   provider key `adobe_sign` · auth lane **oauth_review** · **Wave 3** (3-hold?
   no — plain Wave 3) · category Scheduling & eSign.
