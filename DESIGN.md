@@ -258,3 +258,39 @@ the batch tag + pin bump; L1–L4 green while hidden; L5 key-entry sweep after t
 batch-end merge; then `visible: true` + `provider-gen` regenerate as the single
 go-live change. No review clock (api_key), so the only gate to the flip is L5,
 which is gated on the procured API account.
+
+## 7. Divergences recorded at implementation time
+
+Verified against official docs (https://api.sproutsocial.com/docs/) and the
+actual repo code; the following refine §2/§4 as implemented:
+
+- **Bundle `runtime_strategy: manual_api_token`, not `manual_credentials`.**
+  §4's YAML wrote `manual_credentials`, but on `main` that is the design-317
+  DSN/schema-driven path whose registration uses `dsnHostIdentityDeriver` and
+  runs **no** connect-time verifier — which contradicts §4's own requirement for
+  the Bearer/numeric-coercion verifier. The api_key verifier path is
+  `manual_api_token` (`auth.type: api_key`), so the bundle ships that strategy.
+- **Compiled `sproutClientVerifier` added (the recommended §4 path).** Neither
+  the `api_key.scheme: bearer` enum nor numeric stable-key coercion had landed
+  on `main`, so the declarative verifier could not send `Authorization: Bearer`
+  nor read the numeric `customer_id`. Selected via a `manualAPITokenVerifier`
+  helper in the `manual_api_token` registry branch (all other providers keep the
+  declarative verifier).
+- **Output is the raw Sprout envelope passthrough; `--json` is a no-op** (bitly
+  precedent), not the "compact summary vs `--json` raw" of §2. An AI consumer
+  reads JSON; Sprout's nested analytics/message shapes don't summarize
+  losslessly, and a bespoke per-resource summarizer is drift-prone surface
+  (master-plan §6 quality risk) for negative value.
+- **Filter body key is `filters` (plural array), and paging is split by
+  endpoint.** Analytics use index paging (`--page`/`--limit`,
+  `paging.total_pages`); messages/cases use cursor paging (`--page-cursor`,
+  `paging.next_cursor`). `--metric` is analytics-only.
+- **`publishing create` requires `--group-id` + `--profile-id`** (Sprout needs
+  `group_id`, `customer_profile_ids`, `is_draft:true`); numeric ids are coerced.
+  `--scheduled-at` was dropped (the exact draft-schedule field is not documented
+  in the public reference); advanced scheduling goes through the `--body`
+  verbatim escape hatch.
+- **Resolver OQ1 not landed:** `ProviderFor` is explicit-map only on `main`, so
+  the `sprout-social → sprout_social` `toolToProvider` entry is added (with a
+  test), and the flat-provider drift guard is relaxed from identity to
+  round-trip invertibility.
