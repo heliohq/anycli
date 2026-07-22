@@ -153,6 +153,28 @@ Either way lane/row/id/key, the `verify_credentials` verification, and the
 five-layer plan are preserved. The rest of this doc is written for the
 **endpoint+secret** shape (path 1) and notes the fallback inline.
 
+**Build-time resolution (2026-07-22, shipped): path 2 — combined single
+secret.** Re-verified the worktree base (`main`): `validateCredentialInputSchema`
+(runtime_contract.go:328) and `resolveManualSecret` (manual_credential.go:179)
+still enforce **exactly one required field**, and neither the ServiceNow
+endpoint+secret relaxation nor the zoominfo/mixpanel multi-field storage is on
+`main` (their provider bundles are absent). Building either shared capability in
+the Mastodon branch would fork a surface another branch owns, so Mastodon ships
+the **combined-secret fallback**, self-contained on the base: one required
+secret field `access_token` carrying `"<instance-url> <token>"`, projected via
+the existing `token.access_token` source, split on the first space in **both**
+places — the AnyCLI service (`splitCredential`, reads one env var) and a new
+`mastodonAccountVerifier` (splits, then `verify_credentials`, derives
+account_key = normalized instance URL + `@user@host` label). The verifier is
+selected by provider key in the manual_credentials branch of
+`composeProviderRegistration` (keyed off a string-literal `model.Provider`
+constant so integration-service compiles before the batch-end regen). No
+gateway/enum growth; provider-gen projections generated + `--check`-clean
+locally but **not committed** (rollout plan §2). Follow-up once the
+endpoint+secret capability lands: split `access_token` back into two fields
+(`instance_url` non-secret + `access_token` secret) — a UI-only change; the
+verifier and account_key contract are unchanged.
+
 ---
 
 ## 1. Official API surface wrapped, and why
