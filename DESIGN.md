@@ -16,33 +16,56 @@ recorded in §8.
 
 ## 0. Pre-verify verdict (3-hold gate)
 
-**Verdict: BUILD, api_key lane confirmed, `service` type, ZERO new
-integration-service credential *source* growth (single-blob credential through
-the existing `token.access_token`, mongodb precedent), ONE small candidate
-integration-service growth to confirm/build at stage 2 (an account-key identity
-deriver — §4 / minor finding), and one genuinely new anycli concern (OAuth 1.0a
-request signing inside the service package).**
+**Verdict: BUILD, api_key lane confirmed, `service` type. The one genuinely new
+anycli concern is OAuth 1.0a request signing inside the service package (§2). On
+the Helio side the credential-form shape is a **build-time capability decision**,
+not a hard constraint: the PRIMARY plan is a five-field `manual_credentials`
+connect form (account_id + the four TBA secrets), which is an already-established
+program pattern (paypal / zoominfo / plaid grew exactly this on sibling
+branches); a single JSON-blob credential is kept only as an explicitly-labeled
+interim FALLBACK for the case where that multi-field capability has genuinely not
+merged to the netsuite build base by build time. Either shape stores one opaque
+secret payload that anycli decodes and signs — the signing path is identical, so
+this decision changes only the first-run UX, not the runtime. One small
+Helio-side growth stays to confirm at stage 2: an account-key identity deriver
+(§4 / minor finding).**
 
-Verified against the 3-hold base itself (`go-services/integration-service`),
-not assumed:
+Verified against the 3-hold base itself (`go-services/integration-service`), but
+read as a **snapshot of the frozen `tool/netsuite` base**, not a permanent
+platform limit:
+- `manual_credentials` storage on *this frozen base* is single-secret: design
+  317 D5 (`model/runtime_contract.go:328`, `validateCredentialInputSchema`)
+  requires `auth.credential_input.fields` to be **exactly one required field**,
+  and the runtime write path (`service/manual_credential.go:179`,
+  `resolveManualSecret`) fails fast if `len(Fields) != 1`. So a five-field
+  connect form is not expressible **on this frozen base as-is** — that is the
+  only sense in which it is constrained.
+- BUT multi-field `manual_credentials` is an **established program pattern**,
+  not a hypothetical: paypal, zoominfo, and plaid each relaxed D5 to a
+  multi-field connect form (integration-service packs the N labeled fields into
+  the single token payload) on their sibling `tool/*` branches. Those bundles
+  are simply **absent from this frozen worktree base**, sitting on unmerged
+  siblings — and this 3-hold batch runs as the **last** batch of Wave 3 (master
+  plan §5), so that capability will almost certainly be merged to main by
+  netsuite build time. The master plan even **budgeted** growth for NetSuite
+  ("distinct vault credential kind and/or signing adapter", §6), so "zero
+  growth" was never a mandate.
+- The shipped single-blob precedent (mongodb, one `connection_string` field →
+  `token.access_token`) remains a valid **fallback** shape if multi-field has
+  not landed. It is not the recommended first-run.
 - `knownCredentialSources` on the netsuite base is
   `{token.access_token, connection.account_key, connection.metadata.person_urn,
   credential.app_id, credential.brand, binding.user_access_token}`
   (`cmd/provider-gen/validate.go`) — there is **no** `token.<field>` per-field
-  source. A per-field `credential.fields` map (`token.account_id`,
-  `token.consumer_key`, …) would be rejected by `provider-gen --check` as an
-  unknown credential source.
-- `manual_credentials` storage is **single-secret**: design 317 D5
-  (`model/runtime_contract.go:validateCredentialInputSchema`) hard-requires
-  `auth.credential_input.fields` to be **exactly one required field**, and the
-  runtime write path (`service/manual_credential.go:resolveManualSecret`)
-  fails fast if `len(Fields) != 1`. A 5-field connect form is therefore
-  **impossible** on this base without integration-service Go growth.
-- The only shipped `manual_credentials` precedent is **mongodb** (one
-  `connection_string` field → `token.access_token`). The zoominfo / paypal /
-  braintree / mixpanel bundles cited in an earlier draft **do not exist** in
-  either worktree base; that claim was fabricated and is removed. The design
-  now anchors on the single real precedent (mongodb, single-blob).
+  source under either shape, so both plans project the packed payload through the
+  existing `token.access_token`; a per-field `credential.fields` map
+  (`token.account_id`, …) is neither needed nor allowed.
+
+**Stage-2 action: re-read the netsuite build base** before coding the bundle. If
+multi-field `manual_credentials` (paypal-style) is present, adopt it (five
+labeled fields — the recommended shape). If — and only if — it genuinely has not
+merged, ship the single-blob interim fallback and record the divergence. Either
+way the anycli service is unchanged (§2).
 
 The master plan flagged three risks for NetSuite; each is resolved here:
 
@@ -51,20 +74,23 @@ The master plan flagged three risks for NetSuite; each is resolved here:
    over **four** secrets plus the account id — not a bearer key. This is
    handled entirely inside the anycli `netsuite` service package (stdlib
    `crypto/hmac`+`crypto/sha256` signing); it needs **no** signing logic on the
-   Helio side. Because Helio storage is single-secret (D5, above), the five
-   TBA values are carried as **one JSON credential blob** through the existing
-   `token.access_token` source — the mongodb single-field pattern extended so
-   the blob is a JSON object the anycli service decodes at startup (§2/§4), not
-   five per-field vault columns. This means **zero** new credential sources and
-   **zero** composite-decode Go on the Helio side. The plan's "distinct vault
-   credential kind and/or signing adapter" hedge resolves to **neither**: the
-   vault stores an opaque single-secret payload (already supported), and the
-   "signing adapter" lives in anycli, not in a Helio `service/adapter_*.go`.
-   The one thing that is **not** free is the account-key identity deriver (§4,
-   minor finding): the only shipped `manual_credentials` deriver
-   (`dsnHostIdentityDeriver`) parses a DSN **host out of the secret**, not a
-   JSON `account_id`, so a small sibling deriver is the single candidate
-   integration-service growth — flagged, to confirm/build at stage 2, not
+   Helio side. The five TBA values reach anycli as **one opaque secret payload**
+   through the existing `token.access_token` source, which the service decodes at
+   startup (§2/§4). How that payload is *collected* is the build-time decision
+   above: PRIMARY is a five-field connect form (integration-service packs the
+   labeled fields into the token payload — the paypal/zoominfo/plaid pattern);
+   FALLBACK is a single JSON blob the user pastes (mongodb pattern). Both land
+   the same JSON payload in the vault and hand it back verbatim, so the anycli
+   decode + sign path is identical either way. The plan's "distinct vault
+   credential kind and/or signing adapter" hedge resolves to: **no** new vault
+   kind (multi-field `manual_credentials` already packs into the single token
+   payload), and the "signing adapter" lives in anycli, not in a Helio
+   `service/adapter_*.go`. The one Helio-side growth to confirm at stage 2 is the
+   account-key identity deriver (§4, minor finding): the only shipped
+   `manual_credentials` deriver (`dsnHostIdentityDeriver`) parses a DSN **host
+   out of the secret**, not a JSON `account_id`, so a small sibling deriver is
+   the single candidate integration-service growth beyond the (likely
+   already-merged) multi-field form — flagged, to confirm/build at stage 2, not
    asserted away.
 
 2. **Deprecation clock (§6).** Confirmed and re-confirmed: from release
@@ -173,9 +199,10 @@ the `cli` type is excluded; NetSuite joins the 21/23 `service`-type majority.
 The service does REST + OAuth 1.0a signing over HTTP — squarely the `service`
 shape.
 
-`definitions/tools/netsuite.json` (**one** credential binding — the single-blob
-pattern, mirroring mongodb's one `connection_string` → one env var; §0 explains
-why five separate bindings are impossible on this base):
+`definitions/tools/netsuite.json` (**one** credential binding regardless of the
+Helio connect-form shape — anycli always receives one opaque secret, the TBA
+JSON payload, through a single env var; the multi-field-vs-single-blob choice of
+§0 is a Helio-side decision that does not reach this definition):
 
 ```json
 {
@@ -197,9 +224,11 @@ why five separate bindings are impossible on this base):
 ```
 
 The Helio bundle sources the `credentials` field from the existing
-`token.access_token` (§4); the single opaque secret Helio stores **is** this
-JSON string, so no new Helio credential source or composite-decode Go is
-required. The five-way split lives entirely in anycli.
+`token.access_token` (§4). Whether the user filled a five-field form (primary)
+or pasted a JSON blob (fallback), Helio stores and returns the **same single
+opaque JSON payload**, so the anycli definition and decode are invariant to that
+decision — the five-way split always lives in anycli, and no per-field Helio
+credential source or composite-decode Go is required either way.
 
 Go package: `internal/tools/netsuite/` (id has no dashes/leading digit, so
 package name == id). Registered as `RegisterService("netsuite",
@@ -291,16 +320,26 @@ header — see §1 — and omitted/empty otherwise).
 ## 3. Credential fields and exact auth flow (TBA / OAuth 1.0a)
 
 TBA is a **manual credential** flow (api_key lane) — there is no browser
-consent redirect; the user pastes credentials they generate inside NetSuite.
-Because Helio storage is single-secret (§0, design 317 D5), the connect form is
-**one** `credentials` field into which the user pastes a **JSON object**
-carrying the five TBA values below (the mongodb single-field precedent, where
-mongodb's one field is a DSN and NetSuite's is a small JSON blob). The
-`setup_url` documents both where each value comes from and the exact JSON shape
-to paste. Verified against Oracle's TBA setup docs, the five sub-fields are
-exactly:
+consent redirect; the user enters credentials they generate inside NetSuite.
+Five values are needed. The connect-form shape is the build-time decision of §0:
 
-| JSON sub-field | Secret | Purpose | Where the user gets it |
+- **PRIMARY — five labeled fields (`manual_credentials`, paypal/zoominfo/plaid
+  pattern).** Five required, labeled inputs; integration-service packs them into
+  the single token payload. This is the good first-run for a finance admin who
+  is copying five discrete secrets off five different NetSuite screens, and it
+  validates each field at connect time rather than surfacing a malformed
+  hand-assembled blob as a stale failure at first query.
+- **FALLBACK — one JSON-blob field (mongodb single-secret pattern).** Used only
+  if multi-field `manual_credentials` has genuinely not merged to the netsuite
+  build base by build time (re-verify at stage 2). The user pastes a JSON object
+  of the five values into one `credentials` field; the `setup_url` documents the
+  exact shape. Trade-off: no per-field connect-time validation, and the user
+  must JSON-escape secrets that contain special characters.
+
+Either way the five TBA values are the same. Verified against Oracle's TBA setup
+docs, they are exactly:
+
+| Field | Secret | Purpose | Where the user gets it |
 |---|---|---|---|
 | `account_id` | no | Realm (canonical uppercase/underscore form) + URL host (lowercase/hyphen form), both **derived** from this one value (§2) | Setup → Company → Company Information (Account ID); or Company URLs → SuiteTalk |
 | `consumer_key` | yes | Integration record consumer key | Setup → Integration → Manage Integrations → New (enable TBA); shown once |
@@ -308,12 +347,11 @@ exactly:
 | `token_id` | yes | Access token id | Setup → Users/Roles → Access Tokens → New (or "Manage Access Tokens") |
 | `token_secret` | yes | Access token secret | same access-token page; shown once |
 
-These are **sub-keys of the one stored secret**, not five separate vault
-columns or five Helio credential-form fields. The whole JSON string is what
-Helio persists (as `token.access_token`) and hands back verbatim; anycli owns
-the split (§2). The UX trade-off (one JSON paste vs. a five-input form) is the
-price of zero integration-service growth — see §8 for the multi-field
-alternative that was rejected for this reason.
+Under the primary form these are five vault-form fields that integration-service
+packs into the one stored token payload; under the fallback they are five
+sub-keys of one pasted JSON secret. In **both** cases Helio persists a single
+JSON payload (as `token.access_token`) and hands it back verbatim; anycli owns
+the decode + split (§2).
 
 Registration model (why this is api_key, not oauth): the NetSuite admin creates
 **one integration record** (consumer key/secret) and **one access token** (token
@@ -355,12 +393,15 @@ divergent ids). Three-axis summary:
 - ② anycli tool id: `netsuite`.
 - ③ provider catalog key / directory: `netsuite`.
 
-Bundle shape follows the **`mongodb` single-field `manual_credentials`
-precedent** — the only extant manual-credentials bundle and the only shape the
-netsuite base supports (single-secret D5, §0). One `credentials` field, sourced
-through the existing `token.access_token`; the five TBA values ride inside it as
-JSON (§2/§3). **No new credential sources, no per-field `token.<field>` map, no
-composite-decode Go.**
+Bundle shape follows the **multi-field `manual_credentials` pattern**
+(paypal / zoominfo / plaid) as the PRIMARY plan: five labeled required fields,
+which integration-service packs into the single token payload sourced through
+the existing `token.access_token`. If multi-field has genuinely not merged to
+the netsuite build base by build time (re-verify at stage 2 by reading the
+base), fall back to the single JSON-blob field (mongodb precedent). Either way
+the vault stores one opaque JSON payload and there is **no per-field
+`token.<field>` source map and no composite-decode Go on the Helio side** — the
+five-way split is anycli's.
 
 ```yaml
 schema: helio.provider/v1
@@ -377,21 +418,31 @@ auth:
   type: credentials
   owner: individual
   credential_input:
+    # PRIMARY: five labeled required fields (multi-field manual_credentials,
+    # paypal/zoominfo/plaid pattern). integration-service packs them into the
+    # single token payload. FALLBACK (only if multi-field is genuinely absent
+    # from the netsuite build base — re-verify at stage 2): a single required
+    # `credentials` field into which the user pastes the JSON blob.
     fields:
-      # Exactly ONE required field (design 317 D5 single-secret storage). The
-      # user pastes a JSON object of the five TBA values; anycli decodes it.
-      - { name: credentials, label_key: netsuite_credentials, secret: true, required: true, placeholder: '{"account_id":"1234567_SB1","consumer_key":"…","consumer_secret":"…","token_id":"…","token_secret":"…"}' }
+      - { name: account_id,      label_key: netsuite_account_id,      secret: false, required: true, placeholder: '1234567_SB1' }
+      - { name: consumer_key,    label_key: netsuite_consumer_key,    secret: true,  required: true }
+      - { name: consumer_secret, label_key: netsuite_consumer_secret, secret: true,  required: true }
+      - { name: token_id,        label_key: netsuite_token_id,        secret: true,  required: true }
+      - { name: token_secret,    label_key: netsuite_token_secret,    secret: true,  required: true }
     setup_url: https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/section_4381113277.html
 
 identity:
   source: strategy          # no HTTPS userinfo endpoint
-  # account_key/label should be the readable account_id. The ONLY shipped
-  # manual_credentials deriver (dsnHostIdentityDeriver) parses a DSN *host out
-  # of the secret* — it does not JSON-decode a blob to pull out account_id. So
-  # a small sibling deriver (blob → account_id → account_key/label) is the ONE
-  # candidate integration-service growth for this tool (§0, §8). Confirm at
-  # stage 2 by reading the 3-hold base: if such a deriver already exists, cite
-  # it; otherwise add it (small, ~mongodb-sized) before coding the bundle.
+  # account_key/label should be the readable account_id. The stored secret is a
+  # JSON payload under BOTH shapes (multi-field packs the fields into it; the
+  # fallback stores the pasted blob), and the ONLY shipped manual_credentials
+  # deriver (dsnHostIdentityDeriver) parses a DSN *host out of the secret* — it
+  # does not JSON-decode the payload to pull out account_id. So a small sibling
+  # deriver (JSON payload → account_id → account_key/label) is the ONE candidate
+  # integration-service growth for this tool beyond the multi-field form (§0,
+  # §8). Confirm at stage 2 by reading the base: if such a deriver already
+  # exists, cite it; otherwise add it (small, ~mongodb-sized) before coding the
+  # bundle.
 
 connection:
   mode: isolated
@@ -405,8 +456,10 @@ resources:
 
 credential:
   fields:
-    # Single-secret projection: the JSON blob IS the access token. mongodb
-    # precedent — connection_string: token.access_token.
+    # Multi-field form (primary): integration-service packs the five labeled
+    # fields into the single token payload, which projects here as the access
+    # token — anycli decodes the same JSON either way. (Fallback single-blob:
+    # the pasted JSON IS the access token; mongodb precedent.)
     credentials: token.access_token
     account_key: connection.account_key
 
@@ -415,38 +468,41 @@ tool:
   kind: api-key           # wire-compat value (design 317 D2)
 ```
 
-Nothing secret lives in the bundle (per `references/provider-yaml.md`): the JSON
-blob enters through the write-only `POST /connections/credentials` API and is
-stored in Vault as the single-secret token payload; the bundle only declares the
-one field name. `manual_credentials` takes **no** `required_config_fields`
-(there is no Helio-side client id/secret), so no `config/` + `deploy/` secret
-append is needed — NetSuite is safe to ship hidden with zero environment config,
-and there is no `standard_oauth` adapter. Icon: `ui/helio-app/src/integrations/icons/netsuite.svg`
-+ manual `providerIcons.ts` registration (never generated). i18n:
-`tools.desc.netsuite` + the single `tools.credentialField.netsuite_credentials`
-label key across all locales (the label should tell the user to paste the JSON
-blob and point at the `setup_url` for its shape).
+Nothing secret lives in the bundle (per `references/provider-yaml.md`): the field
+values enter through the write-only `POST /connections/credentials` API and are
+stored in Vault as the single token payload (integration-service packs the
+multi-field form; the fallback stores the pasted blob directly); the bundle only
+declares the field names. `manual_credentials` takes **no**
+`required_config_fields` (there is no Helio-side client id/secret), so no
+`config/` + `deploy/` secret append is needed — NetSuite is safe to ship hidden
+with zero environment config, and there is no `standard_oauth` adapter. Icon:
+`ui/helio-app/src/integrations/icons/netsuite.svg` + manual `providerIcons.ts`
+registration (never generated). i18n: `tools.desc.netsuite` + one
+`tools.credentialField.netsuite_*` label key per field under the primary form
+(each label naming the NetSuite screen it comes from and pointing at `setup_url`),
+or the single `netsuite_credentials` blob label under the fallback, across all
+locales.
 
 Generation (batch-end, one run): `provider-gen` + `provider-gen --check`
 projects the five generated **files** together (Go catalog, UI fallback, SDK
 union, helio-data fixture, check twin); on-branch we run it locally for L3 only
 and do **not** commit the projections (master plan §2). "Five files" is the
-generator's fixed output set — distinct from the (now single) credential source,
-which is just the existing `token.access_token`.
+generator's fixed output set — distinct from the credential source, which under
+both connect-form shapes is just the existing `token.access_token`.
 
 ---
 
 ## 5. Why no `service/adapter_*.go` on the Helio side
 
 The plan hedged "signing adapter." Concretely it is **not** needed on the Helio
-side: `manual_credentials` stores an opaque single-secret payload (the JSON
-blob) and sources it to the token gateway with zero provider-specific Go; the
-HMAC-SHA256 signing happens in anycli at request time, where the secrets
-actually are. Reaching for a `service/adapter_*.go` (the Slack/Discord/X/
-LinkedIn precedents) is only justified by non-standard **OAuth token-exchange or
-revoke** behavior — NetSuite TBA has neither (no exchange, no revoke). So the
-adapter budget the master plan reserved for NetSuite is spent in anycli, not
-integration-service.
+side: `manual_credentials` stores one opaque JSON payload (packed from the
+multi-field form, or the pasted blob on the fallback) and sources it to the token
+gateway with zero provider-specific Go; the HMAC-SHA256 signing happens in anycli
+at request time, where the secrets actually are. Reaching for a
+`service/adapter_*.go` (the Slack/Discord/X/LinkedIn precedents) is only
+justified by non-standard **OAuth token-exchange or revoke** behavior — NetSuite
+TBA has neither (no exchange, no revoke). So the adapter budget the master plan
+reserved for NetSuite is spent in anycli, not integration-service.
 
 ---
 
@@ -468,9 +524,9 @@ integration-service.
 |---|---|---|
 | **L1** anycli `go test ./...` | `NETSUITE_CREDENTIALS` JSON decode + per-field presence (missing var, malformed JSON, and any-empty-sub-field all → usage exit 2); signature-base-string + header exactness against known TBA test vectors; host/realm transform vectors (host → lowercase/hyphen, realm → **uppercase/underscore canonical**, incl. a lowercased-input `1234567_sb1` case asserting realm-uppercasing); SuiteQL sets `Prefer: transient` and folds `limit`/`offset` into the signature base; record CRUD request shape (method/path/body); 429 → error envelope with `retry_after` populated **only when** the fake returns `Retry-After` (and empty when it does not); exit-code 0/1/2 matrix — all against an `httptest.Server` fake. **No real API.** | No |
 | **L2** dev harness vs real API | `ANYCLI_CRED_CREDENTIALS='{"account_id":…,"consumer_key":…,…}' anycli netsuite -- query --q "SELECT id, companyname FROM customer FETCH FIRST 5 ROWS ONLY"` returns real rows; a `record get --type customer --id <id>` returns a real record. Proves the blob decode, signing, and the host/realm transform match the **live** account. | **Yes** — a real NetSuite account/sandbox from the account pool |
-| **L3** `provider-gen --check` + both suites | Bundle strict-decodes (one required `credentials` field passes D5; `credentials: token.access_token` passes the known-credential-source allow-list); five generated files regenerate consistently; `helio-cli` builds against the anycli branch via a local `replace`; integration-service + helio-cli unit suites green. If the stage-2 account-key deriver (§4) is added, its unit test lands here too. **No real creds.** | No |
-| **L4** singleton + seed | `POST /internal/test-only/connections/seed` with the single JSON-blob secret as the `access_token` (single-secret payload; `test_seed:true`), real seeded org/assistant identities, then `heliox tool netsuite -- query …` reaches the live API through the real token gateway. Seed the blob directly (no `expires_at` — TBA tokens don't expire, like Slack). | **Yes** — same real creds as L2 |
-| **L5** full connect flow (once, pre-flip) | The **api_key key-entry** L5 path (master plan §2, not the OAuth path): open the connect link → paste the JSON blob into the single `credentials` field through the real connect UI (stored via `POST /connections/credentials`) → connection shows connected/configured in `GET /connections` → one **unseeded** live `heliox tool netsuite -- query …` succeeds. Agent-drivable (agent-browser) with human fallback. | **Yes** — real creds + the connect UI |
+| **L3** `provider-gen --check` + both suites | Bundle strict-decodes (the connect-form schema passes validation — five required fields under the multi-field primary, or one required `credentials` field on the fallback; `credentials: token.access_token` passes the known-credential-source allow-list); five generated files regenerate consistently; `helio-cli` builds against the anycli branch via a local `replace`; integration-service + helio-cli unit suites green. If the stage-2 account-key deriver (§4) is added, its unit test lands here too. **No real creds.** | No |
+| **L4** singleton + seed | `POST /internal/test-only/connections/seed` with the packed JSON payload as the `access_token` (single token payload; `test_seed:true`), real seeded org/assistant identities, then `heliox tool netsuite -- query …` reaches the live API through the real token gateway. Seed the payload directly (no `expires_at` — TBA tokens don't expire, like Slack). | **Yes** — same real creds as L2 |
+| **L5** full connect flow (once, pre-flip) | The **api_key key-entry** L5 path (master plan §2, not the OAuth path): open the connect link → fill the five `manual_credentials` fields (or, on the fallback shape, paste the JSON blob) through the real connect UI (stored via `POST /connections/credentials`) → connection shows connected/configured in `GET /connections` → one **unseeded** live `heliox tool netsuite -- query …` succeeds. Agent-drivable (agent-browser) with human fallback. | **Yes** — real creds + the connect UI |
 
 L2/L4/L5 are **credential-gated on the account pool** (§0 risk 3). L1/L3 run
 with no external dependency and gate the branch on their own.
@@ -485,33 +541,50 @@ with no external dependency and gate the branch on their own.
   per-instance credentials), it changes the anycli *implementation* (request
   signing). No `oauth_light`/`oauth_review` re-lane.
 - **"Distinct vault credential kind and/or signing adapter" (§6) resolves to:**
-  reuse existing single-secret `manual_credentials` (no new vault kind) + signing
-  in anycli (no Helio adapter). Recorded here so the pre-verify hedge is closed.
-- **Credential shape: single JSON blob, not five per-field sources.** An earlier
-  draft projected five `token.<field>` sources and a five-field connect form.
-  Verified against the netsuite base, both are unsupported: `knownCredentialSources`
-  (`cmd/provider-gen/validate.go`) has no `token.<field>` entries (so
-  `provider-gen --check` rejects them), and design 317 D5
-  (`model/runtime_contract.go:validateCredentialInputSchema` +
-  `service/manual_credential.go:resolveManualSecret`) hard-requires **exactly one**
-  required `credential_input` field. The zero-growth path is therefore the mongodb
-  single-blob pattern: one `credentials` field → the existing `token.access_token`,
-  with anycli decoding the five sub-fields (§2/§4). The **rejected alternative** —
-  keeping a five-input form — is genuine integration-service Go growth
-  (paypal-style: relax D5 to multi-field, teach `resolveManualSecret` to pack
-  the fields, add named `credential.*` sources + `render_symbols.go` symbols +
-  `model.CredentialSource` constants + a composite decode path) and is **not** what
-  this design ships. If product later insists on the five-input UX, that growth is
-  the scope, and §0's zero-source-growth verdict no longer holds.
+  reuse `manual_credentials` — multi-field (primary) or single-blob (fallback),
+  both packing into the single token payload, so **no new vault kind** — plus
+  signing in anycli (**no Helio adapter**). Recorded here so the pre-verify hedge
+  is closed.
+- **Credential-form shape is a build-time decision (primary: multi-field).** Two
+  shapes deliver the same five TBA values to anycli as one packed JSON token
+  payload:
+  - **PRIMARY — five-field `manual_credentials`** (paypal / zoominfo / plaid
+    pattern): integration-service packs the labeled fields into the single token
+    payload. This is an **established program pattern**, merged on sibling
+    `tool/*` branches; it is simply **absent from the frozen `tool/netsuite`
+    worktree base**. Since this 3-hold batch runs **last** in Wave 3 (master
+    plan §5), the capability will almost certainly be on main by netsuite build
+    time. Adopting it is not new NetSuite-specific Go — it is reusing a landed
+    platform capability (relax D5 to multi-field + pack in `resolveManualSecret`,
+    already done for the siblings), which projects through the existing
+    `token.access_token` with **no** named per-field `credential.*` sources.
+  - **FALLBACK — single JSON-blob field** (mongodb precedent): used only if the
+    multi-field capability has genuinely not merged by build time. On the frozen
+    base it is the only expressible shape, because design 317 D5
+    (`runtime_contract.go:328` + `manual_credential.go:179`) requires exactly one
+    required field. Re-verify at stage 2 which applies.
+  Either shape stores one opaque JSON payload projected as `token.access_token`,
+  with anycli decoding + signing (§2/§4). There is **no** five-source
+  `token.<field>` map on the Helio side under either shape (`knownCredentialSources`
+  in `cmd/provider-gen/validate.go` has no `token.<field>` entries). Correction
+  to earlier framing: prior drafts called the paypal/zoominfo (and braze/mixpanel)
+  bundles "fabricated"/nonexistent and treated single-blob as "the only real
+  precedent." That is imprecise — those bundles exist on unmerged sibling
+  branches, and multi-field `manual_credentials` is a real, established pattern;
+  they are just absent from *this frozen base*. The shape is therefore a
+  build-time decision to re-check at stage 2, not a settled constraint.
 - **One candidate integration-service growth: the account-key deriver.** `identity.
   source: strategy` needs a deriver that yields a readable `account_key`/label from
-  `account_id`. The only shipped `manual_credentials` deriver
+  `account_id`. The stored secret is a JSON payload under both shapes (multi-field
+  packs into it; the fallback stores the pasted blob), and the only shipped
+  `manual_credentials` deriver
   (`service/manual_credentials_identity.go:dsnHostIdentityDeriver`) parses a DSN
-  **host out of the secret**; it does not JSON-decode the blob to pull out
-  `account_id`. So a small sibling deriver (blob → `account_id`) is expected —
-  confirm at stage 2 by reading the 3-hold base (cite it if it already exists, add
-  it if not). This is the one place §0's verdict is "small growth, to confirm,"
-  not "zero" — stated plainly rather than asserted away.
+  **host out of the secret**; it does not JSON-decode the payload to pull out
+  `account_id`. So a small sibling deriver (JSON payload → `account_id`) is
+  expected — confirm at stage 2 by reading the base (cite it if it already exists,
+  add it if not). This is the one Helio-side growth §0 flags as "small, to
+  confirm" beyond the (likely already-merged) multi-field form — stated plainly
+  rather than asserted away.
 - **OAuth 2.0 successor (deprecation-driven, deferred but not far-future).**
   From 2027.1 no new TBA integration *records* can be created in any account.
   Because this design is **customer-owned** (each customer creates their own
