@@ -207,49 +207,74 @@ case appears, it would be a *separate* `manual_api_token` bundle, not this one.)
 ### 3.4 Identity
 
 The connected business's identity comes from the **`business:read`**-scoped
-`GET /developer/v1/business` endpoint, which returns the authenticated Ramp
+connected-business read endpoint, which returns the authenticated Ramp
 business's `id` and name/entity fields.
 
-- **Chosen: `identity.source: api`** against `/developer/v1/business`,
-  `stable_key: /id` (the business id — the natural per-connection account key),
+- **Chosen: `identity.source: userinfo`** with `url:` pointing at the
+  connected-business read endpoint (working value
+  `https://api.ramp.com/developer/v1/business`), `stable_key: /id` (the business
+  id — the natural per-connection account key),
   `label_candidates: [/business_name_legal, /business_name_on_card, /id]`.
-- Ramp's opaque access tokens are **not** JWTs, so there is no `sub` to read
-  from the token, and Ramp is not documented as an OIDC provider with a
-  `userinfo` endpoint (contrast Brex, which used OIDC `userinfo`/`/sub`).
-  `GET /developer/v1/business` is the reviewed HTTPS identity endpoint. The exact
-  identity JSON field names are confirmed at stage 1 against the OpenAPI schema
-  (§7 open item); `business:read` is already in the scope set so no extra scope
-  is needed.
+- `userinfo` is the stock separate-GET identity source: the validator accepts
+  `source ∈ {userinfo, token_response, strategy}` (`validate.go:368`), and for
+  `userinfo` it reads a `url:` field (`identityManifest.URL`, `manifest.go:104`),
+  fetches that endpoint with the access token, and extracts `stable_key` /
+  `label_candidates` via RFC 6901 JSON pointers — the stock
+  `declarativeIdentityResolver`, **no capability growth**. The `userinfo` name is
+  the enum value for "GET a JSON doc and pointer-extract," **not** a claim that
+  the endpoint is an OIDC `/userinfo`: the shipped **bitly** bundle proves it,
+  using `source: userinfo` + `url: https://api-ssl.bitly.com/v4/user` against a
+  plain (non-OIDC) account-read endpoint. Ramp's connected-business read is the
+  same shape.
+- Ramp's opaque access tokens are **not** JWTs, so there is no `sub` to read from
+  the token and no token-response identity to use (contrast Brex's OIDC
+  `userinfo`/`/sub`). The separate `business:read` GET is the reviewed HTTPS
+  identity endpoint; `business:read` is already in the scope set so no extra
+  scope is needed.
+- **Stage-1 confirms (before L1):** both the exact **endpoint path**
+  (singular `/developer/v1/business` vs a plural `/businesses`-style read — the
+  machine-readable API reference did not print it verbatim, and Ramp's REST
+  resources are generally plural, e.g. `transactions`, `users`) **and** the
+  identity JSON **field names** (`stable_key` `/id`, `label_candidates`) are
+  verified against `/openapi/developer-api.json` or `/llms-api.txt`. A wrong path
+  silently breaks identity extraction at connect time, so it is a hard stage-1
+  gate, not just the field names (§7 open item).
 
-### 3.5 The one load-bearing technical fact — `expires_in` is documented PRESENT
+### 3.5 The one load-bearing technical fact — TTL is documented, `expires_in` presence is UNCONFIRMED
 
-**This decides whether Ramp needs the assumed-TTL capability.** Unlike Brex
-(whose auth-code token example *omits* `expires_in`), Ramp's docs **state the
-access-token lifetime numerically** — *"1 hour (3,600 seconds) for Authorization
-Code and Refresh Token access tokens"* — and Ramp follows a standard OAuth2 token
-response, so `expires_in: 3600` is **expected to be present** in the token
-response. Therefore:
+**This decides whether Ramp needs the assumed-TTL capability — and it is an open
+L2 question, not a settled fact.** Ramp's docs state the access-token lifetime
+**numerically** — *"1 hour (3,600 seconds) for Authorization Code and Refresh
+Token access tokens"* — but a documented **TTL number** is not a documented
+`expires_in` **field**. Verified against Ramp's machine-readable guides
+(`docs.ramp.com/llms-guides/authorization.txt`, `/llms-full.txt`): they give the
+3,600 s lifetime but **never list the `/developer/v1/token` response body fields**
+— there is no documented `expires_in` in the token response. Conflating "TTL is
+documented" with "`expires_in` is present" is exactly the Stripe/Salesforce
+nil-`Expiry` failure mode this design must avoid, so the honest position is
+**symmetric to Brex**: TTL known (3600 s), `expires_in` presence **unconfirmed**,
+resolved at L2 against the real token exchange. Two first-class branches:
 
-- **Expected case — `expires_in` present.** Ramp is **pure stock
+- **Branch A — `expires_in` present** (verify at L2). Ramp is **pure stock
   `standard_oauth`**: the generic `standardOAuthExchanger` reads `expires_in`,
   persists a real `Expiry`, and the token gateway's refresh-and-write-back fires
-  at ~1 h. **No capability growth on this axis.**
-- **Unlikely case — `expires_in` absent** (the live token endpoint drops it
-  despite the documented TTL). Then Ramp hits the **Stripe/Salesforce failure
-  mode**: a nil persisted `Expiry` reads as non-expiring, refresh never fires,
-  every connection 401s ~1 h after connect. The fix would be the already-designed
-  **assumed-TTL** field (`oauth.access_token_ttl_seconds: 3600` →
+  at ~1 h. No capability growth on this axis.
+- **Branch B — `expires_in` absent** (a real, not remote, contingency given the
+  docs never assert the field). Then a nil persisted `Expiry` reads as
+  non-expiring, refresh never fires, every connection 401s ~1 h after connect —
+  the Stripe/Salesforce brick. The fix is the already-designed **assumed-TTL**
+  field (`oauth.access_token_ttl_seconds: 3600` →
   `OAuthEndpoints.AssumedAccessTokenTTL`), which is **not yet on this worktree's
   `oauthManifest`** (verified — `provider-gen` rejects it today; it lands on the
   salesforce/stripe/brex sibling branches). Ramp would then **consume** that field
-  (one bundle line), not author it.
+  (one bundle line), not author it — a **real conditional ordering dependency** on
+  the assumed-TTL field reaching this Wave-2 base first, not a footnote.
 
-So the plan is the **opposite ordering posture to Brex**: assume **no growth**
-(case: `expires_in` present) and keep the **L2 confirmation against the real
-`/developer/v1/token`** as the gate that flips to the assumed-TTL fallback *only
-if* `expires_in` unexpectedly turns out absent. No bespoke adapter either way —
-this is the skill's "grow one reviewed field, not an adapter" guidance, and here
-even that field is a fallback, not the baseline.
+So the posture is the **same as Brex**: do **not** assert "documented present."
+The **L2 exchange against the real `/developer/v1/token`** is the gate that
+decides between Branch A (no growth) and Branch B (consume the assumed-TTL field).
+No bespoke adapter either way — this is the skill's "grow one reviewed field, not
+an adapter" guidance; whether that field is even needed is the L2 verdict.
 
 ### 3.6 Disconnect — `local_only` (no documented revoke endpoint)
 
@@ -284,18 +309,21 @@ provider's L5.
 
 ## 4. Helio integration-service capability growth
 
-**Expected: ZERO capability growth — Ramp is pure stock `standard_oauth`.** Every
-axis is already stock:
+**Target: ZERO capability growth in Branch A — every axis but one is
+unconditionally stock, and the last is an L2 question.** The axes:
 
 - **Client auth = `form_basic`** (HTTP Basic at the token endpoint, §3.1) —
   verified present on main (`TokenExchangeFormBasic`, `validate.go:243`). This is
   the one axis that differs from Brex; it needs **no growth** because the enum
   value already exists.
-- **`expires_in` documented present** (§3.5) → the generic exchanger persists a
-  real `Expiry`; **no assumed-TTL field needed** in the expected case (contrast
-  Brex, which carries a probable assumed-TTL ordering dependency).
-- **Identity** via declarative `identity.source: api` against
-  `/developer/v1/business`, `stable_key: /id` — stock `declarativeIdentityResolver`.
+- **`expires_in` presence UNCONFIRMED** (§3.5) → **Branch A** (field present):
+  the generic exchanger persists a real `Expiry`, no assumed-TTL field needed.
+  **Branch B** (field absent): Ramp consumes the assumed-TTL field, a real
+  conditional ordering dependency on that field reaching this base — symmetric to
+  Brex, not the inverse. The L2 token exchange decides.
+- **Identity** via declarative `identity.source: userinfo` + `url:` against the
+  connected-business read endpoint, `stable_key: /id` — stock
+  `declarativeIdentityResolver` (bitly precedent, §3.4). No growth.
 - **Refresh-token write-back** — stock; refresh tokens are **not** documented as
   rotating, so the default write-back suffices (`refresh_lease: none`). Confirm at
   L2 — if rotation is observed, set `refresh_lease: credential` (the existing
@@ -305,9 +333,9 @@ axis is already stock:
   stock.
 
 So the only real risk is the §3.5 `expires_in` L2 confirmation. If it turns out
-absent, Ramp acquires a **conditional** ordering dependency on the assumed-TTL
-field landing on its Wave-2 base (the field it would then consume, not author).
-No Ramp-specific adapter in any case.
+absent (Branch B), Ramp acquires a **conditional** ordering dependency on the
+assumed-TTL field landing on its Wave-2 base (the field it would then consume, not
+author). No Ramp-specific adapter in any case.
 
 ---
 
@@ -357,8 +385,8 @@ auth:
     #                                    # only after the assumed-TTL field lands on this base (not yet on oauthManifest).
 
 identity:
-  source: api                            # GET /developer/v1/business (business:read); opaque non-JWT token, no OIDC userinfo (§3.4)
-  endpoint: https://api.ramp.com/developer/v1/business
+  source: userinfo                       # stock separate-GET identity source (bitly precedent); opaque non-JWT token, so no token-response identity (§3.4)
+  url: https://api.ramp.com/developer/v1/business   # connected-business read (business:read). Path (singular vs plural) + field names CONFIRM at stage 1 (§3.4/§7)
   stable_key: /id
   label_candidates: [/business_name_legal, /business_name_on_card, /id]  # exact field names CONFIRM at stage 1 (§7)
 
@@ -431,15 +459,19 @@ gates the flip, never dev/L4/merge).
   which maps onto the stock `token_exchange_style: form_basic` enum value
   (verified present on main). Brex used `form_secret`; Ramp uses `form_basic`.
   Both are stock; the difference is a one-line bundle value, not a capability.
-- **`expires_in` is documented PRESENT — the assumed-TTL path is the UNLIKELY
-  fallback, not the baseline (§3.5/§4).** This is the **inverse of Brex**: Brex's
-  auth-code token example omits `expires_in` (assumed-TTL expected), while Ramp
-  states the 1-hour/3600-second TTL numerically and follows a standard token
-  response (`expires_in` expected present, no growth). The **L2 exchange against
-  the real `/developer/v1/token`** is the gate that would flip Ramp to the
-  assumed-TTL fallback *only if* `expires_in` is unexpectedly absent — and that
-  field is not yet on this base's `oauthManifest` (would be a conditional ordering
-  dependency, consumed not authored).
+- **TTL is documented (3600s); `expires_in` presence is UNCONFIRMED — the
+  assumed-TTL path is a first-class L2 branch, not an unlikely fallback
+  (§3.5/§4).** Correction from an earlier draft: this is **symmetric to Brex, not
+  the inverse.** Ramp's machine-readable guides
+  (`docs.ramp.com/llms-guides/authorization.txt`, `/llms-full.txt`) state the
+  1-hour/3,600-second TTL **number** but **never list the `/developer/v1/token`
+  response body fields** — a documented TTL is not a documented `expires_in`
+  field, and conflating them is the Stripe/Salesforce nil-`Expiry` failure mode.
+  So the honest position is the **L2 gate**: exchange against the real
+  `/developer/v1/token` and inspect the response. Branch A (`expires_in` present)
+  → no growth; Branch B (`expires_in` absent) → Ramp consumes the assumed-TTL
+  field, which is **not yet on this base's `oauthManifest`** — a **real
+  conditional ordering dependency** (consumed not authored), not a remote one.
 - **Helio rides Ramp's Developer-API partner OAuth app, NOT the Ramp MCP OAuth
   client (§1/§3.1).** Ramp documents a separate "build for AI agents" path where
   *"you must authorize through the shared Ramp MCP OAuth client, not through your
@@ -450,15 +482,31 @@ gates the flip, never dev/L4/merge).
   issuance or spend control. Recorded so the batch lead does not mistake the MCP
   path for the integration path — the correct lane is the standard partner
   authorization-code Developer-API app.
-- **Authorize-URL host and identity field names are stage-1 confirms (§3.1/§3.4).**
-  The machine-readable docs verify the authorize **params** (`response_type=code`,
-  `scope`, `client_id`, `redirect_uri`, `state`) and the token host
-  (`api.ramp.com/developer/v1/token`) but do **not** print the authorize URL host
-  verbatim; working value `https://app.ramp.com/v1/authorize`, confirmed at the
-  app-registration screen. The exact `GET /developer/v1/business` identity JSON
-  field names (`stable_key`/`label_candidates`) are confirmed against the OpenAPI
-  schema at stage 1. Neither blocks the design; both are read off the real app/API
-  before L1.
+- **Identity uses `source: userinfo` + `url:`, the stock separate-GET form — the
+  earlier `source: api` + `endpoint:` was a nonexistent capability (§3.4/§5).**
+  Correction from an earlier draft: `provider-gen` accepts identity `source ∈
+  {userinfo, token_response, strategy}` only (`validate.go:368`), and the identity
+  manifest field is `url`, not `endpoint` (`manifest.go:104`, strict-decode) — so
+  `source: api` + `endpoint:` fails validation, and the "zero capability growth"
+  claim would have rested on an enum value that does not exist. The stock form for
+  a separate-GET identity read is `source: userinfo` + `url:`, proven by the
+  shipped **bitly** bundle (`source: userinfo` + `url:.../v4/user`, a non-OIDC
+  account read). Zero-growth survives once the field names are corrected — the
+  mechanism was always the stock `declarativeIdentityResolver`.
+- **Authorize-URL host, identity endpoint PATH, and identity field names are
+  stage-1 confirms (§3.1/§3.4).** The machine-readable docs verify the authorize
+  **params** (`response_type=code`, `scope`, `client_id`, `redirect_uri`,
+  `state`) and the token host (`api.ramp.com/developer/v1/token`) but do **not**
+  print the authorize URL host verbatim; working value
+  `https://app.ramp.com/v1/authorize`, confirmed at the app-registration screen.
+  For identity, **both** the endpoint **path** (singular `/developer/v1/business`
+  vs a plural `/businesses`-style read — the API reference did not print it, and
+  Ramp's REST resources are generally plural, e.g. `transactions`, `users`) **and**
+  the JSON field names (`stable_key`/`label_candidates`) are confirmed against
+  `/openapi/developer-api.json` or `/llms-api.txt` before L1. A wrong path
+  silently breaks identity extraction at connect time, so the path is a hard
+  stage-1 gate, not just the field names. Neither blocks the design; both are read
+  off the real app/API before L1.
 - **Disconnect is `local_only` — no invented revoke URL (§3.6).** No official Ramp
   token-revocation endpoint is documented, so the bundle does not ship a
   `provider_revoke` block (which the validator would require a URL for). Upgrade to
