@@ -1,0 +1,13 @@
+{
+  "name": "paddle",
+  "type": "service",
+  "description": "Paddle Billing as a tool (merchant-of-record subscription billing; API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "PADDLE_API_KEY"}
+      }
+    ]
+  }
+}
