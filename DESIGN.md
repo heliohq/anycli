@@ -41,13 +41,23 @@ The master plan flagged three risks for NetSuite; each is resolved here:
    **2027.1** NetSuite will not allow **new** TBA integrations to be created
    (Oracle: *"as of 2027.1, no new integrations using TBA can be created for
    SOAP web services, REST web services, and RESTlets"*); **existing** TBA
-   integrations keep working. The OAuth 2.0 alternative stays unattractive for
-   a shared server-to-server client (short-lived access tokens + refresh, and
-   authorization-code now requires PKCE). Because the deprecation blocks only
-   *new integration records* and our TBA integration/consumer app is created
-   **once** (well before 2027.1) and reused across all customer accounts, TBA
-   is the right lane for the shipping horizon. §8 records the OAuth-2.0 future
-   path so this is a deliberate, revisitable choice.
+   integrations keep working. This design's credential model is
+   **customer-owned** (§3): each customer creates the integration record *and*
+   the access token inside their **own** NetSuite account and pastes all five
+   fields — there is **no** shared Helio-owned integration app. Oracle is
+   explicit that a consumer key/secret "is always specific to one NetSuite
+   account" and cannot be transplanted; the only cross-account distribution
+   mechanism is a bundled SuiteApp with a shared Application ID, and even then
+   each installing account mints its **own** consumer key/secret — a mechanism
+   this design does not build. Consequently the 2027.1 cutoff **does** bite:
+   from 2027.1 a *new* customer can no longer create a TBA integration record,
+   so new-customer onboarding via this flow is blocked (already-connected
+   customers keep working). TBA is the right lane for the near-term shipping
+   horizon — there is no self-serve multi-tenant OAuth app to register (§3,
+   oauth-audit row 149) — but the deprecation makes OAuth 2.0 the **required
+   successor for onboarding sooner than a naive read implies**, not an optional
+   far-future path. §8 records that OAuth-2.0 migration concretely, so this is a
+   deliberate, time-boxed choice on the 2027.1 clock.
 
 3. **Test-account procurement (§6).** NetSuite has no self-serve/free tier. L2
    and L5 require a real NetSuite account (or an Oracle-provided sandbox
@@ -78,9 +88,11 @@ https://<account-host>.suitetalk.api.netsuite.com/services/rest/
 
 where `<account-host>` is the account id lowercased with `_` → `-`
 (e.g. account `9876543_SB1` → host `9876543-sb1`; production `1234567` →
-`1234567`). Verified: the URL subdomain uses the **hyphen** form while the
-OAuth **realm** uses the **underscore** form of the same account id — this
-asymmetry is a classic TBA foot-gun and the service package owns the transform.
+`1234567`). Verified: the URL subdomain uses the **lowercase/hyphen** form
+while the OAuth **realm** uses the **uppercase/underscore** canonical form of
+the same account id (`9876543_SB1`) — this asymmetry is a classic TBA foot-gun,
+and the service package owns **deriving both** from the single account-id field
+(§2) rather than trusting the casing the user happened to paste.
 
 Two REST sub-APIs are wrapped:
 
@@ -102,10 +114,14 @@ Verified endpoint contracts from Oracle docs:
   `?replace=` and reference-by-`externalId` via the `externalId` path segment,
   but v1 scope keeps to internal-id CRUD + create to stay minimal (§8 defers
   external-id addressing).
-- Governance: 10 concurrent requests/account; HTTP **429** with `Retry-After`.
-  The service maps 429 to the runtime-error exit code and echoes `Retry-After`
-  in the `--json` error envelope so the agent can back off (it does **not**
-  auto-retry/block — fail-fast per the repo hard rule).
+- Governance: an **account-tier-dependent** concurrency limit (driven by the
+  account's SuiteCloud Processors / service tier — *not* a universal "10"),
+  surfaced as HTTP **429**. The service maps 429 to the runtime-error exit code
+  and, **when NetSuite actually returns a `Retry-After` header, echoes it
+  best-effort** as `retry_after` in the `--json` error envelope (NetSuite's
+  concurrency 429 is not documented to reliably carry `Retry-After`, so the
+  field is frequently empty); the agent can then back off. The service does
+  **not** auto-retry/block — fail-fast per the repo hard rule.
 
 Async SuiteQL (`Prefer: respond-async` + job polling) is **out of v1 scope**
 (§8) — transient synchronous queries cover the teammate use cases and avoid a
@@ -170,13 +186,24 @@ OAuth 1.0a Authorization header per request:
   base string — a common bug if forgotten).
 - Signing key = `rfc3986(consumer_secret) & rfc3986(token_secret)`; signature =
   base64(HMAC-SHA256(key, base)).
-- Emit header: `Authorization: OAuth realm="<ACCOUNT_ID underscore form>",
+- Emit header: `Authorization: OAuth realm="<canonical account id>",
   oauth_consumer_key="…", oauth_token="…", oauth_signature_method="HMAC-SHA256",
   oauth_timestamp="…", oauth_nonce="…", oauth_version="1.0",
   oauth_signature="<rfc3986(sig)>"`.
-- Host = `strings.ToLower(strings.ReplaceAll(accountID, "_", "-"))`; realm =
-  the account id **as entered** (underscore/upper form). Both derived from the
-  single `NETSUITE_ACCOUNT_ID` field.
+- Both the URL host and the realm are **derived** (never used verbatim) from the
+  single `NETSUITE_ACCOUNT_ID` field, and the two forms differ — the classic TBA
+  foot-gun:
+  - Host = `strings.ToLower(strings.ReplaceAll(accountID, "_", "-"))`
+    → lowercase/hyphen, e.g. `9876543-sb1`.
+  - Realm = `strings.ToUpper(strings.ReplaceAll(accountID, "-", "_"))`
+    → uppercase/underscore **canonical** form, e.g. `9876543_SB1`.
+  NetSuite's realm is case-sensitive and expects the canonical uppercase/
+  underscore form (Oracle: the account id "must match exactly, including
+  upper-case and lower-case letters"), so normalizing rather than trusting the
+  pasted casing means a user who enters `1234567_sb1` (or the hyphen host form)
+  still signs correctly. Production numeric ids are case-/separator-neutral;
+  only sandbox suffixes (`_SB1`) actually exercise the transform, so the L1
+  suite pins a lowercased-input vector (§7).
 
 Implemented with stdlib only (`crypto/hmac`, `crypto/sha256`, `encoding/base64`,
 `net/url`) — no third-party OAuth1 dependency. RFC-3986 percent-encoding
@@ -210,7 +237,9 @@ returns `Location` header → surface the new internal id as
 **0** success, **1** runtime/API failure (NetSuite non-2xx incl. 401 cred
 rejection and 429, transport error), **2** usage/parse (bad flags, invalid
 `--body` JSON, unknown record verb). Errors render as a `{"error": {...}}`
-JSON envelope under `--json`, plain text otherwise; 429 carries `retry_after`.
+JSON envelope under `--json`, plain text otherwise; 429 carries a best-effort
+`retry_after` (populated only when NetSuite actually returns a `Retry-After`
+header — see §1 — and omitted/empty otherwise).
 
 ---
 
@@ -222,7 +251,7 @@ Verified against Oracle's TBA setup docs, the required inputs are exactly:
 
 | Field | Secret | Purpose | Where the user gets it |
 |---|---|---|---|
-| `account_id` | no | Realm (underscore form) + URL host (hyphen form) | Setup → Company → Company Information (Account ID); or Company URLs → SuiteTalk |
+| `account_id` | no | Realm (canonical uppercase/underscore form) + URL host (lowercase/hyphen form), both **derived** from this one field (§2) | Setup → Company → Company Information (Account ID); or Company URLs → SuiteTalk |
 | `consumer_key` | yes | Integration record consumer key | Setup → Integration → Manage Integrations → New (enable TBA); shown once |
 | `consumer_secret` | yes | Integration record consumer secret | same integration record; shown once |
 | `token_id` | yes | Access token id | Setup → Users/Roles → Access Tokens → New (or "Manage Access Tokens") |
@@ -232,10 +261,13 @@ Registration model (why this is api_key, not oauth): the NetSuite admin creates
 **one integration record** (consumer key/secret) and **one access token** (token
 id/secret) bound to a role with "REST Web Services" + "Log in using Access
 Tokens" permissions, inside **their own** NetSuite account. There is no
-multi-tenant authorize endpoint we register a Helio app against — each customer
-mints their own four secrets. That is precisely the rubric's "OAuth is
-per-instance / impractical for a shared client → stays api_key" (oauth-audit row
-149: *"no viable multi-tenant path → api_key"*). Confirmed correct.
+multi-tenant authorize endpoint we register a Helio app against, and there is no
+single shared Helio-owned integration record: consumer key/secret are always
+account-specific (Oracle), so each customer mints their own four secrets. That
+is precisely the rubric's "OAuth is per-instance / impractical for a shared
+client → stays api_key" (oauth-audit row 149: *"no viable multi-tenant path →
+api_key"*). Confirmed correct. (Corollary — because the record is customer-owned,
+the 2027.1 TBA cutoff blocks *new-customer* onboarding; §0 risk 2 / §8.)
 
 Token semantics: TBA tokens **do not expire** (valid until revoked or the
 user/role changes) — so there is no refresh cycle; seed/serve the four secrets
@@ -370,7 +402,7 @@ integration-service.
 
 | Layer | What it proves for NetSuite | Needs external creds? |
 |---|---|---|
-| **L1** anycli `go test ./...` | Signature-base-string + header exactness against known TBA test vectors; host/realm transform (`_`→`-`, lowercasing, realm preserves underscore/case); SuiteQL sets `Prefer: transient` and folds `limit`/`offset` into the signature base; record CRUD request shape (method/path/body); 429 → `retry_after` in `--json`; exit-code 0/1/2 matrix — all against an `httptest.Server` fake. **No real API.** | No |
+| **L1** anycli `go test ./...` | Signature-base-string + header exactness against known TBA test vectors; host/realm transform vectors (host → lowercase/hyphen, realm → **uppercase/underscore canonical**, incl. a lowercased-input `1234567_sb1` case asserting realm-uppercasing); SuiteQL sets `Prefer: transient` and folds `limit`/`offset` into the signature base; record CRUD request shape (method/path/body); 429 → error envelope with `retry_after` populated **only when** the fake returns `Retry-After` (and empty when it does not); exit-code 0/1/2 matrix — all against an `httptest.Server` fake. **No real API.** | No |
 | **L2** dev harness vs real API | `ANYCLI_CRED_ACCOUNT_ID=… ANYCLI_CRED_CONSUMER_KEY=… …(4 more) anycli netsuite -- query --q "SELECT id, companyname FROM customer FETCH FIRST 5 ROWS ONLY"` returns real rows; a `record get --type customer --id <id>` returns a real record. Proves field names, signing, and the host/realm transform match the **live** account. | **Yes** — a real NetSuite account/sandbox from the account pool |
 | **L3** `provider-gen --check` + both suites | Bundle strict-decodes; five projections regenerate consistently; `helio-cli` builds against the anycli branch via a local `replace`; integration-service + helio-cli unit suites green. **No real creds.** | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` with the five fields (`access_token`-less multi-field payload; `test_seed:true`), real seeded org/assistant identities, then `heliox tool netsuite -- query …` reaches the live API through the real token gateway. Seed the four secrets directly (no `expires_at` — TBA tokens don't expire, like Slack). | **Yes** — same real creds as L2 |
@@ -391,14 +423,21 @@ with no external dependency and gate the branch on their own.
 - **"Distinct vault credential kind and/or signing adapter" (§6) resolves to:**
   reuse existing multi-field `manual_credentials` (no new vault kind) + signing
   in anycli (no Helio adapter). Recorded here so the pre-verify hedge is closed.
-- **OAuth 2.0 future path (deprecation-driven, deferred).** From 2027.1 no new
-  TBA integration *records* can be created. Our single reusable integration/
-  consumer app is created once, pre-2027.1, so TBA remains valid for existing
-  customers and for our shared client indefinitely; but if NetSuite ever forces
-  migration, the successor is an `oauth_review`-lane `standard_oauth` bundle
-  (authorization-code + **PKCE**, short-lived access token + refresh, account-
-  specific token host). That is a future re-lane, not v1 work. Flagged, not
-  built.
+- **OAuth 2.0 successor (deprecation-driven, deferred but not far-future).**
+  From 2027.1 no new TBA integration *records* can be created in any account.
+  Because this design is **customer-owned** (each customer creates their own
+  integration record — §0 risk 2, §3), the cutoff blocks **new-customer
+  onboarding** via TBA from 2027.1: already-connected customers keep working,
+  but a fresh customer can no longer mint the consumer key/secret. There is no
+  "single reusable Helio app created once" that sidesteps this — a consumer
+  key/secret is always account-specific (Oracle), and even a bundled SuiteApp
+  mints a per-account key on install, a distribution mechanism this design does
+  not build. So OAuth 2.0 is the **required successor for onboarding, on the
+  2027.1 clock**, not an optional far-future path: the successor bundle is an
+  `oauth_review`-lane `standard_oauth` (authorization-code + **PKCE**,
+  short-lived access token + refresh, account-specific token host). It is
+  flagged and scoped here, not built in v1; the timeline is driven by the
+  2027.1 deprecation, and this doc is the pointer for that work.
 - **Deferred v1 scope:** async SuiteQL (`Prefer: respond-async` + job polling),
   external-id record addressing (`/record/v1/{type}/eid:{externalId}`),
   subrecord/sublist mutation, and `?replace=` upsert semantics. Sync transient
