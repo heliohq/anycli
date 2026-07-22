@@ -44,6 +44,19 @@ API docs, not inheriting assumptions. Results:
      (`api.cal.com/oauth/token`, `app.cal.com/api/auth/oauth/token`) — those are
      wrong for the v2 flow; use the two hosts above.
 
+- **Versioning model divergence CONFIRMED and CORRECTED.** An earlier draft
+  modeled `cal-api-version` as a single global constant (`2024-08-13`) "baked
+  in" and sent on every call, by analogy to Notion's `Notion-Version`. Checking
+  each endpoint's official reference disproves that: Cal.com v2 pins the version
+  **per endpoint** — `/v2/slots` requires `2024-09-04` (docs: "must be set to
+  2024-09-04; if not set to this value, the endpoint will default to an older
+  version"), `/v2/bookings` requires `2024-08-13`, `/v2/event-types` requires
+  `2024-06-14`, `/v2/schedules` requires `2024-06-11`. A single `2024-08-13`
+  constant would send the wrong version to `/slots` (a core "find available
+  time" capability), silently downgrading its response semantics. The design now
+  models the version per route (§1 table, §2, §6 L1). The Notion single-global
+  analogy is dropped.
+
 - **API-maturity RISK to record (not a lane change).** The v2 third-party OAuth
   is young: the token endpoint `POST /v2/auth/oauth2/token` has an open upstream
   report of returning `404` even from Cal.com's own docs playground
@@ -63,28 +76,46 @@ API docs, not inheriting assumptions. Results:
 ## 1. Official API surface wrapped — and why
 
 **Base:** `https://api.cal.com/v2`. **Auth:** `Authorization: Bearer <access_token>`.
-**Required per-request header:** `cal-api-version: 2024-08-13` (date-pinned
-platform versioning; sent by the service on every resource call, exactly like
-Notion's `Notion-Version`). **Response envelope:** v2 wraps payloads as
+**Required per-request header:** `cal-api-version: <date>` — date-pinned, but
+**PER-ENDPOINT, not a single global version.** This is the #1 correctness trap
+and it is NOT like Notion's single `Notion-Version` constant. Cal.com v2 pins a
+different date per endpoint family, and omitting the header (or sending the
+wrong date) does **not** hard-error uniformly: the endpoint **silently defaults
+to an older version** with altered response semantics/shape (docs: "must be set
+to <date>; if not set to this value, the endpoint will default to an older
+version"), and several v2 endpoints `404` outright when the header is absent.
+So the version must be **modeled per command/route**, verified from each
+endpoint's own official reference. **Response envelope:** v2 wraps payloads as
 `{"status":"success","data": …}` (errors as `{"status":"error","error": …}`).
+
+**Per-endpoint `cal-api-version` (confirmed against each endpoint's official
+reference; re-confirm at stage 1):**
+
+| Endpoint family | Required `cal-api-version` |
+|---|---|
+| `/v2/event-types`, `/v2/event-types/{id}` | `2024-06-14` |
+| `/v2/slots` | `2024-09-04` |
+| `/v2/bookings` (list/get/create/cancel/reschedule) | `2024-08-13` |
+| `/v2/schedules` | `2024-06-11` |
+| `/v2/me` | `2024-06-14` (docs example omits it, but v2 defaults-to-older / 404s without it — pin it; §4) |
 
 An AI teammate uses Cal.com as a **scheduling actuator**: inspect what meeting
 types the user offers, find open time, book/cancel/reschedule on the user's
 behalf, and read the resulting bookings. That maps to a deliberately small,
 high-value slice of v2 — not the whole platform/org/webhook surface:
 
-| Verb group | Endpoint(s) | Why an AI teammate needs it |
-|---|---|---|
-| `event-type list` | `GET /v2/event-types` | Enumerate the user's bookable meeting types (id, slug, length) — the entry point; a booking needs an `eventTypeId`. |
-| `event-type get` | `GET /v2/event-types/{id}` | Inspect one type's config before booking. |
-| `slot list` | `GET /v2/slots` (bounded `start`/`end` range, `eventTypeId`) | Find available times to propose/confirm. Bounded range per Cal.com guidance. |
-| `booking list` | `GET /v2/bookings` | Review upcoming/past meetings ("what's on my calendar"). |
-| `booking get` | `GET /v2/bookings/{bookingUid}` | Detail one booking. |
-| `booking create` | `POST /v2/bookings` (`eventTypeId`, `start`, `attendee{name,email,timeZone}`) | Schedule a meeting — the core write. |
-| `booking cancel` | `POST /v2/bookings/{bookingUid}/cancel` | Cancel on request. |
-| `booking reschedule` | `POST /v2/bookings/{bookingUid}/reschedule` | Move a meeting. |
-| `schedule list` | `GET /v2/schedules` | Read availability schedules (working hours). |
-| `me` | `GET /v2/me` | Identity/profile; also underpins connect-time identity resolution (§3). |
+| Verb group | Endpoint(s) | Version | Why an AI teammate needs it |
+|---|---|---|---|
+| `event-type list` | `GET /v2/event-types` | `2024-06-14` | Enumerate the user's bookable meeting types (id, slug, length) — the entry point; a booking needs an `eventTypeId`. |
+| `event-type get` | `GET /v2/event-types/{id}` | `2024-06-14` | Inspect one type's config before booking. |
+| `slot list` | `GET /v2/slots` (bounded `start`/`end` range, `eventTypeId`) | `2024-09-04` | Find available times to propose/confirm. Bounded range per Cal.com guidance. Wrong/missing version silently downgrades slot semantics. |
+| `booking list` | `GET /v2/bookings` | `2024-08-13` | Review upcoming/past meetings ("what's on my calendar"). |
+| `booking get` | `GET /v2/bookings/{bookingUid}` | `2024-08-13` | Detail one booking. |
+| `booking create` | `POST /v2/bookings` (`eventTypeId`, `start`, `attendee{name,email,timeZone}`) | `2024-08-13` | Schedule a meeting — the core write. |
+| `booking cancel` | `POST /v2/bookings/{bookingUid}/cancel` | `2024-08-13` | Cancel on request. |
+| `booking reschedule` | `POST /v2/bookings/{bookingUid}/reschedule` | `2024-08-13` | Move a meeting. |
+| `schedule list` | `GET /v2/schedules` | `2024-06-11` | Read availability schedules (working hours). |
+| `me` | `GET /v2/me` | `2024-06-14` | Identity/profile; also underpins connect-time identity resolution (§3, §4). |
 
 Explicitly **out of scope** for v1: `/v2/oauth-clients` (Platform managed-user
 plane — wrong product, see §0), `/v2/webhooks`, `/v2/credits`, and org/team
@@ -110,8 +141,11 @@ JSON-native. Matches 21/23 existing definitions. `cli` type is not justified.
   package name equals the id; §3 naming). Registered in
   `internal/tools/register.go` `init()` as `RegisterService("calcom", &calcom.Service{})`.
   Copy the shape of `internal/tools/notion/`: a cobra tree grouped by resource,
-  a `Service{BaseURL, HC, Out, Err}` struct so httptest fakes can drive it, the
-  `cal-api-version` constant baked in, and the documented exit-code contract
+  a `Service{BaseURL, HC, Out, Err}` struct so httptest fakes can drive it, a
+  **per-route `cal-api-version` map** (NOT one baked-in constant — a named
+  constant per endpoint family: `2024-06-14` event-types/me, `2024-09-04` slots,
+  `2024-08-13` bookings, `2024-06-11` schedules; each command sends its own), and
+  the documented exit-code contract
   (**0** success; **1** runtime/API failure via typed `apiError` carrying
   Cal.com's `status:error` body; **2** usage/parse/enum errors) with a `--json`
   structured error envelope.
@@ -196,15 +230,21 @@ Flow, verified against official docs:
 **Identity resolution** (`identity` block): `source: userinfo`,
 `url: https://api.cal.com/v2/me`, `stable_key: /data/id`,
 `label_candidates: [/data/email, /data/username]` (RFC-6901 pointers into the v2
-`data` envelope). **Capability risk to verify at L2:** the
-`declarativeIdentityResolver` issues a plain bearer `GET`; if `/v2/me` rejects
-the request without a `cal-api-version` header, this is the one place a narrow
-`standard_oauth` capability growth may be needed — a reviewed fixed-header field
-on the userinfo request (analogous to how the anycli service always sends the
-version header). Verify first whether `/v2/me` defaults the version (many v2
-endpoints do); only grow the capability if it hard-rejects. Do **not** reach for
-a compiled `service/adapter_*.go` — this is standard-shaped OAuth
-(provider-yaml.md: a new standard OAuth provider should never need an adapter).
+`data` envelope). **The fixed `cal-api-version` header on the userinfo GET is an
+expected requirement, not a contingency.** The `declarativeIdentityResolver`
+issues a plain bearer `GET` and is not the anycli service, so the per-route
+version map from §1/§2 never applies to it — the header must be set on the
+userinfo request itself. Since v2 endpoints silently default-to-older / `404`
+without the header, a version-less `/v2/me` GET would very likely break
+stable-key resolution in the connect flow. So **plan the reviewed fixed-header
+field into the `standard_oauth` userinfo request from the start**, pinned to
+`/v2/me`'s version **`2024-06-14`** (the docs example shows only `Authorization`,
+so confirm this exact value at stage 1 from the official `/v2/me` reference
+before wiring). This is the sanctioned `standard_oauth` capability-growth path —
+a reviewed fixed-header field on the userinfo request, analogous to how the
+anycli service always sends the version header. Do **not** reach for a compiled
+`service/adapter_*.go` — this is standard-shaped OAuth (provider-yaml.md: a new
+standard OAuth provider should never need an adapter).
 
 **Nothing secret in the bundle.** `client_id`/`client_secret` land only in
 integration-service config — `config/` locally and the Helm Secret in `deploy/`
@@ -219,10 +259,12 @@ config fails startup, so id+secret land in the same change.
 `presentation`: name "Cal.com", `description_key: calcom`,
 `consent_domain: cal.com`, an `order` slotted with the other Scheduling tools.
 `tool: {name: calcom, kind: oauth}`. `resources: {selection|discovery|
-enforcement: none}`. Bundle uses `runtime_strategy: standard_oauth` → **zero
-integration-service Go code** (the golden path composes the exchanger, the
-`declarativeIdentityResolver`, and the no-op revoker), unless the `/v2/me`
-version-header check in §4 forces the one narrow reviewed capability field.
+enforcement: none}`. Bundle uses `runtime_strategy: standard_oauth` → **no
+provider-specific integration-service Go code** (the golden path composes the
+exchanger, the `declarativeIdentityResolver`, and the no-op revoker). The one
+declarative addition is the reviewed fixed-header field on the userinfo request
+(`cal-api-version: 2024-06-14`, §4) — a `standard_oauth` capability field, not a
+provider adapter.
 
 Companion (batch-end, ride the single provider-gen run):
 - UI icon `ui/helio-app/src/integrations/icons/calcom.svg` + hand-register in
@@ -242,7 +284,7 @@ go-live change (SKILL.md stage 10).
 
 | Layer | What it proves for calcom | Needs external creds? |
 |---|---|---|
-| **L1** anycli `go test ./...` | `internal/tools/calcom` unit tests against an `httptest` fake: request shape (path, `Authorization: Bearer`, `cal-api-version` header), `{status,data}` unwrap, booking-create body assembly, `--json` vs plain error rendering, exit codes 0/1/2. Never hits the real API. | No |
+| **L1** anycli `go test ./...` | `internal/tools/calcom` unit tests against an `httptest` fake: request shape (path, `Authorization: Bearer`, and the **correct per-endpoint `cal-api-version`** — assert `slot list` sends `2024-09-04`, `booking *` send `2024-08-13`, `event-type *`/`me` send `2024-06-14`, `schedule list` sends `2024-06-11`; a single fixed value would be a bug), `{status,data}` unwrap, booking-create body assembly, `--json` vs plain error rendering, exit codes 0/1/2. Pin the failure mode: a route sending the wrong/absent version is a defect the fake must catch. Never hits the real API. | No |
 | **L2** `anycli calcom -- <args>` harness, `ANYCLI_CRED_ACCESS_TOKEN=<tok>` | Real `api.cal.com/v2` calls: `me`, `event-type list`, `slot list`, `booking create`+`cancel`. **Go/no-go gate** (§0): also exercise the real `POST /v2/auth/oauth2/token` exchange + refresh from the dev app to confirm the third-party OAuth endpoint works (calcom#27686 / #24016). | **Yes** — a Cal.com test account access token (account pool, lane 2) + the dev-mode OAuth app (lane 1) |
 | **L3** `provider-gen --check` + both repos' unit suites | Bundle strict-decodes, closed field/enum contract, directory==key, HTTPS URLs; helio-cli builds against the local anycli `replace`; resolver identity (no divergence entry) holds. Run locally on-branch; expected to be red in CI until batch-end regen. | No |
 | **L4** singleton + `POST /internal/test-only/connections/seed` + `heliox tool calcom -- me` | Seed `access_token`+`refresh_token` with a short `expires_at` for a real seeded assistant identity; the next call forces the token-gateway refresh-and-write-back path, then reaches live `/v2/me`. Proves gateway→anycli wiring end to end (bypasses authorize). | **Yes** — real Cal.com access+refresh tokens; dev OAuth app id/secret in local uncommitted `config/cloud.yaml` for the refresh path |
