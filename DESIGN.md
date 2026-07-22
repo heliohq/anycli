@@ -54,6 +54,14 @@ embedded signing/`/embedded/*`, team management, API-app CRUD, unclaimed
 drafts, bulk-send, fax, and OAuth-app admin. These can be added later; the MVP
 is the send→track→download loop that an assistant actually drives.
 
+**Scope coverage of this surface (resolved in §3).** Two of the jobs above are
+not covered by the app-owner `request_signature` scope and force the scope/billing
+decision up front: the template jobs (`template list/get`, `send-with-template`)
+live **only** behind the user-charged `template_access` scope, and
+`signature-request list` is bounded by what the OAuth token itself created. §3
+settles the scope set so every job listed here is actually authorized; do not
+read this table as "all covered by `request_signature`."
+
 **Two implementation nuances that shape the service** (both verified against the
 send reference):
 
@@ -169,25 +177,58 @@ gates only the visible flip**, nothing upstream.
   and must work.
 - **API auth:** `Authorization: Bearer <access_token>` on every `api.hellosign.com/v3` call.
 
-**Scopes (verified — 7 exist, split by billing model):**
-- App-owner-charged (Helio's app is billed): `basic_account_info` (email/name),
-  `request_signature` (send requests, read statuses & document files).
-- User-charged (the connecting user's paid API plan is billed):
-  `account_access`, `signature_request_access`, `template_access`,
-  `team_access`, `api_app_access`.
+**Scopes (verified — 7 exist, split into two _mutually exclusive_ billing models;
+an app picks one model at creation, so its scopes cannot be mixed across models):**
+- **App-owner-charged** ("Charge me" — Helio's app account is billed and *is* the
+  actor): `basic_account_info` (email/name), `request_signature` ("send requests,
+  access statuses and document files"). **No template scope exists in this
+  model**, and every request/template the assistant touches belongs to Helio's
+  app account, not the connecting user.
+- **User-charged** ("Charge users" — the connecting user's paid API plan is billed
+  and the *user* is the actor): `account_access` (email/name),
+  `signature_request_access` (send/view/update requests + download files),
+  `template_access` ("view, create, and modify templates"), `team_access`,
+  `api_app_access`.
 
-  **Recommended MVP scopes: `basic_account_info` + `request_signature`.** They
-  cover the entire §1 send→track→download loop under the *app-owner* billing
-  model (predictable: Helio's Dropbox Sign account is billed per signature
-  request, no dependency on the end user holding a paid API plan). `template list/get`
-  works under `request_signature` for send-with-template usage.
-  **Billing/scope is an explicit product decision to confirm at stage 1** — if
-  Helio prefers the end user to bear signature cost (and richer template/team
-  reads), switch to the user-charged `signature_request_access` (+`template_access`).
-  Note: **changing an app's scopes revokes all existing user authorizations**
-  (forces re-consent), so the scope set must be settled before the visible flip,
-  not iterated afterward. `display_scopes` mirror the reviewed set for the
-  consent card.
+  **Recommended MVP scopes: `account_access` + `signature_request_access` +
+  `template_access` (user-charged model).** This is the set that actually covers
+  the full §1 surface *and* is coherent for an AI teammate — it is the correct
+  model, not merely the richer one:
+  - **Templates force it.** The §1 job list includes `template list/get` and
+    `send-with-template`. `/template/*` sits **only** behind `template_access`,
+    which exists **only** in the user-charged model; `request_signature` returns
+    **403** on those paths. The app-owner set therefore cannot ship §1 as written.
+  - **Actor semantics force it.** An AI teammate connects the **user's** Dropbox
+    Sign account and acts *as that user* (`owner: individual`, §4). Under
+    user-charged scopes the assistant sends from, lists, and reads the connecting
+    user's own account and their templates — which is exactly what "send using a
+    saved reusable template" means. Under app-owner `request_signature` the
+    assistant would instead act as Helio's app and could only ever see Helio's
+    own templates/requests, making the template jobs incoherent for a real
+    teammate.
+  - **`signature-request list` caveat.** `signature_request_access` grants
+    list/view/download, but the docs state signature requests "must be made with
+    [the] oAuth token in order to access." So `GET /signature_request/list`
+    reflects requests the assistant created **through this connection**, not the
+    user's entire pre-existing history. That is fine for an assistant status
+    board, but the surface must not be described as whole-account history. (This
+    is also why `request_signature` alone was never a safe basis for `list` —
+    there is no source granting account-wide listing beyond OAuth-token-created
+    requests.)
+
+  **Billing tradeoff (explicit stage-1 product decision).** User-charged requires
+  the *connecting user* to hold a paid Dropbox Sign API plan (§7.3) — the same
+  paid-plan requirement app-owner billing would place on Helio's account, just
+  moved to the party whose account is actually being used, which is the right
+  place for it. The **only** way to reach the app-owner `basic_account_info` +
+  `request_signature` set is to **drop** `template list/get` **and**
+  `send-with-template` from the §1 surface (and accept app-as-actor semantics) —
+  that is a surface reduction decided at stage 1, not a drop-in scope swap.
+
+  **Changing an app's scopes revokes all existing user authorizations** (forces
+  re-consent), so the scope set must be settled before the visible flip, not
+  iterated afterward. `display_scopes` mirror the reviewed set for the consent
+  card.
 
 **Credential fields:** the bundle declares only
 `required_config_fields: [oauth.client_id, oauth.client_secret]`; the real
@@ -199,37 +240,53 @@ arrives via the OAuth callback and is stored in Vault; anycli receives only
 ### 3.1 The one real capability question: the refresh endpoint quirk
 
 Dropbox Sign documents the **refresh** call at a **different URL than the token
-URL**, carrying a query param:
+URL**, carrying a query param. The official OAuth walkthrough spells it out
+explicitly (verified 2026-07-22) — `?refresh` is shown as part of the URL, not as
+optional:
 
 ```
-POST https://app.hellosign.com/oauth/token?refresh
-     grant_type=refresh_token & refresh_token=<...>
+curl -X POST 'https://app.hellosign.com/oauth/token?refresh' \
+  -F 'grant_type=refresh_token' \
+  -F 'refresh_token=<...>'
 ```
 
 The `standard_oauth` runtime strategy's `standardOAuthExchanger` uses a single
 `oauth.token_url` for *both* the initial code exchange and refresh (a plain
-`grant_type=refresh_token` POST to `token_url`). So the decisive stage-1/L2 gate
-is: **does a plain `POST https://app.hellosign.com/oauth/token` with
-`grant_type=refresh_token` (no `?refresh`) succeed?**
+`grant_type=refresh_token` POST to `token_url`, no `?refresh`). So the decisive
+stage-1/L2 gate is: **is the documented `?refresh` suffix mandatory, or does a
+plain `POST https://app.hellosign.com/oauth/token` with `grant_type=refresh_token`
+(no suffix) also succeed?**
 
-- **Option A (preferred, zero platform code):** if the base `token_url` accepts
-  the refresh grant without the `?refresh` suffix (the query param is a
-  documentation artifact / no-op), then `standard_oauth` works unchanged. **This
-  is the on-branch L2 assertion to run first** — mint a token, force-expire it,
-  refresh through the plain `token_url`, confirm a new access token comes back.
-- **Option B (narrow reviewed capability, only if A fails):** if `?refresh` is
-  **mandatory**, grow `standard_oauth` by one reviewed field —
-  `oauth.refresh_url` (a full-URL override that `standardOAuthExchanger` uses for
-  the refresh grant when present, falling back to `token_url`) — added to
-  `provider-gen`'s closed field/enum contract with a unit test. This is the same
-  "grow one reviewed enum/field rather than fork an adapter" move that
+**The documentation points at Option B.** The official walkthrough documents
+`?refresh` explicitly as part of the refresh URL, with no indication it is
+optional — so implementers should **plan for Option B (the reviewed-field growth
+below) as the likely path**, and treat Option A as the exception that must be
+*proven* at L2, not assumed.
+
+- **Option B (documented path — one reviewed capability field):** if `?refresh`
+  is mandatory (as the docs show), grow `standard_oauth` by one reviewed field —
+  `oauth.refresh_url` (a full-URL override, e.g.
+  `https://app.hellosign.com/oauth/token?refresh`, that `standardOAuthExchanger`
+  uses for the refresh grant when present, falling back to `token_url`) — added
+  to `provider-gen`'s closed field/enum contract with a unit test. This is the
+  same "grow one reviewed enum/field rather than fork an adapter" move that
   adobe-sign (shard exchange) and salesforce (`instance_url` capture) used in
   this program. It is **not** a compiled `service/adapter_*.go` — Dropbox Sign's
-  response shape is otherwise standard, so no adapter is warranted.
+  response shape is otherwise standard, so no adapter is warranted. Budget for
+  this field growth in planning rather than hoping to avoid it.
+- **Option A (only if L2 proves it — zero platform code):** if the base
+  `token_url` turns out to accept the refresh grant *without* the `?refresh`
+  suffix (the query param behaving as a no-op), then `standard_oauth` works
+  unchanged and `oauth.refresh_url` is omitted. This is the strictly better
+  outcome, but the docs give no reason to expect it — so it must be
+  *demonstrated* at L2 (mint a token, force-expire it, refresh through the plain
+  `token_url`, confirm a new access token comes back), never pinned on assumption.
 
-The DESIGN's recommendation: **assume Option A, verify at L2 before pinning; fall
-to Option B only on a proven failure.** Flagging this at stage 1 (not mid-wave)
-per the master plan's non-standard-auth-shape risk guidance.
+The DESIGN's recommendation: **plan for Option B (the documented `?refresh`
+path); run the L2 refresh assertion before the anycli pin, and fall back to
+Option A's plain `token_url` only if L2 actually proves the suffix is a no-op.**
+Flagging this at stage 1 (not mid-wave) per the master plan's
+non-standard-auth-shape risk guidance.
 
 ---
 
@@ -258,11 +315,15 @@ auth:
     token_url: https://app.hellosign.com/oauth/token
     token_exchange_style: form_secret
     pkce: none
-    scopes: [basic_account_info, request_signature]
-    display_scopes: [basic_account_info, request_signature]
+    scopes: [account_access, signature_request_access, template_access]        # user-charged model — covers the full §1 surface incl. templates (see §3)
+    display_scopes: [account_access, signature_request_access, template_access]
     single_active_token: false
     refresh_lease: none
-    # refresh_url: https://app.hellosign.com/oauth/token?refresh   # ONLY if §3.1 Option B
+    # refresh_url: https://app.hellosign.com/oauth/token?refresh
+    #   ^ §3.1: the official docs document ?refresh explicitly, so plan to ship this
+    #     (Option B — requires first growing standard_oauth's reviewed oauth.refresh_url
+    #     field in provider-gen). Drop it ONLY if the L2 gate proves a plain token_url
+    #     refresh (no ?refresh) succeeds.
 
 identity:
   source: userinfo
@@ -296,7 +357,8 @@ Decisions & rationale:
   response carries `account_id`, which would suffice for a stable key with zero
   extra calls — but it is an opaque UUID and would make an ugly connection label.
   `GET /v3/account` (bearer-authenticated, no query params → returns the
-  *authenticated* account) yields `{account: {account_id, email_address, …}}`,
+  *authenticated* account; authorized by `account_access` in the recommended
+  scope set) yields `{account: {account_id, email_address, …}}`,
   giving a real email label. `stable_key: /account/account_id`,
   `label_candidates: [/account/email_address, …]`. This is the standard
   `declarativeIdentityResolver` path (same as gmail/linkedin) — **no capability
@@ -351,7 +413,7 @@ safe to ship hidden.
 | Layer | Dropbox-Sign-specific plan | Needs external creds? |
 |---|---|---|
 | **L1** anycli unit | `httptest` fake asserts: multipart `file[]` upload on `send`; `file_url[]` form variant; `Authorization: Bearer`; `test_mode=1` under `--test-mode`; `list` pagination (`list_info`); `files` byte streaming to `--out`; typed `apiError` from `{"error":{"error_name",...}}` in text and `--json`. | No |
-| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli dropbox-sign -- account get`, then `signature-request send --test-mode --file-url <url> --signer ...` → `signature-request get <id>` → `signature-request files <id> --out /tmp/x.pdf`. **Also the §3.1 refresh-quirk gate:** confirm a plain `token_url` refresh works (Option A) or prove `?refresh` is required (Option B). | **Yes** — a real Dropbox Sign account + OAuth token from the dev app; `--test-mode` avoids quota/paid-plan spend |
+| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli dropbox-sign -- account get`, then `signature-request send --test-mode --file-url <url> --signer ...` → `signature-request get <id>` → `signature-request files <id> --out /tmp/x.pdf`. **Also the §3.1 refresh-quirk gate:** prove whether the documented `?refresh` suffix is mandatory (Option B, expected) or a no-op on the plain `token_url` (Option A). | **Yes** — a real Dropbox Sign account + OAuth token from the dev app; `--test-mode` avoids quota/paid-plan spend |
 | **L3** generate + suites | `provider-gen --check` green with the bundle; `helio-cli` + integration-service unit suites; if §3.1 Option B, the new `oauth.refresh_url` field's generator + exchanger unit tests. | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` provider `dropbox_sign` with a real `access_token` **and** `refresh_token` + short `expires_at` (force the gateway refresh path — this is where §3.1 must already be correct), then `heliox tool dropbox-sign -- account get` reaches the live API through the token gateway. | **Yes** — real seed token (oauth provider is seedable; not a minted provider) |
 | **L5** full connect flow | Once, hidden, before flip: `heliox tool dropbox-sign auth` → complete Dropbox Sign OAuth consent on the **dev/test-mode app** → confirm `oauth_connected` system event → run one unseeded `dropbox-sign -- account get`. Human-in-the-loop (oauth L5). | **Yes** — live consent on a real account (human lane 3) |
@@ -367,13 +429,23 @@ quota.
 
 ## 7. Risks / open decisions (flag at stage 1)
 
-1. **Refresh-endpoint quirk (§3.1)** — decisive `standard_oauth` vs one reviewed
-   capability field. Verify at L2 before the anycli pin; default Option A.
-2. **Scope/billing model (§3)** — app-owner-charged (`request_signature`) vs
-   user-charged (`signature_request_access`). Product decision; MVP recommends
-   app-owner-charged. Must be settled pre-flip (scope change revokes consents).
-3. **Paid-plan requirement for production calls** — account-pool budget item;
-   `test_mode` covers all pre-flip layers.
+1. **Refresh-endpoint quirk (§3.1)** — `standard_oauth` unchanged vs one reviewed
+   capability field (`oauth.refresh_url`). The official docs document `?refresh`
+   explicitly, so **plan for Option B (the field growth)**; verify at L2 before
+   the anycli pin and fall back to a plain `token_url` refresh only if L2 proves
+   the suffix is a no-op.
+2. **Scope/billing model (§3)** — the full §1 surface (`template list/get` +
+   `send-with-template`) forces the **user-charged** model (`account_access` +
+   `signature_request_access` + `template_access`): the app-owner
+   `request_signature` set grants **no** template access (403 on `/template/*`)
+   and makes the assistant act as Helio's app rather than the connecting user.
+   **MVP recommends user-charged.** The only route to the app-owner model is to
+   drop the template jobs from §1 — a surface reduction, not a scope swap. Must
+   be settled pre-flip (scope change revokes consents).
+3. **Paid-plan requirement for production calls** — under the recommended
+   user-charged model this is the *connecting user's* paid Dropbox Sign API plan
+   (not Helio's); account-pool/L-layer budget item; `test_mode` covers all
+   pre-flip layers.
 4. **`local_only` disconnect** — confirm no OAuth revoke endpoint exists;
    `local_only` is the safe default regardless.
 5. **Brand/host split** — keep `dropbox_sign` (hellosign.com host) strictly
