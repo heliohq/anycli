@@ -224,11 +224,39 @@ default). Do **not** invent scope strings.
 authorization_code grant returns `172800` (48h), but the documented refresh
 example returns `expires_in: 7200` (2h). A **rotating, single-use
 `refresh_token`** is issued on every exchange (the submitted refresh token is
-revoked; reuse returns `invalid_grant`). Because the lifetime is set by the
-provider per-response, the connection must derive `expires_at` dynamically from
-each response's `expires_in` — which is exactly why provider-driven refresh
-leasing (`refresh_lease: provider`, like `x`) is correct, NOT `none`
-(Notion-style non-expiring) and NOT a hard-coded TTL.
+revoked; reuse returns `invalid_grant`).
+
+**Both of those are handled by the standard refresh path with
+`refresh_lease: none` — no special lease scope is warranted.** Verified against
+`service/token_refresh.go` on the worktree base:
+- **Variable `expires_in` → dynamic `expires_at`:** the refresh leg runs through
+  `golang.org/x/oauth2`, whose `Token.Expiry` is derived from each response's
+  `expires_in`; `token_refresh.go:53-54` writes `refreshed.Expiry = &newTok.Expiry`
+  whenever the new token carries an expiry. The connection's `expires_at` is
+  therefore re-derived per response regardless of lease scope. Nothing about a
+  variable lifetime requires `refresh_lease: provider`.
+- **Rotating single-use `refresh_token` → write-back:** `token_refresh.go:50`
+  does `RefreshToken: firstNonEmpty(newTok.RefreshToken, td.RefreshToken)`, i.e.
+  it persists the freshly rotated refresh token (and logs
+  `refresh_token_rotated`). Every shipped Google app rotates the same way and
+  ships `refresh_lease: none` (`gmail/provider.yaml:31`).
+
+`OAuthLeaseProvider` is **not** a "provider-driven expiry" flag — it is a global
+per-**app** serialization lock reserved for single-active-token providers, where
+one connection's refresh invalidates *every other connection's* token. Its only
+user is X, via the bespoke `RuntimeStrategyXExclusiveGrant`
+(`provider_catalog.gen.go`), paired with `single_active_token: true`. Kit issues
+**one independent token per connection** (`single_active_token: false`), so
+there is no cross-connection invalidation to serialize. The correct scope is
+therefore `none`, matching every shipped standard-OAuth refresher.
+
+**Contract-level fact (see §5 Q2):** the `standard_oauth` runtime contract pins
+`refresh_lease` to `none` as a hard scalar and enforces it by strict equality
+(`model/runtime_contract.go:42`, `:224-231`, run from `provider-gen`
+`validate.go:405` via `ValidateRuntimeContract`). `refresh_lease: provider`
+under `standard_oauth` is not a legal bundle at all — it fails `provider-gen
+--check` (the L3 gate) and integration-service startup. So `none` is both the
+semantically correct choice **and** the only value the contract accepts.
 
 **Identity (verified `GET /v4/account`):**
 ```
@@ -238,10 +266,30 @@ leasing (`refresh_lease: provider`, like `x`) is correct, NOT `none`
 ```
 → `identity.source: userinfo`, `url: https://api.kit.com/v4/account`,
 `stable_key: /account/id`, `label_candidates: [/account/name, /account/primary_email_address, /user/email, /account/id]`.
-`account.id` is an **integer** — relies on the numeric stable-key coercion the
-standard_oauth identity resolver already supports on `main` (added for HubSpot;
-confirm present before coding — if absent it is a known, already-solved
-capability, not new work).
+
+`account.id` is an **integer**, and the declarative identity resolver on the
+`tool/kit` worktree base **cannot read a numeric stable key** — this is required
+capability growth, not a pre-solved case. Verified on the base:
+`service/declarative_identity.go:103` `jsonPointerString` does a plain
+`value.(string)` type assertion and returns `ok=false` for any non-string JSON
+value; the resolver then errors `provider "kit" identity has no string value at
+stable key "/account/id"` (`declarative_identity.go:36`). There is **no numeric
+coercion anywhere in integration-service** on the base, and there is **no
+HubSpot bundle on `main`** (HubSpot lives on an unmerged batch branch that added
+its own coercion + tests). The earlier claim that this "is already supported on
+main (added for HubSpot)" is therefore **false on the base** and must not be
+relied on.
+
+**Consequence:** Kit needs numeric-stable-key coercion added to the declarative
+identity resolver (widen `jsonPointerString`, or add a numeric-aware stable-key
+reader, with `json.Number`/int handling and unit tests), delivered in the same
+change as this bundle — exactly as the HubSpot branch did for its own integer
+`/portalId`. Kit exposes **no stable string key** to fall back to
+(`primary_email_address` and `user.email` are mutable; `account.name` is a
+display label), so the integer `/account/id` is the only durable AccountKey and
+coercion is a genuine dependency — we do **not** carry a `stable_key` the
+resolver cannot read. Because of this, Kit is **not** a zero-service-code
+provider (see §5).
 
 **Credential fields stored by Helio:** `access_token`, `refresh_token`,
 `expires_at` (from `expires_in`), `account_key = connection.account_key`
@@ -253,14 +301,22 @@ enters via the OAuth callback and lives in Vault.
 ## 5. Helio provider bundle plan (`integrations/providers/kit/provider.yaml`)
 
 Ships **hidden-first** (`presentation.visible: false`) — decouples the App
-Store review clock from the anycli pin. Pure `standard_oauth`; no
+Store review clock from the anycli pin. Pure `standard_oauth` **strategy**; no
 provider-specific Go adapter and **no new exchanger capability** are warranted.
-Kit is a textbook Doorkeeper-style authorization-code server — response shapes,
-token lifecycle, and client authentication all sit inside the existing
+Kit is a textbook Doorkeeper-style authorization-code server — token exchange,
+refresh, revoke, and client authentication all sit inside the existing
 `standard_oauth` capability set. The token exchange uses the existing
 `form_secret` enum value (standard OAuth2 `client_secret_post`); §5 Q1 explains
 why that is both the documented-compatible and the architecturally coherent
 choice over a new `json_secret` value.
+
+**One genuine capability dependency remains:** numeric-stable-key coercion in the
+declarative identity resolver (§4 identity), because Kit's `/account/id` is an
+integer and there is no coercion on the branch base. That is a small, tested
+widening of a shared reader — not a bespoke adapter — but it does mean Kit is
+**not** a zero-service-code provider. The lease scope and disconnect mode are
+plain `standard_oauth` contract values (`refresh_lease: none`,
+`disconnect_mode: provider_revoke`), not growth.
 
 ```yaml
 schema: helio.provider/v1
@@ -285,17 +341,23 @@ auth:
     pkce: none                          # confidential web-server client
     display_scopes: [public]
     single_active_token: false
-    refresh_lease: provider
+    refresh_lease: none                 # standard_oauth contract value; rotating refresh handled by the standard path (§4, §5 Q2)
+    revoke:                             # RFC-7009 form-POST; contract requires this block when disconnect_mode=provider_revoke
+      url: https://api.kit.com/v4/oauth/revoke
+      client_auth: form                 # client_id+client_secret in the form body (OAuthRevokeClientAuthForm)
+      token: refresh_token
+      fallback_token: access_token
+      token_type_hint: none
 
 identity:
   source: userinfo
   url: https://api.kit.com/v4/account
-  stable_key: /account/id
+  stable_key: /account/id             # integer → needs numeric-stable-key coercion (§4 identity, capability growth)
   label_candidates: [/account/name, /account/primary_email_address, /user/email, /account/id]
 
 connection:
   mode: isolated
-  disconnect_mode: strategy        # Kit exposes RFC-7009 revoke → declarative revoker
+  disconnect_mode: provider_revoke  # standard_oauth contract value; declarative RFC-7009 revoke via auth.oauth.revoke above
   runtime_strategy: standard_oauth
 
 resources:
@@ -342,8 +404,9 @@ before Kit's L5.
    as `application/x-www-form-urlencoded`. `TokenExchangeStyle` there only toggles
    credential placement (body vs. `Authorization: Basic`, via
    `UsesHTTPBasicClientAuth()`) — it can never make the refresh body JSON. Kit
-   uses rotating refresh (`refresh_lease: provider`), so it **will** hit this
-   form-only refresh path. Adding `json_secret` would make only the
+   uses rotating refresh (`refresh_lease: none`, serviced by the standard refresh
+   path — see §5 Q2), so it **will** hit this form-only refresh path. Adding
+   `json_secret` would make only the
    authorization_code leg JSON while the refresh leg stays form — an incoherent
    split that still could not honor the documented JSON content-type on refresh.
    The coherent choice is one encoding for both legs: **`form_secret`** (form
@@ -382,21 +445,61 @@ before Kit's L5.
    stack and (b) the refresh leg is form-only regardless, so `form_secret`
    remains the correct, coherent default and no capability growth is justified
    up front.
-2. **`refresh_lease: provider` allowed-set.** Prior refreshing OAuth tools
-   (keap, signnow, hootsuite) each had to grow the standard_oauth
-   `refresh_lease` allowed-set. Check whether `main` still gates `provider`
-   leasing by an explicit provider allowlist; if so, add `kit`. If the set has
-   since been generalized, no change. (Either way this is config/enum growth,
-   not an adapter.)
-3. **`disconnect_mode: strategy` + declarative revoker.** Kit's revoke is a
-   standard RFC-7009 form-POST with `token`/`client_id`/`client_secret`. Verify
-   the `declarativeRevoker` capability can express a body-param revoke with
-   client creds; if the existing revoker only supports Bearer-token revoke,
-   fall back to `disconnect_mode: local_only` (Notion precedent) for the first
-   ship and grow the revoker in a follow-up — do not block the tool on it.
+2. **`refresh_lease` — ship `none`, the only legal `standard_oauth` value; no
+   allowlist to join.** An earlier draft framed this as "check whether `main`
+   gates `provider` leasing by an explicit provider allowlist; if so, add
+   `kit`." **That premise is false.** `refresh_lease` under `standard_oauth` is
+   not an allowlist — it is a single pinned scalar
+   (`model/runtime_contract.go:42`: `refreshLeaseScope: OAuthLeaseNone`) enforced
+   by strict equality (`:224-231`, run from `provider-gen`
+   `validate.go:405` via `ValidateRuntimeContract`). There is no "add kit to the
+   allowlist" operation; the contract accepts exactly `none` for this strategy.
+   And `none` is also *semantically* correct here (§4): the rotating single-use
+   refresh token and the variable `expires_in` are both serviced by the standard
+   refresh path (`token_refresh.go` `firstNonEmpty` write-back + oauth2-derived
+   `Expiry`), exactly as every shipped Google app does. `OAuthLeaseProvider` is a
+   global per-**app** serialization lock reserved for `single_active_token: true`
+   providers where one refresh invalidates every other connection's token — its
+   sole user is X via the bespoke `RuntimeStrategyXExclusiveGrant`. Kit issues
+   one independent token per connection, so there is nothing to serialize. If a
+   *single-connection* refresh-concurrency race were ever a genuine concern it
+   would map to `credential` scope (a per-credential key), **never** `provider`,
+   and would still require deliberately widening the `standard_oauth` contract —
+   which we are not doing. **No enum growth, no adapter.**
 
-No adapter (`service/adapter_*.go`) is expected. If items 1–3 all sit inside
-existing capabilities, this is a **zero-service-code** provider.
+   *(The keap/signnow/hootsuite precedent is about a different axis: those tools
+   grew a `refresh_lease` allowed-set on a **manual/bespoke** strategy contract,
+   not the `standard_oauth` one, which has always pinned `none`.)*
+3. **`disconnect_mode: provider_revoke` + declarative revoker — fully expressible
+   today, no fallback needed.** Kit's revoke is a standard RFC-7009 form-POST
+   carrying `token`/`client_id`/`client_secret`. Two corrections to the earlier
+   draft:
+   - `disconnect_mode: strategy` is **illegal** under `standard_oauth`: the
+     contract permits only `provider_revoke` and `local_only`
+     (`runtime_contract.go:41`; enforced by `ValidateRuntimeContract` and
+     `validate.go:402`). `strategy` is reserved for bespoke adapter strategies
+     (discord/github) and would fail `provider-gen --check`.
+   - A declarative RFC-7009 revoke under `standard_oauth` uses
+     `disconnect_mode: provider_revoke` **plus** an `auth.oauth.revoke` block,
+     which `validate.go:503-505` *requires* when `provider_revoke` is set.
+   The worry that "the existing revoker only supports Bearer-token revoke" is
+   **unfounded**: the revoke enum already supports form client-auth with client
+   creds in the body — `client_auth: form` (`OAuthRevokeClientAuthForm`,
+   `model/catalog.go`; `validate.go:480` accepts `none|basic|form`). So we set
+   `client_auth: form`, `token: refresh_token`, `fallback_token: access_token`,
+   modeled directly on `integrations/providers/gmail/provider.yaml`'s revoke
+   block (which uses `client_auth: none` because Google's revoke needs no client
+   creds; Kit needs them, hence `form`). **No `local_only` fallback, no revoker
+   growth.**
+
+**Service-code footprint.** Item 1 (`form_secret`) and items 2–3 sit entirely
+inside existing capabilities. The **one** genuine growth is
+numeric-stable-key coercion in the declarative identity resolver (§4 identity):
+Kit's `/account/id` is an integer and the base resolver's `jsonPointerString`
+cannot read it. That is a small, tested widening of a shared reader — not a
+bespoke `service/adapter_*.go`. So Kit is a **near-zero-service-code** provider:
+one shared-resolver capability + the anycli service, and **no** provider-specific
+adapter.
 
 ---
 
@@ -406,7 +509,7 @@ existing capabilities, this is a **zero-service-code** provider.
 |---|---|---|
 | **L1** anycli `go test ./...` | `internal/tools/kit` unit tests vs `httptest` fakes: request method/path/body, injected `Authorization: Bearer`, cursor pagination, `--json` + plain error rendering. Definition JSON strict-decodes. | No |
 | **L2** dev harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<real> anycli kit -- account get` and `… -- subscriber list` / `-- broadcast list` against live `api.kit.com/v4`. **Confirm the token exchange** — run one real authorization_code→token exchange with the dev app's client creds to prove the default `form_secret` (form body, `client_secret_post`) shape is accepted by `/oauth/token` end-to-end (capability Q1). Only if that exchange is rejected do we introduce `json_secret`. | **Yes** — a real Kit account access token (from the account pool) + the dev app client_id/secret |
-| **L3** generation + suites | `provider-gen` then `provider-gen --check` (five projections regen together, run locally only — not committed on the tool branch); `helio-cli` + `integration-service` unit suites green, incl. any capability-growth tests (Q1/Q2/Q3). Branch is *expected* to fail `provider-gen --check` in CI until the batch-end merge. | No |
+| **L3** generation + suites | `provider-gen` then `provider-gen --check` (five projections regen together, run locally only — not committed on the tool branch); `helio-cli` + `integration-service` unit suites green, incl. the numeric-stable-key coercion tests (§4 identity — the one capability growth; Q1–Q3 add no growth). Branch is *expected* to fail `provider-gen --check` in CI until the batch-end merge. | No |
 | **L4** singleton + seeded creds | `make run-singleton` (env=dev) → `POST /internal/test-only/connections/seed` for provider `kit` with a real dedicated-account `access_token` + `refresh_token` and a deliberately short `expires_at` (force the gateway refresh-and-write-back path, since Kit tokens expire in 48h) → `heliox tool kit -- account get` returns real account JSON via the token gateway. Requires the pinned/`replace`d anycli carrying the `kit` definition. | **Yes** — real Kit access+refresh token; dev app client creds in local uncommitted `config/cloud.yaml` for the refresh exercise |
 | **L5** full connect flow (pre-flip, human-in-the-loop) | `heliox tool kit auth` → connect link → **real Kit OAuth consent on a dev/unpublished app** → `oauth_connected` system event fires → unseeded `heliox tool kit -- account get` succeeds through the freshly created connection. oauth_review ⇒ human consent (lane 3); this validates the connect UX the L4 seed bypasses. | **Yes** — a real Kit creator account for live consent; the registered (unpublished-OK) OAuth app |
 
@@ -421,8 +524,10 @@ or the batch-end merge. Go-live = L5 pass **and** App Store approval, then flip
 - [ ] anycli `kit.json` + `internal/tools/kit/` service + L1 tests green;
       `RegisterService("kit", …)` in `register.go` (rides batch-end merge).
 - [ ] L2 real-API harness pass, incl. the token-exchange-style confirmation.
-- [ ] Bundle `integrations/providers/kit/provider.yaml` (hidden) + any
-      capability growth from §5 Q1–Q3 with tests.
+- [ ] Bundle `integrations/providers/kit/provider.yaml` (hidden,
+      `refresh_lease: none`, `disconnect_mode: provider_revoke` + `auth.oauth.revoke`)
+      + numeric-stable-key coercion in the declarative identity resolver with
+      tests (§4 identity — the sole capability growth).
 - [ ] `oauth.client_id`/`client_secret` appended to `config/` + `deploy/`
       (lane 1, before L5).
 - [ ] UI icon `kit.svg` + `providerIcons.ts` + i18n label.
