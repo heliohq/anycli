@@ -43,13 +43,26 @@ Base: `https://app.pennylane.com/api/external/v2`. Bearer token in
 
 | Resource (verb group) | Endpoints (v2) | Why (teammate job) |
 |---|---|---|
-| `customer` | `GET /customers`, `GET /customers/{id}`, `POST /customers` | invoice recipients; CRM-lite lookups |
+| `customer` | `GET /customers` (list, both types), `GET /customers/{id}` (retrieve, both types), `POST /company_customers` (create) | invoice recipients; CRM-lite lookups |
 | `supplier` | `GET /suppliers`, `GET /suppliers/{id}` | AP counterpart lookups |
 | `customer-invoice` | `GET /customer_invoices`, `GET /customer_invoices/{id}`, `POST /customer_invoices` | issue/track AR — the highest-value write |
 | `supplier-invoice` | `GET /supplier_invoices`, `GET /supplier_invoices/{id}` | AP triage ("what's unpaid/unvalidated") |
 | `product` | `GET /products`, `GET /products/{id}` | invoice line items |
 | `transaction` | `GET /transactions`, `GET /transactions/{id}`, `POST /transactions/{id}/…` categorize | bank reconciliation / categorization |
 | `ledger` (read) | `GET /trial_balance`, `GET /ledger_entries`, `GET /journals`, `GET /ledger_accounts` | accounting reporting |
+
+**Customer endpoint asymmetry (verified, load-bearing):** Pennylane v2 splits
+customer *reads* from customer *creates*. List (`GET /customers`) and retrieve
+(`GET /customers/{id}`) both return **company and individual** customers and are
+the right general-purpose read paths. Create, however, has **no** `POST
+/customers` — creation is split by type into `POST /company_customers` and `POST
+/individual_customers` (refs `postcompanycustomer` / `postindividualcustomer`;
+the create-customer-invoice use-case doc creates via `POST /company_customers`
+and keeps the returned `customer_id`). We wrap the company-customer create (the
+B2B-invoicing default). This asymmetry — read via `/customers`, create via
+`/company_customers` — is reflected in the surface table and the cobra tree
+below so the anycli service wires the right paths. (An earlier draft mapped
+create to `POST /customers`, which 404s.)
 
 Deliberately **out of scope for v1 of the tool**: SEPA mandates,
 subscriptions, FEC/AGL fiscal exports, file attachments upload — niche or
@@ -88,6 +101,9 @@ error envelope):
 
 ```
 pennylane customer         list [--cursor] [--filter] | get <id> | create --json <body>
+#   list   → GET  /customers            (company + individual)
+#   get    → GET  /customers/{id}       (company + individual)
+#   create → POST /company_customers    (asymmetry: no POST /customers exists)
 pennylane supplier         list | get <id>
 pennylane customer-invoice list [--status] [--cursor] | get <id> | create --json <body>
 pennylane supplier-invoice list [--status] [--cursor] | get <id>
@@ -150,45 +166,78 @@ silent adapter.
 
 Standard `application/x-www-form-urlencoded` token POST carrying `grant_type`,
 `code`, `redirect_uri`, `client_id`, `client_secret` in the body →
-`token_exchange_style: form_secret` (LinkedIn precedent). **L2 confirms** body
-vs. Basic (docs show credentials in the body, not a Basic header) — if
-Pennylane requires HTTP Basic client auth instead, flip to `form_basic`; both
-are closed enum values of the existing exchanger, still zero service code.
+`token_exchange_style: form_secret` (LinkedIn precedent). **Confirmed from the
+official OAuth 2.0 walkthrough**, whose token-exchange curl sends the credentials
+as POST body form fields (`-d "client_id=…" -d "client_secret=…"`), not an HTTP
+Basic `Authorization` header — so `form_secret` is settled now, not an L2 open
+item. (Defensive aside only: `form_basic` is the same exchanger's fallback enum
+value if a future Pennylane change moved to Basic client auth — zero service
+code either way.)
 
 ### Scopes (verified, v2)
 
-Granular `resource:readonly` / `resource:all` scopes. `display_scopes` for the
-bundle should cover the wrapped surface, minimum-necessary and read-biased:
+Granular `resource:readonly` / `resource:all` scopes (v2-scopes reference,
+current as of Oct 2025). The bundle carries these as the **wire** `scopes:` (what
+the authorize URL requests — load-bearing; a missing required scope returns 403
+per the docs). They double as the consent copy, so we mirror them into
+`display_scopes:` too (both are real bundle-schema fields — see §4). Cover the
+wrapped surface, minimum-necessary and read-biased:
 
 ```
-customers:all products:readonly customer_invoices:all
-suppliers:readonly supplier_invoices:readonly
-transactions:all ledger ledger_accounts:readonly
-trial_balance:readonly
+customers:all           # customer read + create (POST /company_customers)
+products:readonly
+customer_invoices:all   # AR read + create
+suppliers:readonly
+supplier_invoices:readonly
+transactions:all        # bank read + categorize
+journals:readonly       # GET /journals
+ledger_entries:readonly # GET /ledger_entries
+ledger_accounts:readonly# GET /ledger_accounts
+trial_balance:readonly  # GET /trial_balance
 ```
+
+**Ledger scoping (finding, verified):** the `ledger` subcommand wraps four
+distinct endpoints, and Pennylane exposes each behind its own scope —
+`journals:readonly`, `ledger_entries:readonly`, `ledger_accounts:readonly`,
+`trial_balance:readonly` all exist as separate scopes. An earlier draft listed a
+single suffix-less `ledger` scope; per the reference that scope is **read/write**
+over "journals, ledger entries, and their attachments" and does **not** cover
+`ledger_accounts` or `trial_balance`. Requesting the broad write scope would be
+both under-covering (misses accounts + trial balance → 403 at L2/L5) and
+over-privileged (write on a read-only surface). We therefore drop `ledger` and
+request the four granular **readonly** scopes — this exactly matches the wrapped
+read-only ledger surface and stays minimum-necessary.
 
 No `offline_access` scope exists — refresh tokens are issued unconditionally
 with the grant, so no offline scope needs requesting (unlike Google).
 
-### Identity (open item — L2/stage-1 confirm)
+### Identity (verified — `GET /api/external/v2/me`)
 
 An access token is bound to **a specific user AND a specific company**. The
 stable connection key must be the **company id** (so re-auth of the same
 company upserts, and one assistant can hold distinct connections per company).
-Plan: `identity.source: userinfo` with a GET to a company-self endpoint under
-`/api/external/v2`, `stable_key: /id` (company id), `label_candidates:
-[/name, /id]`.
 
-**Unverified**: the exact self/company endpoint path and its JSON body are
-behind Pennylane's partner login and could not be confirmed from public docs.
-Stage-1 must nail the endpoint (candidates: a current-company GET, or reading
-`company_id` off the token-introspection/first `/customers` call). Fallbacks,
-in order of preference: (a) a real company-info endpoint → `userinfo`; (b) if
-none returns a stable company id, capture the company id the callback/token
-response carries via a declarative `token_response` pointer; (c) last resort,
-a synthetic per-connection `account_key`. Do NOT invent a random key if a
-stable company id is retrievable — that would break the upsert-by-company
-contract. This is the single most likely spot to need a stage-1 decision.
+Pennylane publicly documents the user-profile endpoint that returns exactly
+this (api-overview + changelog "v2 new user profile endpoint", reference
+`getme`): `GET https://app.pennylane.com/api/external/v2/me`. It **requires no
+scope** — "works with any valid access token, regardless of its scopes" — so the
+identity probe never 403s. Response shape:
+
+```json
+{
+  "user":    { "id": 12345, "first_name": "…", "last_name": "…",
+               "email": "…", "locale": "fr" },
+  "company": { "id": 123456, "name": "Pennylane", "reg_no": 123456789 }
+}
+```
+
+There is **no** top-level `/id` — the company id is nested at `/company/id`.
+Plan: `identity.source: userinfo`, `url:
+https://app.pennylane.com/api/external/v2/me`, `stable_key: /company/id`,
+`label_candidates: [/company/name, /company/id]`. This is the upsert-by-company
+key the whole connection model rests on; it is confirmable from public docs and
+is **not** a stage-1 open item. (An earlier draft used `stable_key: /id`, which
+resolves to nothing against this body and would fail identity extraction.)
 
 ### Disconnect
 
@@ -236,20 +285,28 @@ auth:
   oauth:
     authorize_url: https://app.pennylane.com/oauth/authorize
     token_url: https://app.pennylane.com/oauth/token
-    token_exchange_style: form_secret     # L2-confirmed (else form_basic)
+    token_exchange_style: form_secret     # confirmed from OAuth walkthrough (-d body creds)
     pkce: none
+    # `scopes:` = the wire scopes requested at authorize (manifest.go:87,
+    # load-bearing); `display_scopes:` = the consent-copy override
+    # (manifest.go:88). Same list here — Pennylane's scope strings are already
+    # readable. Precedent: sage/quickbooks bundles carry both keys.
     scopes: [customers:all, products:readonly, customer_invoices:all,
              suppliers:readonly, supplier_invoices:readonly,
-             transactions:all, ledger, ledger_accounts:readonly,
-             trial_balance:readonly]
+             transactions:all, journals:readonly, ledger_entries:readonly,
+             ledger_accounts:readonly, trial_balance:readonly]
+    display_scopes: [customers:all, products:readonly, customer_invoices:all,
+                     suppliers:readonly, supplier_invoices:readonly,
+                     transactions:all, journals:readonly, ledger_entries:readonly,
+                     ledger_accounts:readonly, trial_balance:readonly]
     single_active_token: false
     refresh_lease: credential             # RTR — rotated refresh persisted
 
 identity:
   source: userinfo
-  url: https://app.pennylane.com/api/external/v2/<company-self-endpoint>  # stage-1 confirm
-  stable_key: /id
-  label_candidates: [/name, /id]
+  url: https://app.pennylane.com/api/external/v2/me   # verified: no scope required
+  stable_key: /company/id                             # company id (nested, not top-level /id)
+  label_candidates: [/company/name, /company/id]
 
 connection:
   mode: isolated
@@ -309,7 +366,7 @@ Runs at batch-end with the batch lead, not mid-branch:
 | Layer | Pennylane specifics | Needs external creds? |
 |---|---|---|
 | **L1** anycli unit | httptest fake for `/api/external/v2/*`: assert Bearer header injection, request shape per verb, cursor pass-through, and both plain + `--json` error rendering. No real API. | No |
-| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli pennylane -- customer list`. Proves field names, injection, and real v2 request/response shape. **Also the stage-1 gate for: token_exchange_style (form_secret vs form_basic), the identity/company-self endpoint + JSON pointer, and revoke shape.** | **Yes** — a real Pennylane access token from the test-account pool (lane 2). |
+| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli pennylane -- customer list`. Proves field names, injection, and real v2 request/response shape (incl. the customer read-vs-create path asymmetry and `GET /me` → `/company/id`). **Only remaining stage-1 gate: the `/oauth/revoke` request shape for `provider_revoke`** (token_exchange_style, identity endpoint, and scopes are all doc-confirmed in §3). | **Yes** — a real Pennylane access token from the test-account pool (lane 2). |
 | **L3** generate + suites | `provider-gen --check` green locally; anycli `go test ./...`; `helio-cli` build with `replace` + `go test ./cmd/heliox/cmds/tool/`; integration-service unit suite (no new capability expected → no new tests beyond generation). | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` for provider `pennylane` with a **real** 24h access token **and** refresh token, short `expires_at`, so the next `heliox tool pennylane -- customer list` is forced through the gateway refresh-and-writeback (exercises the RTR credential-lease path, not just token replay). Seed uses a real existing org/assistant/owner identity. | **Yes** — real access+refresh token (needs the dev-mode app from lane 1 to mint). |
 | **L5** full connect | `heliox tool pennylane auth` → consent on Pennylane's **dev/test app** on a real company account → confirm `oauth_connected` event → one unseeded live `customer list`. Human-in-the-loop (oauth L5, lane 3) — French-account 2FA defeats automation. Run once, hidden, before the visible flip. | **Yes** — dev app (client_id/secret) + a real Pennylane company account with consent. |
@@ -333,15 +390,39 @@ review clearance only for the *visible flip*, not for the run itself.
   flagged non-standard-auth providers (Bill.com / NetSuite / Mastodon).
 - **API version**: wrap **v2** (`/api/external/v2`), the current surface; v1 is
   deprecated. Divergence from any older reference that names v1.
-- **Open/unverified (stage-1 must close, none change the lane)**:
-  1. token_exchange_style `form_secret` vs `form_basic` — L2.
-  2. identity company-self endpoint path + JSON pointer for `stable_key` — L2;
-     highest-risk unknown.
-  3. revoke request shape for `provider_revoke` — L2.
-  None are blockers to code-complete-hidden; all are L2-decidable with a real
-  token.
+- **Identity** (`GET /api/external/v2/me`): publicly documented, scope-free,
+  returns `{user, company}`; `stable_key: /company/id`,
+  `label_candidates: [/company/name, /company/id]`. Corrects an earlier draft
+  that called the endpoint "unverifiable / behind partner login" and used
+  `stable_key: /id` (which resolves to nothing). **Now verified, not an open
+  item.**
+- **Customer endpoint asymmetry**: list/get use `GET /customers[/id]` (company +
+  individual); create uses `POST /company_customers` (there is **no** `POST
+  /customers`). Divergence from a review suggestion to also route *get* to
+  `/company_customers/{id}`: the general `GET /customers/{id}` **does** exist
+  (ref `getcustomer`, returns both types) and is the correct read path, so we
+  keep it — only *create* moves to `/company_customers`.
+- **Ledger scopes**: request the four granular readonly scopes
+  (`journals:readonly`, `ledger_entries:readonly`, `ledger_accounts:readonly`,
+  `trial_balance:readonly`) instead of the broad read/write `ledger` scope.
+  Corrects an earlier draft that under-covered (missing accounts/trial-balance →
+  403) and over-privileged (write on read-only surface).
+- **token_exchange_style**: `form_secret` **confirmed** from the OAuth
+  walkthrough curl (credentials in `-d` body). No longer an open item;
+  `form_basic` retained only as a defensive fallback note.
+- **Bundle scope keys**: the §4 YAML carries both `scopes:` (wire request,
+  load-bearing) and `display_scopes:` (consent copy) — both are real
+  bundle-schema fields (`manifest.go:87-88`), matching the sage/quickbooks
+  precedent. Not a rename of one to the other.
+- **Remaining open item (L2, does not change the lane)**: revoke request shape
+  for `provider_revoke` (RFC 7009 `POST /oauth/revoke`); confirm the exact
+  client-auth/param form with a real token. Not a blocker to
+  code-complete-hidden.
 
 Sources: [OAuth 2.0 walkthrough](https://pennylane.readme.io/docs/oauth-20-walkthrough),
 [v2 scopes](https://pennylane.readme.io/docs/v2-scopes),
+[user profile `/me`](https://pennylane.readme.io/reference/getme) + [changelog](https://pennylane.readme.io/changelog/v2-new-user-profile-endpoint),
+[retrieve a customer](https://pennylane.readme.io/reference/getcustomer),
+[create a company customer](https://pennylane.readme.io/reference/postcompanycustomer),
 [API v2 vs v1](https://pennylane.readme.io/docs/api-v2-vs-v1),
 [audit row 184](../../docs/design/008-300-integrations-rollout-plan/oauth-audit.md).
