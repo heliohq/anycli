@@ -178,12 +178,12 @@ auth:
       - user:payments:read
       - user:payments:write
     single_active_token: false
-    refresh_lease: none      # rotation write-back is inherent to the gateway (§5)
+    refresh_lease: credential  # single-use rotating refresh → serialize per-credential (§5 #2)
 
 identity:
   source: userinfo
   url: https://api.freshbooks.com/auth/api/v1/users/me
-  stable_key: /response/id
+  stable_key: /response/id    # JSON NUMBER — requires numeric-stable-key coercion (§4a, verify at L3)
   label_candidates: [/response/email, /response/first_name]
 
 connection:
@@ -214,14 +214,41 @@ UI: `ui/helio-app/src/integrations/icons/freshbooks.svg` + `providerIcons.ts`
 append; i18n `description_key: freshbooks`. AI-facing sub-doc under
 `agents/plugins/heliox/skills/tool/`.
 
+### 4a. Numeric stable-key capability (REQUIRED capability check, verify at L3)
+
+`/users/me` returns `response.id` as a **JSON number**, but the current
+`declarativeIdentityResolver` extracts the stable key via `jsonPointerString`
+(`declarative_identity.go`), which type-asserts the RFC 6901 leaf to `string`
+and rejects anything else (`text, ok := value.(string)`) — a numeric leaf yields
+`ok == false` → `"identity has no string value at stable key"` → empty
+`AccountKey`. This is **not** a "nice to have": without numeric coercion the
+connection cannot be keyed or looked up and is silently unusable despite
+appearing connected (finding-3 failure).
+
+The hubspot / typefully / kit numeric-id providers in this program each called
+out the same requirement. This design does **not** assume the coercion is
+already merged on the worktree base — on the current checkout the resolver is
+still string-only. **L3 must prove** that numeric-stable-key coercion (string
+fast-path, else `float64`/`json.Number` → canonical integer string, no `1.0`/
+scientific-notation drift) exists in the declarative resolver and covers
+`/response/id`. If absent, grow it here (parallel to the hubspot branch; the
+batch lead reconciles a single coercion addition — do not commit projections).
+It is a hard gate: identity extraction must be known-good before implementation,
+not discovered at L2/L5.
+
 ## 5. Integration-service capability growth (the real work)
 
-Three divergences from the `standard_oauth` golden path, verified against
-official docs. Growth #1 is required; #2 and #3 are verify-at-L2-then-grow.
+Verified against official FreshBooks docs
+(https://www.freshbooks.com/api/authentication). Growths #1a, #1b and #2 are
+**all REQUIRED** — FreshBooks' JSON token endpoint serves *both* the initial
+code exchange and the refresh, refresh is load-bearing (bearer tokens are
+short-lived and refresh tokens rotate single-use), and the single-use rotation
+also forces a per-credential refresh lease. #3 is verify-at-L2-then-grow.
 
-**#1 — `json_secret` token-exchange style (REQUIRED, new enum).**
-FreshBooks' token endpoint takes a **JSON body carrying `client_id` AND
-`client_secret` in the body** (not form-encoded, not Basic header):
+**#1a — `json_secret` token-exchange style, INITIAL code exchange (REQUIRED,
+new enum).** FreshBooks' token endpoint (`POST /auth/oauth/token`) takes a
+**JSON body carrying `client_id` AND `client_secret` in the body** (not
+form-encoded, not Basic header):
 
 ```json
 {"grant_type":"authorization_code","client_id":"…","client_secret":"…",
@@ -234,21 +261,78 @@ The current allowed set (`model/catalog.go`, `provider-gen/validate.go`) is
 tool adds one reviewed enum value: `json_secret` = JSON body + client creds in
 the body, i.e. the JSON analog of `form_secret`. Touches `TokenExchangeStyle`
 const + `render_symbols.go` map + `validate.go` `oneOf(...)` + the
-`standardOAuthExchanger` body/auth selection, with a synthetic-provider unit
-test. **Batch note:** a parallel branch (Square) may add the same value — the
-batch lead reconciles a single `json_secret` addition; do not commit projections.
+`buildTokenRequest` body/auth selection in `oauth_exchange.go`
+(`UsesHTTPBasicClientAuth()` must return **false** for `json_secret` so creds
+go in the body, not a Basic header), with a synthetic-provider unit test.
+**Batch note:** the parallel Square branch adds the same enum value — the batch
+lead reconciles a single `json_secret` addition; do not commit projections.
 
-**#2 — `redirect_uri` on the refresh call (verify at L2).**
-FreshBooks docs show `redirect_uri` in the **refresh_token** body too, which is
-unusual (standard exchangers omit it on refresh). Verify at L2 whether FreshBooks
-actually enforces it; if so, the `json_secret` exchanger must echo the stored
-`redirect_uri` on refresh (small addition folded into #1). Refresh tokens are
-**one-time-use and rotate** — only one alive per user per app; each refresh
-returns a fresh refresh_token invalidating the prior. The gateway's
-refresh-and-write-back (A3) already persists the rotated refresh_token, so
-`refresh_lease: none` is correct; no lease capability needed. (Note the
-concurrency hazard: two racing refreshes will lose one token — inherent to
-FreshBooks, not a Helio bug.)
+**#1b — `json_secret` refresh path in `service/token_refresh.go` (REQUIRED,
+NOT a fold-in of #1a).** This is the load-bearing correction. FreshBooks bearer
+tokens are short-lived (docs: "not long lived", check the expiry) and refresh
+tokens are **one-time-use and rotate** — each refresh returns a fresh
+refresh_token that immediately invalidates the prior one, and only one is alive
+per user per app. Refresh therefore fires within hours of every connect and is
+the steady-state path, not an edge case.
+
+The refresh call hits the **same JSON endpoint**, and the official docs show the
+refresh body as JSON carrying `grant_type=refresh_token`, `refresh_token`,
+`client_id`, `client_secret`, **and `redirect_uri`**:
+
+```json
+{"grant_type":"refresh_token","client_id":"…","client_secret":"…",
+ "refresh_token":"…","redirect_uri":"https://…"}
+```
+
+But `requestOAuthRefresh` (`token_refresh.go:148-169`) is built on
+`golang.org/x/oauth2` (`oauth2.Config.TokenSource`), which can only emit
+`application/x-www-form-urlencoded` bodies (`AuthStyleInHeader` /
+`AuthStyleInParams`) and **cannot** send a JSON body or add a custom
+`redirect_uri` param. #1a's `buildTokenRequest` case is on the
+authorization_code exchanger only and does nothing for refresh. A FreshBooks
+refresh routed through the existing x/oauth2 path would be form-encoded, and by
+the JSON-only premise of #1a the token endpoint rejects it → permanent refresh
+error → `401 reconnect required` within ~hours of connect (finding-1 failure).
+A3 strict write-back only *persists a result*; it cannot fix a request that
+never succeeds.
+
+Required change (mirrors the Square branch's explicit "Growth B — json_secret
+refresh, larger, not a fold-in"): for the `json_secret` style, **abandon
+`oauth2.TokenSource` and hand-roll a JSON POST** in `token_refresh.go` — body
+`{grant_type: refresh_token, refresh_token, client_id, client_secret,
+redirect_uri}`, `Content-Type: application/json`, creds in the body (never the
+Basic header). The `redirect_uri` is reconstructed from the same configured
+callback source used to build the authorize URL and the code-exchange
+`redirect_uri` (it is fixed per registered app, not per connection, so nothing
+new is stored). Decode the JSON token response, preserve the existing
+refresh-token carry-forward (`firstNonEmpty(newTok.RefreshToken,
+td.RefreshToken)`) and A3 strict write-back of the **rotated** refresh_token, so
+the gateway persists the new refresh token before returning. Unit test: a
+`json_secret` refresh request carries a JSON body with `grant_type=refresh_token`
++ both creds + `redirect_uri`, and the rotated refresh_token is written back.
+
+L4 assertion (see §6): seed a connection with a real refresh_token and a
+short/expired `expires_at`, run `heliox tool freshbooks -- invoice list`, and
+assert the refresh actually rotates and the connection keeps working — proving
+#1b end to end, not just that connect succeeded.
+
+**#2 — `refresh_lease: credential` (REQUIRED, not `none`).**
+FreshBooks refresh tokens are **single-use rotating** (§1b). With
+`refresh_lease: none`, two tool calls for the same connection arriving near-
+simultaneously after expiry each call `GET /connections/token`, each read the
+same stored refresh_token, and each POST it to FreshBooks; the first rotation
+invalidates it, so the second gets a permanent refresh error → spurious
+`401 reconnect required`. This race is **Helio-inducible**, not "inherent to
+FreshBooks": `refresh_lease: credential` (`OAuthLeaseCredential` in
+`model/catalog.go`, honored by `acquireRefreshLease` +
+`reloadRefreshSnapshot` in `token_refresh.go`) is the *designed* mechanism that
+serializes refreshes per `(provider, credential_id)`. Under it, the loser
+blocks on the lease, then re-reads the freshly-written token in
+`reloadRefreshSnapshot` and reuses it instead of re-refreshing — the second call
+succeeds. `none` is therefore wrong here; a single-use rotating provider is
+exactly the `credential`-lease case (precedent: keap, signnow, hootsuite all set
+a refresh lease for rotating tokens). No new capability is needed — the enum and
+the lease store already exist; this is a one-line bundle field (§4 YAML).
 
 **#3 — identity userinfo static header `Api-Version: alpha` (verify at L2).**
 FreshBooks' identity model doc states `GET /auth/api/v1/users/me` wants an
@@ -277,9 +361,9 @@ either way.
 | Layer | What it proves | Needs external creds |
 |---|---|---|
 | **L1** anycli `go test ./...` | httptest fakes for `/users/me`, invoice list/create, client list, expense create; asserts Bearer injection, `account_id` resolution (single→silent, multi→exit 2 with `--account` guidance, zero→exit 1), `--json` envelope unwrap, plain+`--json` error rendering, exit codes 0/1/2. | No |
-| **L2** `ANYCLI_CRED_ACCESS_TOKEN=… anycli freshbooks -- me` / `invoice list` against the **real** FreshBooks API | Field names, Bearer injection, real request shape; **resolves the three open questions**: does `/users/me` need `Api-Version: alpha` (#3), does refresh need `redirect_uri` (#2), does authorize accept `scope`. | **Yes** — a real FreshBooks account + a token minted from a dev app (account pool + lane-1 dev app). |
-| **L3** `provider-gen --check` + both repos' unit suites (incl. the new `json_secret` synthetic-provider test) | Bundle validity, five projections regen clean, `json_secret` enum wired end to end. | No |
-| **L4** singleton + `POST /internal/test-only/connections/seed` → `heliox tool freshbooks -- invoice list` | Token-gateway → anycli path with a seeded connection; seed `access_token` + `refresh_token` + short `expires_at` to force the **refresh-and-write-back** path (exercises rotation, #2). | **Yes** — real access+refresh token from the dev app / test account. |
+| **L2** `ANYCLI_CRED_ACCESS_TOKEN=… anycli freshbooks -- me` / `invoice list` against the **real** FreshBooks API | Field names, Bearer injection, real request shape; **resolves the open questions**: does `/users/me` need `Api-Version: alpha` (#3), does authorize accept `scope`. (Refresh `redirect_uri` is already confirmed required by official docs — built into #1b, not an L2 unknown.) | **Yes** — a real FreshBooks account + a token minted from a dev app (account pool + lane-1 dev app). |
+| **L3** `provider-gen --check` + both repos' unit suites (incl. the new `json_secret` synthetic-provider test) | Bundle validity, five projections regen clean, `json_secret` enum wired end to end **for both exchange (#1a) and refresh (#1b)**, and **numeric-stable-key coercion covers `/response/id`** (§4a) — proven before implementation, not discovered later. | No |
+| **L4** singleton + `POST /internal/test-only/connections/seed` → `heliox tool freshbooks -- invoice list` | Token-gateway → anycli path with a seeded connection; seed `access_token` + `refresh_token` + short/expired `expires_at` to force the **json_secret refresh-and-write-back** path (#1b). **Asserts the refresh actually rotates and the second call keeps working** — the load-bearing proof that FreshBooks connections survive past the first token expiry. | **Yes** — real access+refresh token from the dev app / test account. |
 | **L5** `heliox tool freshbooks auth` → FreshBooks consent → `oauth_connected` event → unseeded live run | The actual connect UX: authorize URL, `json_secret` code exchange, `/users/me` identity extraction, notification. oauth L5 = human-in-the-loop. | **Yes** — registered dev app (lane 1) + real FreshBooks account consent. |
 
 Externally-supplied credentials gate **L2, L4, L5**; **L1 and L3 need none**.
@@ -288,10 +372,19 @@ Definition of done stays hidden until L1–L4 pass and L5 runs once; the
 
 ## 7. Open items for stage-1/L2 (must close before merge)
 
-1. `json_secret` exchange style landed + tested (§5 #1) — required.
-2. L2: `/users/me` `Api-Version: alpha` requirement → identity static-header
+1. `json_secret` **initial code exchange** landed + tested (§5 #1a) — required.
+2. `json_secret` **JSON-body refresh** in `token_refresh.go` (JSON body with
+   `grant_type=refresh_token` + both creds + `redirect_uri`, hand-rolled off
+   `x/oauth2`, A3 write-back of the rotated refresh_token) landed + tested
+   (§5 #1b) — **required**; this is what keeps connections alive past ~first
+   token expiry. L4 asserts a real seeded refresh rotates.
+3. `refresh_lease: credential` set in the bundle to serialize single-use
+   rotating refreshes (§5 #2) — required; prevents the Helio-inducible
+   double-refresh race.
+4. Numeric-stable-key coercion confirmed on the resolver base and covering
+   `/response/id`; grow it (batch-reconciled with hubspot) if absent (§4a) —
+   verify at L3, before implementation.
+5. L2: `/users/me` `Api-Version: alpha` requirement → identity static-header
    capability iff mandatory (§5 #3).
-3. L2: `redirect_uri` on refresh enforced? → fold into `json_secret` exchanger
-   (§5 #2).
-4. L2: authorize `scope` param accepted vs app-configured scopes (§5).
-5. Revoke stays `local_only` for MVP; `provider_revoke` deferred (§5).
+6. L2: authorize `scope` param accepted vs app-configured scopes (§5).
+7. Revoke stays `local_only` for MVP; `provider_revoke` deferred (§5).
