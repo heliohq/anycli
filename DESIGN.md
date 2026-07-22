@@ -70,34 +70,65 @@ teammate demand. Revisit as a follow-up if needed.
 An earlier draft of this design was **factually wrong** about the scope split. The
 official SurveyMonkey scope table is unambiguous:
 
-- `responses_read` — "**View if** surveys in your account have responses **and their
-  metadata**." This returns **no answer content of any kind** — not free-text
-  bodies, not selected choice/answer-option ids, nothing. Only counts and response
-  metadata (id, date, status, ip, etc.).
-- `responses_read_detail` — "View **answers** along with responses and answer counts
-  and trends." This is the scope that returns actual answers (choice ids included),
-  and per the official table it **requires a paid SurveyMonkey account**.
+- `responses_read` — "View if surveys in your account have responses and their
+  metadata." Returns **no answer content** — only counts and response metadata (id,
+  date, status, ip, etc.). Per the official scope table, **not** paid-gated (No).
+- `responses_read_detail` — "View answers along with responses and answer counts and
+  trends." This is the scope that returns actual answers (choice ids included), and
+  per the official table it is the **only** read scope flagged **"Requires Paid
+  SurveyMonkey Account? Yes."**
 - `collectors_read` — "View collectors for your surveys and those shared with you."
-  A **distinct** scope; `/v3/surveys/{id}/collectors` returns `1014` (permission
-  not granted) without it.
+  A **distinct** scope, and **not** paid-gated (No). `/v3/surveys/{id}/collectors`
+  returns `1014` (permission not granted) only when the scope itself was not granted,
+  never because of plan.
 
-The real split is therefore **answers-vs-no-answers** (gated on a paid plan), **not**
-free-text-vs-choice-ids. `response list`, `response get`, and `collector list` — the
-tool's entire "read and analyze survey results" value prop — cannot function on the
-old `[surveys_read, responses_read, users_read]` bundle: `response *` would return
-answer-free metadata and `collector list` would fail with `1014`.
+The real split is therefore **answers-vs-no-answers** (only answer reads are paid-
+gated, via `responses_read_detail`), **not** free-text-vs-choice-ids, and **not**
+"everything but structure is paid." `collector list` is free (it needs only the free
+`collectors_read` scope); only `response list` / `response get` answer reads depend on
+the paid `responses_read_detail`.
 
-**Decision: accept the paid-plan reality as the tool's baseline.** The whole point of
-this tool is reading answers, so v1 requests `responses_read_detail` and
-`collectors_read`. Consequence to document honestly (in this design, the bundle, and
-the AI-facing doc): **reading survey answers via the SurveyMonkey API requires the
-connected account to be on a paid SurveyMonkey plan.** A free-plan connection can
-still `survey list` / `survey get` / `survey details` (structure) and see response
-**counts/metadata** via `response list`, but any answer read returns a `1014`
-permission error until the account upgrades — the service surfaces that as a clear
-"reading answers requires a paid SurveyMonkey plan" message rather than an opaque
-403. A metadata-only v1 on the free scope set was considered and rejected: it cannot
-deliver the tool's core function.
+**Two distinct 403 error codes — do not conflate them (verified against the official
+error table in `_overview.md`).** SurveyMonkey has a dedicated plan-gate code that is
+separate from the scope-not-granted code:
+
+| Code | Official message | Fires when | Service maps to |
+|---|---|---|---|
+| `1014` | "Permission has not been granted by the user to make this request." | The token lacks the scope the endpoint needs — e.g. `responses_read_detail` was requested **optional** and a free-plan account could not grant it, or `collectors_read` was absent. | On an answer/detail endpoint → "reading survey answers requires the `responses_read_detail` permission, which needs a paid SurveyMonkey plan — reconnect after upgrading." Otherwise → "the connected account has not granted the permission this request needs." |
+| `1015` | "The user does not have the required plan to make this request." | The scope is granted but the account's **plan** does not permit the operation at call time (e.g. an account that downgraded after granting, or endpoint-level plan enforcement). | "the connected SurveyMonkey account's plan does not permit this request — a paid plan is required." |
+
+An earlier draft named `1014` as *the* paid-plan gate and never mentioned `1015`.
+That is wrong twice over: (a) the dedicated plan-gate code is `1015`, so a genuine
+plan-gated call returning `1015` would have fallen straight through to an opaque 403;
+and (b) for the actual free-plan answer-read path here the code is in fact `1014` (the
+optional paid scope is simply ungranted, since a free plan cannot make it available to
+grant). The service therefore maps **both** `1014` (on answer/detail endpoints) **and**
+`1015` to a paid-plan-aware message, so neither falls through to an opaque 403.
+
+**Decision: request the paid scope as OPTIONAL and keep a free-plan connection
+useful.** `responses_read_detail` is requested **optional** (see the bundle section for
+where optionality is configured), so a free-plan account can still complete OAuth and
+use the free scopes. Consequence to document honestly (design, bundle, AI-facing doc):
+**reading survey answers via the SurveyMonkey API requires the connected account to be
+on a paid SurveyMonkey plan.** A free-plan connection can still `survey list` /
+`survey get` / `survey details` (structure), `collector list`, and see response
+**counts/metadata** via `response list`; only answer reads fail — with `1014` (the
+ungranted optional scope) or, if a plan gate trips at call time, `1015` — surfaced as a
+clear "reading answers requires a paid SurveyMonkey plan" message rather than an opaque
+403. A metadata-only v1 that dropped the paid scope entirely was considered and
+rejected: it cannot deliver the tool's core function.
+
+> **Divergence recorded (independent verification).** The review suggested softening
+> the free narrative to "Basic (free) plans can read answers for up to ~25
+> responses/survey." I could **not** confirm any such API allowance in the official
+> docs: the scope table marks `responses_read_detail` "Requires Paid … Yes" with no
+> free-tier API carve-out, and the ~25-response figure is a SurveyMonkey **web-UI**
+> product limit, not documented API behavior. Per the "follow official docs" rule this
+> design does not assert a free API answer-read allowance; it states only what the API
+> scope table supports (answers require the paid scope; free plans get structure +
+> counts/metadata). The blanket "any answer read returns `1014` until upgrade" wording
+> is corrected above to the precise `1014`/`1015` split rather than to an unverifiable
+> 25-response claim.
 
 ### Multi-datacenter / region routing — `access_url` (correctness gap, now handled)
 
@@ -195,12 +226,19 @@ in combination with the app's `client_id` and only for the one authorized accoun
   token-revoke endpoint** (users disconnect apps from account settings) →
   `disconnect_mode: local_only`.
 - **Scopes requested (read-only v1):** `surveys_read`, `responses_read`,
-  `responses_read_detail`, `collectors_read`, `users_read`. Rationale per the scope
-  correction above: `responses_read_detail` is **required** to read any answer content
-  (it is paid-plan gated, which makes reading answers a paid-plan capability — the
-  tool's documented baseline), and `collectors_read` is **required** for
-  `collector list` (else `1014`). `responses_read` is retained so free-plan
-  connections can still see response counts/metadata. No write scopes.
+  `collectors_read`, `users_read` (all free, marked **required** in the app dashboard's
+  OAuth settings) plus `responses_read_detail` (paid, marked **optional**). Note
+  "required/optional" here is SurveyMonkey's app-settings terminology, distinct from
+  "necessary to read answers." Rationale per the scope correction above:
+  `responses_read_detail` is the only paid-gated read scope and the only one that
+  returns answer content, so it is marked **optional** — that keeps a free-plan account
+  from being blocked at the consent step (a *required* paid scope would force it to
+  upgrade before it could OAuth at all), while paid accounts still grant it and get
+  answers. `collectors_read` is a **free** scope needed for `collector list` (absent it,
+  `1014`). `responses_read` lets free-plan connections see response counts/metadata. On
+  a free/unentitled connection, answer reads return `1014` (optional paid scope
+  ungranted) or `1015` (plan gate at call time); the service maps both to a "reading
+  answers requires a paid SurveyMonkey plan" message. No write scopes.
 - **Identity:** `GET <access_url>/v3/users/me` (requires `users_read`) → stable key
   `/id`; labels `/username`, `/email`, `/id`. v1 uses the default host
   `https://api.surveymonkey.com` (see the region note above); non-default-region
@@ -234,6 +272,11 @@ auth:
     token_url: https://api.surveymonkey.com/oauth/token
     token_exchange_style: form_secret
     pkce: none
+    # `scopes` is just the set requested in the authorize URL. required-vs-optional
+    # is NOT expressed here (or anywhere in provider.yaml) — SurveyMonkey resolves it
+    # from the app dashboard (developer.surveymonkey.com/apps → app settings): the
+    # four free scopes are marked required, responses_read_detail (paid) optional, so
+    # free-plan accounts can still complete OAuth. See the scope correction above.
     scopes: [surveys_read, responses_read, responses_read_detail, collectors_read, users_read]
     single_active_token: false
     refresh_lease: none
@@ -275,7 +318,11 @@ flag (GA path). UI icon `ui/helio-app/src/integrations/icons/surveymonkey.svg`
 `refresh_lease: none` + `identity.source: userinfo` + `disconnect_mode:
 local_only` are all existing reviewed enum values (notion uses `json_basic`+
 `token_response`; linkedin uses `userinfo`+`form_secret`). **No integration-
-service capability growth expected for the v1 (default-US-host) scope.** Two
+service capability growth expected for the v1 (default-US-host) scope.** Marking
+`responses_read_detail` **optional** is likewise **not** a schema/capability
+concern: the `standard_oauth` `scopes` field only enumerates what to request in the
+authorize URL, and SurveyMonkey resolves required-vs-optional from the app dashboard
+settings — so no per-scope optionality needs expressing in `provider.yaml`. Two
 caveats, both flagged now rather than mid-wave:
 
 1. Confirm the `refresh_lease: none` + non-expiring-token combination is accepted
@@ -292,7 +339,7 @@ caveats, both flagged now rather than mid-wave:
 | Layer | What | External creds? |
 |---|---|---|
 | **L1** anycli unit | `go test ./...` — httptest fake for `/v3/surveys`, `/details`, `/responses/bulk`, `/users/me`; assert Bearer injection, `page`/`per_page` params, `429`/`error` mapping, `--json` envelope, exit codes 0/1/2 | No |
-| **L2** dev harness | `ANYCLI_CRED_ACCESS_TOKEN=<t> anycli surveymonkey -- survey list` (and `me`, `response list`, `collector list`) against the **real** API — mandatory before pin bump. To validate answer reads (`response list`/`response get` returning actual answers), the token must come from a **paid** SurveyMonkey account granted `responses_read_detail`; also confirm the `1014`→"paid plan required" mapping on a free-plan token | **Yes** — a real SurveyMonkey OAuth token; a **paid** account to exercise answer reads |
+| **L2** dev harness | `ANYCLI_CRED_ACCESS_TOKEN=<t> anycli surveymonkey -- survey list` (and `me`, `response list`, `collector list`) against the **real** API — mandatory before pin bump. To validate answer reads (`response list`/`response get` returning actual answers), the token must come from a **paid** SurveyMonkey account granted `responses_read_detail`; also confirm that on a **free-plan** token an answer read fails with `1014` (optional `responses_read_detail` ungranted), and that the service maps **both** `1014` (answer endpoints) and `1015` (plan gate) to the "reading answers requires a paid SurveyMonkey plan" message — never an opaque 403 | **Yes** — a real SurveyMonkey OAuth token; a **paid** account to exercise answer reads |
 | **L3** generate + suites | `provider-gen` + `provider-gen --check`; helio-cli + integration-service unit suites; helio-cli build with local `replace` → anycli branch | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` with **`access_token` only** (non-expiring, no refresh → Slack-bot-token pattern, omit `refresh_token`/`expires_at`), then `heliox tool surveymonkey -- survey list` through the real token gateway | **Yes** — a real token minted from the registered dev app (dev-app creation gates L4) |
 | **L5** connect flow | `heliox tool surveymonkey auth` → consent on the dev/Private app → `oauth_connected` event → unseeded live run; once, hidden, before the visible flip. Human-in-the-loop (oauth_review, human lane 3) | **Yes** — real SurveyMonkey account + registered app; public-review clearance additionally gates the flip |
@@ -303,7 +350,7 @@ passes and (for the public deployment) SurveyMonkey review clears.
 
 ## Sources
 
-- SurveyMonkey OAuth + API overview (base URL, multi-datacenter `access_url`, error codes incl. 1014/1018): https://github.com/SurveyMonkey/public_api_docs/blob/main/includes/_overview.md
-- OAuth scope table (`responses_read` vs `responses_read_detail` [paid], `collectors_read`): https://github.com/SurveyMonkey/public_api_docs (authentication / scopes)
+- SurveyMonkey OAuth + API overview (base URL, multi-datacenter `access_url`, error codes incl. `1014` scope-not-granted / `1015` plan-required / `1018` region): https://github.com/SurveyMonkey/public_api_docs/blob/main/includes/_overview.md
+- OAuth scope table + required/optional app-settings model (`responses_read_detail` is the only read scope marked "Requires Paid … Yes"; `surveys_read`/`responses_read`/`collectors_read`/`users_read` = No; required-vs-optional is set in the app dashboard, and "all required scopes must be approved by and available to the user for the OAuth process to succeed"): https://github.com/SurveyMonkey/public_api_docs/blob/main/includes/_overview.md#scopes
 - API docs portal: https://api.surveymonkey.com/v3/docs
 - App registration: https://developer.surveymonkey.com/apps/
