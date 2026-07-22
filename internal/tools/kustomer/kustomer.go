@@ -8,10 +8,15 @@
 // minted on one pod. The org-subdomain host
 // https://{orgname}.api.kustomerapp.com/v1 routes a request to the pod that
 // minted the token; the generic host https://api.kustomerapp.com/v1 only works
-// for orgs on the default pod and otherwise fails with a pod-routing error. The
-// orgname is supplied out-of-band via KUSTOMER_ORG_NAME (the account_key
-// credential); when it is absent the tool falls back to the generic host — a
-// documented-but-unreliable fallback, never the default.
+// for orgs on the default pod and otherwise fails with a pod-routing error.
+//
+// The default base is the generic host. When KUSTOMER_ORG_NAME is set the tool
+// builds the pod-routed org-subdomain host instead. KUSTOMER_ORG_NAME is a
+// staged seam: the Kustomer OAuth token response carries no org identifier
+// (verified), so Helio cannot yet capture the orgname to supply it — a
+// credential wiring it is deferred until that capture capability lands. Until
+// then the tool runs on the generic host (correct for default-pod orgs), and
+// L2/operator runs may set KUSTOMER_ORG_NAME directly to exercise pod routing.
 package kustomer
 
 import (
@@ -40,8 +45,9 @@ const apiHostSuffix = ".api.kustomerapp.com/v1"
 // (definitions/tools/kustomer.json access_token → KUSTOMER_API_TOKEN).
 const EnvToken = "KUSTOMER_API_TOKEN"
 
-// EnvOrgName is the env var carrying the org subdomain for pod routing
-// (account_key → KUSTOMER_ORG_NAME). Optional: absent selects DefaultBaseURL.
+// EnvOrgName is the env var carrying the org subdomain for pod routing.
+// Optional: absent selects DefaultBaseURL (the generic host). No Helio
+// credential wires it yet (see the package doc); it is an operator/L2 seam.
 const EnvOrgName = "KUSTOMER_ORG_NAME"
 
 // resolveBaseURL builds the API base from the org subdomain. An empty orgName

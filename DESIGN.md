@@ -355,18 +355,45 @@ the extra gate on the flip only. Until then: **code-complete (hidden)**.
    `api_key` shape (`auth.type: manual`, write-only `POST /connections/credentials`,
    a `users/current` verifier) with **zero anycli change**. Recorded as the
    contingency; primary path stays `oauth_review` per the catalog.
-3. **Pod routing is the designed base, not a fallback.** The official Getting
-   Started doc presents `https://{orgname}.api.kustomerapp.com/v1` as THE base URL
-   and warns that the generic host errors with *"Auth token associated with pod
-   prod2 but request is being handled by prod1"* — Kustomer runs multiple prod
-   pods, so a hardcoded generic base fails for the real fraction of customer orgs
-   not on the default pod. This design therefore **captures `orgname`/pod at
-   connect and builds the org-subdomain base as the expected path**, reusing the
-   Salesforce `instance_url` metadata-capture capability (task #168). The generic
-   `api.kustomerapp.com` host is retained only as a documented-but-unreliable
-   alternative (org-absent fallback), never the default. L2 verifies the exact
-   capture source (token response vs `/v1/users/current` org read) and confirms the
-   subdomain routes correctly.
+3. **Pod routing — orgname is NOT response-borne (VERIFIED 2026-07-22), so the
+   as-shipped base is the generic host and pod-routing capture is deferred.** The
+   official Getting Started doc presents `https://{orgname}.api.kustomerapp.com/v1`
+   as THE base URL and warns the generic host errors with *"Auth token associated
+   with pod prod2 but request is being handled by prod1"*. §4 hoped `orgname` might
+   arrive in the token response (the Salesforce `instance_url` clean case).
+   **Verification against the official OAuth-provider doc overturns that hope:** the
+   token response carries exactly `access_token`, `refresh_token`, `expires_in`
+   (86400), `scope`, `token_type` — no org/instance/pod field. The org subdomain is
+   an out-of-band prerequisite the integrator supplies. Independent check of the
+   integration-service `knownCredentialSources` allow-set confirms NO reviewed
+   `CredentialSource` captures an orgname today, so capturing it needs genuine
+   capability growth (a user-supplied instance field at connect — the ServiceNow
+   pattern — or a bootstrap `/v1/users/current` read then pin), which is **out of
+   scope for this hidden-first ship and deferred to the visible-flip gate.**
+   As shipped:
+   - **anycli** declares only ONE credential — `access_token → KUSTOMER_API_TOKEN`.
+     The tool retains its pod-routing *ability*: `resolveBaseURL` builds
+     `https://{orgname}.api.kustomerapp.com/v1` when the `KUSTOMER_ORG_NAME` env var
+     is set, else the generic `https://api.kustomerapp.com/v1` (the default). But no
+     credential *wires* `KUSTOMER_ORG_NAME` yet — the Helio invariant
+     `TestGeneratedToolProvidersMatchPinnedAnyCLI` requires every anycli-declared
+     credential field to be projected by the bundle, and Helio has no correct
+     orgname source to project. So the `account_key → KUSTOMER_ORG_NAME` binding is
+     deferred; it lands together with the Helio capture capability (definition
+     binding + bundle projection + orgname capture, as one change). L2/operator runs
+     can still exercise pod routing by setting `KUSTOMER_ORG_NAME` directly.
+   - **Helio bundle** projects only `access_token`. Helio's
+     `connection.account_key` holds the identity stable_key (the org **id**), which
+     is not the pod **subdomain**, so it must not be wired into the tool's org env.
+     Production therefore runs on the generic host — correct for default-pod orgs,
+     which the L5 test org must be until the capture capability lands. Recorded as
+     the one capability-growth gate on the visible flip.
+   - **Identity** resolves via `userinfo` GET on the generic
+     `https://api.kustomerapp.com/v1/users/current`; for a non-default-pod org this
+     GET pod-errors and the connect fails — the same default-pod constraint,
+     documented.
+   - `token_exchange_style: form_secret` VERIFIED (client id/secret in the form
+     body); `offline_access` required for refresh — both as in §3/§4.
 4. **Refresh-token 2-week idle expiry.** Longer-lived than a typical rotating
    refresh token but with an idle-death clock: a connection unused > 2 weeks needs
    reconnect. Handled by the standard 401→reconnect passthrough; no new code, but
