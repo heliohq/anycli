@@ -3,6 +3,7 @@ package tools
 import (
 	"github.com/heliohq/anycli/internal/tools/bitly"
 	"github.com/heliohq/anycli/internal/tools/calendar"
+	"github.com/heliohq/anycli/internal/tools/close"
 	"github.com/heliohq/anycli/internal/tools/contacts"
 	"github.com/heliohq/anycli/internal/tools/discord"
 	"github.com/heliohq/anycli/internal/tools/docs"
@@ -33,6 +34,7 @@ func init() {
 	RegisterService("bitly", &bitly.Service{})
 	RegisterService("slack", &slack.Service{})
 	RegisterService("notion", &notion.Service{})
+	RegisterService("close", &close.Service{})
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("slides", &slides.Service{})
