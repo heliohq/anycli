@@ -1,0 +1,13 @@
+{
+  "name": "loops",
+  "type": "service",
+  "description": "Loops as a tool (transactional email, contacts, events; API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "LOOPS_API_KEY"}
+      }
+    ]
+  }
+}
