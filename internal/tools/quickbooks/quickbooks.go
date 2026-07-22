@@ -27,7 +27,11 @@ const (
 	// required in every company-scoped URL.
 	EnvRealmID = "QUICKBOOKS_REALM_ID"
 	// EnvEnvironment optionally selects the sandbox host for the L2 dev
-	// harness; absent/"production" means the live API.
+	// harness; absent/"production" means the live API. It is NOT a credential
+	// (there is no Helio credential source for it), so it is read from the
+	// process environment rather than the resolver-supplied credential map:
+	// the harness operator exports it, and the Helio runtime never sets it
+	// (→ production).
 	EnvEnvironment = "QUICKBOOKS_ENVIRONMENT"
 )
 
@@ -63,7 +67,7 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 	base := s.BaseURL
 	if base == "" {
-		base = baseURLFor(env[EnvEnvironment])
+		base = baseURLFor(os.Getenv(EnvEnvironment))
 	}
 	cl := &client{base: base, realm: realm, token: token, hc: s.HC, out: s.stdout(), err: s.stderr()}
 

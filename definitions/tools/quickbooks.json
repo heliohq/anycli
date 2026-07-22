@@ -11,10 +11,6 @@
       {
         "source": {"field": "account_key"},
         "inject": {"type": "env", "env_var": "QUICKBOOKS_REALM_ID"}
-      },
-      {
-        "source": {"field": "environment"},
-        "inject": {"type": "env", "env_var": "QUICKBOOKS_ENVIRONMENT"}
       }
     ]
   }
