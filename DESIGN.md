@@ -66,7 +66,7 @@ verified against the official reference pages cited inline.
 |---|---|---|
 | `invoice list` | `GET /v2/invoicing/invoices?page=&page_size=&total_required=true` | Enumerate invoices (page 1-1000, page_size 1-100). Primary receivables view. |
 | `invoice get` | `GET /v2/invoicing/invoices/{invoice_id}` | One invoice's full detail + status. |
-| `invoice search` | `POST /v2/invoicing/invoices/search-invoices` | Filter by recipient/status/date/amount (JSON body). |
+| `invoice search` | `POST /v2/invoicing/search-invoices` | Filter by recipient/status/date/amount (JSON body). **Note:** unlike list/get/create/send which all sit under `/v2/invoicing/invoices...`, `search-invoices` is a top-level `/v2/invoicing/search-invoices` sibling — do **not** derive it by appending to the invoices collection path (verified against paypal/paypal-rest-api-specifications `openapi/invoicing_v2.json`, whose `paths` list `/v2/invoicing/invoices` and `/v2/invoicing/search-invoices` as separate keys; the rendered developer.paypal.com page can mislead here). |
 | `invoice create-draft` | `POST /v2/invoicing/invoices` | Create a **draft** invoice (safe: not sent until `send`). |
 | `invoice send` | `POST /v2/invoicing/invoices/{invoice_id}/send` | Send/email a drafted invoice to the recipient. |
 | `transaction list` | `GET /v1/reporting/transactions?start_date=&end_date=&page=&page_size=` | Transaction history, **≤31-day** window, RFC3339 dates, covers last 3y. Primary reconciliation read. |
@@ -203,9 +203,16 @@ client_id/secret are the *user's*, not Helio's — zero integration-service
 
 The worktree base still enforces the design 317 D5 **single-secret** rule
 (`model.validateCredentialInputSchema` requires exactly one required field) and
-does not carry the multi-field vault face — the same growth the sibling
-multi-field tools (`hotjar`/`snov`/`mixpanel`/`zoominfo`) each apply identically,
-so it merges as a no-op with them at batch end:
+does not carry the multi-field vault face. PayPal is a **Wave-1** tool, so it
+**co-introduces** the D8 multi-field growth in its Wave-1 batch — the earlier-cited
+`hotjar`/`snov`/`mixpanel`/`zoominfo` are all later waves (snov/mixpanel = Wave 2;
+hotjar/zoominfo = 3-hold, Wave 3's final batch) and have **not** merged by PayPal's
+batch-end, so PayPal cannot ride a no-op behind them. Its actual Wave-1 multi-field
+peers are the two-field api_key tools in the same phase — **Twilio** (Account SID +
+Auth Token, row 5) and **AWS** (Access Key ID + Secret Access Key, row 30). The
+growth below is **idempotent**, so whichever Wave-1 multi-field tool lands it first,
+the rest merge it as a no-op; **the batch lead must ensure it actually lands in the
+Wave-1 batch** rather than assuming a sibling already carries it:
 
 1. Relax `validateCredentialInputSchema` to allow **N≥1 required fields** for
    `AuthCredentials` (JSON-composite storage), permitting one **non-secret**
