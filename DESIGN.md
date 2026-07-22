@@ -66,17 +66,22 @@ read this table as "all covered by `request_signature`."
 send reference):
 
 1. **`send` is multipart, not JSON.** `POST /signature_request/send` accepts
-   documents either as **file uploads** (`file[]`, multipart/form-data) or as
-   **remote URLs** (`file_url[]`). The service exposes both: `--file <path>`
-   (repeatable → multipart upload) and `--file-url <url>` (repeatable → simpler
-   for an agent that already has a link). `send-with-template` needs neither —
-   it references a stored template plus signer roles.
-2. **`test_mode`.** Requests carry an optional `test_mode` flag (`1`) that
-   creates non-legally-binding requests and is the mode used **before app
-   approval** (see §4). The service exposes `--test-mode` so L2/L4/L5 can run
-   against real endpoints without spending signature quota or requiring a paid
-   plan for the exercise. (Production, non-test calls additionally require a paid
-   Dropbox Sign plan — a lane-1/account-pool constraint, noted in §7.)
+   documents either as **file uploads** (`files[]`, multipart/form-data) or as
+   **remote URLs** (`file_urls[]`) — plural array params per the current official
+   send reference (the legacy singular `file[]`/`file_url[]` names are wrong; do
+   **not** use them). The endpoint requires **one or the other, not both**. The
+   service exposes both: `--file <path>` (repeatable → multipart `files[]` upload)
+   and `--file-url <url>` (repeatable → `file_urls[]`, simpler for an agent that
+   already has a link). `send-with-template` needs neither — it references a
+   stored template plus signer roles.
+2. **`test_mode`.** Requests carry an optional `test_mode` **boolean**
+   (`type: boolean, default: false`; send `test_mode=true`, **not** the legacy
+   integer `1`) that creates non-legally-binding, watermarked requests and is the
+   mode used **before app approval** (see §4). The service exposes `--test-mode`
+   so L2/L4/L5 can run against real endpoints without spending signature quota or
+   requiring a paid plan for the exercise. (Production, non-test calls
+   additionally require a paid Dropbox Sign plan — the API returns **402** without
+   one; a lane-1/account-pool constraint, noted in §7.)
 
 ---
 
@@ -136,10 +141,14 @@ lands on `service`, matching 21/23 shipped definitions and the eSign precedents
   error rendering match the notion contract.
 
 - **TDD (L1):** `dropbox-sign_test.go` builds an `httptest.Server` fake and
-  asserts request shape (multipart body for `send` with `file[]`; form body +
-  `file_url[]` variant; `Authorization: Bearer` header; `test_mode=1` when
+  asserts request shape (multipart body for `send` with `files[]`; form body +
+  `file_urls[]` variant; `Authorization: Bearer` header; `test_mode=true` when
   `--test-mode`), pagination flag wiring on `list`, byte streaming on `files`,
-  and both text and `--json` error envelopes. Never hits the real API.
+  and both text and `--json` error envelopes. Never hits the real API. **Caveat:**
+  an httptest fake accepts whatever field names the service sends, so L1 alone
+  cannot catch a wrong `files[]`/`file_urls[]` name or the raw array-field
+  encoding (`files[0]` vs `files[]`) — that exact multipart wire contract is an
+  explicit L2 gate against the live endpoint (§6), not something L1 can validate.
 
 ---
 
@@ -250,12 +259,25 @@ curl -X POST 'https://app.hellosign.com/oauth/token?refresh' \
   -F 'refresh_token=<...>'
 ```
 
+**Two provider-specific deviations live on this one call, not one.** Besides the
+`?refresh` URL suffix, the documented refresh curl also **omits `client_id` and
+`client_secret` entirely** — unlike the initial code exchange, which sends both
+(verified 2026-07-22: the walkthrough's auth-code `curl` carries `client_id` +
+`client_secret`; its refresh `curl` carries only `grant_type` + `refresh_token`).
+This matters because `token_exchange_style: form_secret` injects `client_id` /
+`client_secret` into **every** grant, including refresh. Most OAuth servers ignore
+extra form fields, but that is **unverified for Dropbox Sign**, so it is a second
+L2 sub-check, not an assumption.
+
 The `standard_oauth` runtime strategy's `standardOAuthExchanger` uses a single
 `oauth.token_url` for *both* the initial code exchange and refresh (a plain
-`grant_type=refresh_token` POST to `token_url`, no `?refresh`). So the decisive
-stage-1/L2 gate is: **is the documented `?refresh` suffix mandatory, or does a
-plain `POST https://app.hellosign.com/oauth/token` with `grant_type=refresh_token`
-(no suffix) also succeed?**
+`grant_type=refresh_token` POST to `token_url`, no `?refresh`), and under
+`form_secret` sends `client_id`/`client_secret` on both. So the decisive
+stage-1/L2 gate has **two axes**: (a) **is the documented `?refresh` suffix
+mandatory**, or does a plain `POST https://app.hellosign.com/oauth/token` with
+`grant_type=refresh_token` (no suffix) also succeed? and (b) **does the refresh
+grant tolerate `client_id`/`client_secret` in the body** (as `form_secret`
+sends), or does it require them omitted?
 
 **The documentation points at Option B.** The official walkthrough documents
 `?refresh` explicitly as part of the refresh URL, with no indication it is
@@ -274,19 +296,31 @@ below) as the likely path**, and treat Option A as the exception that must be
   this program. It is **not** a compiled `service/adapter_*.go` — Dropbox Sign's
   response shape is otherwise standard, so no adapter is warranted. Budget for
   this field growth in planning rather than hoping to avoid it.
+- **Second reviewed-capability consideration (credential omission on refresh):**
+  if L2 sub-check (b) shows the refresh grant **rejects** `client_id`/`client_secret`
+  in the body (i.e. `form_secret`'s injection breaks refresh and the fields must be
+  omitted), that is a **second** reviewed-capability growth beyond `oauth.refresh_url`
+  — a flag on the refresh path telling `standardOAuthExchanger` to drop the secret
+  pair for the refresh grant only. Budget for the *possibility* of both fields, and
+  keep it distinct from the URL override — do not fold "omit the secret" into
+  `oauth.refresh_url`, they are orthogonal axes. If sub-check (b) shows the extra
+  fields are tolerated (the common case), no growth here and `form_secret` stands.
 - **Option A (only if L2 proves it — zero platform code):** if the base
   `token_url` turns out to accept the refresh grant *without* the `?refresh`
-  suffix (the query param behaving as a no-op), then `standard_oauth` works
-  unchanged and `oauth.refresh_url` is omitted. This is the strictly better
-  outcome, but the docs give no reason to expect it — so it must be
+  suffix (the query param behaving as a no-op) **and** tolerates the injected
+  `client_id`/`client_secret`, then `standard_oauth` works unchanged and both
+  `oauth.refresh_url` and the credential-omission flag are omitted. This is the
+  strictly better outcome, but the docs give no reason to expect it — so it must be
   *demonstrated* at L2 (mint a token, force-expire it, refresh through the plain
   `token_url`, confirm a new access token comes back), never pinned on assumption.
 
 The DESIGN's recommendation: **plan for Option B (the documented `?refresh`
-path); run the L2 refresh assertion before the anycli pin, and fall back to
-Option A's plain `token_url` only if L2 actually proves the suffix is a no-op.**
-Flagging this at stage 1 (not mid-wave) per the master plan's
-non-standard-auth-shape risk guidance.
+path); run the L2 refresh assertion — both sub-checks (a) the `?refresh` suffix
+and (b) the `client_id`/`client_secret` omission — before the anycli pin, and
+fall back to Option A's plain, unchanged `standard_oauth` only if L2 proves the
+suffix is a no-op *and* the injected secrets are tolerated.** Flagging both axes
+at stage 1 (not mid-wave) per the master plan's non-standard-auth-shape risk
+guidance.
 
 ---
 
@@ -412,8 +446,8 @@ safe to ship hidden.
 
 | Layer | Dropbox-Sign-specific plan | Needs external creds? |
 |---|---|---|
-| **L1** anycli unit | `httptest` fake asserts: multipart `file[]` upload on `send`; `file_url[]` form variant; `Authorization: Bearer`; `test_mode=1` under `--test-mode`; `list` pagination (`list_info`); `files` byte streaming to `--out`; typed `apiError` from `{"error":{"error_name",...}}` in text and `--json`. | No |
-| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli dropbox-sign -- account get`, then `signature-request send --test-mode --file-url <url> --signer ...` → `signature-request get <id>` → `signature-request files <id> --out /tmp/x.pdf`. **Also the §3.1 refresh-quirk gate:** prove whether the documented `?refresh` suffix is mandatory (Option B, expected) or a no-op on the plain `token_url` (Option A). | **Yes** — a real Dropbox Sign account + OAuth token from the dev app; `--test-mode` avoids quota/paid-plan spend |
+| **L1** anycli unit | `httptest` fake asserts: multipart `files[]` upload on `send`; `file_urls[]` form variant; `Authorization: Bearer`; `test_mode=true` under `--test-mode`; `list` pagination (`list_info`); `files` byte streaming to `--out`; typed `apiError` from `{"error":{"error_name",...}}` in text and `--json`. (Fake accepts any field names → the exact `files[]`/`file_urls[]` name + array-index encoding is an L2 gate, not provable here.) | No |
+| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<tok> anycli dropbox-sign -- account get`, then `signature-request send --test-mode --file-url <url> --signer ...` → `signature-request get <id>` → `signature-request files <id> --out /tmp/x.pdf`. **Confirm the live multipart wire contract** before the anycli pin: the real endpoint accepts `files[]` / `file_urls[]` (plural) and the exact array-field encoding the service emits (`files[0]` vs `files[]`) — the one detail unit fakes cannot validate. **Also the §3.1 refresh gate (two sub-checks):** (a) whether the documented `?refresh` suffix is mandatory (Option B, expected) or a no-op on the plain `token_url` (Option A); **and (b)** whether the refresh grant succeeds with `client_id`/`client_secret` present in the body (what `form_secret` injects) or requires them **omitted** — the official refresh curl sends neither (see §3.1). | **Yes** — a real Dropbox Sign account + OAuth token from the dev app; `--test-mode` avoids quota/paid-plan spend |
 | **L3** generate + suites | `provider-gen --check` green with the bundle; `helio-cli` + integration-service unit suites; if §3.1 Option B, the new `oauth.refresh_url` field's generator + exchanger unit tests. | No |
 | **L4** singleton + seed | `POST /internal/test-only/connections/seed` provider `dropbox_sign` with a real `access_token` **and** `refresh_token` + short `expires_at` (force the gateway refresh path — this is where §3.1 must already be correct), then `heliox tool dropbox-sign -- account get` reaches the live API through the token gateway. | **Yes** — real seed token (oauth provider is seedable; not a minted provider) |
 | **L5** full connect flow | Once, hidden, before flip: `heliox tool dropbox-sign auth` → complete Dropbox Sign OAuth consent on the **dev/test-mode app** → confirm `oauth_connected` system event → run one unseeded `dropbox-sign -- account get`. Human-in-the-loop (oauth L5). | **Yes** — live consent on a real account (human lane 3) |
@@ -429,11 +463,16 @@ quota.
 
 ## 7. Risks / open decisions (flag at stage 1)
 
-1. **Refresh-endpoint quirk (§3.1)** — `standard_oauth` unchanged vs one reviewed
-   capability field (`oauth.refresh_url`). The official docs document `?refresh`
-   explicitly, so **plan for Option B (the field growth)**; verify at L2 before
-   the anycli pin and fall back to a plain `token_url` refresh only if L2 proves
-   the suffix is a no-op.
+1. **Refresh-call quirks (§3.1) — two axes, not one.** The documented refresh
+   call deviates from the code exchange on **two** points: (a) it POSTs to
+   `…/oauth/token?refresh` (query suffix), and (b) it **omits `client_id`/`client_secret`**
+   that `form_secret` would inject. Plan for Option B on axis (a) — one reviewed
+   `oauth.refresh_url` field, since the docs show `?refresh` explicitly — and treat
+   axis (b) as a **separate potential** reviewed-capability (a refresh-only
+   secret-omission flag) that only materializes if L2 shows the injected secrets
+   break refresh. Both axes must be proven at L2 before the anycli pin; fall back to
+   plain unchanged `standard_oauth` only if L2 proves the suffix is a no-op **and**
+   the secrets are tolerated.
 2. **Scope/billing model (§3)** — the full §1 surface (`template list/get` +
    `send-with-template`) forces the **user-charged** model (`account_access` +
    `signature_request_access` + `template_access`): the app-owner
@@ -457,4 +496,4 @@ quota.
 - OAuth walkthrough (authorize/token/refresh URLs, params, token response, `expires_in: 3600`): `https://developers.hellosign.com/docs/guides/o-auth/walkthrough.md`
 - OAuth overview (7 scopes + billing models, Bearer header, scope-change revocation): `https://developers.hellosign.com/docs/guides/o-auth/overview.md`
 - Get Account (identity endpoint `GET /v3/account`, Bearer/Basic auth): `https://developers.hellosign.com/api/reference/operation/accountGet`
-- Send Signature Request (multipart `file[]` / `file_url[]`, `test_mode`, security `request_signature`/`signature_request_access`): `https://developers.hellosign.com/api/reference/operation/signatureRequestSend/`
+- Send Signature Request (multipart `files[]` / `file_urls[]` — plural arrays; `test_mode` boolean `type: boolean, default: false`; 402 without a paid plan for production; security `request_signature`/`signature_request_access`): `https://developers.hellosign.com/api/signature-request/send` (OpenAPI-derived reference; the `/api/reference/operation/signatureRequestSend/` path now 404s)
