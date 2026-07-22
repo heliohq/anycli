@@ -22,9 +22,10 @@ type figmaCapabilities struct {
 
 func (s *Service) newCapabilitiesCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "capabilities",
-		Short: "Describe PAT coverage and the hosted-MCP boundary",
-		Args:  cobra.NoArgs,
+		Use:         "capabilities",
+		Short:       "Describe PAT coverage and the hosted-MCP boundary",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{sideEffectAnnotation: "false"}, // local: summarizes the embedded catalog
 		RunE: func(*cobra.Command, []string) error {
 			catalog, err := loadOperationCatalog()
 			if err != nil {

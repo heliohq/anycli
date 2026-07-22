@@ -30,6 +30,8 @@ func (s *Service) newViewCreateCmd(token string) *cobra.Command {
 		Use:   "create",
 		Short: "Create a view",
 		Args:  cobra.NoArgs,
+		// POST /views
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	f := cmd.Flags()
 	f.StringVar(&databaseID, "database-id", "", "create the view at this database's top level")
@@ -112,6 +114,8 @@ func (s *Service) newViewUpdateCmd(token string) *cobra.Command {
 		Use:   "update <view-id>",
 		Short: "Update a view's name, filters, sorts, configuration, or quick filters",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /views/{id}
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "new view name")
 	cmd.Flags().StringVar(&filtersFlag, "filters", "", "JSON filters (REST wire)")

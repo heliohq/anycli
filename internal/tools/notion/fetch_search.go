@@ -20,6 +20,8 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 		Use:   "search",
 		Short: "Search Notion pages and data sources",
 		Args:  cobra.NoArgs,
+		// POST /search is a documented read-only lookup — never mutates.
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
 	cmd.Flags().StringVar(&query, "query", "", "search query (required)")
 	cmd.Flags().StringVar(&typ, "type", "", "object filter: page|data_source (omit to search both)")
@@ -66,6 +68,8 @@ func (s *Service) newFetchCmd(token string) *cobra.Command {
 		Use:   "fetch <id>",
 		Short: "Fetch a page (markdown), or a database / data source (JSON)",
 		Args:  cobra.ExactArgs(1),
+		// GET only (page markdown, database, data source, type probes).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
 	cmd.Flags().StringVar(&typ, "type", "", "id type: page|database|data_source (skip type detection)")
 

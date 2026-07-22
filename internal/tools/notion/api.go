@@ -23,9 +23,10 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 	var body, bodyFile string
 	var forms, formFiles, headers []string
 	cmd := &cobra.Command{
-		Use:   "api <method> <path>",
-		Short: "Make a raw Notion API request",
-		Args:  cobra.ExactArgs(2),
+		Use:         "api <method> <path>",
+		Annotations: map[string]string{"anycli.side_effect": "true"},
+		Short:       "Make a raw Notion API request",
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			method := strings.ToUpper(strings.TrimSpace(args[0]))
 			path, err := normalizeAPIPath(args[1])

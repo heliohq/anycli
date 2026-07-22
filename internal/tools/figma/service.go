@@ -87,6 +87,7 @@ func (s *Service) newMeCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "getMe",
+			sideEffectAnnotation:  "false", // GET /v1/me
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.callCatalogOperationAndEmit(cmd.Context(), token, "getMe", nil, nil)
@@ -123,3 +124,8 @@ func setOptionalPositiveInt(query url.Values, key string, value int) error {
 	}
 	return nil
 }
+
+// NewCommandTree returns the full command tree built with an empty token for
+// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// is only captured by RunE closures, which are never run on this tree.
+func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

@@ -48,7 +48,8 @@ func (s *Service) newBatchUpdateCmd(token string) *cobra.Command {
 		Long: "Pass the full Slides batchUpdate request surface through verbatim. --requests accepts a " +
 			"JSON array of Request objects, a single Request object, or a full {\"requests\":[...]} body. " +
 			"The whole batch is atomic: if any request is invalid, none are applied.",
-		Args: cobra.ExactArgs(1),
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if (requestsInline == "") == (requestsFile == "") {
 				return fmt.Errorf("slides: pass exactly one of --requests or --requests-file")

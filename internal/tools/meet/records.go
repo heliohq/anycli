@@ -90,6 +90,8 @@ func (s *Service) newRecordsListCmd(token string) *cobra.Command {
 			"Convenience flags (--space/--after/--before/--ongoing) and --filter both expand into\n" +
 			"the native EBNF filter over space.name / space.meeting_code / start_time / end_time.",
 		Args: cobra.NoArgs,
+		// GET /conferenceRecords — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if filter := buildRecordsFilter(space, after, before, ongoing, rawFilter); filter != "" {
@@ -149,6 +151,8 @@ func (s *Service) newRecordsGetCmd(token string) *cobra.Command {
 		Use:   "get <record>",
 		Short: "Show one conference record: start/end/expire times and its space",
 		Args:  cobra.ExactArgs(1),
+		// GET /conferenceRecords/{r} — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/"+recordName(args[0]), nil, nil)
 			if err != nil {
@@ -186,6 +190,8 @@ func (s *Service) newParticipantsListCmd(token string) *cobra.Command {
 		Use:   "list <record>",
 		Short: "List participants of a conference record (who attended, and their overall window)",
 		Args:  cobra.ExactArgs(1),
+		// GET /conferenceRecords/{r}/participants — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			q.Set("pageSize", strconv.Itoa(max))
@@ -234,6 +240,8 @@ func (s *Service) newParticipantsSessionsCmd(token string) *cobra.Command {
 		Use:   "sessions <participant>",
 		Short: "List a participant's join/leave sessions (participantSessions.list; segments across reconnects)",
 		Args:  cobra.ExactArgs(1),
+		// GET .../participants/{p}/participantSessions — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			q.Set("pageSize", strconv.Itoa(max))

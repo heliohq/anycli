@@ -61,9 +61,10 @@ func (s *Service) newItemsListCmd(token string) *cobra.Command {
 	var path, parent, page string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List a folder's children (drive root by default; --path or --parent to target a folder)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a folder's children (drive root by default; --path or --parent to target a folder)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resource, err := childrenResource(parent, path)
 			if err != nil {
@@ -87,9 +88,10 @@ func (s *Service) newItemsListCmd(token string) *cobra.Command {
 func (s *Service) newItemsGetCmd(token string) *cobra.Command {
 	var path string
 	cmd := &cobra.Command{
-		Use:   "get [item-id]",
-		Short: "Show one item's metadata (name / size / mimeType / lastModified)",
-		Args:  cobra.MaximumNArgs(1),
+		Use:         "get [item-id]",
+		Short:       "Show one item's metadata (name / size / mimeType / lastModified)",
+		Args:        cobra.MaximumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := firstArg(args)
 			resource, err := itemResource(id, path)
@@ -124,9 +126,10 @@ func (s *Service) newItemsGetCmd(token string) *cobra.Command {
 func (s *Service) newItemsMkdirCmd(token string) *cobra.Command {
 	var name, parent, path string
 	cmd := &cobra.Command{
-		Use:   "mkdir",
-		Short: "Create a folder (in the drive root by default; --parent or --path to nest)",
-		Args:  cobra.NoArgs,
+		Use:         "mkdir",
+		Short:       "Create a folder (in the drive root by default; --parent or --path to nest)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if strings.TrimSpace(name) == "" {
 				return fmt.Errorf("microsoft-onedrive: --name is required")
@@ -158,9 +161,10 @@ func (s *Service) newItemsMkdirCmd(token string) *cobra.Command {
 func (s *Service) newItemsMoveCmd(token string) *cobra.Command {
 	var toDir, name string
 	cmd := &cobra.Command{
-		Use:   "move <item-id>",
-		Short: "Move an item into another folder (optionally renaming it)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "move <item-id>",
+		Short:       "Move an item into another folder (optionally renaming it)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(toDir) == "" {
 				return fmt.Errorf("microsoft-onedrive: --to <dir-id> is required")
@@ -189,9 +193,10 @@ func (s *Service) newItemsMoveCmd(token string) *cobra.Command {
 func (s *Service) newItemsRenameCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "rename <item-id>",
-		Short: "Rename an item in place",
-		Args:  cobra.ExactArgs(1),
+		Use:         "rename <item-id>",
+		Short:       "Rename an item in place",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(name) == "" {
 				return fmt.Errorf("microsoft-onedrive: --name is required")
@@ -215,9 +220,10 @@ func (s *Service) newItemsRenameCmd(token string) *cobra.Command {
 func (s *Service) newItemsShareCmd(token string) *cobra.Command {
 	var linkType, scope string
 	cmd := &cobra.Command{
-		Use:   "share <item-id>",
-		Short: "Create a sharing link (default scope organization — anonymous exposes the item publicly)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "share <item-id>",
+		Short:       "Create a sharing link (default scope organization — anonymous exposes the item publicly)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if linkType != "view" && linkType != "edit" {
 				return fmt.Errorf("microsoft-onedrive: --type must be view or edit, got %q", linkType)
@@ -258,9 +264,10 @@ func (s *Service) newItemsShareCmd(token string) *cobra.Command {
 
 func (s *Service) newItemsDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <item-id>...",
-		Short: "Move items to the recycle bin",
-		Args:  cobra.MinimumNArgs(1),
+		Use:         "delete <item-id>...",
+		Short:       "Move items to the recycle bin",
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids, err := cleanItemIDs(args)
 			if err != nil {

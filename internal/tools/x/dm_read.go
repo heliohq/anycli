@@ -12,9 +12,10 @@ func (s *Service) newDMListCmd(token string) *cobra.Command {
 	var nextToken string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List DM events (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List DM events (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireLimit(limit, 1, 100); err != nil {
 				return err
@@ -33,9 +34,10 @@ func (s *Service) newDMListCmd(token string) *cobra.Command {
 
 func (s *Service) newDMGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <event-id>",
-		Short: "Get one DM event",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <event-id>",
+		Short:       "Get one DM event",
+		Args:        cobra.ExactArgs(1),
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("DM event id", args[0]); err != nil {
 				return err
@@ -54,9 +56,10 @@ func (s *Service) newDMHistoryCmd(token string) *cobra.Command {
 	var conversationID, participantID, nextToken string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "history",
-		Short: "List events for one DM conversation (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "history",
+		Short:       "List events for one DM conversation (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireExactlyOne("--conversation-id", conversationID, "--participant-id", participantID); err != nil {
 				return err

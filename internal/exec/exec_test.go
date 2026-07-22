@@ -14,6 +14,7 @@ import (
 	"github.com/heliohq/anycli/internal/exec/binresolve"
 	"github.com/heliohq/anycli/internal/registry"
 	"github.com/heliohq/anycli/internal/tools"
+	"github.com/spf13/cobra"
 )
 
 // setupHome creates a temp ANYCLI_HOME and points the env at it.
@@ -76,6 +77,10 @@ type fixedService struct {
 
 func (s fixedService) Execute(context.Context, []string, map[string]string) (tools.ExecutionResult, error) {
 	return s.result, s.err
+}
+
+func (s fixedService) NewCommandTree() *cobra.Command {
+	return &cobra.Command{Use: "fixed"}
 }
 
 func echoBinary(t *testing.T) string {

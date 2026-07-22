@@ -15,9 +15,10 @@ import (
 
 func (s *Service) newPagesGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <presentation-id-or-url> <page-object-id>",
-		Short: "Show one page's full element tree (locate element object ids for edits)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "get <presentation-id-or-url> <page-object-id>",
+		Short:       "Show one page's full element tree (locate element object ids for edits)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pid := extractPresentationID(args[0])
 			body, err := s.call(cmd.Context(), token, http.MethodGet,
@@ -52,9 +53,10 @@ type savedThumbnail struct {
 func (s *Service) newPagesThumbnailCmd(token string) *cobra.Command {
 	var saveDir, size string
 	cmd := &cobra.Command{
-		Use:   "thumbnail <presentation-id-or-url> <page-object-id>",
-		Short: "Render a page to a PNG on disk (getThumbnail contentUrl is short-lived, so download it here)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "thumbnail <presentation-id-or-url> <page-object-id>",
+		Short:       "Render a page to a PNG on disk (getThumbnail contentUrl is short-lived, so download it here)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch size {
 			case "LARGE", "MEDIUM", "SMALL":

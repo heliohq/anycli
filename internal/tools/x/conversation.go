@@ -20,9 +20,10 @@ func (s *Service) newPostRepliesCmd(token string) *cobra.Command {
 	var nextToken, sinceID string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "replies <post-id>",
-		Short: "List replies (comments) in a post's conversation (one page, last 7 days)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "replies <post-id>",
+		Annotations: sideEffect(false),
+		Short:       "List replies (comments) in a post's conversation (one page, last 7 days)",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("post id", args[0]); err != nil {
 				return err
@@ -65,9 +66,10 @@ func (s *Service) newPostQuotesCmd(token string) *cobra.Command {
 	var nextToken string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "quotes <post-id>",
-		Short: "List quote posts of a post (one page)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "quotes <post-id>",
+		Annotations: sideEffect(false),
+		Short:       "List quote posts of a post (one page)",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("post id", args[0]); err != nil {
 				return err
@@ -99,9 +101,10 @@ func (s *Service) newPostQuoteCmd(token string) *cobra.Command {
 	var text string
 	var mediaIDs []string
 	cmd := &cobra.Command{
-		Use:   "quote <post-id>",
-		Short: "Quote a post with a comment",
-		Args:  cobra.ExactArgs(1),
+		Use:         "quote <post-id>",
+		Annotations: sideEffect(true),
+		Short:       "Quote a post with a comment",
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := buildCreatePostRequest(text, mediaIDs, "", args[0])
 			if err != nil {
@@ -124,9 +127,10 @@ func (s *Service) newPostQuoteCmd(token string) *cobra.Command {
 // under the connected user's own posts (PUT /2/tweets/:id/hidden).
 func (s *Service) newPostHiddenCmd(token, use, short string, hidden bool) *cobra.Command {
 	return &cobra.Command{
-		Use:   use + " <reply-id>",
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:         use + " <reply-id>",
+		Annotations: sideEffect(true),
+		Short:       short,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("reply id", args[0]); err != nil {
 				return err

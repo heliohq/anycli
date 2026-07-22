@@ -20,7 +20,8 @@ func (s *Service) newSlidesAddCmd(token string) *cobra.Command {
 		Short: "Add a slide (optionally filling its title/body); --layout takes a PredefinedLayout",
 		Long: "Add a slide. --title / --body fill the layout's TITLE / BODY placeholders in the same " +
 			"atomic batchUpdate; they assume a layout that has those placeholders (e.g. TITLE_AND_BODY).",
-		Args: cobra.ExactArgs(1),
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pid := extractPresentationID(args[0])
 			slideID := s.newObjectID("s_")
@@ -77,9 +78,10 @@ func placeholderMapping(objectID, placeholderType string) map[string]any {
 func (s *Service) newSlidesDuplicateCmd(token string) *cobra.Command {
 	var at int
 	cmd := &cobra.Command{
-		Use:   "duplicate <presentation-id-or-url> <slide-id>",
-		Short: "Duplicate a slide (optionally positioning the copy with --at)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "duplicate <presentation-id-or-url> <slide-id>",
+		Short:       "Duplicate a slide (optionally positioning the copy with --at)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pid := extractPresentationID(args[0])
 			srcID := args[1]
@@ -113,9 +115,10 @@ func (s *Service) newSlidesDuplicateCmd(token string) *cobra.Command {
 func (s *Service) newSlidesMoveCmd(token string) *cobra.Command {
 	var to int
 	cmd := &cobra.Command{
-		Use:   "move <presentation-id-or-url> <slide-id>...",
-		Short: "Reorder slides to a new position (--to is the 0-based target index)",
-		Args:  cobra.MinimumNArgs(2),
+		Use:         "move <presentation-id-or-url> <slide-id>...",
+		Short:       "Reorder slides to a new position (--to is the 0-based target index)",
+		Args:        cobra.MinimumNArgs(2),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !cmd.Flags().Changed("to") {
 				return fmt.Errorf("slides: --to is required")
@@ -149,9 +152,10 @@ func (s *Service) newSlidesMoveCmd(token string) *cobra.Command {
 // a deck the assistant did not create) lives in the skill, not here.
 func (s *Service) newSlidesDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <presentation-id-or-url> <slide-id>...",
-		Short: "Delete whole slides (no undo — confirm with the user first for decks you did not create)",
-		Args:  cobra.MinimumNArgs(2),
+		Use:         "delete <presentation-id-or-url> <slide-id>...",
+		Short:       "Delete whole slides (no undo — confirm with the user first for decks you did not create)",
+		Args:        cobra.MinimumNArgs(2),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pid := extractPresentationID(args[0])
 			ids := cleanIDs(args[1:])

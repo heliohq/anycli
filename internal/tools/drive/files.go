@@ -37,9 +37,10 @@ type driveFile struct {
 
 func (s *Service) newAboutCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "about",
-		Short: "Show the connected account and storage quota (about.get)",
-		Args:  cobra.NoArgs,
+		Use:         "about",
+		Short:       "Show the connected account and storage quota (about.get)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("fields", "user(displayName,emailAddress),storageQuota(limit,usage,usageInDrive)")
@@ -76,9 +77,10 @@ func (s *Service) newFilesListCmd(token string) *cobra.Command {
 	var query, parent, pageToken string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List files (native Drive query syntax via --query). Visible domain = files this tool created or the user granted it (drive.file).",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List files (native Drive query syntax via --query). Visible domain = files this tool created or the user granted it (drive.file).",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if max < 1 || max > 1000 {
 				return fmt.Errorf("drive: --max must be between 1 and 1000 (Drive caps pageSize at 1000); got %d", max)
@@ -146,9 +148,10 @@ func (s *Service) newFilesListCmd(token string) *cobra.Command {
 
 func (s *Service) newFilesGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <file-id>",
-		Short: "Show file metadata: name, type, size, parents, owners, webViewLink, and a sharing summary",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <file-id>",
+		Short:       "Show file metadata: name, type, size, parents, owners, webViewLink, and a sharing summary",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.getFileMeta(cmd.Context(), token, args[0], fileFields)
 			if err != nil {
@@ -190,9 +193,10 @@ func (s *Service) newFilesGetCmd(token string) *cobra.Command {
 func (s *Service) newFilesMkdirCmd(token string) *cobra.Command {
 	var parent string
 	cmd := &cobra.Command{
-		Use:   "mkdir <name>",
-		Short: "Create a folder (synthetic: files.create with the folder mimeType)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "mkdir <name>",
+		Short:       "Create a folder (synthetic: files.create with the folder mimeType)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			meta := map[string]any{"name": args[0], "mimeType": folderMIME}
 			if parent != "" {
@@ -222,9 +226,10 @@ func (s *Service) newFilesMkdirCmd(token string) *cobra.Command {
 func (s *Service) newFilesUpdateCmd(token string) *cobra.Command {
 	var name, addParent, removeParent, description string
 	cmd := &cobra.Command{
-		Use:   "update <file-id>",
-		Short: "Rename, move (--parent moves via addParents/removeParents), or set the description",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <file-id>",
+		Short:       "Rename, move (--parent moves via addParents/removeParents), or set the description",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			meta := map[string]any{}
 			if cmd.Flags().Changed("name") {
@@ -269,9 +274,10 @@ func (s *Service) newFilesUpdateCmd(token string) *cobra.Command {
 func (s *Service) newFilesCopyCmd(token string) *cobra.Command {
 	var name, parent string
 	cmd := &cobra.Command{
-		Use:   "copy <file-id>",
-		Short: "Copy a file (files.copy)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "copy <file-id>",
+		Short:       "Copy a file (files.copy)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			meta := map[string]any{}
 			if cmd.Flags().Changed("name") {
@@ -313,9 +319,10 @@ func (s *Service) newFilesTrashCmd(token string, untrash bool) *cobra.Command {
 		verb, past, short, trashed = "untrash", "untrashed", "Restore files from the trash", false
 	}
 	return &cobra.Command{
-		Use:   verb + " <file-id>...",
-		Short: short,
-		Args:  cobra.MinimumNArgs(1),
+		Use:         verb + " <file-id>...",
+		Short:       short,
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids, err := cleanIDs(args)
 			if err != nil {

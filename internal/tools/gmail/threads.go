@@ -14,9 +14,10 @@ func (s *Service) newThreadsListCmd(token string) *cobra.Command {
 	var query, pageToken string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List threads (native Gmail search syntax via --query)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List threads (native Gmail search syntax via --query)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if query != "" {
@@ -64,9 +65,10 @@ func (s *Service) newThreadsListCmd(token string) *cobra.Command {
 func (s *Service) newThreadsGetCmd(token string) *cobra.Command {
 	var bodyKind string
 	cmd := &cobra.Command{
-		Use:   "get <thread-id>",
-		Short: "Show a whole conversation, messages in order",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <thread-id>",
+		Short:       "Show a whole conversation, messages in order",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if bodyKind != "text" && bodyKind != "html" {
 				return fmt.Errorf("gmail: --body must be text or html, got %q", bodyKind)

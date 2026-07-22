@@ -11,9 +11,10 @@ import (
 
 func (s *Service) newFoldersListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List mail folders with unread/total counts (GET /me/mailFolders)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List mail folders with unread/total counts (GET /me/mailFolders)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("$top", "100")

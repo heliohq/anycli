@@ -66,9 +66,10 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var query, fields string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search My Contacts by prefix phrase (people.searchContacts)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search My Contacts by prefix phrase (people.searchContacts)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if query == "" {
 				return fmt.Errorf("contacts: --query is required")

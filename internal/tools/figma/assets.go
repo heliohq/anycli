@@ -36,6 +36,8 @@ func (s *Service) newAssetsDownloadCommand(token string) *cobra.Command {
 		Use:   "download",
 		Short: "Render selected nodes and download the resulting assets",
 		Args:  cobra.NoArgs,
+		// GET getImages + GET asset URLs; writes local files only.
+		Annotations: map[string]string{sideEffectAnnotation: "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			locator, err := locatorFlags.resolve()
 			if err != nil {
@@ -92,6 +94,8 @@ func (s *Service) newImageFillsDownloadCommand(token string) *cobra.Command {
 		Use:   "download-fills",
 		Short: "Download every original image fill in a file",
 		Args:  cobra.NoArgs,
+		// GET getImageFills + GET asset URLs; writes local files only.
+		Annotations: map[string]string{sideEffectAnnotation: "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			locator, err := locatorFlags.resolve()
 			if err != nil {

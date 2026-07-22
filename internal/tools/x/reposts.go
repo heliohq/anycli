@@ -15,9 +15,10 @@ func (s *Service) newRepostCmd(token, userID string) *cobra.Command {
 
 func (s *Service) newRepostCreateCmd(token, userID string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "create <post-id>",
-		Short: "Repost a post",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <post-id>",
+		Short:       "Repost a post",
+		Args:        cobra.ExactArgs(1),
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConnectedUserAndPostID(userID, args[0]); err != nil {
 				return err
@@ -36,9 +37,10 @@ func (s *Service) newRepostCreateCmd(token, userID string) *cobra.Command {
 
 func (s *Service) newRepostDeleteCmd(token, userID string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <post-id>",
-		Short: "Undo a repost",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <post-id>",
+		Short:       "Undo a repost",
+		Args:        cobra.ExactArgs(1),
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConnectedUserAndPostID(userID, args[0]); err != nil {
 				return err

@@ -38,10 +38,13 @@ func (s *Service) newCommentReactionsCommand(token string) *cobra.Command {
 func (s *Service) newCommentReactionAddCommand(token string) *cobra.Command {
 	var fileKey, commentID, emoji string
 	cmd := &cobra.Command{
-		Use:         "add",
-		Short:       "Add a reaction to a comment",
-		Args:        cobra.NoArgs,
-		Annotations: map[string]string{operationIDAnnotation: "postCommentReaction"},
+		Use:   "add",
+		Short: "Add a reaction to a comment",
+		Args:  cobra.NoArgs,
+		Annotations: map[string]string{
+			operationIDAnnotation: "postCommentReaction",
+			sideEffectAnnotation:  "true", // POST comment reaction
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			params := []string{"file_key=" + fileKey, "comment_id=" + commentID}
 			payload := struct {
@@ -68,6 +71,7 @@ func (s *Service) newCommentsListCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "getComments",
+			sideEffectAnnotation:  "false", // GET file comments
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
@@ -92,6 +96,7 @@ func (s *Service) newCommentPostCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "postComment",
+			sideEffectAnnotation:  "true", // POST file comment
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientMeta, err := parseClientMeta(clientMetaJSON)
@@ -123,6 +128,7 @@ func (s *Service) newCommentDeleteCommand(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Annotations: map[string]string{
 			operationIDAnnotation: "deleteComment",
+			sideEffectAnnotation:  "true", // DELETE file comment
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			params := []string{"file_key=" + fileKey, "comment_id=" + commentID}

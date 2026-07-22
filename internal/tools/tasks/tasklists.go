@@ -17,9 +17,10 @@ func (s *Service) newListsListCmd(token string) *cobra.Command {
 	var max int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List task lists (tasklists.list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List task lists (tasklists.list)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("maxResults", strconv.Itoa(max))
@@ -62,9 +63,10 @@ func (s *Service) newListsListCmd(token string) *cobra.Command {
 
 func (s *Service) newListsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <list-id>",
-		Short: "Show one task list (tasklists.get)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <list-id>",
+		Short:       "Show one task list (tasklists.get)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, tasklistsPath+"/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -86,9 +88,10 @@ func (s *Service) newListsGetCmd(token string) *cobra.Command {
 func (s *Service) newListsCreateCmd(token string) *cobra.Command {
 	var title string
 	cmd := &cobra.Command{
-		Use:   "create --title T",
-		Short: "Create a task list (tasklists.insert)",
-		Args:  cobra.NoArgs,
+		Use:         "create --title T",
+		Short:       "Create a task list (tasklists.insert)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPost, tasklistsPath, nil, map[string]string{"title": title})
 			if err != nil {
@@ -113,9 +116,10 @@ func (s *Service) newListsCreateCmd(token string) *cobra.Command {
 func (s *Service) newListsUpdateCmd(token string) *cobra.Command {
 	var title string
 	cmd := &cobra.Command{
-		Use:   "update <list-id> --title T",
-		Short: "Rename a task list (tasklists.patch; title is the only writable field)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <list-id> --title T",
+		Short:       "Rename a task list (tasklists.patch; title is the only writable field)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPatch, tasklistsPath+"/"+url.PathEscape(args[0]), nil, map[string]string{"title": title})
 			if err != nil {
@@ -139,9 +143,10 @@ func (s *Service) newListsUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newListsDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <list-id>",
-		Short: "Delete a task list and every task in it (tasklists.delete) — irreversible; assigned-task originals in Docs/Chat are deleted too",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <list-id>",
+		Short:       "Delete a task list and every task in it (tasklists.delete) — irreversible; assigned-task originals in Docs/Chat are deleted too",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := s.call(cmd.Context(), token, http.MethodDelete, tasklistsPath+"/"+url.PathEscape(args[0]), nil, nil); err != nil {
 				return err

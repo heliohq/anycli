@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
@@ -101,4 +102,18 @@ func (s *Service) stderr() io.Writer {
 		return s.Err
 	}
 	return os.Stderr
+}
+
+// NewCommandTree returns the full command tree built with empty credentials
+// for dry-run parsing and traversal (tools.Service seam, design 318). The
+// credentials are only captured by RunE closures, which are never run on
+// this tree.
+func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("", "") }
+
+// sideEffect builds the cobra Annotations map carrying the
+// "anycli.side_effect" fact for a runnable leaf command (design 318):
+// mayMutate is true ⇔ the command can issue a mutating provider API call
+// (non-GET) under some input. Group commands carry no annotation.
+func sideEffect(mayMutate bool) map[string]string {
+	return map[string]string{"anycli.side_effect": strconv.FormatBool(mayMutate)}
 }

@@ -27,9 +27,10 @@ func (g *contactGroup) label() string {
 
 func (s *Service) newGroupsListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List contact groups (contactGroups.list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contact groups (contactGroups.list)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/contactGroups", nil, nil)
 			if err != nil {
@@ -58,9 +59,10 @@ func (s *Service) newGroupsListCmd(token string) *cobra.Command {
 
 func (s *Service) newGroupsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <resource-name>",
-		Short: "Show one contact group (contactGroups.get)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <resource-name>",
+		Short:       "Show one contact group (contactGroups.get)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			q.Set("maxMembers", "0")

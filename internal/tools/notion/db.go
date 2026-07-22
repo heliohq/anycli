@@ -21,6 +21,8 @@ func (s *Service) newDBCreateCmd(token string) *cobra.Command {
 		Use:   "create",
 		Short: "Create a database container",
 		Args:  cobra.NoArgs,
+		// POST /databases
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&parent, "parent", "", "parent page: JSON, URL, or id (required)")
 	cmd.Flags().StringVar(&title, "title", "", "database title")
@@ -65,6 +67,8 @@ func (s *Service) newDBQueryCmd(token string) *cobra.Command {
 		Use:   "query <data-source-id>",
 		Short: "Query a data source with filter/sorts",
 		Args:  cobra.ExactArgs(1),
+		// POST /data_sources/{id}/query is a documented read-only query.
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
 	cmd.Flags().StringVar(&filterFlag, "filter", "", "JSON filter (REST wire)")
 	cmd.Flags().StringVar(&sortsFlag, "sorts", "", "JSON sorts array (REST wire)")
@@ -122,6 +126,8 @@ func (s *Service) newDataSourceUpdateCmd(token string) *cobra.Command {
 		Use:   "update <data-source-id>",
 		Short: "Update a data source's schema or title",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /data_sources/{id}
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&propertiesFlag, "properties", "", "JSON schema patch (REST wire)")
 	cmd.Flags().StringVar(&name, "name", "", "new data-source title (mapped to the rich-text `title` field)")

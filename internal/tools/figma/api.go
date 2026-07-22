@@ -27,11 +27,27 @@ type jsonBodyOptions struct {
 }
 
 func (s *Service) newAPICommand(token string) *cobra.Command {
-	var opts apiOptions
 	cmd := &cobra.Command{
 		Use:   "api",
-		Short: "Call any PAT-accessible Figma REST endpoint",
+		Short: "Call PAT-accessible Figma REST endpoints via catalog or raw path",
+	}
+	cmd.AddCommand(
+		s.newAPIListCommand(),
+		s.newAPIDescribeCommand(),
+		s.newAPICallCommand(token),
+		s.newAPIRequestCommand(token),
+	)
+	return cmd
+}
+
+func (s *Service) newAPIRequestCommand(token string) *cobra.Command {
+	var opts apiOptions
+	cmd := &cobra.Command{
+		Use:   "request",
+		Short: "Call any PAT-accessible Figma REST endpoint by raw path",
 		Args:  cobra.NoArgs,
+		// Sends an arbitrary --method request, incl. POST/PUT/PATCH/DELETE.
+		Annotations: map[string]string{sideEffectAnnotation: "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			method, query, payload, err := opts.request()
 			if err != nil {
@@ -45,11 +61,6 @@ func (s *Service) newAPICommand(token string) *cobra.Command {
 	cmd.Flags().StringArrayVar(&opts.queries, "query", nil, "query parameter in key=value form (repeatable)")
 	bindJSONBodyFlags(cmd, &opts.body)
 	_ = cmd.MarkFlagRequired("path")
-	cmd.AddCommand(
-		s.newAPIListCommand(),
-		s.newAPIDescribeCommand(),
-		s.newAPICallCommand(token),
-	)
 	return cmd
 }
 
@@ -145,9 +156,10 @@ func (o jsonBodyOptions) payload() (any, error) {
 
 func (s *Service) newAPIListCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List operations from the pinned official Figma OpenAPI catalog",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List operations from the pinned official Figma OpenAPI catalog",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{sideEffectAnnotation: "false"}, // local: emits the embedded catalog
 		RunE: func(*cobra.Command, []string) error {
 			catalog, err := loadOperationCatalog()
 			if err != nil {
@@ -164,9 +176,10 @@ func (s *Service) newAPIListCommand() *cobra.Command {
 
 func (s *Service) newAPIDescribeCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "describe OPERATION_ID",
-		Short: "Describe one Figma REST operation",
-		Args:  cobra.ExactArgs(1),
+		Use:         "describe OPERATION_ID",
+		Short:       "Describe one Figma REST operation",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{sideEffectAnnotation: "false"}, // local: emits one embedded catalog entry
 		RunE: func(_ *cobra.Command, args []string) error {
 			operation, err := findOperation(args[0])
 			if err != nil {
@@ -188,6 +201,9 @@ func (s *Service) newAPICallCommand(token string) *cobra.Command {
 		Use:   "call OPERATION_ID",
 		Short: "Call a catalogued Figma REST operation",
 		Args:  cobra.ExactArgs(1),
+		// Invokes any catalogued operation by id, including non-GET
+		// mutations (postComment, postVariables, deleteWebhook, ...).
+		Annotations: map[string]string{sideEffectAnnotation: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := bodyOptions.payload()
 			if err != nil {

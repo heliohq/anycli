@@ -26,9 +26,10 @@ func (s *Service) newValuesGetCmd(token string) *cobra.Command {
 	var ranges []string
 	var render string
 	cmd := &cobra.Command{
-		Use:   "get <id> --range R [--range R]...",
-		Short: "Read values from one or more A1 ranges (batchGet for multiple --range)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id> --range R [--range R]...",
+		Short:       "Read values from one or more A1 ranges (batchGet for multiple --range)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {
@@ -100,9 +101,10 @@ func (s *Service) newValuesUpdateCmd(token string) *cobra.Command {
 	var rng, valuesJSON, csvFile string
 	var raw bool
 	cmd := &cobra.Command{
-		Use:   "update <id> --range R (--values-json <json> | --csv-file <path>)",
-		Short: "Overwrite an A1 range with new values (values.update)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id> --range R (--values-json <json> | --csv-file <path>)",
+		Short:       "Overwrite an A1 range with new values (values.update)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {
@@ -145,9 +147,10 @@ func (s *Service) newValuesAppendCmd(token string) *cobra.Command {
 	var rng, valuesJSON, csvFile string
 	var raw bool
 	cmd := &cobra.Command{
-		Use:   "append <id> --range R (--values-json <json> | --csv-file <path>)",
-		Short: "Append rows after the table the range points at (values.append)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "append <id> --range R (--values-json <json> | --csv-file <path>)",
+		Short:       "Append rows after the table the range points at (values.append)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {
@@ -191,9 +194,10 @@ func (s *Service) newValuesAppendCmd(token string) *cobra.Command {
 func (s *Service) newValuesClearCmd(token string) *cobra.Command {
 	var ranges []string
 	cmd := &cobra.Command{
-		Use:   "clear <id> --range R [--range R]...",
-		Short: "Clear values from one or more A1 ranges, keeping formatting (values.clear / batchClear)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "clear <id> --range R [--range R]...",
+		Short:       "Clear values from one or more A1 ranges, keeping formatting (values.clear / batchClear)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {

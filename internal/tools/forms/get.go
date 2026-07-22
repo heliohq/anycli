@@ -14,6 +14,8 @@ func (s *Service) newGetCmd(token string) *cobra.Command {
 		Use:   "get <form-id>",
 		Short: "Show a form: structure, publishSettings, responderUri, linkedSheetId (forms.get)",
 		Args:  cobra.ExactArgs(1),
+		// GET /forms/{id} — read-only (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			formID, err := extractFormID(args[0])
 			if err != nil {

@@ -32,9 +32,10 @@ func (s *Service) batchUpdate(ctx context.Context, token, id string, requests ..
 func (s *Service) newTabsAddCmd(token string) *cobra.Command {
 	var title string
 	cmd := &cobra.Command{
-		Use:   "add <id> --title T",
-		Short: "Add a new tab (batchUpdate: AddSheet)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "add <id> --title T",
+		Short:       "Add a new tab (batchUpdate: AddSheet)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {
@@ -63,9 +64,10 @@ func (s *Service) newTabsAddCmd(token string) *cobra.Command {
 func (s *Service) newTabsRenameCmd(token string) *cobra.Command {
 	var tab, title string
 	cmd := &cobra.Command{
-		Use:   "rename <id> --tab <name|gid> --title T",
-		Short: "Rename a tab (batchUpdate: UpdateSheetProperties)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "rename <id> --tab <name|gid> --title T",
+		Short:       "Rename a tab (batchUpdate: UpdateSheetProperties)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {
@@ -100,9 +102,10 @@ func (s *Service) newTabsRenameCmd(token string) *cobra.Command {
 func (s *Service) newTabsDuplicateCmd(token string) *cobra.Command {
 	var tab, title string
 	cmd := &cobra.Command{
-		Use:   "duplicate <id> --tab <name|gid> [--title T]",
-		Short: "Duplicate a tab within the spreadsheet (batchUpdate: DuplicateSheet)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "duplicate <id> --tab <name|gid> [--title T]",
+		Short:       "Duplicate a tab within the spreadsheet (batchUpdate: DuplicateSheet)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {
@@ -137,9 +140,10 @@ func (s *Service) newTabsDuplicateCmd(token string) *cobra.Command {
 func (s *Service) newTabsCopyToCmd(token string) *cobra.Command {
 	var tab, dest string
 	cmd := &cobra.Command{
-		Use:   "copy-to <id> --tab <name|gid> --dest <spreadsheetId>",
-		Short: "Copy a tab into another spreadsheet (spreadsheets.sheets.copyTo)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "copy-to <id> --tab <name|gid> --dest <spreadsheetId>",
+		Short:       "Copy a tab into another spreadsheet (spreadsheets.sheets.copyTo)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {
@@ -181,9 +185,10 @@ func (s *Service) newTabsCopyToCmd(token string) *cobra.Command {
 func (s *Service) newTabsDeleteCmd(token string) *cobra.Command {
 	var tab string
 	cmd := &cobra.Command{
-		Use:   "delete <id> --tab <name|gid>",
-		Short: "Delete a tab — irreversible; cross-tab formula references become #REF! (batchUpdate: DeleteSheet)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id> --tab <name|gid>",
+		Short:       "Delete a tab — irreversible; cross-tab formula references become #REF! (batchUpdate: DeleteSheet)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseSpreadsheetID(args[0])
 			if err != nil {

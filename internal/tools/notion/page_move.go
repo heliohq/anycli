@@ -23,6 +23,8 @@ func (s *Service) newPageMoveCmd(token string) *cobra.Command {
 		Use:   "move",
 		Short: "Move pages or databases to a new parent",
 		Args:  cobra.NoArgs,
+		// POST /pages/{id}/move, PATCH /databases/{id}
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&idsFlag, "page-or-database-ids", "", "JSON array of page or database ids to move (<=100)")
 	cmd.Flags().StringVar(&newParent, "new-parent", "", "destination parent: JSON, URL, or id")
@@ -111,6 +113,8 @@ func (s *Service) newPageDuplicateCmd(token string) *cobra.Command {
 		Use:   "duplicate <page-id>",
 		Short: "Duplicate a page via a template",
 		Args:  cobra.ExactArgs(1),
+		// GET source + POST /pages
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
 	cmd.Flags().StringVar(&newParent, "new-parent", "", "destination parent (default: source page's parent)")
 	cmd.Flags().StringVar(&title, "title", "", "title for the duplicate (default: source title)")

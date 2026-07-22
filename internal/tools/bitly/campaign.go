@@ -22,9 +22,10 @@ func (s *Service) newCampaignCmd(token string) *cobra.Command {
 func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	var group string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns (GET /campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns (GET /campaigns)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guid, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {
@@ -46,9 +47,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 	var campaign string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a campaign (GET /campaigns/{campaign_guid})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a campaign (GET /campaigns/{campaign_guid})",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/campaigns/"+url.PathEscape(campaign), nil, nil)
 			if err != nil {
@@ -66,9 +68,10 @@ func (s *Service) newCampaignCreateCmd(token string) *cobra.Command {
 	var group, name, description string
 	var channelGUIDs []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a campaign (POST /campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a campaign (POST /campaigns)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // POST /campaigns
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guid, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {
@@ -103,9 +106,10 @@ func (s *Service) newCampaignUpdateCmd(token string) *cobra.Command {
 	var campaign, name, description string
 	var channelGUIDs []string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a campaign (PATCH /campaigns/{campaign_guid})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a campaign (PATCH /campaigns/{campaign_guid})",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // PATCH /campaigns/{campaign_guid}
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if name != "" {
@@ -146,9 +150,10 @@ func (s *Service) newChannelCmd(token string) *cobra.Command {
 func (s *Service) newChannelListCmd(token string) *cobra.Command {
 	var group string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List channels (GET /channels)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List channels (GET /channels)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guid, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {
@@ -170,9 +175,10 @@ func (s *Service) newChannelListCmd(token string) *cobra.Command {
 func (s *Service) newChannelGetCmd(token string) *cobra.Command {
 	var channel string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a channel (GET /channels/{channel_guid})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a channel (GET /channels/{channel_guid})",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/channels/"+url.PathEscape(channel), nil, nil)
 			if err != nil {
@@ -190,9 +196,10 @@ func (s *Service) newChannelCreateCmd(token string) *cobra.Command {
 	var group, name, guid string
 	var bitlinks, campaigns []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a channel (POST /channels)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a channel (POST /channels)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // POST /channels
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			groupGUID, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {
@@ -235,9 +242,10 @@ func (s *Service) newChannelCreateCmd(token string) *cobra.Command {
 func (s *Service) newChannelUpdateCmd(token string) *cobra.Command {
 	var channel, name string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a channel (PATCH /channels/{channel_guid})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a channel (PATCH /channels/{channel_guid})",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // PATCH /channels/{channel_guid}
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if name != "" {

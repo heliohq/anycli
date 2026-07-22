@@ -39,9 +39,10 @@ const (
 func (s *Service) newResolveCmd(token string) *cobra.Command {
 	var max int
 	cmd := &cobra.Command{
-		Use:   "resolve <name>",
-		Short: "Resolve a name to email/phone across My Contacts + Other Contacts",
-		Args:  cobra.ExactArgs(1),
+		Use:         "resolve <name>",
+		Short:       "Resolve a name to email/phone across My Contacts + Other Contacts",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			matches, err := s.resolveName(cmd.Context(), token, name, max)

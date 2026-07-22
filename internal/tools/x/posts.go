@@ -48,9 +48,10 @@ func (s *Service) newPostCmd(token string) *cobra.Command {
 
 func (s *Service) newPostGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <post-id>...",
-		Short: "Get one or more posts (up to 100) by id",
-		Args:  cobra.MinimumNArgs(1),
+		Use:         "get <post-id>...",
+		Short:       "Get one or more posts (up to 100) by id",
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 100 {
 				return fmt.Errorf("at most 100 post ids are supported per lookup")
@@ -79,9 +80,10 @@ func (s *Service) newPostSearchCmd(token string) *cobra.Command {
 	var query, nextToken, sinceID, sortOrder string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search recent posts (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search recent posts (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if strings.TrimSpace(query) == "" {
 				return fmt.Errorf("query is required")
@@ -128,9 +130,10 @@ func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 	var text, replyTo string
 	var mediaIDs []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a post",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a post",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := buildCreatePostRequest(text, mediaIDs, replyTo, "")
 			if err != nil {
@@ -153,9 +156,10 @@ func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 func (s *Service) newPostReplyCmd(token string) *cobra.Command {
 	var text string
 	cmd := &cobra.Command{
-		Use:   "reply <post-id>",
-		Short: "Reply to a post",
-		Args:  cobra.ExactArgs(1),
+		Use:         "reply <post-id>",
+		Short:       "Reply to a post",
+		Args:        cobra.ExactArgs(1),
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := buildCreatePostRequest(text, nil, args[0], "")
 			if err != nil {
@@ -176,9 +180,10 @@ func (s *Service) newPostReplyCmd(token string) *cobra.Command {
 func (s *Service) newPostThreadCmd(token string) *cobra.Command {
 	var texts []string
 	cmd := &cobra.Command{
-		Use:   "thread",
-		Short: "Create a thread from repeated --text values",
-		Args:  cobra.NoArgs,
+		Use:         "thread",
+		Short:       "Create a thread from repeated --text values",
+		Args:        cobra.NoArgs,
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(texts) < 2 {
 				return fmt.Errorf("at least two --text values are required")
@@ -210,9 +215,10 @@ func (s *Service) newPostThreadCmd(token string) *cobra.Command {
 
 func (s *Service) newPostDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <post-id>",
-		Short: "Delete a post",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <post-id>",
+		Short:       "Delete a post",
+		Args:        cobra.ExactArgs(1),
+		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("post id", args[0]); err != nil {
 				return err

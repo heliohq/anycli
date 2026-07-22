@@ -13,9 +13,10 @@ import (
 
 func (s *Service) newProfileCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "profile",
-		Short: "Show the connected mailbox profile (users.getProfile)",
-		Args:  cobra.NoArgs,
+		Use:         "profile",
+		Short:       "Show the connected mailbox profile (users.getProfile)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/users/me/profile", nil, nil)
 			if err != nil {
@@ -51,9 +52,10 @@ func (s *Service) newMessagesListCmd(token string) *cobra.Command {
 	var labels []string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List messages (native Gmail search syntax via --query)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List messages (native Gmail search syntax via --query)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if query != "" {
@@ -106,9 +108,10 @@ func (s *Service) newMessagesGetCmd(token string) *cobra.Command {
 	var bodyKind string
 	var showHeaders bool
 	cmd := &cobra.Command{
-		Use:   "get <message-id>",
-		Short: "Show one message: headers, body, and attachment inventory",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <message-id>",
+		Short:       "Show one message: headers, body, and attachment inventory",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if bodyKind != "text" && bodyKind != "html" {
 				return fmt.Errorf("gmail: --body must be text or html, got %q", bodyKind)
@@ -153,9 +156,10 @@ func (s *Service) newMessagesModifyCmd(token string) *cobra.Command {
 	var addLabels, removeLabels []string
 	var archive, markRead, markUnread bool
 	cmd := &cobra.Command{
-		Use:   "modify <message-id>...",
-		Short: "Add/remove labels (batchModify for multiple ids)",
-		Args:  cobra.MinimumNArgs(1),
+		Use:         "modify <message-id>...",
+		Short:       "Add/remove labels (batchModify for multiple ids)",
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids, err := cleanMessageIDs(args)
 			if err != nil {
@@ -214,9 +218,10 @@ func (s *Service) newMessagesTrashCmd(token string, untrash bool) *cobra.Command
 		verb, past, short = "untrash", "untrashed", "Move messages out of the trash"
 	}
 	return &cobra.Command{
-		Use:   verb + " <message-id>...",
-		Short: short,
-		Args:  cobra.MinimumNArgs(1),
+		Use:         verb + " <message-id>...",
+		Short:       short,
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids, err := cleanMessageIDs(args)
 			if err != nil {

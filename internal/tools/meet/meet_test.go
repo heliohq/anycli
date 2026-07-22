@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
+	"github.com/spf13/cobra"
 )
 
 // decodeQuery parses a recorded raw query string into a flat map (last value
@@ -231,5 +232,64 @@ func TestRetryOn503ForGET(t *testing.T) {
 	}
 	if len(f.sleeps) != len(retryBackoffs) {
 		t.Errorf("recorded %d backoff sleeps, want %d", len(f.sleeps), len(retryBackoffs))
+	}
+}
+
+// TestSideEffectAnnotations asserts every runnable leaf command of the tree
+// carries an explicit anycli.side_effect annotation with the reviewed value
+// (design 318 may-mutate criterion), and that group commands carry none.
+func TestSideEffectAnnotations(t *testing.T) {
+	want := map[string]string{
+		"meet records list":          "false", // GET /conferenceRecords
+		"meet records get":           "false", // GET /conferenceRecords/{r}
+		"meet participants list":     "false", // GET /conferenceRecords/{r}/participants
+		"meet participants sessions": "false", // GET .../participantSessions
+		"meet recordings list":       "false", // GET /conferenceRecords/{r}/recordings
+		"meet transcripts list":      "false", // GET /conferenceRecords/{r}/transcripts
+		"meet transcripts entries":   "false", // GET .../transcripts/{t}/entries
+		"meet transcripts text":      "false", // synthetic read: GET participants + entries
+		"meet smart-notes list":      "false", // GET v2beta .../smartNotes
+		"meet spaces get":            "false", // GET /spaces/{s}
+		"meet spaces create":         "true",  // POST /spaces
+		"meet spaces update":         "true",  // PATCH /spaces/{s}
+		"meet spaces end-conference": "true",  // POST /spaces/{s}:endActiveConference
+	}
+
+	root := (&Service{}).NewCommandTree()
+	got := map[string]string{}
+	var walk func(cmd *cobra.Command)
+	walk = func(cmd *cobra.Command) {
+		val, ok := cmd.Annotations["anycli.side_effect"]
+		if cmd.HasSubCommands() {
+			if ok {
+				t.Errorf("%s: group command must not carry anycli.side_effect, got %q", cmd.CommandPath(), val)
+			}
+			for _, sub := range cmd.Commands() {
+				walk(sub)
+			}
+			return
+		}
+		if cmd.RunE == nil && cmd.Run == nil {
+			return
+		}
+		if !ok {
+			t.Errorf("%s: runnable leaf missing explicit anycli.side_effect annotation", cmd.CommandPath())
+			return
+		}
+		got[cmd.CommandPath()] = val
+	}
+	walk(root)
+
+	for path, wantVal := range want {
+		if gotVal, ok := got[path]; !ok {
+			t.Errorf("%s: leaf command not found in tree", path)
+		} else if gotVal != wantVal {
+			t.Errorf("%s: anycli.side_effect = %q, want %q", path, gotVal, wantVal)
+		}
+	}
+	for path := range got {
+		if _, ok := want[path]; !ok {
+			t.Errorf("%s: new runnable leaf not covered by this table — classify it per the design 318 may-mutate criterion", path)
+		}
 	}
 }

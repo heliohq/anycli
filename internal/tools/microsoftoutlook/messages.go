@@ -17,9 +17,10 @@ func (s *Service) newMessagesListCmd(token string) *cobra.Command {
 	var search, filter, folder, page string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List messages (--search → Graph $search, --filter → OData $filter)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List messages (--search → Graph $search, --filter → OData $filter)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var body []byte
 			var err error
@@ -87,9 +88,10 @@ func (s *Service) newMessagesGetCmd(token string) *cobra.Command {
 	var bodyKind string
 	var showHeaders bool
 	cmd := &cobra.Command{
-		Use:   "get <message-id>",
-		Short: "Show one message: headers, body, and attachment inventory",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <message-id>",
+		Short:       "Show one message: headers, body, and attachment inventory",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if bodyKind != "text" && bodyKind != "html" {
 				return fmt.Errorf("microsoft-outlook: --body must be text or html, got %q", bodyKind)
@@ -125,9 +127,10 @@ func cleanMessageIDs(args []string) ([]string, error) {
 func (s *Service) newMessagesMoveCmd(token string) *cobra.Command {
 	var folder string
 	cmd := &cobra.Command{
-		Use:   "move <message-id>...",
-		Short: "Move messages to a folder ($batch for multiple ids)",
-		Args:  cobra.MinimumNArgs(1),
+		Use:         "move <message-id>...",
+		Short:       "Move messages to a folder ($batch for multiple ids)",
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids, err := cleanMessageIDs(args)
 			if err != nil {
@@ -175,9 +178,10 @@ func (s *Service) newMessagesMoveCmd(token string) *cobra.Command {
 func (s *Service) newMessagesMarkCmd(token string) *cobra.Command {
 	var markRead, markUnread, flag, unflag bool
 	cmd := &cobra.Command{
-		Use:   "mark <message-id>...",
-		Short: "Mark messages read/unread and/or flag/unflag ($batch for multiple ids)",
-		Args:  cobra.MinimumNArgs(1),
+		Use:         "mark <message-id>...",
+		Short:       "Mark messages read/unread and/or flag/unflag ($batch for multiple ids)",
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ids, err := cleanMessageIDs(args)
 			if err != nil {

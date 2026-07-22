@@ -24,9 +24,10 @@ func (s *Service) newLinkShortenCmd(token string) *cobra.Command {
 	var longURL, domain, group string
 	var forceNewLink bool
 	cmd := &cobra.Command{
-		Use:   "shorten",
-		Short: "Shorten a long URL (POST /shorten)",
-		Args:  cobra.NoArgs,
+		Use:         "shorten",
+		Short:       "Shorten a long URL (POST /shorten)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // POST /shorten creates a bitlink
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guid, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {
@@ -58,9 +59,10 @@ func (s *Service) newLinkCreateCmd(token string) *cobra.Command {
 	var tags []string
 	var forceNewLink bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a bitlink with full metadata (POST /bitlinks)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a bitlink with full metadata (POST /bitlinks)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // POST /bitlinks
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guid, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {
@@ -117,6 +119,9 @@ func (s *Service) newLinkExpandCmd(token string) *cobra.Command {
 		Use:   "expand",
 		Short: "Expand a bitlink to its long URL (POST /expand)",
 		Args:  cobra.NoArgs,
+		// POST /expand is a documented lookup (POST-shaped read); it never
+		// mutates provider state under any input.
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"bitlink_id": bitlink}
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/expand", nil, body)
@@ -134,9 +139,10 @@ func (s *Service) newLinkExpandCmd(token string) *cobra.Command {
 func (s *Service) newLinkGetCmd(token string) *cobra.Command {
 	var bitlink string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a bitlink (GET /bitlinks/{bitlink})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a bitlink (GET /bitlinks/{bitlink})",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/bitlinks/"+bitlink, nil, nil)
 			if err != nil {
@@ -155,9 +161,10 @@ func (s *Service) newLinkUpdateCmd(token string) *cobra.Command {
 	var tags []string
 	var archived bool
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a bitlink (PATCH /bitlinks/{bitlink})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a bitlink (PATCH /bitlinks/{bitlink})",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // PATCH /bitlinks/{bitlink}
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if title != "" {
@@ -205,9 +212,10 @@ func (s *Service) newLinkListCmd(token string) *cobra.Command {
 	var tags []string
 	var size int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List a group's bitlinks (GET /groups/{group_guid}/bitlinks)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a group's bitlinks (GET /groups/{group_guid}/bitlinks)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guid, err := s.resolveGroup(cmd.Context(), token, group)
 			if err != nil {

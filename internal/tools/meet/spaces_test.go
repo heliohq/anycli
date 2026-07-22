@@ -108,3 +108,59 @@ func TestSpacesEndConference(t *testing.T) {
 		t.Fatalf("--json output is not valid JSON: %v", err)
 	}
 }
+
+// TestValueValidatorsAreStrictLowercase pins the fail-closed contract for
+// value-conditioned policy (design 318 §equals audit rule): non-canonical
+// spellings fail at command validation instead of executing while bypassing
+// an equals condition on the literal argv value.
+func TestValueValidatorsAreStrictLowercase(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      string
+		wantErr bool
+		want    string
+	}{
+		{"access-type canonical", "open", false, "OPEN"},
+		{"access-type uppercase rejected", "OPEN", true, ""},
+		{"access-type mixed case rejected", "Trusted", true, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := accessTypeValue(tc.in)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("accessTypeValue(%q) = %q, want strict-match error", tc.in, got)
+				}
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("accessTypeValue(%q) = %q, %v; want %q", tc.in, got, err, tc.want)
+			}
+		})
+	}
+
+	onOffCases := []struct {
+		name    string
+		in      string
+		wantErr bool
+		want    string
+	}{
+		{"on canonical", "on", false, "ON"},
+		{"uppercase rejected", "ON", true, ""},
+		{"mixed case rejected", "Off", true, ""},
+	}
+	for _, tc := range onOffCases {
+		t.Run("on-off "+tc.name, func(t *testing.T) {
+			got, err := onOffValue("auto-recording", tc.in)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("onOffValue(%q) = %q, want strict-match error", tc.in, got)
+				}
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("onOffValue(%q) = %q, %v; want %q", tc.in, got, err, tc.want)
+			}
+		})
+	}
+}

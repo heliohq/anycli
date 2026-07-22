@@ -169,6 +169,8 @@ func (s *Service) newEventsCreateCmd(token string) *cobra.Command {
 		Use:   "create",
 		Short: "Create an event (add --attendee to invite; --meet for a Meet link)",
 		Args:  cobra.NoArgs,
+		// POST /calendars/{cal}/events — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if o.summary == "" {
 				return fmt.Errorf("calendar: --summary is required")
@@ -230,6 +232,8 @@ func (s *Service) newEventsUpdateCmd(token string) *cobra.Command {
 		Use:   "update <event-id>",
 		Short: "Patch an event (only the flags you pass are changed — never a full replace)",
 		Args:  cobra.ExactArgs(1),
+		// PATCH /calendars/{cal}/events/{id} — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateSendUpdates(o.sendUpdates); err != nil {
 				return err
@@ -297,6 +301,8 @@ func (s *Service) newEventsDeleteCmd(token string) *cobra.Command {
 		Use:   "delete <event-id>",
 		Short: "Delete an event (Google keeps it in the trash for 30 days)",
 		Args:  cobra.ExactArgs(1),
+		// DELETE /calendars/{cal}/events/{id} — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateSendUpdates(sendUpdates); err != nil {
 				return err
@@ -323,6 +329,9 @@ func (s *Service) newEventsRespondCmd(token string) *cobra.Command {
 		Use:   "respond <event-id>",
 		Short: "RSVP as yourself (accepted|declined|tentative); the organizer is always notified",
 		Args:  cobra.ExactArgs(1),
+		// GET then PATCH /calendars/{cal}/events/{id} (read-modify-write of the
+		// attendees array) — mutating provider call (design 318).
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch status {
 			case "accepted", "declined", "tentative":

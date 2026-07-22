@@ -27,9 +27,10 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var query string
 	var max int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search the drive (Graph drive search, query passed through verbatim)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search the drive (Graph drive search, query passed through verbatim)",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if query == "" {
 				return fmt.Errorf("microsoft-onedrive: --query is required")
@@ -58,9 +59,10 @@ type savedFile struct {
 func (s *Service) newDownloadCmd(token string) *cobra.Command {
 	var path, saveDir string
 	cmd := &cobra.Command{
-		Use:   "download [item-id]",
-		Short: "Download an item's contents into a local directory",
-		Args:  cobra.MaximumNArgs(1),
+		Use:         "download [item-id]",
+		Short:       "Download an item's contents into a local directory",
+		Args:        cobra.MaximumNArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := firstArg(args)
 			resource, err := itemResource(id, path)
@@ -106,9 +108,10 @@ func (s *Service) newDownloadCmd(token string) *cobra.Command {
 func (s *Service) newUploadCmd(token string) *cobra.Command {
 	var toPath, parentID, name string
 	cmd := &cobra.Command{
-		Use:   "upload <local-path>",
-		Short: "Upload a local file (small files direct, large files via an upload session)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "upload <local-path>",
+		Short:       "Upload a local file (small files direct, large files via an upload session)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			local := args[0]
 			data, err := os.ReadFile(local)
