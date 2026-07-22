@@ -486,3 +486,69 @@ and L3 are fully self-contained.
   both true — the earlier draft's claim is corrected here.
 - **Open item for lane 1 / batch lead:** demo-vs-prod host handling during the
   hidden phase (env-specific config vs `account-d` hosts).
+
+---
+
+## 8. Implementation decisions & divergences from this design (recorded at build)
+
+Verified against the **actual `origin/main` code** in both worktrees before
+implementing. Two premises in §4.2/§4.3 above did not hold on this base and were
+corrected:
+
+- **"`refresh_lease: credential` under `standard_oauth` already landed on main
+  (SignNow §4a)" — FALSE on this base.** `runtimeStrategyContracts` still pins
+  `standard_oauth` to a **single** `refreshLeaseScope: OAuthLeaseNone` with an
+  exact-equality check (`model/runtime_contract.go`), and SignNow's bundle is
+  not present. So `refresh_lease: credential` was **not** available to a
+  `standard_oauth` DocuSign bundle. (The `OAuthLeaseCredential` *behavior* —
+  per-credential refresh serialization — is implemented in `token_refresh.go`;
+  only the contract *permission* was missing.)
+- **`metadata_capture` field + `connection.metadata.*` credential sources —
+  confirmed absent** exactly as §4.2 predicted (`knownCredentialSources`,
+  `KnownFields(true)` strict-decode).
+
+**Chosen build: Option A(b) realized as a named `docusign_acg` runtime
+strategy** (not A(a)'s declarative `metadata_capture` field, and not
+`standard_oauth`). Rationale — minimal orthogonal decomposition on the verified
+base:
+
+1. A named strategy carries its **own** capability tuple, so it sets
+   `refreshLeaseScope: OAuthLeaseCredential` **without widening the shared
+   `standard_oauth` contract** — the cleaner fix than making the golden path's
+   lease a set (which the false "SignNow landed" premise assumed already done).
+2. The `is_default`-account selection is genuinely compiled logic (array filter,
+   not a static pointer — the AGENTS.md forbids unbounded YAML expressions), so
+   it must be Go either way. Wiring it through the **shipped LinkedIn
+   `person_urn` adapter seam** (`composeExplicitOAuthRegistration` +
+   `docusignAdapter`) reuses existing machinery and drops A(a)'s whole net-new
+   `metadata_capture`-with-deriver subsystem (manifest field + strict-decode
+   plumbing + deriver-selection). Subtract before adding; the reusable manifest
+   field had **zero** other consumers on this base (YAGNI).
+3. Net-new items actually landed (all reused/extended existing seams, no new
+   declarative subsystem): the `docusign_acg` strategy + contract entry; the two
+   `connection.metadata.base_uri` / `.account_id` credential sources (generator
+   allowlist + runtime allowlist + token-gateway projection); the
+   `docusignAdapter` identity resolver; and a generalized
+   `promotedIdentityMetadataKeys` promotion in the callback (subsumes the
+   person_urn special-case).
+
+**Efficiency note vs §4.2 sketch:** the adapter makes **no second userinfo
+fetch** — the declarative resolver already returns the full userinfo map as the
+identity blob, so `accounts[]` is read from it directly (one GET at connect).
+
+**Bootstrap note:** the `docusign_acg` contract entry intentionally leaves the
+reserved-`provider` binding **unbound**. Binding `model.ProviderDocusign` (a
+generated const) in the hand-written contract would deadlock the generator (the
+model package it depends on could not compile before the const it emits exists).
+The strategy is single-provider by construction, so the guard adds no safety a
+review would not already catch.
+
+**Not done (correctly, per hidden-first):** no integration-service `config/` +
+`deploy/` client-id/secret entries — DocuSign has no dev app credentials yet, a
+**fully-absent** config renders `configured:false` (safe hidden), and a
+*partial* config fails startup, so id+secret land together via lane 1 before L5.
+No plugin version bump / marketplace publish — that rides the batch-end merge
+(one publish per batch), per master plan §2. The 5 provider-gen projections were
+regenerated locally for L3/--check validation but **not committed** (batch lead
+owns the one canonical regen); the helio-cli build used a local uncommitted
+`replace` against the anycli worktree.
