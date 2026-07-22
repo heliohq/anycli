@@ -68,9 +68,27 @@ Mutations:
 - `createIdea(input: CreateIdeaInput!): CreateIdeaPayload!` (idea belongs to an
   organization, not a channel).
 
-Return unions carry `... on PostActionSuccess { post { … } }` and
-`... on MutationError { message }`; the service always selects the error arm so
-a GraphQL-level failure surfaces a message.
+Return unions carry a success arm (`... on PostActionSuccess { post { … } }`)
+and one or more error arms. The schema reference exposes a **base
+`MutationError { message }`** plus sibling error types **`NotFoundError`,
+`RestProxyError { message link code }`, and `VoidMutationError`** — but the
+published reference does **not** render explicit `implements` clauses, so it is
+**unconfirmed whether `MutationError` is a GraphQL interface** those siblings
+satisfy (verified against the official schema reference, 2026-07-22). This is a
+stage-2 gate, because it decides whether one error arm is enough:
+
+- If `MutationError` **is** an interface implemented by the sibling error
+  types, a single `... on MutationError { message }` selection is sufficient
+  and surfaces every failure.
+- If it is **not** (they are independent concrete types), selecting only
+  `... on MutationError` would let a `NotFoundError` / `RestProxyError` /
+  `VoidMutationError` response fall through as a non-error — a silent-fallback
+  violation of the fail-fast rule, and a false sense of coverage for the L1
+  "error arm" test. In that case the selection MUST enumerate **every** error
+  arm and the L1 test MUST assert each arm surfaces a message.
+
+`deletePost` returns its **own** `DeletePostPayload` (`DeletePostSuccess { id }`
++ error), a distinct shape from `PostActionPayload` — handle it separately.
 
 ## 2. Divergence from the catalog / OAuth audit (record per task contract)
 
@@ -82,29 +100,49 @@ app registration (client_id/client_secret issued in Settings → API) with
 mandatory PKCE — which under the audit rubric is an **oauth_light** shape
 (self-serve, no human review/partner/publish gate), not oauth_review.
 
-Two caveats keep this from being a clean flip to oauth_light, and are the
-reason Buffer legitimately sits in 3-hold behind a pre-verify gate:
+On the official auth guide's own terms, the underlying auth shape is
+**oauth_light**: self-serve confidential-client registration in Settings → API
+issues `client_id` + `client_secret` immediately, the flow is Authorization
+Code + PKCE (S256), and the guide describes **no** review, partner-program,
+verification, or publish gate — it states OAuth lets you "build apps that
+access Buffer accounts on behalf of your users," i.e. multi-tenant use is
+presented as available, not gated. Under the oauth-audit rubric (self-serve
+registration, no review gate) that is squarely **oauth_light**.
 
-1. The GraphQL API is **public beta**, and third-party/multi-tenant OAuth
-   (one Helio app that arbitrary customer Buffer accounts authorize) is
-   reported as **not yet fully enabled** — the enablement state is the real
-   gate, functionally equivalent to a review/verification gate.
-2. The **personal/static API key** fallback is self-serve but **expires 30
-   days after creation** (owner-only, account-scoped, `Authorization: Bearer`).
-   That is a poor multi-tenant credential (every user re-pastes a key monthly).
+**Official-docs divergence (recorded per task contract, verified 2026-07-22
+against developers.buffer.com/guides/authentication.html):** an earlier draft
+asserted third-party/multi-tenant OAuth is "reported as not yet fully enabled."
+I found **no source** for that enablement restriction, and the primary evidence
+points the other way (self-serve registration, no gate). The honest recording
+is: **auth shape is oauth_light; the only real residual gate is public-beta
+stability** of the new GraphQL API — not an enablement or verification lock.
 
-**Verdict recorded for DESIGN.md / wave-board:** keep the **oauth_review** lane
-*classification* conservatively for the 3-hold pre-verify (public-beta +
-not-fully-enabled third-party OAuth is a genuine enablement gate), but the
-underlying *auth shape* is standard PKCE OAuth, **amendable to oauth_light**
-via the §6 catalog-amendment log the moment stage-1/L2 confirms a third-party
-OAuth client can be created and an external account can authorize it. If
-stage-1 finds third-party OAuth is still not enabled for new clients, the
-decision is binary: (a) ship as an **api_key manual-token** bundle on the
-30-day personal key (documented expiry pain), or (b) **swap Buffer out** via
-risk #2 (Hootsuite already covers the same social-scheduling category in
-Wave 2). This DESIGN recommends (proceed on PKCE OAuth) as the primary path and
-names (a)/(b) as the explicit pre-verify fallbacks.
+One softer caveat remains, on the fallback credential:
+
+- The **personal/static API key** fallback is self-serve, owner-only,
+  account-scoped (`Authorization: Bearer`). Its expiry is **user-selectable at
+  creation — 7 / 30 / 60 / 90 days or 1 year, with 30 days merely the
+  default** (Help Center article 859; the same article's stray "expires 30 days
+  after creation" line is contradicted by its own selectable-option list, so
+  the selectable set is authoritative). A 1-year key is a tolerable manual-token
+  bundle — the worst case is an **annual** re-paste, not the monthly burden an
+  earlier draft claimed.
+
+**Verdict recorded for DESIGN.md / wave-board:** the auth shape is
+**oauth_light**; Buffer is **provisionally held at oauth_review only pending
+stage-1 confirmation of public-beta stability** — not because of any documented
+review or enablement gate. The hidden-first posture makes this
+over-conservatism harmless (a hidden tool ships and is L4/L5-testable
+regardless of lane), so the lane is **amendable to oauth_light** via the §6
+catalog-amendment log the moment stage-1/L2 confirms a third-party OAuth client
+registers and an external account authorizes it on the stable API. If stage-1
+instead finds the beta is not usable for a shared client (instability, not an
+enablement lock), the fallbacks are (a) ship as an **api_key manual-token**
+bundle on the personal key (user-selectable expiry, 1-year max — a mild annual
+re-paste), or (b) **swap Buffer out** (Hootsuite already covers the same
+social-scheduling category in Wave 2). This DESIGN recommends proceeding on
+PKCE OAuth as the primary path and names (a)/(b) as the explicit pre-verify
+fallbacks.
 
 ## 3. anycli definition
 
@@ -127,7 +165,9 @@ Proposed cobra tree (resource-grouped, agent-facing verbs):
 buffer account get                          # account { id email name organizations }
 buffer org list                             # organizations under the account
 buffer channel list  --org <id>             # channels(input:{organizationId})
-buffer post list     --channel <id> [--status queued|sent|draft]
+buffer post list     --org <id>             # posts(input:{organizationId}); organizationId REQUIRED
+                     [--channel <id>]       #   → PostsFiltersInput.channelIds (optional filter)
+                     [--status <s>]         #   → PostsFiltersInput.status (values unconfirmed, see below)
 buffer post create   --channel <id> --text <s>
                      [--mode addToQueue|customScheduled] [--due-at <RFC3339>]
                      [--draft] [--image-url <url>] [--metadata-json <json>]
@@ -135,6 +175,25 @@ buffer post edit     --id <id> [--text <s>] [--due-at <ts>]
 buffer post delete   --id <id>
 buffer idea create   --org <id> --text <s>
 ```
+
+**`post list` is organization-scoped, not channel-scoped** (verified against
+the schema reference, 2026-07-22): the query is
+`posts(input: PostsInput!, first, after)` where **`PostsInput.organizationId:
+OrganizationId!` is required**; channel filtering is an *optional*
+`PostsFiltersInput.channelIds` and status filtering is
+`PostsFiltersInput.status`. So `--org` is **required** on `post list` and
+`--channel` is demoted to an optional filter — this mirrors `channel list
+--org` (channels is likewise org-scoped via `ChannelsInput.organizationId`), so
+the two read verbs are now internally consistent. An agent holding only a
+channel id resolves its org via `account get` (the account carries
+`organizations`) or `channel list --org`, then supplies `--org`.
+
+**`--status` values are unconfirmed.** The schema declares a `PostStatus` enum
+but the published reference does not enumerate its members (only `draft` shows
+in example responses). Do **not** hardcode `queued|sent|draft` as the accepted
+set — read the real `PostStatus` values off the schema at stage-2 before
+constraining the flag; until then `--status` passes through as a raw string
+into `PostsFiltersInput.status`.
 
 **JSON output shape (`--json`, agent-neutral):** each command prints a single
 JSON object with the provider-neutral fields flattened out of GraphQL (never
@@ -210,7 +269,7 @@ presentation:
   name: Buffer
   description_key: buffer
   consent_domain: buffer.com
-  visible: false            # 3-hold; flip after L5 + oauth_review clearance
+  visible: false            # 3-hold; flip after L5 + stage-1 beta-stability clearance
   order: <batch-assigned>
 auth:
   type: oauth
@@ -277,14 +336,18 @@ agent throughput.
   documented, self-serve-registerable surface that covers the teammate's
   publish/schedule/channel/idea needs. The legacy-REST "closed registration"
   blocker does **not** apply to it.
-- **Auth-shape decision: standard PKCE OAuth** on `standard_oauth`, with one
+- **Auth-shape decision: oauth_light** — standard Authorization Code + PKCE
+  (S256) on `standard_oauth`, self-serve confidential-client registration with
+  no review/partner/publish gate per the official auth guide (§2, §4), plus one
   capability question (POST-body identity resolution, §4) resolved at stage-2.
-  Lane stays **oauth_review** for pre-verify conservatism, **amendable to
-  oauth_light** on stage-1/L2 confirmation of third-party OAuth enablement.
+  Lane is **provisionally held at oauth_review only pending stage-1
+  confirmation of public-beta stability** — no source supports an enablement
+  gate — and is **amendable to oauth_light** on that confirmation.
 - **Residual risk (the one that could still swap Buffer out):** if stage-1
-  finds third-party/multi-tenant OAuth clients still cannot be created (public
-  beta not yet opened to external apps), the only shippable path is the
-  **api_key personal-key** bundle with a **30-day expiry** — a monthly
-  re-paste burden that is a weak multi-tenant experience. In that case escalate
-  to the §6 catalog-amendment: ship api_key-with-caveat, or swap Buffer out
-  (Hootsuite covers the category). Record whichever on the wave-board.
+  finds the public-beta GraphQL API is not usable for a shared multi-tenant
+  client (instability, not a documented enablement lock), the fallback is the
+  **api_key personal-key** bundle — self-serve, with **user-selectable expiry
+  and a 1-year maximum** (a mild annual re-paste, not the monthly burden an
+  earlier draft implied). In that case escalate to the §6 catalog-amendment:
+  ship api_key-with-caveat, or swap Buffer out (Hootsuite covers the category).
+  Record whichever on the wave-board.
