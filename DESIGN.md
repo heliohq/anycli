@@ -28,11 +28,18 @@ Queues/Routing, Workflows, Access Management, Brands) — those are org-admin
 operations, not teammate actions, and each is a large sub-API.
 
 **Official API (verified):** REST, JSON:API-shaped, versioned at `/v1`.
-Base URL `https://api.kustomerapp.com/v1` (generic form; an org-subdomain form
-`https://{orgname}.api.kustomerapp.com/v1` also exists for pod routing — see the
-pod-routing risk in §7). Auth is `Authorization: Bearer {token}` (a space after
-`Bearer` is required). Rate limit 1000 req/min/org (HTTP 429 + `Retry-After`);
-conversation creation additionally capped at 120/min/customer.
+Base URL is the **org-subdomain form** `https://{orgname}.api.kustomerapp.com/v1`
+— this is what the official Getting Started doc presents as THE base URL. It
+explicitly warns that omitting `orgname` and using the generic host produces a
+pod-routing error (*"Auth token associated with pod prod2 but request is being
+handled by prod1"*), because Kustomer runs multiple prod pods and only the
+org-subdomain routes the request to the pod that minted the token. The generic
+`https://api.kustomerapp.com/v1` host works **only** for orgs that happen to live
+on the default pod, so we treat it as a documented-but-unreliable fallback, never
+the default (see §4 capability growth and the §7 pod-routing note). Auth is
+`Authorization: Bearer {token}` (a space after `Bearer` is required). Rate limit
+1000 req/min/org (HTTP 429 + `Retry-After`); conversation creation additionally
+capped at 120/min/customer.
 
 Sources verified:
 - Authentication & keys — https://developer.kustomer.com/kustomer-api-docs/reference/authentication (Bearer scheme, admin-created keys via Settings > Security > API Keys)
@@ -40,12 +47,12 @@ Sources verified:
 - Get Current User — https://developer.kustomer.com/kustomer-api-docs/reference/getcurrentuser
 - Conversation/message endpoints — https://developer.kustomer.com/kustomer-api-docs/reference/getconversationsbycustomer , .../createamessagefromconversation
 
-### Endpoints wrapped (all under `https://api.kustomerapp.com/v1`)
+### Endpoints wrapped (all under `https://{orgname}.api.kustomerapp.com/v1`)
 
 | Verb group | Method + path | Why the teammate needs it |
 |---|---|---|
 | customer get | `GET /customers/{id}` | resolve a customer record |
-| customer get-by-email | `GET /customers/email=/{email}` | "who is bob@acme.com?" (email/externalId/phone lookups) |
+| customer get-by-email | `GET /customers/email={email}` | "who is bob@acme.com?" (value embedded in the path segment, URL-encoded; the `externalId={value}` / `phone={value}` lookup variants share this exact form) |
 | customer conversations | `GET /customers/{id}/conversations` | "what's open for this customer?" |
 | customer create | `POST /customers` | create a contact when none exists |
 | conversation get | `GET /conversations/{id}` | load one ticket |
@@ -85,6 +92,10 @@ shipped definitions are service type).
       {
         "source": {"field": "access_token"},
         "inject": {"type": "env", "env_var": "KUSTOMER_API_TOKEN"}
+      },
+      {
+        "source": {"field": "account_key"},
+        "inject": {"type": "env", "env_var": "KUSTOMER_ORG_NAME"}
       }
     ]
   }
@@ -97,10 +108,20 @@ bundle, an admin-created API key — both are used identically as
 `Authorization: Bearer`. This is the key architectural fact that makes the lane
 choice a **Helio-bundle** decision, not an anycli one.
 
+The `account_key` field carries the captured `orgname` (the Salesforce
+`instance_url` precedent applied to Kustomer's pod routing — see §4). The tool
+builds its base as `https://{KUSTOMER_ORG_NAME}.api.kustomerapp.com/v1` so every
+request lands on the pod that minted the token. When `KUSTOMER_ORG_NAME` is absent
+(e.g. an L2 harness run before metadata capture exists), the tool falls back to
+the generic `https://api.kustomerapp.com/v1` host — usable only for
+default-pod orgs, and flagged as unreliable, never the shipped default.
+
 `internal/tools/kustomer/` (copy the Notion service shape — `notion.go` root +
 `client.go`): a `Service{BaseURL, HC, Out, Err}` struct so unit tests point
-`BaseURL` at an `httptest.Server`; `DefaultBaseURL = "https://api.kustomerapp.com/v1"`;
-one `call(ctx, token, method, path, payload)` helper setting the Bearer header;
+`BaseURL` at an `httptest.Server`; the base URL is resolved from
+`KUSTOMER_ORG_NAME` (`https://{orgname}.api.kustomerapp.com/v1`), with
+`DefaultBaseURL = "https://api.kustomerapp.com/v1"` only as the org-absent
+fallback; one `call(ctx, token, method, path, payload)` helper setting the Bearer header;
 the documented exit-code contract (0 success, 1 runtime/API failure via a typed
 `apiError` carrying HTTP status, 2 usage/parse); a `--json` structured error
 envelope (`{"error":{"message":…,"kind":"usage|api","status":…}}`).
@@ -122,8 +143,9 @@ pagination flags (`--page`, `--page-size`, or the JSON:API cursor) local to the
 list/search commands.
 
 **Check (L1):** `go test ./...` green — httptest fakes assert Bearer header
-injection, request path/body shape, JSON:API passthrough on stdout, and both
-plain + `--json` error rendering. Registered in `internal/tools/register.go`
+injection, org-subdomain base-URL construction from `KUSTOMER_ORG_NAME` (plus the
+generic-host fallback when it is unset), request path/body shape, JSON:API
+passthrough on stdout, and both plain + `--json` error rendering. Registered in `internal/tools/register.go`
 `init()` as `RegisterService("kustomer", &kustomer.Service{})`; Go package
 `kustomer` (id has no dashes, no normalization needed).
 
@@ -154,7 +176,7 @@ host** (`api.apps.kustomerapp.com`), distinct from the data API host:
   refresh token the app can mint new access tokens indefinitely until revoked.
   Without `offline_access` the connection dies after 24h. The returned access
   token "works like a regular Kustomer API key" — same `Authorization: Bearer`
-  against `api.kustomerapp.com/v1`.
+  against the org-subdomain data API `https://{orgname}.api.kustomerapp.com/v1`.
 
 **Registration model (this is what makes it `oauth_review`):** app registration
 is self-serve via API (`POST` an app definition with an admin API key holding
@@ -228,9 +250,11 @@ auth:
 
 identity:
   source: userinfo
-  url: https://api.kustomerapp.com/v1/users/current
+  url: https://{orgname}.api.kustomerapp.com/v1/users/current  # pod-routed; templated from captured orgname
   stable_key: /data/relationships/org/data/id     # org id — stable, org-scoped connection
   label_candidates: [/data/attributes/email, /data/attributes/name, /data/relationships/org/data/id]
+  # orgname is captured at connect (§4 metadata capture) so the userinfo call
+  # itself routes to the right pod; exact capture source verified at L2.
 
 connection:
   mode: isolated
@@ -245,7 +269,7 @@ resources:
 credential:
   fields:
     access_token: token.access_token
-    account_key: connection.account_key
+    account_key: connection.account_key    # captured orgname → KUSTOMER_ORG_NAME (pod routing)
 
 tool:
   name: kustomer
@@ -259,14 +283,28 @@ together (a partially-configured provider fails integration-service startup; a
 fully-absent one renders `configured:false` / Connect-disabled, safe while
 hidden). Real values injected via K8s Secret in prod; never commit a secret.
 
-**Capability-growth check:** likely **none**. The bundle uses only existing
-`standard_oauth` capabilities (form/json token exchange, userinfo JSON-Pointer
-identity, refresh via `refresh_token`). Two things to validate at L2 before
-asserting zero growth:
-1. `token_exchange_style` — whether Kustomer's token endpoint wants
+**Capability-growth check:** the **likely-required growth is the `instance_url`-style
+metadata-capture capability** (the Salesforce precedent, task #168) — reused here
+to capture `orgname` and route every request to the org's pod. Kustomer runs
+multiple prod pods, so a hardcoded generic base fails for the real fraction of
+customer orgs not on the default pod; org-subdomain capture is the **expected
+path**, not a fallback. The capture stores `orgname` into `connection.account_key`
+(→ `KUSTOMER_ORG_NAME`) and templates the identity/userinfo URL to
+`https://{orgname}.api.kustomerapp.com/v1`. Everything else (form/json token
+exchange, userinfo JSON-Pointer identity, refresh via `refresh_token`) is already
+in the `standard_oauth` set. Three things to pin down at L2:
+1. **Metadata-capture source (the growth item).** Confirm whether `orgname` arrives
+   in the token *response* (Salesforce `instance_url` shape — the clean case, lets
+   the very first userinfo call route correctly) or must be derived from a
+   `/v1/users/current` org read. If it is response-borne, this reuses the task #168
+   capability verbatim; if it needs an API read, the capture ordering (bootstrap the
+   read on the generic host, then pin the pod) is the only delta. Either way this is
+   the growth pending L2 — **not zero growth**. The generic host is kept solely as a
+   documented-but-unreliable alternative.
+2. `token_exchange_style` — whether Kustomer's token endpoint wants
    `form_secret` (client id/secret in the form body) or `form_basic`/`json_basic`.
    Pick the matching existing enum value; no new capability.
-2. The refresh-token **2-week idle expiry** is unusual — the token gateway's
+3. The refresh-token **2-week idle expiry** is unusual — the token gateway's
    refresh path handles a normal refresh, but a connection idle > 2 weeks will get
    a refresh rejection and must surface as reconnect-required (the standard 401
    passthrough in `resolver.go`). This is behavior to *verify*, not new code.
@@ -285,7 +323,7 @@ end.
 | Layer | What it proves for Kustomer | Needs external creds? |
 |---|---|---|
 | **L1** | anycli `go test ./...`: httptest fakes assert Bearer injection, each verb's method/path/body, JSON:API stdout passthrough, `--json` + plain error envelopes, exit codes 0/1/2 | No |
-| **L2** | `ANYCLI_CRED_ACCESS_TOKEN=<key> anycli kustomer -- customer get-by-email bob@acme.com` (and a conversation list + message create) against the **real** API. Confirms base host/pod routing, the exact `/v1` paths, JSON:API shapes, and — critically — that the generic host routes correctly for the token (pod-routing risk, §7). Also confirm `token_exchange_style`. | **Yes** — a real Kustomer org + an admin API key (api_key harness path; no OAuth app needed for L2 since the token is a plain Bearer) |
+| **L2** | `ANYCLI_CRED_ACCESS_TOKEN=<key> ANYCLI_CRED_ACCOUNT_KEY=<orgname> anycli kustomer -- customer get-by-email bob@acme.com` (and a conversation list + message create) against the **real** API. Confirms the org-subdomain base routes to the token's pod, the exact `/v1` paths (incl. the `customers/email={email}` value-in-path form), JSON:API shapes, and — critically — the exact `orgname` capture source for the bundle (token response vs `/v1/users/current` org read, §4). Also confirm `token_exchange_style`. | **Yes** — a real Kustomer org (its `orgname`) + an admin API key (api_key harness path; no OAuth app needed for L2 since the token is a plain Bearer) |
 | **L3** | `provider-gen` + `provider-gen --check` (five projections regenerate clean on-branch, not committed); `helio-cli` build with a local `replace` → anycli branch; `go test ./cmd/heliox/cmds/tool/`; integration-service unit suite | No |
 | **L4** | singleton + `POST /internal/test-only/connections/seed` with `provider:"kustomer"`, seeded `access_token` (+ short `expires_at` and `refresh_token` to force the gateway refresh-and-writeback path), then `heliox tool kustomer -- conversation list` reaches the live API | **Yes** — a real access token from the dev-mode (private, own-org) OAuth app; app creation is self-serve and gates L4 (plan §2 lane 1) |
 | **L5** | Full `heliox tool kustomer auth` → consent on the dev/private app → `oauth_connected` event on the channel → unseeded live run. Runs once, hidden, before the visible flip. | **Yes** — dev OAuth app + a real Kustomer org consent (human-in-the-loop, oauth L5) |
@@ -317,14 +355,18 @@ the extra gate on the flip only. Until then: **code-complete (hidden)**.
    `api_key` shape (`auth.type: manual`, write-only `POST /connections/credentials`,
    a `users/current` verifier) with **zero anycli change**. Recorded as the
    contingency; primary path stays `oauth_review` per the catalog.
-3. **Pod-routing risk (must verify at L2).** The getting-started docs warn that a
-   token associated with pod `prod2` sent to `prod1` errors, and recommend the
-   `{orgname}.api.kustomerapp.com` subdomain. The generic `api.kustomerapp.com`
-   host is separately documented as valid. If L2 shows generic-host pod
-   mismatches, the fix is to capture `orgname`/pod at connect and build the
-   org-subdomain base — that would need a metadata-capture capability (the
-   Salesforce `instance_url` precedent, task #168). Default assumption: generic
-   host routes by token; **flagged, not yet needed**.
+3. **Pod routing is the designed base, not a fallback.** The official Getting
+   Started doc presents `https://{orgname}.api.kustomerapp.com/v1` as THE base URL
+   and warns that the generic host errors with *"Auth token associated with pod
+   prod2 but request is being handled by prod1"* — Kustomer runs multiple prod
+   pods, so a hardcoded generic base fails for the real fraction of customer orgs
+   not on the default pod. This design therefore **captures `orgname`/pod at
+   connect and builds the org-subdomain base as the expected path**, reusing the
+   Salesforce `instance_url` metadata-capture capability (task #168). The generic
+   `api.kustomerapp.com` host is retained only as a documented-but-unreliable
+   alternative (org-absent fallback), never the default. L2 verifies the exact
+   capture source (token response vs `/v1/users/current` org read) and confirms the
+   subdomain routes correctly.
 4. **Refresh-token 2-week idle expiry.** Longer-lived than a typical rotating
    refresh token but with an idle-death clock: a connection unused > 2 weeks needs
    reconnect. Handled by the standard 401→reconnect passthrough; no new code, but
