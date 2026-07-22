@@ -207,3 +207,39 @@ exercises region routing but is optional). L1/L3 are hermetic.
 **Definition of done** (master-plan §2): all five layers green, AI doc published, icon registered,
 then `presentation.visible: true` + regenerate as the single go-live change — done only after the
 visible flip; until then this is "code-complete (hidden)."
+
+---
+
+## 6. Implementation divergences from this design (recorded per task rule)
+
+Verified against the batch base (Helio worktree at origin/main, 164 commits behind the sibling
+billing branches; anycli base = the 23 shipped tools) rather than the assumed capabilities in §3/§4.
+Three divergences, all driven by base reality, none by the official docs (which the impl matches):
+
+1. **Bundle is `api_key` / `manual_api_token`, not a two-field `manual_credentials` bundle (§4).**
+   The base's `manual_credentials` path (`resolveManualSecret`) enforces **exactly one** credential
+   field (a D5 generation-time check) and hard-wires the DSN-host identity deriver — unusable for
+   Recurly's opaque key. So Recurly ships as the (previously provider-less) `manual_api_token`
+   family: `auth.type: api_key`, `identity.source: userinfo` → `GET /sites`, verified by a compiled
+   verifier. This is the correct "verified against an identity endpoint" family for Recurly.
+
+2. **`recurlySiteVerifier` added (§4 anticipated this).** The base's `declarativeManualTokenVerifier`
+   injects the raw token as a bearer header value and hard-codes `Accept: application/json` — it
+   cannot express Recurly's Basic-**username** scheme (key as username, blank password) or the
+   mandatory `Accept: application/vnd.recurly.v2021-02-25` header (406 otherwise). A shared
+   identity-endpoint core (`verifyViaIdentityEndpoint`) was extracted from the declarative verifier;
+   `recurlySiteVerifier` reuses it with a Basic-username + version-header decorator and is selected
+   for the recurly provider via `manualAPITokenVerifier`. It derives the site subdomain (`/data/0/subdomain`)
+   as the stable account key + label.
+
+3. **Region/EU deferred → US-only initial cut (§1/§3 region field dropped from the shipped path).**
+   The single-secret connect path cannot store a second `region` value, and the closed
+   credential-source allowlist has no region source — delivering region needs multi-field
+   manual-credentials + a metadata source (both being added in parallel unmerged branches; not
+   depended on here). So the `region` credential binding was dropped from the anycli definition to
+   match the US-only bundle (otherwise the helio-cli pinned-anycli projection check fails: the tool
+   would advertise a `region` credential the platform can never supply). The anycli **service** keeps
+   its region host-selection (`hostForRegion`, `EnvRegion`, tested) so EU support is a definition
+   binding + bundle region-field re-add with **no service change**. An EU-region key fails
+   verification against the US host rather than silently hitting the wrong data center (fail-fast, not
+   a silent fallback).
