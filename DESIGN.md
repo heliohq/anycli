@@ -45,6 +45,14 @@ Verified against the official docs (https://apidocs.chargebee.com/docs/api and
 - **Response format:** JSON only. List responses are
   `{ "list": [ { "<resource>": {…} }, … ], "next_offset": "<opaque>" }`;
   single-object responses are `{ "<resource>": {…} }`.
+- **Request format:** v2 **write** requests are
+  `application/x-www-form-urlencoded`, **not** JSON. Nested/multi-value params use
+  Chargebee's bracketed encoding — flat fields as `k=v`, nested objects as
+  `parent[child]=v`, and indexed arrays as `parent[child][0]=v&parent[child][1]=…`
+  (e.g. `subscription_items[item_price_id][0]=basic-USD&subscription_items[quantity][0]=1`).
+  Every write verb (subscription create/change, customer create/update, usage
+  create) must build this form encoding; a flat `--param k=v` alone cannot express
+  the indexed-array shape these creates require.
 - **Pagination:** `limit` (max 100) + opaque `offset` cursor echoed as
   `next_offset`. Filters use bracketed operators (`status[is]=active`).
 - **No dedicated identity/verify endpoint.** Connectivity/validity is checked
@@ -57,11 +65,11 @@ Verified against the official docs (https://apidocs.chargebee.com/docs/api and
 |---|---|---|
 | Customers | `GET /customers`, `GET /customers/{id}`, `POST /customers`, `POST /customers/{id}` | Who is being billed; the entry point for most lookups |
 | Subscriptions | `GET /subscriptions`, `GET /subscriptions/{id}`, `POST /customers/{id}/subscription_for_items`, `POST /subscriptions/{id}/…`, cancel/reactivate | The core billing object; create/change/cancel |
-| Invoices | `GET /invoices`, `GET /invoices/{id}`, `GET /invoices/{id}/pdf` | Billing history + document links |
+| Invoices | `GET /invoices`, `GET /invoices/{id}`, `POST /invoices/{id}/pdf` | Billing history + document links (the PDF endpoint is a **POST** that returns a JSON `download` object — a transient `download_url` + `valid_till` — not raw PDF bytes) |
 | Credit notes | `GET /credit_notes`, `GET /credit_notes/{id}` | Refund/adjustment records |
 | Product catalog | `GET /items`, `GET /items/{id}`, `GET /item_prices`, `GET /item_prices/{id}`, `GET /plans`, `GET /plans/{id}` | What can be sold (PC 2.0 items/item_prices; PC 1.0 plans) |
 | Payments | `GET /payment_sources`, `GET /transactions`, `GET /transactions/{id}` | Payment instruments + collection status |
-| Usage | `GET /usages`, `POST /usages` (create) | Metered/usage-based billing |
+| Usage | `GET /usages` (list, top-level), `POST /subscriptions/{id}/usages` (create — **subscription-scoped**), `POST /subscriptions/{id}/delete_usage` (delete) | Metered/usage-based billing. There is **no** flat `POST /usages`; creation always posts to a subscription-scoped path and requires the subscription id |
 | Events | `GET /events`, `GET /events/{id}` | Billing activity stream for monitoring |
 | Escape hatch | `GET` any path via `chargebee -- get --path <p>` | Cover the long tail (quotes, estimates, orders, exports) without a verb per resource |
 
@@ -113,22 +121,32 @@ Grouped by resource, read-first:
 ```
 chargebee customer      list|get|create|update
 chargebee subscription  list|get|create|change|cancel|reactivate
-chargebee invoice       list|get|pdf
+chargebee invoice       list|get|pdf          # pdf → POST /invoices/{id}/pdf, returns a download object
 chargebee credit-note   list|get
 chargebee item          list|get
 chargebee item-price    list|get
 chargebee plan          list|get
 chargebee payment-source list
 chargebee transaction   list|get
-chargebee usage         list|create
+chargebee usage         list | create --subscription-id <id> ...  # create posts to POST /subscriptions/{id}/usages
 chargebee event         list|get
 chargebee get           --path <p> [--query k=v ...]   # read-only GET escape hatch
 ```
 
 Common flags: `--limit` (≤100), `--offset <cursor>`, repeated `--filter
 status[is]=active` (mapped verbatim to Chargebee bracket-operator query params),
-and per-verb id/body flags. Writes take explicit typed flags (or `--param k=v`)
-rather than free-form JSON bodies, matching the built-in-service conventions.
+and per-verb id/body flags. `usage create` requires `--subscription-id <id>`
+(it posts to the subscription-scoped `POST /subscriptions/{id}/usages` path, not a
+flat resource create); `invoice pdf` issues a **POST** to `/invoices/{id}/pdf` and
+surfaces the returned `download` object (transient `download_url` + `valid_till`).
+
+Writes take explicit typed flags rather than free-form JSON bodies, matching the
+built-in-service conventions — **and** they must serialize as
+`application/x-www-form-urlencoded` with Chargebee's bracketed nested-array
+encoding (`subscription_items[item_price_id][0]=…&subscription_items[quantity][0]=…`),
+**not** JSON. A flat `--param k=v` alone cannot express the indexed-array params
+that subscription/usage creates require, so the write verbs map typed flags onto
+the `parent[child][i]` shape; the L1 tests assert form-encoded bodies, not JSON.
 
 ### 3.4 JSON output shape
 
@@ -278,7 +296,7 @@ two-field-verified capability lands under — the intent above is authoritative.
 
 | Layer | What it proves for Chargebee | External creds? |
 |---|---|---|
-| **L1** anycli `go test ./...` | httptest fake: base URL built from `CHARGEBEE_SITE`; `Authorization: Basic base64(key:)` header; each verb's method/path/query (`limit`, `offset`, `filter` brackets); native-JSON passthrough; `--json` error envelope + exit codes 0/1/2 | **No** |
+| **L1** anycli `go test ./...` | httptest fake: base URL built from `CHARGEBEE_SITE`; `Authorization: Basic base64(key:)` header; each verb's method/path/query (`limit`, `offset`, `filter` brackets); subscription-scoped `usage create` path + POST `invoice pdf`; **write bodies are `application/x-www-form-urlencoded` with bracketed nested-array params (asserted, not JSON)**; native-JSON response passthrough; `--json` error envelope + exit codes 0/1/2 | **No** |
 | **L2** harness real API | `ANYCLI_CRED_SITE=<site> ANYCLI_CRED_API_KEY=<key> anycli chargebee -- customer list --limit 1` returns real data; confirms field names, Basic-auth injection, and request shape against the live v2 API | **Yes** — real Chargebee test-site + key |
 | **L3** `provider-gen --check` + both repos' suites | bundle validates (directory=key, single secret field, https URLs); integration-service `siteScopedAPIKeyVerifier` unit test (httptest 2xx→identity{site}, 401→invalid); helio-cli `cmds/tool` build/test | **No** |
 | **L4** singleton + seed + heliox | seed `POST /internal/test-only/connections/seed` with `provider: chargebee`, `account_key: <site>`, `access_token: <api_key>`; then `heliox tool chargebee -- customer list` reaches the live API through the token gateway (api_key providers are seedable; site rides `account_key`, key rides `access_token`) | **Yes** — real test-site + key |
