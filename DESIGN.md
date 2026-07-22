@@ -164,6 +164,10 @@ auth:
     token_url: https://api.freshbooks.com/auth/oauth/token
     token_exchange_style: json_secret    # NEW capability — see §5
     pkce: none
+    # scope is NOT an authorize-URL param on FreshBooks (§5): scopes are fixed
+    # in the developer-portal app config. These lists are documentation/UI only;
+    # the concrete `user:*` identifiers are ILLUSTRATIVE placeholders pending L2
+    # confirmation of FreshBooks' exact scope vocabulary against a real app.
     display_scopes: [profile.read, invoices.rw, clients.rw, expenses.rw, estimates.rw, payments.rw]
     scopes:
       - user:profile:read
@@ -178,7 +182,7 @@ auth:
       - user:payments:read
       - user:payments:write
     single_active_token: false
-    refresh_lease: credential  # single-use rotating refresh → serialize per-credential (§5 #2)
+    refresh_lease: credential  # single-use rotating refresh → serialize per-credential; REQUIRES the standard_oauth refresh-lease allowed-set growth (§5 #2)
 
 identity:
   source: userinfo
@@ -243,7 +247,9 @@ Verified against official FreshBooks docs
 **all REQUIRED** — FreshBooks' JSON token endpoint serves *both* the initial
 code exchange and the refresh, refresh is load-bearing (bearer tokens are
 short-lived and refresh tokens rotate single-use), and the single-use rotation
-also forces a per-credential refresh lease. #3 is verify-at-L2-then-grow.
+also forces a per-credential refresh lease — which itself requires a
+runtime-contract allowed-set growth (the `standard_oauth` gate pins
+`refresh_lease: none`), not just a bundle field. #3 is verify-at-L2-then-grow.
 
 **#1a — `json_secret` token-exchange style, INITIAL code exchange (REQUIRED,
 new enum).** FreshBooks' token endpoint (`POST /auth/oauth/token`) takes a
@@ -316,7 +322,8 @@ short/expired `expires_at`, run `heliox tool freshbooks -- invoice list`, and
 assert the refresh actually rotates and the connection keeps working — proving
 #1b end to end, not just that connect succeeded.
 
-**#2 — `refresh_lease: credential` (REQUIRED, not `none`).**
+**#2 — `refresh_lease: credential` + a REQUIRED runtime-contract allowed-set
+growth (not just a bundle field).**
 FreshBooks refresh tokens are **single-use rotating** (§1b). With
 `refresh_lease: none`, two tool calls for the same connection arriving near-
 simultaneously after expiry each call `GET /connections/token`, each read the
@@ -331,8 +338,29 @@ blocks on the lease, then re-reads the freshly-written token in
 `reloadRefreshSnapshot` and reuses it instead of re-refreshing — the second call
 succeeds. `none` is therefore wrong here; a single-use rotating provider is
 exactly the `credential`-lease case (precedent: keap, signnow, hootsuite all set
-a refresh lease for rotating tokens). No new capability is needed — the enum and
-the lease store already exist; this is a one-line bundle field (§4 YAML).
+a refresh lease for rotating tokens).
+
+**But the lease enum + machinery existing is necessary, NOT sufficient — this
+needs a reviewed integration-service capability growth, exactly like #1a.**
+On the worktree base, `model/runtime_contract.go` validates the refresh lease by
+**exact equality**: the `RuntimeStrategyStandardOAuth` contract pins
+`oauth: {…, refreshLeaseScope: OAuthLeaseNone}` (runtime_contract.go:42), and
+`ValidateRuntimeContract` rejects any mismatch —
+`definition.OAuth.RefreshLeaseScope != contract.oauth.refreshLeaseScope`
+(runtime_contract.go:224–232). A `standard_oauth` bundle declaring
+`refresh_lease: credential` therefore **fails provider-gen** with
+`requires auth.oauth.refresh_lease "none", got "credential"`. So `credential` is
+not currently in the `standard_oauth` allowed set; putting it in the bundle
+without growing the gate breaks the build (contradicting L3 "provider-gen regen
+clean"). Required change: convert the `standard_oauth` refresh-lease check from
+exact-equality to an **allowed-set** that includes `OAuthLeaseNone` **and**
+`OAuthLeaseCredential` (model the contract's `refreshLeaseScope` as a permitted-
+scope set, or add `OAuthLeaseCredential` to the strategy's allowed scopes), with
+a unit test asserting a synthetic `standard_oauth` bundle with
+`refresh_lease: credential` now validates and one with an out-of-set scope still
+fails. This is the same "standard_oauth refresh_lease allowed-set" growth the
+parallel keap / signnow / hootsuite branches perform; the batch lead reconciles a
+single allowed-set addition. Do not commit projections.
 
 **#3 — identity userinfo static header `Api-Version: alpha` (verify at L2).**
 FreshBooks' identity model doc states `GET /auth/api/v1/users/me` wants an
@@ -350,19 +378,29 @@ cleanly. MVP ships `disconnect_mode: local_only` (notion precedent); a
 `provider_revoke` follow-up would need a JSON-body revoker variant and is not
 worth blocking the hidden ship. Flag, don't build.
 
-**Authorize scope param (verify at L2).** Confirm whether the authorize URL
-accepts a `scope` param or whether scopes are fixed per-app in the developer
-portal. If app-configured only, `scopes` stays for documentation/UI and the
-app's portal config is the source of truth; `display_scopes` drives the UI
-either way.
+**Authorize scope param — resolved by official docs: scope is NOT an
+authorize-URL parameter.** The official FreshBooks authentication docs show the
+authorize URL as
+`https://auth.freshbooks.com/oauth/authorize/?response_type=code&redirect_uri=<…>&client_id=<…>`
+— only `response_type`, `redirect_uri`, `client_id` (plus an optional `state`
+that is echoed into the redirect). There is **no `scope` parameter**; the app's
+scopes are fixed in the FreshBooks Developer portal app config, which is the
+authoritative source of truth. So the bundle's `scopes` / `display_scopes` are
+**documentation/UI only** — they do not enter the authorize URL and cannot
+change what the app can access. This is no longer an L2 open item. **Caveat:**
+the concrete scope identifiers listed in the §4 YAML (`user:invoices:read`, etc.)
+are **illustrative** — FreshBooks' exact scope vocabulary is defined in the
+portal, not the public auth doc, so treat those strings as placeholders pending
+L2 confirmation of the exact identifiers against a real registered app (they are
+UI copy only and do not gate the connect path either way).
 
 ## 6. Five-layer test plan
 
 | Layer | What it proves | Needs external creds |
 |---|---|---|
 | **L1** anycli `go test ./...` | httptest fakes for `/users/me`, invoice list/create, client list, expense create; asserts Bearer injection, `account_id` resolution (single→silent, multi→exit 2 with `--account` guidance, zero→exit 1), `--json` envelope unwrap, plain+`--json` error rendering, exit codes 0/1/2. | No |
-| **L2** `ANYCLI_CRED_ACCESS_TOKEN=… anycli freshbooks -- me` / `invoice list` against the **real** FreshBooks API | Field names, Bearer injection, real request shape; **resolves the open questions**: does `/users/me` need `Api-Version: alpha` (#3), does authorize accept `scope`. (Refresh `redirect_uri` is already confirmed required by official docs — built into #1b, not an L2 unknown.) | **Yes** — a real FreshBooks account + a token minted from a dev app (account pool + lane-1 dev app). |
-| **L3** `provider-gen --check` + both repos' unit suites (incl. the new `json_secret` synthetic-provider test) | Bundle validity, five projections regen clean, `json_secret` enum wired end to end **for both exchange (#1a) and refresh (#1b)**, and **numeric-stable-key coercion covers `/response/id`** (§4a) — proven before implementation, not discovered later. | No |
+| **L2** `ANYCLI_CRED_ACCESS_TOKEN=… anycli freshbooks -- me` / `invoice list` against the **real** FreshBooks API | Field names, Bearer injection, real request shape; **resolves the remaining open question**: does `/users/me` need `Api-Version: alpha` (#3). Also opportunistically confirms the exact scope identifiers (the §4 `user:*` strings are illustrative; scope is not an authorize param so this is UI copy, not a connect gate). (The authorize URL taking no `scope` param, and refresh `redirect_uri` being required, are already confirmed by official docs — not L2 unknowns.) | **Yes** — a real FreshBooks account + a token minted from a dev app (account pool + lane-1 dev app). |
+| **L3** `provider-gen --check` + both repos' unit suites (incl. the new `json_secret` synthetic-provider test **and** the `standard_oauth` refresh-lease allowed-set test) | Bundle validity, five projections regen clean, `json_secret` enum wired end to end **for both exchange (#1a) and refresh (#1b)**, the `standard_oauth` runtime contract **accepting `refresh_lease: credential`** (§5 #2 allowed-set growth — without it provider-gen fails), and **numeric-stable-key coercion covers `/response/id`** (§4a) — all proven before implementation, not discovered later. | No |
 | **L4** singleton + `POST /internal/test-only/connections/seed` → `heliox tool freshbooks -- invoice list` | Token-gateway → anycli path with a seeded connection; seed `access_token` + `refresh_token` + short/expired `expires_at` to force the **json_secret refresh-and-write-back** path (#1b). **Asserts the refresh actually rotates and the second call keeps working** — the load-bearing proof that FreshBooks connections survive past the first token expiry. | **Yes** — real access+refresh token from the dev app / test account. |
 | **L5** `heliox tool freshbooks auth` → FreshBooks consent → `oauth_connected` event → unseeded live run | The actual connect UX: authorize URL, `json_secret` code exchange, `/users/me` identity extraction, notification. oauth L5 = human-in-the-loop. | **Yes** — registered dev app (lane 1) + real FreshBooks account consent. |
 
@@ -378,13 +416,21 @@ Definition of done stays hidden until L1–L4 pass and L5 runs once; the
    `x/oauth2`, A3 write-back of the rotated refresh_token) landed + tested
    (§5 #1b) — **required**; this is what keeps connections alive past ~first
    token expiry. L4 asserts a real seeded refresh rotates.
-3. `refresh_lease: credential` set in the bundle to serialize single-use
-   rotating refreshes (§5 #2) — required; prevents the Helio-inducible
-   double-refresh race.
+3. `refresh_lease: credential` set in the bundle **and** the `standard_oauth`
+   runtime-contract refresh-lease check grown from exact-equality to an
+   allowed-set that admits `OAuthLeaseCredential` (§5 #2) — **required**; the
+   base contract pins `refresh_lease: none`, so without the allowed-set growth
+   the bundle fails `ValidateRuntimeContract` / provider-gen. Batch-reconciled
+   with keap / signnow / hootsuite; ships with a unit test. Serializes single-use
+   rotating refreshes, preventing the Helio-inducible double-refresh race.
 4. Numeric-stable-key coercion confirmed on the resolver base and covering
    `/response/id`; grow it (batch-reconciled with hubspot) if absent (§4a) —
    verify at L3, before implementation.
 5. L2: `/users/me` `Api-Version: alpha` requirement → identity static-header
    capability iff mandatory (§5 #3).
-6. L2: authorize `scope` param accepted vs app-configured scopes (§5).
+6. ~~Authorize `scope` param~~ — **resolved by official docs**: scope is not an
+   authorize-URL parameter; scopes are portal-configured, so `scopes` /
+   `display_scopes` are documentation/UI only (§5). Residual (non-blocking): L2
+   confirms the exact scope identifiers, since the §4 `user:*` strings are
+   illustrative placeholders.
 7. Revoke stays `local_only` for MVP; `provider_revoke` deferred (§5).
