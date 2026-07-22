@@ -1,0 +1,13 @@
+{
+  "name": "wise",
+  "type": "service",
+  "description": "Wise as a tool (personal API token; read/monitor + non-committal pricing)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "WISE_API_TOKEN"}
+      }
+    ]
+  }
+}
