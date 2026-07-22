@@ -72,8 +72,8 @@ func (s *Service) subscriptionGroup(token string) *cobra.Command {
 		s.actionCmd(token, "/subscriptions", "pause", "pause", "Pause a subscription", true),
 		s.actionCmd(token, "/subscriptions", "resume", "resume", "Resume a subscription", true),
 		s.actionCmd(token, "/subscriptions", "activate", "activate", "Activate a trialing subscription", true),
-		s.actionCmd(token, "/subscriptions", "charge", "charges", "Create a one-time charge on a subscription", true),
-		s.actionCmd(token, "/subscriptions", "preview-charge", "charges/preview", "Preview a one-time charge (dry run)", false),
+		s.actionCmd(token, "/subscriptions", "charge", "charge", "Create a one-time charge on a subscription", true),
+		s.actionCmd(token, "/subscriptions", "preview-charge", "charge/preview", "Preview a one-time charge (dry run)", false),
 		s.actionCmd(token, "/subscriptions", "preview-update", "preview", "Preview a subscription update (dry run)", false),
 	)
 	return g

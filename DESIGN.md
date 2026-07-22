@@ -293,10 +293,13 @@ stage 1, don't discover mid-wave.
 Verified against the official Paddle API reference while implementing; the code
 follows the official paths, not the §1 draft:
 
-- **Subscription one-time charge is `POST /subscriptions/{id}/charges` (plural)**
-  and its dry run is `POST /subscriptions/{id}/charges/preview` — not the
-  `/charge` / `/charge/preview` the §1 table wrote. CLI verbs unchanged
-  (`subscription charge` / `preview-charge`).
+- **Subscription one-time charge is `POST /subscriptions/{id}/charge` (singular)**
+  and its dry run is `POST /subscriptions/{id}/charge/preview` — matching the §1
+  table. (An earlier build wrongly pluralized these to `/charges` /
+  `/charges/preview`; that was a bug — the official reference
+  `developer.paddle.com/api-reference/subscriptions/create-one-time-charge` and
+  `.../preview-subscription-charge` are singular. Now corrected in code and the
+  L1 path test.) CLI verbs unchanged (`subscription charge` / `preview-charge`).
 - **Subscription update preview is `POST /subscriptions/{id}/preview`** — not
   `/update/preview`. CLI verb `subscription preview-update`.
 - **Paddle Billing paths carry no `/v1` segment** — the version is the

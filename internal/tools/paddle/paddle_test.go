@@ -160,8 +160,8 @@ func TestSubscriptionLifecycleAndPreviewPaths(t *testing.T) {
 		{[]string{"subscription", "pause", "sub_1"}, "POST", "/subscriptions/sub_1/pause"},
 		{[]string{"subscription", "resume", "sub_1"}, "POST", "/subscriptions/sub_1/resume"},
 		{[]string{"subscription", "activate", "sub_1"}, "POST", "/subscriptions/sub_1/activate"},
-		{[]string{"subscription", "charge", "sub_1", "--data", `{"items":[]}`}, "POST", "/subscriptions/sub_1/charges"},
-		{[]string{"subscription", "preview-charge", "sub_1", "--data", `{"items":[]}`}, "POST", "/subscriptions/sub_1/charges/preview"},
+		{[]string{"subscription", "charge", "sub_1", "--data", `{"items":[]}`}, "POST", "/subscriptions/sub_1/charge"},
+		{[]string{"subscription", "preview-charge", "sub_1", "--data", `{"items":[]}`}, "POST", "/subscriptions/sub_1/charge/preview"},
 		{[]string{"subscription", "preview-update", "sub_1", "--data", `{"items":[]}`}, "POST", "/subscriptions/sub_1/preview"},
 	}
 	for _, tc := range cases {
