@@ -106,7 +106,7 @@ Driving use cases, in order of teammate value:
 2. **Research / discovery** — search videos & channels, pull a video's stats and
    metadata, list a channel's uploads.
 3. **Community management** — read the comment threads on a video, reply to a
-   comment, moderate (hold / publish / reject / mark-as-spam / delete) — the
+   comment, moderate (hold / publish / reject [+ ban author] / delete) — the
    highest-frequency real teammate loop.
 4. **Playlist curation** — list / create / update / delete playlists; add and
    remove videos.
@@ -121,7 +121,7 @@ Wrapped surface:
 | channels get | `GET /channels` | `--mine` \| `--id` \| `--for-handle` \| `--for-username`; part `snippet,statistics,contentDetails,status` |
 | search | `GET /search` | `--query`, `--type video\|channel\|playlist`, `--channel`, `--order`, `--published-after/-before`, `--region`, paging; **100-unit** cost |
 | videos get | `GET /videos` | `--id` (comma list); part `snippet,statistics,contentDetails,status` |
-| videos mine | `GET /search?forMine=true&type=video` | the assistant's own uploads |
+| videos mine | `GET /channels?mine=true&part=contentDetails` → `contentDetails.relatedPlaylists.uploads` → `GET /playlistItems?playlistId=<uploads>` | the assistant's own uploads via the **uploads playlist** (~1–2 units, complete, immediately consistent) — **not** search (`forMine` search.list is 100 units, capped ~500, eventually-consistent) |
 | videos update | `PUT /videos?part=snippet,status` | `--id` + any of `--title/--description/--tags/--category-id/--privacy`; read-modify-write (fetch current snippet first, API replaces the whole part) |
 | videos rate | `POST /videos/rate` | `--id --rating like\|dislike\|none`; empty 204 body |
 | playlists list | `GET /playlists` | `--mine` \| `--channel`; part `snippet,contentDetails,status` |
@@ -136,8 +136,7 @@ Wrapped surface:
 | comments reply | `POST /comments?part=snippet` | `--parent <commentId> --text` |
 | comments update | `PUT /comments?part=snippet` | `--id --text` (own comment) |
 | comments delete | `DELETE /comments` | `--id` |
-| comments moderate | `POST /comments/setModerationStatus` | `--id --status heldForReview\|published\|rejected [--ban-author]` |
-| comments spam | `POST /comments/markAsSpam` | `--id` |
+| comments moderate | `POST /comments/setModerationStatus` | `--id --status heldForReview\|published\|rejected [--ban-author]`; `--ban-author` is valid **only** with `rejected` (API returns `400 banWithoutReject` otherwise) |
 | subscriptions list | `GET /subscriptions` | `--mine` \| `--channel`; part `snippet` |
 
 Deliberate exclusions (recorded):
@@ -155,6 +154,15 @@ Deliberate exclusions (recorded):
   **members / membershipsLevels** (`youtubepartner`), and **activities** (low
   signal) — all out of scope for a general teammate tool; keeps the requested
   scope set to the single `youtube.force-ssl`.
+- **YouTube Analytics API** (`youtubeAnalytics.reports.query` — time-series
+  views / watch-time / traffic-source / demographics reporting over a date
+  window): a **separate API** on a **separate scope** (`yt-analytics.readonly`),
+  not part of Data API v3. Out of v1 scope. This tool's channel-performance
+  answer (use case #1) is served **only** by `channels.list` **lifetime**
+  `statistics` (cumulative subscriber / view / video counts) — it does **not**
+  ship windowed time-series analytics. Named here so the capability boundary is
+  explicit and lifetime-counts-only is not overclaimed; a possible follow-up if
+  teammate demand appears.
 
 API facts the implementation must honor:
 
@@ -173,6 +181,14 @@ API facts the implementation must honor:
 - `search` returns lightweight results whose ids live under
   `id.videoId` / `id.channelId` / `id.playlistId` (not a flat `id`) — the
   service normalizes this.
+- **`videos mine` is a two-step resolve, never `search`:**
+  `channels.list(mine=true, part=contentDetails)` yields
+  `contentDetails.relatedPlaylists.uploads`, then `playlistItems.list` pages that
+  playlist. This is ~1–2 units, returns the complete upload set, and is
+  immediately consistent — unlike `search.list?forMine=true` (100 units, ~500-cap,
+  eventually-consistent, so very recent uploads can be missing). The service does
+  the two calls internally; the CLI surface stays a single `videos mine`. The
+  100-unit `search` verb is reserved for genuine discovery queries.
 
 ## 3. anycli definition and service
 
@@ -242,7 +258,6 @@ youtube comments reply    --parent COMMENT_ID --text BODY
 youtube comments update   --id COMMENT_ID --text BODY
 youtube comments delete   --id COMMENT_ID
 youtube comments moderate --id COMMENT_ID --status heldForReview|published|rejected [--ban-author]
-youtube comments spam     --id COMMENT_ID
 youtube subscriptions list [--mine | --channel ID] [--max N] [--page TOKEN]
 ```
 
@@ -251,7 +266,7 @@ re-modeled. List verbs → `{"items":[...],"nextPageToken":"..."}` with YouTube'
 `kind`/`etag` envelope stripped and `search` ids flattened to a top-level
 `id`/`kind`. Single-resource gets echo the resource object. Mutations that return
 a body (create/update) echo it; empty-body mutations (`videos rate`, deletes,
-`setModerationStatus`, `markAsSpam`) → `{"ok":true,"id":...}`. Default (no
+`setModerationStatus`) → `{"ok":true,"id":...}`. Default (no
 `--json`) is a compact human summary (e.g. channel line `title — subs / views /
 videos`; comment threads as author + text lines). Exit-code contract and a
 `--json` structured error envelope match notion/gmail.
@@ -374,7 +389,7 @@ Helio-side companions (all batch-end unless noted):
 
 | Layer | What runs here | External credentials |
 |---|---|---|
-| L1 | anycli unit tests, httptest fake for `https://www.googleapis.com/youtube/v3` (TDD, tests first): assert `Authorization: Bearer` injection; `part` defaults + `--part` passthrough; `search` id-flattening (`id.videoId` → top-level) and 100-unit verbs; `videos update` read-modify-write (GET snippet then PUT); paging (`pageToken`/`maxResults`, `nextPageToken` echo); empty-body mutations (`rate`, deletes, `setModerationStatus`, `markAsSpam`) → `{"ok":true}`; the comment moderation verbs; `403 quotaExceeded` → exit-1 verbatim (no retry); `--json` vs plain rendering; exit codes 0/1/2; unknown-subcommand failure. `go test ./...` green. | None |
+| L1 | anycli unit tests, httptest fake for `https://www.googleapis.com/youtube/v3` (TDD, tests first): assert `Authorization: Bearer` injection; `part` defaults + `--part` passthrough; `search` id-flattening (`id.videoId` → top-level) and 100-unit verbs; `videos update` read-modify-write (GET snippet then PUT); `videos mine` two-step resolve (`channels.list` contentDetails → uploads playlist → `playlistItems.list`, asserting **no** `search` call); paging (`pageToken`/`maxResults`, `nextPageToken` echo); empty-body mutations (`rate`, deletes, `setModerationStatus`) → `{"ok":true}`; the comment moderation verbs incl. `--ban-author` rejected-only guard (reject a non-`rejected` status client-side or surface the API `400 banWithoutReject`); `403 quotaExceeded` → exit-1 verbatim (no retry); `--json` vs plain rendering; exit codes 0/1/2; unknown-subcommand failure. `go test ./...` green. | None |
 | L2 | `make build-harness`; `ANYCLI_CRED_ACCESS_TOKEN=<token> anycli youtube -- channels get --mine`, then `search --query … --max 3`, `videos get --id …`, `comments list --video …`, one `playlists create` + `playlist-items add` + `playlist-items remove` + `playlists delete` round-trip on a scratch playlist, and one `comments reply` + `comments delete` round-trip on a test video the account owns. Mandatory before the pin bump. | **Yes** — lane 1/2: a Google account that owns a YouTube channel, and a `youtube.force-ssl`-scoped access token minted from the dev-mode app (OAuth Playground against the dev client works). |
 | L3 | Local-only `provider-gen` + `provider-gen --check` against the branch bundle (regens **not** committed; branch expectedly red on this CI check until batch-end); helio-cli built with a **locally uncommitted** `go.mod` `replace github.com/heliohq/anycli => ../../../anycli/.claude/worktrees/tool-youtube`; `cd helio-cli && go build ./... && go test ./cmd/heliox/cmds/tool/`; integration-service unit suite. | None |
 | L4 | Singleton + `POST /internal/test-only/connections/seed` with `provider: youtube`, real `access_token` **and** `refresh_token`, deliberately short `expires_at` to force the gateway's refresh-and-write-back path (YouTube/Google have a real ~1 h cycle); then `heliox tool youtube -- channels get --mine` must return live data. Real seeded org/user/assistant ids per the skill's L4 notes. | **Yes** — lane-1 dev client id/secret as uncommitted local `config/cloud.yaml` entries + a real token pair from the L2 account. |
@@ -404,3 +419,24 @@ which for this tool additionally waits on Google verification clearance.
    must include this scope.
 6. **`provider_registry_test.go` batch-end line** required (§4) — cannot compile
    on-branch; couples to the regen exactly like the projections.
+7. **`comments.markAsSpam` dropped from the surface** (§2) — verified against the
+   official YouTube Data API v3 revision history: the method is **deprecated and
+   no longer supported** ("already unsupported on YouTube and is no longer
+   supported through the API"), so a live call fails/no-ops rather than marking
+   spam. Shipping it would violate §1 independent-verification and the repo's
+   fail-fast / no-silent-fallback rule, and would fail L2 against the live API.
+   The moderation loop stays complete without it: `comments.setModerationStatus`
+   (hold / publish / reject, with `banAuthor=true` valid **only** alongside
+   `rejected`) plus `comments.delete`. `youtube.force-ssl` already authorizes all
+   of these — **no scope change**.
+8. **`videos mine` rerouted off `search`** (§2) — served by the ~1–2-unit,
+   complete, immediately-consistent uploads-playlist path
+   (`channels.list` → `relatedPlaylists.uploads` → `playlistItems.list`), not the
+   100-unit, ~500-capped, eventually-consistent `search.list?forMine=true`. The
+   100-unit `search` verb is reserved for genuine discovery. CLI surface is
+   unchanged.
+9. **YouTube Analytics API out of v1 scope** (§2 exclusions) —
+   `youtubeAnalytics.reports.query` (scope `yt-analytics.readonly`) is a separate
+   API; use case #1 ships **lifetime** `channels.list` statistics only, not
+   windowed time-series. Boundary named so the capability is not overclaimed;
+   possible follow-up.
