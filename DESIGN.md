@@ -1,6 +1,6 @@
 # Braintree — per-tool DESIGN (tool/braintree)
 
-**Catalog row:** #169 · anycli id `braintree` · provider key `braintree` · auth lane `api_key` · wave 3 · category Payments & Commerce.
+**Catalog row:** #171 · anycli id `braintree` · provider key `braintree` · auth lane `api_key` · wave 3 · category Payments & Commerce.
 **Scratch design file** on branch `tool/braintree`, both repos. Batch lead strips it at batch-end.
 
 This doc is the stage-1 design for the `braintree` external tool provider behind `heliox tool braintree`. It follows the `helio-tool-provider` pipeline (10 stages) and the master rollout plan (008-300) §2/§3. Everything below was verified against Braintree's **official** GraphQL API docs and the actual repo code, not assumed.
