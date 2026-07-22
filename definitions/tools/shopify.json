@@ -1,0 +1,17 @@
+{
+  "name": "shopify",
+  "type": "service",
+  "description": "Shopify store admin (GraphQL Admin API) as a tool",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SHOPIFY_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "store"},
+        "inject": {"type": "env", "env_var": "SHOPIFY_STORE"}
+      }
+    ]
+  }
+}
