@@ -19,40 +19,105 @@ key `adyen`. All three coincide → **no `toolToProvider` entry** (identity map)
 
 ---
 
+## 0. Scope decision — v1 is **Management-only**; Checkout deferred to v2
+
+This revision resolves three review findings by **subtracting** the Checkout
+surface from v1 rather than papering over it with per-invocation flags. The
+findings and their resolution:
+
+1. **`--environment test|live` is unsound against a single stored, live-fixed
+   credential.** Correct. The connect verifier is live-fixed (§4) and connect
+   therefore only ever stores a **live** key; a per-call `--environment test`
+   would send that live key to a test host → `401/403` → the tool's own
+   `401/403 → execution.RejectCredential` rule (§2) would mark a *valid* live
+   credential rejected and strand the connection. **Resolution: there is no
+   `--environment` flag on the connected surface at all.** The connected tool
+   is **live-only** (environment is a property of the credential/connection,
+   not a per-call choice). The Adyen **test** host is reachable *only* through
+   the anycli L2 harness as a base-URL override driven by `ANYCLI_*` env
+   (dev/L1–L4), never as a flag heliox exposes to the agent. A genuine
+   environment-mismatch can no longer occur, so it can never trip
+   `RejectCredential`.
+2. **`--live-url-prefix` as a required per-call flag is not agent-invokable.**
+   Correct, and confirmed against Adyen's official docs: the live Checkout host
+   is `https://{PREFIX}-checkout-live.adyenpayments.com/checkout/v71`, where
+   `{PREFIX}` is a per-company "hex-random + company name" string that lives
+   **only** in the live Customer Area (Developers → API URLs → Prefix) with no
+   API that exposes it. An agent cannot discover it and should not have to
+   re-ask the user every call. The clean fix is to capture it (and the
+   environment) as **connection metadata at connect time** — the in-program
+   `salesforce` precedent (`instance_url` captured at connect, task #168). But
+   on this worktree base that is **real, multi-part capability growth on the
+   api_key golden path**, not a free reuse (see §4 "why deferred"). **Resolution
+   (subtract-first, per finding #2's own fallback and DESIGN §6.4): defer the
+   entire Checkout surface to v2.** Management **live** needs no prefix (verified
+   below), so v1 is a single clean host with no prefix flag and nothing for the
+   agent to guess.
+3. **No idempotency on financial mutations.** Correct: Adyen's modification
+   endpoints accept an `idempotency-key` **header** (verified official docs;
+   header, not a body field), and without it an agent retry after a timeout can
+   double-refund/double-capture real money. Every money-moving mutation
+   (`refunds`/`captures`/`cancels`/`reversals`) is a **Checkout** op, so all of
+   them leave v1 with the Checkout deferral. **Resolution: v1 has no financial
+   mutation surface**, so there is no unguarded-retry hazard to ship. When
+   Checkout lands in v2 the mutations **MUST** send an `Idempotency-Key` header
+   (auto-generated per-invocation UUIDv4, with an optional `--idempotency-key`
+   override for caller-controlled retry). Recorded as a hard v2 requirement in
+   §4 and §6.
+
+**Net v1 surface:** Management API v3 only — account/credential introspection,
+merchant/company config, payment-method settings, webhooks, stores, terminals.
+Single live host, no prefix, no environment flag, no money movement, **zero
+integration-service capability growth** (the api_key golden path genuinely
+holds). Checkout (payment links + modifications) is a documented v2 follow-up
+with its own capability-growth + idempotency plan (§4, §6).
+
+---
+
 ## 1. Official API surface — what the tool wraps and why
 
 **What an AI payments/finance teammate actually does with Adyen** (frequency-
-ordered), and the official endpoint each maps to:
+ordered), and the official endpoint each maps to. **v1 ships the Management
+rows; the Checkout rows are the v2 follow-up (§0, §4).**
 
-1. **"Create a payment link for €X to send to a customer."** The agent-native
-   way to request money in Adyen: no PCI card data touches the agent — the
-   payer enters card details on Adyen's hosted page. → **Checkout API**
-   `POST /paymentLinks`, `GET /paymentLinks/{linkId}`, `PATCH
-   /paymentLinks/{linkId}` (expire/patch status).
-2. **"Refund / cancel / capture transaction `{pspReference}`."** Core payment
-   ops on a transaction the agent already has a PSP reference for. → **Checkout
-   API** modifications: `POST /payments/{paymentPspReference}/refunds`,
-   `/captures`, `/cancels`, `/reversals`.
-3. **"Which merchant accounts / companies do we have, and who is this key?"**
-   Account & credential introspection. → **Management API v3** `GET /me`,
-   `GET /merchants`, `GET /merchants/{merchantId}`, `GET /companies`,
-   `GET /companies/{companyId}`.
-4. **"What payment methods are enabled on merchant X?"** → **Management API**
+*v1 — Management API v3 (single live host, no prefix, read/config only):*
+
+1. **"Which merchant accounts / companies do we have, and who is this key?"**
+   Account & credential introspection. → `GET /me`, `GET /merchants`,
+   `GET /merchants/{merchantId}`, `GET /companies`, `GET /companies/{companyId}`.
+2. **"What payment methods are enabled on merchant X?"** →
    `GET /merchants/{merchantId}/paymentMethodSettings`.
-5. **"Show / manage the webhooks configured on this account."** → **Management
-   API** `GET /companies/{companyId}/webhooks`,
-   `GET /merchants/{merchantId}/webhooks` (+ get by id).
-6. **"List stores / terminals"** (in-person estate visibility). → **Management
-   API** `GET /merchants/{merchantId}/stores`, `.../terminals`.
+3. **"Show the webhooks configured on this account."** →
+   `GET /companies/{companyId}/webhooks`, `GET /merchants/{merchantId}/webhooks`
+   (+ get by id).
+4. **"List stores / terminals"** (in-person estate visibility). →
+   `GET /merchants/{merchantId}/stores`, `.../terminals`.
 
-**Why these two APIs and not others.** Adyen splits its surface across many
-APIs (Checkout, Management, classic PAL Payments, Balance Platform / Adyen for
-Platforms, Transfers, Payout, Data Protection, Reporting). For a *classic
-merchant* AI teammate, the highest-value, API-key-native, non-PCI surface is
-**Checkout (payment links + modifications)** + **Management (account/config +
-webhooks)**. Deliberately **out of scope for v1**:
+*v2 — Checkout API v71 (deferred; needs the live-prefix/environment +
+idempotency machinery in §4):*
+
+5. **"Create a payment link for €X to send to a customer."** The agent-native
+   way to request money — no PCI card data touches the agent; the payer enters
+   card details on Adyen's hosted page. → `POST /paymentLinks`,
+   `GET /paymentLinks/{linkId}`, `PATCH /paymentLinks/{linkId}` (expire/patch).
+6. **"Refund / cancel / capture transaction `{pspReference}`."** Core money-
+   moving modifications on a transaction the agent already has a PSP reference
+   for. → `POST /payments/{paymentPspReference}/refunds`, `/captures`,
+   `/cancels`, `/reversals`. **Each MUST carry an `Idempotency-Key` header in
+   v2** (§0 finding #3, §4).
+
+**Why Checkout is the highest-value action yet still deferred.** Payment links
+are the headline agent-native Adyen action, so this is a real (acknowledged)
+v1 scope cut — but the disciplined one: the live Checkout host needs a
+per-merchant prefix the agent cannot obtain, and its mutations need idempotency,
+and wiring both cleanly is capability growth off the api_key golden path (§4).
+Shipping Management-only keeps v1 on the proven golden path and lands the
+account/config value now, with Checkout as a well-specified v2.
+
+**Also deliberately out of scope (both v1 and v2 unless noted):**
 - **`POST /payments` (authorise a card payment)** — requires raw card data /
-  PCI scope; not an agent action. Payment *links* are the agent-safe substitute.
+  PCI scope; not an agent action. Payment *links* (v2) are the agent-safe
+  substitute.
 - **Balance Platform / Adyen for Platforms** — a different product tier
   (platforms/marketplaces) with its own account model; not the classic-merchant
   default.
@@ -60,36 +125,37 @@ webhooks)**. Deliberately **out of scope for v1**:
   endpoint** for classic merchants (reconciliation is webhook- + downloadable-
   report-driven). This is a genuine Adyen gap the tool cannot paper over; the
   AI-facing doc must set the expectation that "list all recent payments" is not
-  a supported call — the agent works from a known `pspReference` (from a link,
-  a webhook, or the Customer Area) instead.
+  a supported call — the agent works from a known `pspReference` (from a v2
+  link, a webhook, or the Customer Area) instead.
 
-### Base URLs (verified) — the environment + live-prefix wrinkle
+### Base URLs (verified against official docs)
 
-| API | Test base | Live base |
-|---|---|---|
-| **Management v3** | `https://management-test.adyen.com/v3` | `https://management-live.adyen.com/v3` |
-| **Checkout v71** | `https://checkout-test.adyen.com/v71` | `https://{PREFIX}-checkout-live.adyenpayments.com/checkout/v71` |
+| API | Test base | Live base | v1? |
+|---|---|---|---|
+| **Management v3** | `https://management-test.adyen.com/v3` | `https://management-live.adyen.com/v3` | ✅ (live only on connected surface) |
+| **Checkout v71** | `https://checkout-test.adyen.com/v71` | `https://{PREFIX}-checkout-live.adyenpayments.com/checkout/v71` | ❌ v2 |
 
-Two facts drive the tool's shape:
+Two facts (both re-verified against Adyen's official Live-endpoints doc) drive
+the shape:
 - **Keys are environment-scoped.** A test API key only authenticates against
-  `*-test.*`; a live key only against `*-live.*`. There is no way to tell test
-  from live by inspecting the key.
-- **Checkout live requires a merchant-specific "live URL prefix"** (found in
-  Customer Area → Developers → API URLs). Management live needs **no** prefix.
+  `*-test.*`; a live key only against `*-live.*`, and there is no way to tell
+  test from live by inspecting the key. Because the connect verifier is
+  live-fixed (§4), a connected credential is **always live** → the connected
+  surface is **live-only**, with **no `--environment` flag** (§0 finding #1).
+  The test host is exercised only via the anycli L2 harness base-URL override.
+- **Checkout live requires a merchant-specific "live URL prefix"** — confirmed
+  format `{PREFIX}-checkout-live.adyenpayments.com`, where `{PREFIX}` is a
+  "hex-random + company name" string found only in the live Customer Area
+  (Developers → API URLs → Prefix), with no API exposing it. **Management live
+  needs no prefix.** This prefix requirement is exactly why Checkout is v2 and
+  Management-only is v1 (§0 finding #2).
 
-So the anycli tool takes an explicit **`--environment test|live`** selector
-(default **`live`** — real connected merchants), and for `--environment=live`
-Checkout commands additionally require **`--live-url-prefix <prefix>`** (a
-per-invocation parameter sourced from the Customer Area — **not** a stored
-credential, since the P3 manual-credential storage face is a single secret).
-Test-environment Checkout uses the fixed `checkout-test.adyen.com` host with no
-prefix.
-
-> Endpoint paths above are taken from the Adyen API Explorer (Management v3,
-> Checkout v71) and the API-authentication doc. anycli stage-1/L2 must re-confirm
-> exact request/response bodies against the live API before the pin bump — the
-> API Explorer JS pages resisted headless fetch, so the request shapes are
-> validated at L2, not from a scraped page.
+> Management v3 endpoint paths above are taken from the Adyen API Explorer and
+> the API-authentication doc; the live-host + prefix facts are re-verified
+> against the official Live-endpoints doc. anycli stage-1/L2 must re-confirm
+> exact Management request/response bodies against the live API before the pin
+> bump — the API Explorer JS pages resisted headless fetch, so response shapes
+> are validated at L2, not from a scraped page.
 
 ---
 
@@ -108,7 +174,7 @@ injected as env, service sets the header itself):
 {
   "name": "adyen",
   "type": "service",
-  "description": "Adyen as a tool (Management + Checkout API, X-API-Key)",
+  "description": "Adyen as a tool (Management API v3, X-API-Key)",
   "auth": {
     "credentials": [
       {
@@ -122,15 +188,19 @@ injected as env, service sets the header itself):
 
 **Package `internal/tools/adyen/`** (Go package name `adyen`; id has no dashes).
 Copy the `notion`/`bitly` shape: a cobra tree, a `BaseURL`/`HC`/`Out`/`Err`
-struct so tests point at an `httptest` server, `X-API-Key: <key>` on every
-request (raw key, **no** `Bearer` prefix — matches Adyen and the
+struct so tests (and the L2 harness test host) point `BaseURL` at an `httptest`
+server or `management-test.adyen.com`, `X-API-Key: <key>` on every request (raw
+key, **no** `Bearer` prefix — matches Adyen and the
 `declarativeManualTokenVerifier`), the documented exit-code contract (0 success;
 1 runtime/API failure via typed `apiError`; 2 usage/parse), `--json` structured
 error envelope, and **`401`/`403` → `execution.RejectCredential`** so the token
-gateway sees a rejected credential.
+gateway sees a rejected credential. Because v1 is Management-only and live-only
+on the connected surface, a `401/403` here is an unambiguous credential-rejection
+signal — there is no environment-mismatch path that could reject a valid key
+(§0 finding #1).
 
-**Subcommand tree** (resource-grouped verbs; every command emits the provider
-JSON verbatim on stdout):
+**v1 subcommand tree** (Management only; resource-grouped verbs; every command
+emits the provider JSON verbatim on stdout):
 
 ```
 adyen management whoami                         # GET /me   (also the connect verifier target)
@@ -143,25 +213,26 @@ adyen management webhook list (--merchant <id> | --company <id>)
 adyen management webhook get   (--merchant <id> | --company <id>) <webhookId>
 adyen management store list <merchantId>
 adyen management terminal list <merchantId>
-
-adyen payment-link create --merchant <id> --amount-value <minor> --amount-currency <ISO> \
-                          [--reference R] [--json-body '<raw JSON passthrough>']
-adyen payment-link get    <linkId>
-adyen payment-link expire <linkId>              # PATCH {status:"expired"}
-
-adyen payment refund  <pspReference> --merchant <id> [--amount-value N --amount-currency ISO] [--reference R]
-adyen payment capture <pspReference> --merchant <id> --amount-value N --amount-currency ISO
-adyen payment cancel  <pspReference> --merchant <id>
 ```
 
-Global persistent flags: `--environment test|live` (default `live`),
-`--live-url-prefix <p>` (required for Checkout when `--environment=live`),
-`--json` (accepted for uniformity; output is always JSON). Amounts follow
-Adyen's **minor-units** convention (`{"currency":"EUR","value":1000}` = €10.00)
-— the tool takes `--amount-value` as an integer in minor units and never does
-currency math. `--json-body` gives the agent a raw passthrough for Adyen's rich
-`paymentLinks` payload (line items, shopper info) without the tool modelling
-every field (the `notion`/`bitly` raw-JSON-flag precedent).
+Every command targets the **live** Management host (`management-live.adyen.com/v3`).
+There is **no `--environment` and no `--live-url-prefix` flag** on the connected
+surface (§0 findings #1/#2): the tool's `BaseURL` field defaults to the live
+Management host and is overridden **only** by the anycli L2 harness (`ANYCLI_*`
+base-URL env) to point at the test host or an `httptest` server — never by a
+heliox-exposed flag. The one global persistent flag is `--json` (accepted for
+uniformity; output is always JSON).
+
+**Deferred to v2 (NOT in the v1 tree)** — Checkout `payment-link create|get|expire`
+and `payment refund|capture|cancel`. When they land they resolve their live host
+from **connection metadata captured at connect** (`environment`, `live_url_prefix`
+— §4 capability growth), never a per-call flag, and every money-moving mutation
+sends an `Idempotency-Key` header (auto UUIDv4, optional `--idempotency-key`
+override). Amount handling (when Checkout ships) follows Adyen's **minor-units**
+convention (`{"currency":"EUR","value":1000}` = €10.00): the tool takes an
+integer in minor units and never does currency math; a `--json-body` raw
+passthrough covers Adyen's rich `paymentLinks` payload (the `notion`/`bitly`
+raw-JSON-flag precedent).
 
 **JSON output shape.** Success = Adyen's response body verbatim + newline
 (passthrough, like `bitly`'s `emit`). Failure = the shared structured error
@@ -182,15 +253,14 @@ definition.
   append** (contrast every oauth tool). Adyen recommends the account holder
   generate an API key in Customer Area → Developers → API credentials and grant
   it the roles the tool needs.
-- **Wire auth:** `X-API-Key: <key>` header on every Management and Checkout
-  request. (Adyen also supports Basic-auth web-service users; the tool
-  standardises on the API-key header — the modern, recommended path.)
+- **Wire auth:** `X-API-Key: <key>` header on every Management request. (Adyen
+  also supports Basic-auth web-service users; the tool standardises on the
+  API-key header — the modern, recommended path.)
 - **Required key roles (document loudly in setup + AI-facing doc):** the connect
   **verifier hits Management `GET /me`**, so the pasted key **must have
-  Management API access** in addition to Checkout API access. A Checkout-only
-  key will *work for payment links/refunds* but **fail connect verification**
-  (Management `/me` → 403). Setup guidance: "generate one key with both
-  Checkout and Management API roles."
+  Management API access**. For v1 that is the only role the connected surface
+  needs. (v2 Checkout adds a Checkout API role requirement; setup guidance then
+  becomes "generate one key with both Management and Checkout API roles.")
 - **Token semantics:** Adyen API keys are **long-lived, non-expiring**
   (rotated/revoked manually in Customer Area). Seed `access_token` only — **no
   `refresh_token`/`expires_at`** (the token-gateway serves it directly; there is
@@ -201,15 +271,18 @@ definition.
 
 ## 4. Helio provider bundle plan (`integrations/providers/adyen/provider.yaml`)
 
-**No integration-service Go needed.** The worktree base already carries the
-`manual_api_token` runtime strategy + `declarativeManualTokenVerifier`
+**No integration-service Go needed for v1.** The worktree base already carries
+the `manual_api_token` runtime strategy + `declarativeManualTokenVerifier`
 (`service/manual_token_verifier.go`) + `AuthAPIKey` policy
 (`model/catalog.go`): it GETs the bundle's `identity.url` with
 `header.Set(auth.api_key.header, token)` (raw token) and extracts the account
 key/label via JSON pointer. Adyen's `X-API-Key` + `GET /me` is exactly this
 closed shape → **zero capability growth** (unlike the many verifier-adding
 tools in this program). This is the api_key golden path; a synthetic-provider
-test already proves it.
+test already proves it. Management-only v1 keeps this true: the single stored
+secret is an `access_token`, projected to anycli via the existing
+`token.access_token` credential source, and the tool hard-codes the single live
+Management host — no per-connection host, no extra credential fields.
 
 Bundle (hidden-first per master plan; `presentation.visible: false`):
 
@@ -273,12 +346,48 @@ batch lead. Dev/L1–L4 use free **test** accounts through the anycli harness
 account dependency. (Pointing the verifier at `management-test` would make L5
 trivially runnable but would reject every real production user — rejected.)
 
+### v2 Checkout — the capability growth this deferral buys time to do right
+
+Bringing Checkout onto the connected surface is **not** free reuse on this base;
+it is three concrete pieces of integration-service capability growth, which is
+exactly why v1 subtracts it (§0):
+
+1. **Capture `environment` + `live_url_prefix` as connection metadata at
+   connect** — the in-program precedent is `salesforce` (`instance_url` captured
+   at connect, task #168). But the manual/api_key lane is more constrained than
+   salesforce's OAuth lane: `CredentialInputPolicy` (`model/catalog.go`) states
+   that in P3 a declared manual schema **must be exactly one required field**
+   (single-secret storage face), so capturing extra connect-time fields is a
+   real schema-capability change, not a config tweak.
+2. **New credential sources to project them to anycli** — `CredentialSource`
+   (`model/catalog.go`) is a **closed allowlist** whose comment is explicit that
+   "arbitrary Connection metadata have no representable value." Projecting
+   `environment` and `live_url_prefix` to the tool needs two new reviewed
+   sources (e.g. `connection.metadata.environment`,
+   `connection.metadata.live_url_prefix`), mirroring how salesforce/adobe-sign
+   added named metadata/base-URI sources.
+3. **Environment-bound verifier host** — connect must verify against the host
+   the captured environment names (test key → test host, live key → live host),
+   so a test-environment merchant can also connect, instead of the v1 live-fixed
+   verifier.
+
+Plus the **idempotency** requirement (§0 finding #3): every v2
+`refunds`/`captures`/`cancels`/`reversals` call sends an `Idempotency-Key`
+header (auto UUIDv4; optional `--idempotency-key` override). This is anycli-side
+(header on the outbound request), not integration-service capability.
+
+Deferring keeps v1 on the golden path and lets v2 land this growth deliberately
+(its own DESIGN branch), rather than smuggling a per-call prefix/environment
+flag that an agent cannot invoke and that can strand a valid credential.
+
 **Also required at batch end (master plan §2 shared surfaces):** UI icon
 `ui/helio-app/src/integrations/icons/adyen.svg` + `providerIcons.ts` append;
 `tools.desc.adyen` i18n string; AI-facing sub-doc under
-`agents/plugins/heliox/skills/tool/` (must document: the minor-units amount
-convention, the "list transactions is unsupported" gap, the required
-Checkout+Management key roles, and `--environment`/`--live-url-prefix`).
+`agents/plugins/heliox/skills/tool/` (must document, for the v1 Management
+surface: that it is **live-only, read/config only — no money movement**; the
+"list transactions is unsupported" gap; the required **Management** API key
+role; and that payment links / refunds are a **v2** capability, not yet
+available).
 
 ---
 
@@ -286,11 +395,11 @@ Checkout+Management key roles, and `--environment`/`--live-url-prefix`).
 
 | Layer | For Adyen | External creds? |
 |---|---|---|
-| **L1** anycli unit | `go test ./...`: `httptest` fakes for Management + Checkout; assert `X-API-Key` header set to the raw key (no `Bearer`), minor-units amount marshalling, `--environment`/`--live-url-prefix` host selection (test host vs `{prefix}-checkout-live`), passthrough JSON on success, `{"error":...}` envelope + exit code on `errorCode` bodies, and `401/403 → RejectCredential`. | No |
-| **L2** harness real-API | `ADYEN_CRED_ACCESS_TOKEN=<test key> anycli adyen -- management whoami` and `... payment-link create --environment test --merchant <TestMerchant> --amount-value 1000 --amount-currency EUR` against a **free Adyen test company account**. Confirms header shape, `/me` body (verify `/id` present for the stable_key decision), minor-units, and the test Checkout host. **Mandatory before the pin bump.** | **Yes — free Adyen test account** (self-serve) |
+| **L1** anycli unit | `go test ./...`: `httptest` fakes for Management v3; assert `X-API-Key` header set to the raw key (no `Bearer`), `BaseURL` defaults to the live Management host and is overridden only via the harness base-URL seam (no `--environment`/`--live-url-prefix` flags exist), passthrough JSON on success, `{"error":...}` envelope + exit code on `errorCode` bodies, and `401/403 → RejectCredential`. | No |
+| **L2** harness real-API | `ADYEN_CRED_ACCESS_TOKEN=<test key> ANYCLI_<base-url override to management-test> anycli adyen -- management whoami` (and `management merchant list`) against a **free Adyen test company account**. Confirms header shape and `/me` body (verify `/id` present for the stable_key decision). The test host is reached via the harness base-URL override, never a tool flag. **Mandatory before the pin bump.** | **Yes — free Adyen test account** (self-serve) |
 | **L3** generate + suites | From `go-services/integration-service`: `go run ./cmd/provider-gen` + `--check` (5 projections, on-branch only — not committed); `helio-cli` build with a local `go.mod replace` at the anycli branch; both repos' unit suites. Bundle is expected to fail `--check` in CI until the batch-end regen (master plan §2). | No |
 | **L4** singleton + seed | Singleton (`env: dev`), `POST /internal/test-only/connections/seed` with `provider:"adyen"`, `access_token` = a **test** key, **no** refresh/expiry (non-expiring key class). Then `heliox tool adyen -- management whoami`. Success = real Adyen **test** data through the token gateway → anycli. Seed bypasses the connect verifier, so a test key is fine here. | **Yes — free Adyen test account** |
-| **L5** full connect | Once, hidden, pre-flip: `heliox tool adyen auth` → connect UI → paste a key → verifier GETs `management-live/v3/me` → connection shows connected → one **unseeded** live command. This is the **api_key key-entry L5 path** (master plan §2), not OAuth consent. **The verifier targets LIVE, so L5 requires a real KYC-onboarded Adyen live account** — the one externally-gated, non-self-serve dependency; flag to the batch lead as an account-procurement item (Adyen is not in the 3-hold batch, but its L5 carries a live-account cost like the §6 procurement risks). | **Yes — real Adyen LIVE merchant account (KYC)** |
+| **L5** full connect | Once, hidden, pre-flip: `heliox tool adyen auth` → connect UI → paste a key → verifier GETs `management-live/v3/me` → connection shows connected → one **unseeded** live command. This is the **api_key key-entry L5 path** (master plan §2), not OAuth consent. **The verifier targets LIVE, so L5 requires a real KYC-onboarded Adyen live account** — the one externally-gated, non-self-serve dependency; flag to the batch lead as an account-procurement item (Adyen is not in the 3-hold batch, but its L5 carries a live-account cost). | **Yes — real Adyen LIVE merchant account (KYC)** |
 
 **Rollout:** land hidden; L1–L4 on test creds; only the single pre-flip L5 run
 needs the live account; then flip `visible: true` + regenerate as the go-live
@@ -298,18 +407,30 @@ change (stage 10).
 
 ---
 
-## 6. Open items for stage-1/L2 to confirm
+## 6. Open items
+
+**Resolved (this revision):** the scope decision is **settled** — v1 is
+**Management-only, live-only**; Checkout (payment links + refund/capture/cancel)
+is deferred to v2 with the capability-growth + idempotency plan in §0/§4. This
+closes the three review findings by subtraction rather than by a per-call
+`--environment`/`--live-url-prefix` flag.
+
+*For v1 stage-1/L2 to confirm:*
 
 1. **`/me` stable_key** — confirm `/id` is present & non-empty on a real
    response; else switch to `/username`.
-2. **Exact Checkout paths & bodies** — re-confirm `paymentLinks` and
-   `payments/{pspReference}/refunds|captures|cancels` request shapes at v71
-   against the live API (API Explorer resisted headless fetch).
-3. **Checkout live prefix** — confirm the `{prefix}-checkout-live.adyenpayments.com`
-   format and that Management live needs no prefix, then finalise the
-   `--live-url-prefix` flag ergonomics.
-4. **Scope decision re-check** — if payment-links/refunds prove to materially
-   complicate the live-host model at L2, the disciplined fallback is to ship
-   **Management-only v1** (whoami/merchants/companies/payment-methods/webhooks/
-   stores/terminals — single clean host, no prefix) and defer Checkout to v2.
-   Recorded here so the reviewer sees the subtract-first option.
+2. **Management response shapes** — re-confirm `GET /me`, `/merchants`,
+   `/companies`, `/paymentMethodSettings`, `/webhooks`, `/stores`, `/terminals`
+   response bodies at v3 against the live API (API Explorer resisted headless
+   fetch), and pagination params for the `list` verbs.
+
+*Deferred to the v2 Checkout DESIGN (do NOT block v1):*
+
+3. **Checkout paths & bodies** — `paymentLinks` and
+   `payments/{pspReference}/refunds|captures|cancels|reversals` request shapes
+   at v71, including the `Idempotency-Key` header wiring (auto UUIDv4 + optional
+   `--idempotency-key` override).
+4. **Connect-time metadata capture** — finalise the `environment` +
+   `live_url_prefix` connect-form fields and the two new credential sources
+   (§4), following the `salesforce`/`adobe-sign` metadata-source precedents; and
+   the environment-bound verifier host so test-environment merchants can connect.
