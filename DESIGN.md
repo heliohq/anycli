@@ -202,18 +202,23 @@ before the visible flip.
 4. Token gateway serves `access_token` to the resolver; anycli injects it as
    `RAZORPAY_ACCESS_TOKEN`; the service sends it as `Authorization: Bearer`.
 
-**Token response (verified):** `{ token_type, expires_in, access_token,
-public_token, refresh_token, razorpay_account_id }`. Semantics:
+**Token response (verified):** the **initial `authorization_code`** exchange
+returns `{ token_type, expires_in, access_token, public_token, refresh_token,
+razorpay_account_id }`; the **`refresh_token`** response returns only
+`{ token_type, expires_in, access_token, public_token, refresh_token }` — **no
+`razorpay_account_id`** (see Identity below). Semantics:
 - **Access token TTL: 90 days** (`expires_in` in seconds). **Refresh token TTL:
   180 days.**
 - **Refresh token ROTATES** — calling `/token` with `grant_type=refresh_token`
   returns a new `access_token` **and** a new `refresh_token`; "the old refresh
   token will be expired automatically from this point." → bundle
   **`refresh_lease: credential`** (the rotating value the Xero / Sage /
-  FreshBooks / Square bundles already exercise). **No new integration-service
-  capability expected** — the `standard_oauth` `refresh_lease` allowed-set
-  already carries `credential`. Confirm the set membership on the branch base
-  before assuming reuse.
+  FreshBooks / Square bundles already exercise). **No `refresh_lease` capability
+  growth needed** — the `standard_oauth` `refresh_lease` allowed-set already
+  carries `credential` (confirm the set membership on the branch base before
+  assuming reuse). This is separate from — and does **not** cancel — the
+  `token_exchange_style: json_secret` growth this tool **does** need (§4 exchange
+  style, §5 runtime_strategy).
 - `public_token` is a client-side publishable token — **not** stored/used by this
   tool (server-side Bearer only). `razorpay_account_id` drives identity (below).
 
@@ -229,23 +234,69 @@ banking scopes are **not** requested in the first bundle (payouts out of scope,
 §2). `display_scopes` lists exactly what is granted.
 
 **Identity:** `identity.source: token_response`, `stable_key:
-/razorpay_account_id` (present in the token response — no extra userinfo GET
-needed). Label: the account id is always available; a human-readable business
+/razorpay_account_id`. **Captured at connect-time from the initial
+`authorization_code` exchange** — verified against the official integration-steps
+doc: `razorpay_account_id` ("Identifies the sub-merchant ID who granted the
+authorisation") is returned **only** on the initial code exchange; the
+`grant_type=refresh_token` response carries just `token_type` / `expires_in` /
+`access_token` / `public_token` / `refresh_token` and **omits** the account id.
+This is exactly Stripe's shape (its bundle documents the acct id as a connect-time
+capture): `token_response` identity capture happens once at connect, not on every
+refresh, so the resolver must persist the id at initial connect and never expect
+it back on a refresh cycle. No extra userinfo GET is needed. Label: the account
+id is always available; a human-readable business
 name would need a stage-1-confirmed merchant/account GET, so `label_candidates`
 falls back to `/razorpay_account_id` and adds a business-name pointer only if
 stage-1 confirms a cheap account-fetch endpoint. `account get` (whoami) for L5
 resolves against whatever account endpoint the granted scope exposes — confirm
 at stage 1.
 
-**Revoke:** `https://auth.razorpay.com/revoke` exists (verified) →
-`disconnect_mode: declarative` with a declarative revoker (the golden-path
-`standard_oauth` revoker), not `local_only`.
+**Revoke:** Razorpay ships a real revoke endpoint — `POST
+https://auth.razorpay.com/revoke` with mandatory `client_id`, `client_secret`,
+`token_type_hint` (`access_token|refresh_token`), and `token` (verified against
+the official integration-steps doc). So the disconnect is a **provider revoke**,
+not a client-side no-op:
+- `connection.disconnect_mode: provider_revoke` (**not** `declarative` — that is
+  not a valid enum value; `validate.go` accepts only `provider_revoke` /
+  `local_only` / `strategy`. "Declarative revoker" is the *implementation facet*
+  the `standard_oauth` runtime strategy composes, **not** the `disconnect_mode`
+  value).
+- For `standard_oauth`, `provider_revoke` **requires** an `auth.oauth.revoke`
+  block (`validate.go:503-505`), and `local_only` **forbids** one. We provide the
+  block, modeled on the Xero bundle:
+  - `url: https://auth.razorpay.com/revoke`
+  - `client_auth: form` — `client_id`/`client_secret` go in the request body, not
+    a Basic header (`validate.go:480` allows `none|basic|form`; Razorpay uses
+    neither Basic nor a bare call, so `form`). `‹stage-1›` the endpoint samples a
+    JSON body; the closed revoke capability has no `json` client-auth variant, so
+    `form` is the chosen approximation — confirm on the dev app that the revoke
+    exchanger's form-encoded client creds are accepted, and if the endpoint is
+    strictly JSON-only, scope a `json`-client-auth revoke capability growth.
+  - `token: refresh_token`, `token_type_hint: refresh_token` — revoke the
+    rotating refresh token to tear down the whole chain (Razorpay requires
+    `token_type_hint`; no `fallback_token`, so `token_type_hint` may be non-`none`
+    per `validate.go:495`).
+
+**Token exchange style — `json_secret`, and it needs a capability growth (docs-resolved, not stage-1).**
+The official `/token` sample posts `Content-Type: application/json` with
+`client_id` and `client_secret` in the **JSON body** (verified — the
+integration-steps curl sends `-H "Content-type: application/json" -d '{ "client_id":
+…, "client_secret": …, "grant_type": "authorization_code", … }'`). The docs-correct
+style is therefore **JSON-body-with-secret (`json_secret`)** — which is **not** on
+the branch base: `validate.go:243` allows only `form_secret` / `form_basic` /
+`json_basic` (`json_basic` puts client auth in a Basic header, which Razorpay does
+**not** use; `json_secret` is absent). So the correct exchange requires an
+**integration-service capability growth** as part of this tool's work: add
+`json_secret` as a reviewed `token_exchange_style` enum value **plus** the matching
+exchanger branch in `service/oauth_exchange.go` (JSON body carrying `client_id` +
+`client_secret`). Confirm the enum's absence on the branch base first (per
+`validate.go` it is absent); if a later base rev already adds it, reuse it. **This
+contradicts any "pure golden path, zero provider-specific Go / no new capability"
+framing** — the exchange-style enum growth is real, reviewed integration-service
+work (a small, contained enum + exchanger branch, not a per-provider adapter).
 
 **`‹stage-1›` open items** (resolve from the partner dev account before the dev
-branch finalizes request shapes): `token_exchange_style` — Razorpay posts
-`client_id`/`client_secret` in the request **body** (not a Basic header), so
-`form_secret` vs `json_secret` per the exact `Content-Type` the `/token`
-endpoint accepts (confirm on the dev app; default `form_secret`); the `mode`
+branch finalizes request shapes): the `mode`
 (`test|live`) authorize param — whether it rides as a static authorize extra-param
 or a config field (default `live` for production, `test` for the dev app);
 PKCE — undocumented for this confidential-client flow, so `pkce: none` pending
@@ -275,26 +326,31 @@ presentation:
 
 auth:
   type: oauth
-  owner: assistant
+  owner: individual                              # per-merchant consent — matches Stripe/Xero (NOT assistant; that triggers the app-bot org-admin gate)
   required_config_fields: [oauth.client_id, oauth.client_secret]
   oauth:
     authorize_url: https://auth.razorpay.com/authorize
     token_url: https://auth.razorpay.com/token
-    token_exchange_style: form_secret            # ‹stage-1› form_secret|json_secret (secret in body, not Basic)
+    token_exchange_style: json_secret            # /token is Content-Type: application/json with client_id/secret in the JSON body — needs json_secret enum + exchanger branch (capability growth, §4)
     pkce: none                                   # ‹stage-1› (undocumented for this confidential client)
     display_scopes: [read_write]                 # or read_only for a read-first first pass; rx_* deferred
     single_active_token: false                   # per-merchant multi-tenant tokens
     refresh_lease: credential                    # refresh token rotates (old expires on refresh) — verified
+    revoke:
+      url: https://auth.razorpay.com/revoke      # verified — real revoke endpoint
+      client_auth: form                          # client_id/client_secret in body (validate.go allows none|basic|form); ‹stage-1› endpoint samples JSON, confirm form-encoded creds accepted
+      token: refresh_token                       # revoke the rotating refresh token to tear down the chain
+      token_type_hint: refresh_token             # Razorpay requires token_type_hint
 
 identity:
   source: token_response
-  stable_key: /razorpay_account_id               # present in token response — verified
+  stable_key: /razorpay_account_id               # captured at INITIAL connect (authorization_code response); NOT present on refresh — verified
   label_candidates: [/razorpay_account_id]       # + business-name pointer if stage-1 confirms an account GET
 
 connection:
   mode: isolated
-  disconnect_mode: declarative                   # https://auth.razorpay.com/revoke — verified
-  runtime_strategy: standard_oauth               # golden path — zero provider Go expected
+  disconnect_mode: provider_revoke               # real revoke endpoint → provider_revoke (NOT the invalid `declarative`); standard_oauth+provider_revoke requires the auth.oauth.revoke block above
+  runtime_strategy: standard_oauth               # authorization-code + rotating-refresh, declarative identity/revoke — but see §4: the json_secret exchange style needs an enum + exchanger branch growth
 
 resources: { selection: none, discovery: none, enforcement: none }
 
@@ -311,13 +367,19 @@ tool:
 - **Three axes:** ① `razorpay` ② `razorpay` ③ `razorpay` — all identical, so
   **no `toolToProvider` resolver entry** (identity holds) and no grouped
   `tool.group`.
-- **runtime_strategy `standard_oauth`.** Razorpay is a standard
-  authorization-code + rotating-refresh Bearer provider with a declarative
-  revoke endpoint and token-response identity — the golden path composes the
-  exchanger + declarative identity resolver + declarative revoker with **zero
-  provider-specific Go**. Do **not** pre-build a `service/adapter_razorpay.go`;
-  reach for one only if stage-1 uncovers a non-standard token-exchange dialect
-  (it should not — the flow is textbook OAuth2).
+- **runtime_strategy `standard_oauth`, but with one reviewed capability growth.**
+  Razorpay is a standard authorization-code + rotating-refresh Bearer provider
+  with a provider revoke endpoint and token-response identity, so the strategy
+  composes the generic exchanger + declarative identity resolver + declarative
+  revoker. **It is not a pure zero-Go golden path**, though: its `/token` endpoint
+  is JSON-body-with-secret (`json_secret`), which is **not** on the branch base
+  (`validate.go:243` = `form_secret|form_basic|json_basic`). This tool must add
+  `json_secret` as a reviewed `token_exchange_style` enum value **plus** the
+  matching exchanger branch in `service/oauth_exchange.go` (§4) — a small,
+  contained capability growth, **not** a per-provider `service/adapter_razorpay.go`.
+  Do **not** pre-build an adapter; the exchange-style growth is the entire
+  provider-specific surface, and everything else (identity, revoke, refresh) is
+  declarative.
 - **Config Sync:** `oauth.client_id`/`oauth.client_secret` land in **both**
   `config/` and the `deploy/` Helm Secret together (partial config fails
   integration-service startup; fully-absent renders `configured: false` and is
@@ -368,14 +430,27 @@ not commit local regens to green the branch.
 - Resource model (orders, payments, refunds, payment links, settlements,
   subscriptions; RazorpayX payouts/contacts/fund-accounts): `razorpay.com/docs/api/`.
 
+**Resolved from official docs (no longer stage-1):**
+- **Token exchange style = `json_secret`** — the `/token` endpoint is
+  `Content-Type: application/json` with `client_id`/`client_secret` in the JSON
+  body. Requires an integration-service capability growth (new `json_secret`
+  enum + exchanger branch); see §4/§5.
+- **Revoke = `provider_revoke`** — `POST https://auth.razorpay.com/revoke` exists
+  with `client_id`/`client_secret`/`token_type_hint`/`token`; the bundle carries
+  the `auth.oauth.revoke` block (`client_auth: form`, `token: refresh_token`).
+  `disconnect_mode: declarative` was an **invalid enum value** and is dropped.
+- **Identity capture = connect-time only** — `razorpay_account_id` is returned on
+  the initial `authorization_code` exchange, **not** on `refresh_token` responses.
+- **Owner = `individual`** — per-merchant consent, matching Stripe/Xero.
+
 **`‹stage-1›` open items (resolve from the partner dev account before the dev
-branch writes final request shapes):** `token_exchange_style` (`form_secret` vs
-`json_secret` — secret is in the body, not a Basic header); the authorize `mode`
-(`test|live`) param wiring (static extra-param vs config field); PKCE support
-(default `none`); the exact account/whoami endpoint + a business-name label
-pointer; per-resource `/v1` vs `/v2` paths; whether Technology-Partner enrollment
-exposes a self-serve dev/test tier to Helio (the only branch that could flip the
-lane to `api_key`, §1 — not expected).
+branch writes final request shapes):** the authorize `mode` (`test|live`) param
+wiring (static extra-param vs config field); PKCE support (default `none`); the
+exact account/whoami endpoint + a business-name label pointer; per-resource `/v1`
+vs `/v2` paths; whether the `form`-encoded revoke client creds are accepted (the
+endpoint samples JSON — else a `json`-client-auth revoke growth); whether
+Technology-Partner enrollment exposes a self-serve dev/test tier to Helio (the
+only branch that could flip the lane to `api_key`, §1 — not expected).
 
 **Auth-lane decision (resolved, not deferred):** `oauth_review` — confirmed
 against the official docs and the audit rubric (§1). The catalog stands; no §6
