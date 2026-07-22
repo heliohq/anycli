@@ -1,0 +1,13 @@
+{
+  "name": "mastodon",
+  "type": "service",
+  "description": "Mastodon as a tool (post, read timelines, search, engage; per-instance access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "MASTODON_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
