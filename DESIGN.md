@@ -30,7 +30,7 @@ audit/catalog are called out; none change the `oauth_light` lane.
 | Refresh token | **Issued** (`use_refresh_token` enabled), but unused because access token never expires | Doorkeeper config | Audit implied none; net effect = `refresh_lease: none` |
 | Auth-code TTL | 10 minutes | Doorkeeper config | — |
 | PKCE | Supported, not required (confidential client) → `pkce: none` | Doorkeeper | — |
-| Scopes | `view_public`(default), `view_profile`, `view_sales`, `edit_products`, `view_payouts`, `mark_sales_as_shipped`, `refund_sales`, `edit_sales`, … | antiwork docs | Audit listed a subset; superset confirmed |
+| Scopes | Exactly **six** third-party scopes: `view_profile`, `edit_products`, `view_sales`, `view_payouts`, `mark_sales_as_shipped`, `edit_sales`. **No `refund_sales`** — refunding and receipt-resend are granted by `edit_sales`. **No `view_public`** in the current documented set (it and internal-only scopes such as `revenue_share`/`ifttt`/`mobile_api` appear only in the auto-generated antiwork mintlify wiki, not gumroad.com/api). `view_profile` is the minimal read scope. | gumroad.com/api + Help Center art. 280 (authoritative) | Corrects audit + earlier draft: dropped non-existent `refund_sales`, dropped stale `view_public` default, added `edit_sales` |
 | API base | `https://api.gumroad.com/v2/`, `Authorization: Bearer <token>` | official | — |
 | Identity endpoint | `GET /v2/user` → `{"success":true,"user":{"user_id","name","email","url",…}}` | official | — |
 
@@ -63,7 +63,24 @@ discount codes, verify software licenses. The wrapped surface is the Gumroad
 licenses. **Deferred / thin coverage:** variant categories, custom fields,
 resource subscriptions — lower-frequency for an assistant and safe to add later
 without a schema change. **Excluded:** none needed; there is no separate
-analytics API (sales list + revenue-share scope covers reporting).
+analytics API (the `view_sales` sales list covers revenue reporting).
+
+**Verb → requested scope (least-privilege check — every shipped verb maps to a
+requested scope, and every requested scope is exercised by ≥1 verb):**
+
+| Verb(s) | Scope |
+|---|---|
+| `user get` | `view_profile` |
+| `product get`/`list` (read) | `view_profile` |
+| `product enable`/`disable`/`delete`, `offer-code create`/`update`/`delete`, `license enable`/`disable` | `edit_products` |
+| `sale list`/`get`, `subscriber list`/`get`, `offer-code list`/`get` (read) | `view_sales` |
+| `sale mark-shipped` | `mark_sales_as_shipped` |
+| `sale refund` (and receipt-resend, if added) | `edit_sales` |
+
+`view_payouts` is **not** requested: no payouts verb is wrapped in v1 (§3), so
+requesting it would show payout-read on the consent screen for access the
+assistant never exercises. If a payouts verb (`GET /v2/... `) is added later,
+add `view_payouts` back in the same change.
 
 ## 3. anycli definition
 
@@ -161,7 +178,11 @@ batch agents as **uncommitted local `config/cloud.yaml`** entries for L4/L5.
 **Authorize-code flow (standard_oauth golden path, zero adapter):**
 
 1. `heliox tool gumroad auth` → integration-service builds
-   `https://gumroad.com/oauth/authorize?client_id=…&redirect_uri=…&scope=<space-joined>&response_type=code`.
+   `https://gumroad.com/oauth/authorize?client_id=…&redirect_uri=…&scope=<space-joined>&response_type=code`,
+   where `<space-joined>` is the five-scope set `view_profile view_sales
+   edit_products mark_sales_as_shipped edit_sales` (§5). No `refund_sales`
+   (non-existent — `edit_sales` grants refunds) and no `view_payouts` (no
+   payouts verb).
 2. User consents on Gumroad → callback with `code` (valid 10 min).
 3. Token exchange: `POST https://api.gumroad.com/oauth/token` form-urlencoded
    (`client_id`, `client_secret`, `code`, `grant_type=authorization_code`,
@@ -205,10 +226,13 @@ auth:
     token_url: https://api.gumroad.com/oauth/token
     token_exchange_style: form_secret
     pkce: none
-    scopes: [view_profile, view_sales, edit_products, view_payouts,
-             mark_sales_as_shipped, refund_sales]
-    display_scopes: [view_profile, view_sales, edit_products, view_payouts,
-                     mark_sales_as_shipped, refund_sales]
+    # Exactly the verbs' union of real Gumroad scopes (§2 map). refund is
+    # granted by edit_sales (no refund_sales scope exists); view_payouts is
+    # omitted because no payouts verb is wrapped.
+    scopes: [view_profile, view_sales, edit_products,
+             mark_sales_as_shipped, edit_sales]
+    display_scopes: [view_profile, view_sales, edit_products,
+                     mark_sales_as_shipped, edit_sales]
     single_active_token: false
     refresh_lease: none
 
