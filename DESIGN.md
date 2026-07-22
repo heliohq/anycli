@@ -285,3 +285,57 @@ account-procurement gate.** If it clears, the build is a small `api_key`
 service-type tool (this document is execution-ready). If it does not, Later is a
 catalog swap, not a build — and the cheapest correct outcome is to recognize that
 now rather than ship a hidden tool no assistant can connect.
+
+---
+
+## 8. Implementation notes (as built) — divergences from §1–§7
+
+Independent verification against the official Later Influence Reporting API docs
+(`docs.reporting.api.later.com`) **confirmed** every factual claim in §0–§3: the
+social-scheduling product has no public API; the only public surface is the
+read-only Reporting API v2 with two-legged OAuth client-credentials
+(`POST /oauth/token` JSON `{clientId, clientSecret}` → `{jwt}`, Bearer on data
+calls, re-auth on 401); `GET /v2/instances` returns
+`{data:{instanceIds:[…]}, nextCursor}`; `GET /v2/campaigns/performance` takes
+`startDate`/`endDate` (required), `metrics` (repeatable), `instanceIds`,
+`campaignIds`, `platform`/`contentType`, `dateBasis`, `sortProperty`,
+`sortDirection` (ASC/DESC), `limit` (1–100), `nextCursor`; credentials are
+account-team-gated (not self-serve). So the catalog's `oauth_review` lane is
+wrong and the tool is `api_key` (client-credentials), exactly as §0 argued — no
+divergence from official docs.
+
+The build diverges from this design's *implementation sketch* only where the
+Helio base branch (design-317 single-secret manual-credentials) required it:
+
+1. **One combined credential field, not two (§4).** Design 317 D5 caps a
+   manual-credential form at exactly one required field, so the connect drawer
+   takes a single secret `clientId:clientSecret` (first-colon split), not two
+   inputs. Recorded as a UX compromise; a two-field form would need multi-field
+   manual-credentials storage, which is not on the base branch.
+2. **The AnyCLI service performs the token exchange, not the token gateway
+   (§3 step 2).** The stored secret rides the existing `token.access_token`
+   projection unchanged (like `mongodb`'s DSN); the `later` tool mints the
+   reporting JWT itself per invocation and re-mints once on 401. This removes
+   the token-gateway client-credentials-exchange strategy the sketch implied —
+   strictly less integration-service surface, same trust model as mongodb.
+3. **New `manual_client_credentials` runtime strategy + a connect-time
+   `clientCredentialsExchangeVerifier`** (the §5 narrow capability): storage and
+   projection mirror `manual_credentials`, but connect verifies the pair via the
+   token exchange and derives the account key from the first `/v2/instances`
+   id (falling back to the non-secret clientId).
+4. **Passthrough JSON output**, not a re-shaped `{"instances":[…]}` envelope
+   (§2) — following the dominant AnyCLI convention (003 §3, bitly/x emit provider
+   JSON verbatim) and avoiding brittle re-shaping of the undocumented campaigns
+   response.
+5. **No `toolToProvider` resolver entry** — `later`==`later`==`later` across all
+   three axes, as §2 predicted; the identity path needs no divergence registry
+   row.
+
+**Test status:** L1 (AnyCLI unit) and L3 (integration-service model/service/
+generator suites + verifier tests) are green. `provider-gen`/`--check` validate
+the bundle locally; the projections are intentionally uncommitted (master plan
+§2), so `TestRepositoryGeneratedFilesAreCurrent` is red on-branch until the
+batch-end regen — expected, not a defect. **L2, L4, and L5 remain blocked on the
+account-procurement gate** (no self-serve Later Influence Reporting credentials),
+exactly as §6 states. The tool is code-complete-hidden; the visible flip stays
+gated on that account, per §7.
