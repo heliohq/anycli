@@ -1,0 +1,13 @@
+{
+  "name": "omnisend",
+  "type": "service",
+  "description": "Omnisend as a tool (email/SMS marketing automation; OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "OMNISEND_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
