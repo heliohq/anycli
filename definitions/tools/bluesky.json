@@ -1,0 +1,13 @@
+{
+  "name": "bluesky",
+  "type": "service",
+  "description": "Bluesky as a tool (AT Protocol, app-password session)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "credentials"},
+        "inject": {"type": "env", "env_var": "BLUESKY_CREDENTIALS"}
+      }
+    ]
+  }
+}

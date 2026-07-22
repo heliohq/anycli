@@ -74,6 +74,44 @@ carry a DPoP JWK). That is a multi-week infra project outside the pipeline's
 path is the documented, lower-friction, widely-used bot integration — strictly
 better for our use case.
 
+### 0a. Implementation divergence from §2–§4 (verified against `main`, 2026-07-22)
+
+§3/§4 below assumed **multi-field manual credentials** (`identifier` +
+`app_password` as two separate `credential_input.fields` projected to two
+`token.*` credential sources) were already-shipped capability. Verified against
+the actual integration-service on `main`: **they are not.** The manual-credential
+plane is single-secret only —
+- `service/manual_credential.go` `resolveManualSecret` hard-rejects any bundle
+  with `len(credential_input.fields) != 1` (the generator enforces exactly one
+  required field);
+- `model.CredentialSource` is a **closed enum** — the only token source is
+  `token.access_token` (one secret); there is no `token.identifier` /
+  `token.app_password`;
+- `writeUserTokenCredential` persists a single `AccessToken` string.
+
+Multi-field would require new `CredentialSource` enum values + token-gateway
+resolve arms + a multi-secret vault payload + a generator D5 relaxation — the
+"distinct vault credential kind" the master plan flags as NetSuite-class, and it
+would duplicate the in-flight multi-field work on peer branches. Out of budget.
+
+**Adopted minimal shape (works end-to-end on `main`, zero gateway/enum growth):**
+a **single combined secret** `identifier:app_password` stored via the existing
+`token.access_token` source (the `mongodb` single-secret precedent). Split on the
+first `:` in two places:
+- the **anycli service** reads one env var `BLUESKY_CREDENTIALS` and splits it
+  into identifier + app password before `createSession`;
+- a new **`blueskySessionVerifier`** (integration-service) splits the same
+  secret at connect time, calls `createSession`, and derives `did` (stable key)
+  + `handle` (label) — the §3 "session verifier" intent, unchanged.
+
+Identifier is a handle or email; app passwords are `xxxx-xxxx-xxxx-xxxx`; neither
+contains `:`, so the first-colon split is unambiguous. `pds_host` is dropped from
+v1 (bsky.social only), consistent with the §0/§1 "flagship default, override
+later" stance. Lane/row/id/key and the createSession verification (did/handle)
+are all preserved; only the credential **field count** collapses 2→1 to fit the
+shipped single-secret plane. When multi-field manual credentials land on `main`,
+splitting the combined field back into two is a follow-up.
+
 ---
 
 ## 1. Official API surface wrapped, and why
