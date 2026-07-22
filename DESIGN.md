@@ -256,3 +256,30 @@ flip.
 - **Version pin maintenance.** `v23.0` (or the then-current stable) is a single
   service constant carrying Meta's ~2-year deprecation clock; note it for the
   maintenance board, do not scatter it per-request.
+
+## 7. As-built notes (implementation deltas vs the §4 sketch)
+
+Two bundle fields resolved differently from the §4 sketch during
+implementation; both were anticipated by the design and neither changes the
+verdict (lane `oauth_review` still CONFIRMED, no official-docs contradiction):
+
+- **`disconnect_mode: local_only`, not `provider_revoke`.** Meta's revocation is
+  `DELETE /{user-id}/permissions` (or `/me/permissions`), which the declarative
+  RFC-7009 revoker (POST form `token=<...>` to a fixed URL) structurally cannot
+  express — a different HTTP method, a path with the user id embedded, and the
+  token carried as Bearer/query rather than a `token=` form field. Per §4's own
+  fallback clause the bundle ships `local_only` (no `revoke:` block; the
+  generator forbids one under `local_only`). A DELETE-based declarative revoker
+  is deliberately out of scope — adding it would be a second unreviewed
+  capability beyond the sanctioned `long_lived_exchange`.
+- **`identity.url` carries no query.** The generator forbids a query string on
+  `identity.url`, so it is `https://graph.facebook.com/v23.0/me` (not
+  `…/me?fields=id,name`). Graph's User node returns its default fields (`id`,
+  `name`) for the bearer token, so `stable_key: /id` and `label: /name` resolve
+  unchanged.
+- **`long_lived_exchange` landed as a closed reviewed enum on the standard
+  exchanger** (`model.OAuthLongLivedExchange` = `none|facebook`), threaded
+  through the bundle manifest → validator → Go catalog projection, and applied
+  in `standardOAuthExchanger.Exchange` after the code grant. This is the
+  Meta-family capability the other three Meta tools (Instagram, Facebook Pages,
+  WhatsApp) reuse — not a meta-ads one-off.
