@@ -123,12 +123,15 @@ Verified at `https://docs.stripe.com/stripe-apps/api-authentication/oauth`:
 | Authorize URL | `https://marketplace.stripe.com/oauth/v2/authorize` (params: `client_id`, `redirect_uri`, `state`) |
 | Token URL (exchange **and** refresh) | `https://api.stripe.com/v1/oauth/token` |
 | Client auth at token endpoint | HTTP Basic, **username = app developer secret key** (`sk_live_***` / `sk_test_***`), **empty password**. `client_id` is NOT sent at the token endpoint — it appears only in the authorize URL. |
-| Exchange body | `grant_type=authorization_code`, `code=ac_***` (one-time, 5-min TTL) |
+| Exchange body | exactly `grant_type=authorization_code` + `code=ac_***` (one-time, 5-min TTL). **No `redirect_uri`** — the documented `curl` sends only these two params (see §7). |
 | Refresh body | `grant_type=refresh_token`, `refresh_token=…` |
 | access_token | bearer, **1-hour expiry** |
 | refresh_token | **1-year expiry, rotated on every exchange** (each exchange issues a fresh 1-year token and expires the prior one) |
+| Token-response expiry field | **NONE.** The exchange and refresh responses carry only `access_token`, `refresh_token`, `livemode`, `scope`, `stripe_publishable_key`, `stripe_user_id`/`account_id`, `token_type` — there is **no `expires_in`**. The 1-hour lifetime is documented in prose only, never returned in the payload. This is the load-bearing fact behind the §4 assumed-TTL growth. |
 | Scope | none in the authorize request — permissions are declared in the app manifest; the token response returns fixed `"scope": "stripe_apps"` |
-| Identity | token response carries `stripe_user_id` = `acct_***` (the connected account) + `stripe_publishable_key`, `livemode` |
+| Identity | token response carries `stripe_user_id` = `acct_***` (the connected account) + `stripe_publishable_key`, `livemode`. (The **refresh** response names the same `acct_***` value `account_id` instead of `stripe_user_id` — identity is captured at connect from `stripe_user_id`, so this rename does not affect us.) |
+
+**Consequence (drives §4).** Because the token response has no `expires_in`, the generic exchanger's `tokenResponse.expiry()` returns `nil` (it derives expiry solely from `ExpiresIn`), the persisted `tokenData.Expiry` is `nil`, and `needsRefresh()` returns `false` for a nil expiry (`token_gateway.go`: "non-expiring (e.g. bot token)"). The refresh path would then **never fire**, and every connection would 401 ~1 hour after connect with no recovery but a full reconnect. Stripe access tokens are not bot tokens — they expire — so the tool must **synthesize** a 1-hour expiry at exchange time. That is a net-new capability (§4b); no assumed-TTL/synthetic-expiry capability exists on this worktree base.
 
 ### 3.2 Why not Stripe Connect OAuth
 
@@ -161,8 +164,9 @@ pre-review (the review team installs via the link too), so **dev-mode app
 creation gates L4/L5 but review clearance gates only the visible flip** —
 exactly the plan's hidden-first decoupling. Lane classification: **unchanged
 from the audit** (oauth_review, high confidence). No DESIGN divergence to the
-catalog lane; the only refinement is the token-endpoint auth mechanics below,
-which the audit did not enumerate.
+catalog lane; the refinements are the token-endpoint auth mechanics (§4a) and
+the synthesized access-token expiry (§4b), neither of which the audit
+enumerated.
 
 ### 3.5 Config fields (integration-service, per environment)
 
@@ -176,36 +180,43 @@ this provider's L5.
 
 ---
 
-## 4. Helio integration-service capability growth (one reviewed enum value)
+## 4. Helio integration-service capability growth (two reviewed capabilities)
 
 `standard_oauth` almost covers Stripe — declarative identity, refresh
-write-back, declarative/no-op revoke all fit. **One axis diverges**: the token
-endpoint authenticates the client with the **secret key as the HTTP Basic
-username and an empty password, with `client_id` omitted** from both the Basic
-header and the body. The three existing styles don't express this:
+write-back, declarative/no-op revoke all fit. **Two orthogonal axes diverge**,
+and neither is expressible on this worktree base. Both are closed, reviewed
+capabilities — **not** an unbounded adapter (the skill's guidance: "first check
+whether the generic capability set should grow one more reviewed enum value
+instead"). A narrow `adapter_stripe.go` + dedicated `runtime_strategy` was
+considered and rejected: nothing about Stripe's response shape, identity, or
+lifecycle is provider-specific — only (a) the token-endpoint client-auth
+encoding and (b) the absence of a returned expiry are.
+
+### 4a. Token-endpoint client auth — `token_exchange_style: form_secret_basic`
+
+The token endpoint authenticates the client with the **secret key as the HTTP
+Basic username and an empty password, with `client_id` omitted** from both the
+Basic header and the body. The three existing styles don't express this:
 
 - `form_secret` → sends `client_id` + `client_secret` in the body.
 - `form_basic` / `json_basic` → `SetBasicAuth(client_id, client_secret)` — i.e.
   `Basic base64(client_id:client_secret)`. Stripe needs `Basic base64(sk_key:)`.
 
-This is a genuinely orthogonal, closed capability — **not** an unbounded adapter.
-Prefer growing the reviewed enum by one value over a compiled `adapter_stripe.go`
-(the skill's guidance: "first check whether the generic capability set should
-grow one more reviewed enum value instead"). A narrow adapter + dedicated
-`runtime_strategy` was considered and rejected: nothing about Stripe's response
-shape, identity, or lifecycle is provider-specific — only the token-endpoint
-client-auth encoding is.
-
-**Proposed value: `token_exchange_style: form_secret_basic`** — form-encoded
-body (`grant_type`, `code`, `redirect_uri`) + HTTP Basic where username = the
-configured `client_secret` (the `sk` key), password empty, `client_id` omitted.
+**Proposed value: `token_exchange_style: form_secret_basic`** — a form-encoded
+body of **exactly `grant_type=authorization_code` + `code`** (no `redirect_uri`,
+no `client_id`, no `client_secret` in the body — see §7) + HTTP Basic where
+username = the configured `client_secret` (the `sk` key), password empty.
 Threaded through exactly these five points:
 
 1. `model/catalog.go`: add `TokenExchangeFormSecretBasic TokenExchangeStyle =
    "form_secret_basic"`; make `UsesHTTPBasicClientAuth()` return true for it.
-2. `service/oauth_exchange.go` `buildTokenRequest`: new case builds the form body
-   and calls `req.SetBasicAuth(exchange.ClientSecret, "")` (secret as username);
-   add it to `validateTokenExchangeStyle`.
+2. `service/oauth_exchange.go` `buildTokenRequest`: new **dedicated** case (not a
+   fall-through into the shared form path — that path unconditionally appends
+   `redirect_uri` and, for non-`form_basic` styles, `client_id`+`client_secret`
+   in the body, none of which Stripe's documented request carries). The case
+   builds a minimal `url.Values{grant_type, code}` body and calls
+   `req.SetBasicAuth(exchange.ClientSecret, "")` (secret as username, empty
+   password); add it to `validateTokenExchangeStyle`.
 3. `service/token_refresh.go` `requestOAuthRefresh`: when the style is
    `form_secret_basic`, build `oauth2.Config{ClientID: creds.ClientSecret,
    ClientSecret: ""}` with `AuthStyleInHeader`. `golang.org/x/oauth2` then emits
@@ -218,15 +229,53 @@ Threaded through exactly these five points:
 5. `cmd/provider-gen/render_symbols.go`: map `"form_secret_basic" ->
    "TokenExchangeFormSecretBasic"`.
 
-Unit tests: exchange builds `Basic(sk:)` with no `client_id` anywhere; refresh
-maps to the x/oauth2 header form; `provider-gen --check` accepts the bundle;
-generator golden test for the new symbol.
+### 4b. Assumed access-token TTL — `oauth.access_token_ttl_seconds`
 
-> Batch note: a concurrent branch (square, row 40) is adding a *different*
-> exchange style (`json_secret` — JSON body + secret in body). The two are
-> distinct axes and both are net-new on this base; the batch lead reconciles
-> enum ordering/naming at the batch-end regen so the generated allow-lists don't
-> churn. This is a batch-lead concern, not a per-tool blocker.
+Stripe's token response carries **no `expires_in`** (§3.1), so the generic
+exchanger persists `tokenData.Expiry = nil`, `needsRefresh()` reads it as
+non-expiring, and the entire §4a/refresh-lease/A3 machinery becomes **dead
+code** — the connection silently 401s ~1 h after connect. The fix is to
+**synthesize** the documented 1-hour expiry at exchange time: an *assumed TTL*,
+following the salesforce `assumed_ttl` precedent (salesforce likewise returns no
+expiry) and the square `expires_at`-capture precedent (square returns one, so it
+captures rather than assumes). Neither precedent's bundle is present on this
+worktree base, so this is genuinely net-new here.
+
+**Proposed field: `oauth.access_token_ttl_seconds: 3600`** on the bundle,
+projected to `OAuthEndpoints.AssumedAccessTokenTTL time.Duration`. When set and
+the provider returns no `expires_in`, the exchange-side expiry computation
+synthesizes `now + AssumedAccessTokenTTL`; when the provider *does* return
+`expires_in`, the returned value always wins (so the field is a fallback, never
+an override). Threaded through exactly these four points:
+
+1. `model/catalog.go`: add `AssumedAccessTokenTTL time.Duration` to
+   `OAuthEndpoints` (zero = today's behavior, expiry solely from `expires_in`).
+2. `service/oauth_exchange.go`: give `tokenResponse.expiry()` an assumed-TTL
+   fallback — e.g. `expiryWithFallback(assumed time.Duration)` returning
+   `now+assumed` when `ExpiresIn <= 0 && assumed > 0`, else the existing
+   `ExpiresIn`-derived value (and still `nil` when both are absent). The two
+   call sites in `service/oauth_credentials.go`
+   (`writeIndividualCredential`, `writeAssistantCredential`) pass
+   `def.OAuth.AssumedAccessTokenTTL`.
+3. `cmd/provider-gen/validate.go`: validate `oauth.access_token_ttl_seconds` as
+   an optional non-negative integer.
+4. `cmd/provider-gen` catalog renderer: project it into the generated
+   `OAuthEndpoints` literal as `AssumedAccessTokenTTL: <n> * time.Second`.
+
+Unit tests (§6): a Stripe-shaped token response (**no `expires_in`**) through
+the real exchange persists a **non-nil** `Expiry` ≈ `now + 1 h`; `form_secret_basic`
+exchange builds `Basic(sk:)` with no `client_id`/`redirect_uri` anywhere;
+refresh maps to the x/oauth2 header form; `provider-gen --check` accepts the
+bundle; generator golden tests for the new symbol and the rendered TTL.
+
+> Batch note: concurrent branches are adding adjacent capabilities on the same
+> base — square (row 40) adds a *different* exchange style (`json_secret`) plus
+> `expires_at`-capture, and salesforce adds the `assumed_ttl` field this section
+> mirrors. The axes are distinct and all net-new here; the batch lead reconciles
+> enum/field ordering **and the exact assumed-TTL field name** (`assumed_ttl`
+> vs `access_token_ttl_seconds`) against the salesforce landing at the batch-end
+> regen so the generated allow-lists and catalog literal don't churn. This is a
+> batch-lead concern, not a per-tool blocker.
 
 Everything else is stock `standard_oauth`:
 - `refresh_lease: credential` — Stripe rotates the refresh token every exchange,
@@ -278,7 +327,11 @@ auth:
   oauth:
     authorize_url: https://marketplace.stripe.com/oauth/v2/authorize
     token_url: https://api.stripe.com/v1/oauth/token
-    token_exchange_style: form_secret_basic   # NEW (see §4)
+    token_exchange_style: form_secret_basic   # NEW (see §4a)
+    access_token_ttl_seconds: 3600            # NEW (see §4b): Stripe returns no
+                                              # expires_in; synthesize the
+                                              # documented 1-hour expiry so
+                                              # needsRefresh() fires.
     pkce: none
     # no scopes: Stripe Apps permissions are declared in the app manifest, not
     # as authorize-request scope params. Leaving display_scopes empty keeps the
@@ -332,10 +385,10 @@ Non-generated companions landing on the batch-end merge:
 
 | Layer | Stripe-specific content | Needs external creds? |
 |---|---|---|
-| **L1** anycli unit | `httptest` fakes per resource: assert path/method, `Authorization: Bearer` injection, `Stripe-Version` pin, `--limit`/`--starting-after` params, `Idempotency-Key` on create/refund, and typed `apiError` from Stripe's `{error:{type,code,message}}` in text + `--json`. | No |
+| **L1** anycli unit | `httptest` fakes per resource: assert path/method, `Authorization: Bearer` injection, `Stripe-Version` pin, `--limit`/`--starting-after` params, `Idempotency-Key` on create/refund, and typed `apiError` from Stripe's `{error:{type,code,message}}` in text + `--json`. (The assumed-TTL and exchange-style assertions are integration-service-side, in L3.) | No |
 | **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN=sk_test_… anycli stripe -- charge list --limit 3` (a test-mode secret key doubles as a valid bearer for `api.stripe.com` in the harness) against a **real Stripe test-mode account**. Proves field names, Bearer injection, pagination envelope, and error shape against the live API before the pin bump. | **Yes** — a Stripe test-mode account/key (account pool). |
-| **L3** generation + suites | `provider-gen` + `provider-gen --check` accept the bundle incl. the new `form_secret_basic` value; integration-service unit tests for the new exchange/refresh style; `helio-cli` builds against the anycli branch via local `replace`; both repos' unit suites green. | No |
-| **L4** singleton + seed | `POST /internal/test-only/connections/seed` a `stripe` connection with `access_token` + `refresh_token` and a deliberately short `expires_at`, so the next `heliox tool stripe -- balance get` forces the token gateway's refresh-and-write-back (A3) through `api.stripe.com/v1/oauth/token` with `form_secret_basic` Basic auth. Success = live Stripe data returned, not a replayed seed. | **Yes** — a real OAuth access+refresh token pair from the dev-mode app (dev-mode app creation gates this; lane 1 distributes dev `client_id`/`client_secret` as uncommitted local `config/cloud.yaml` entries). |
+| **L3** generation + suites | `provider-gen` + `provider-gen --check` accept the bundle incl. the new `form_secret_basic` value **and `access_token_ttl_seconds`**; integration-service unit tests for the new exchange/refresh style **and the assumed-TTL exchange path** (§4b: a no-`expires_in` Stripe response persists a non-nil `Expiry` ≈ `now+1h`); `helio-cli` builds against the anycli branch via local `replace`; both repos' unit suites green. | No |
+| **L4** singleton + seed | `POST /internal/test-only/connections/seed` a `stripe` connection with `access_token` + `refresh_token` and an **assumed-TTL-derived `expiry` that is the same kind the real exchange persists (§4b), backdated past the refresh skew** — i.e. representing the guaranteed real state ~1 h after any connect. This is *not* a hand-fabricated `expires_at` shape the exchange never produces (the earlier draft's mistake): the load-bearing "the real exchange makes a non-nil expiry from a no-`expires_in` response" proof lives in the L1/L3 unit above; L4 only ages that same expiry so the next `heliox tool stripe -- balance get` forces the token gateway's refresh-and-write-back (A3) through `api.stripe.com/v1/oauth/token` with `form_secret_basic` Basic auth. Success = live Stripe data returned, not a replayed seed. | **Yes** — a real OAuth access+refresh token pair from the dev-mode app (dev-mode app creation gates this; lane 1 distributes dev `client_id`/`client_secret` as uncommitted local `config/cloud.yaml` entries). |
 | **L5** full connect | Once, hidden, pre-flip: `heliox tool stripe auth` → consent on the Stripe dev/test-mode app at `marketplace.stripe.com/oauth/v2/authorize` → `oauth_connected` system event fires on the origin channel → one **unseeded** live `heliox tool stripe` run through the created connection. Human-in-the-loop (oauth L5, plan lane 3). | **Yes** — live Stripe consent on a real test account; human consent session. |
 
 Rollout: land hidden + generated + L1–L4 green; run L5 while hidden; then flip
@@ -354,9 +407,26 @@ install link (review gates the flip, never dev/L4/merge).
   Stripe Apps OAuth deliberately (§3.1–3.2).
 - **Token-endpoint client auth ≠ standard `client_id:client_secret` Basic.**
   Official docs authenticate with the **secret key alone** as the Basic
-  username. Neither the catalog nor the audit enumerated this; it is the sole
-  driver of the §4 capability growth. Verified against the official curl
-  (`-u sk_live_***:`).
+  username. Neither the catalog nor the audit enumerated this; it drives the
+  §4a capability growth. Verified against the official curl (`-u sk_live_***:`).
+- **The token response carries no `expires_in`, but the access token expires in
+  1 hour.** Verified against the official code-exchange and refresh responses
+  (7 fields each: `access_token`, `refresh_token`, `livemode`, `scope`,
+  `stripe_publishable_key`, `stripe_user_id`/`account_id`, `token_type` — no
+  expiry field). Without a synthesized expiry, `tokenResponse.expiry()` returns
+  `nil`, `needsRefresh()` never fires, and the connection 401s ~1 h after
+  connect with no recovery. This drives the **§4b assumed-TTL** growth
+  (`oauth.access_token_ttl_seconds: 3600`), which the salesforce `assumed_ttl`
+  precedent mirrors and which does not exist on this worktree base. **An earlier
+  draft of this DESIGN missed this**: it declared the refresh machinery but never
+  made the expiry non-nil, and its L4 forced refresh with a hand-fabricated
+  `expires_at` the real exchange never produces — corrected in §3.1, §4b, §6.
+- **Exchange body is `grant_type` + `code` only — no `redirect_uri`.** The
+  documented `curl` sends exactly those two params (plus the `-u` secret-key
+  Basic auth); `redirect_uri` appears only in the authorize URL. An earlier
+  draft included `redirect_uri` in the exchange body; the §4a `form_secret_basic`
+  case therefore builds its own minimal body rather than falling through to the
+  shared form path (which appends `redirect_uri` + body client creds).
 - **Lane unchanged.** oauth_review stands; the refinement is mechanics + the
   hidden-first note that dev-mode apps unblock L4/L5 pre-review.
 - **No `toolToProvider` entry** (id == key == `stripe`), and **no grouped
