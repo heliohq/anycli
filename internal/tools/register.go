@@ -7,6 +7,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/discord"
 	"github.com/heliohq/anycli/internal/tools/docs"
 	"github.com/heliohq/anycli/internal/tools/drive"
+	"github.com/heliohq/anycli/internal/tools/dropboxsign"
 	"github.com/heliohq/anycli/internal/tools/figma"
 	"github.com/heliohq/anycli/internal/tools/forms"
 	"github.com/heliohq/anycli/internal/tools/gmail"
@@ -51,4 +52,5 @@ func init() {
 	RegisterService("microsoft-calendar", &microsoftcalendar.Service{})
 	RegisterService("microsoft-onedrive", &microsoftonedrive.Service{})
 	RegisterService("mongodb", &mongodb.Service{})
+	RegisterService("dropbox-sign", &dropboxsign.Service{})
 }
