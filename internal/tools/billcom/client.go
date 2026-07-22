@@ -56,10 +56,20 @@ type client struct {
 // unless the Service overrides them (tests). Missing any of the four required
 // credential fields is a fail-fast config error.
 func (s *Service) newClient(env map[string]string) (*client, error) {
-	devKey := env[EnvDevKey]
-	username := env[EnvUsername]
-	password := env[EnvPassword]
-	orgID := env[EnvOrgID]
+	// Helio's single-secret manual_credentials store projects the whole
+	// credential set as one JSON secret in BILLCOM_CREDENTIALS. Individual env
+	// vars (harness/dev supplied) take precedence per field.
+	blob := parseCredentialBlob(env[EnvCredentials])
+	field := func(envKey, blobKey string) string {
+		if v := env[envKey]; v != "" {
+			return v
+		}
+		return blob[blobKey]
+	}
+	devKey := field(EnvDevKey, "dev_key")
+	username := field(EnvUsername, "username")
+	password := field(EnvPassword, "password")
+	orgID := field(EnvOrgID, "organization_id")
 
 	var missing []string
 	if devKey == "" {
@@ -78,7 +88,7 @@ func (s *Service) newClient(env map[string]string) (*client, error) {
 		return nil, fmt.Errorf("bill-com: missing required credential(s): %s", strings.Join(missing, ", "))
 	}
 
-	envName := strings.ToLower(strings.TrimSpace(env[EnvEnv]))
+	envName := strings.ToLower(strings.TrimSpace(field(EnvEnv, "env")))
 	base := s.BaseURL
 	if base == "" {
 		base = v3Base(envName)
@@ -103,10 +113,32 @@ func (s *Service) newClient(env map[string]string) (*client, error) {
 		username:   username,
 		password:   password,
 		orgID:      orgID,
-		authMode:   strings.ToLower(strings.TrimSpace(env[EnvAuthMode])),
+		authMode:   strings.ToLower(strings.TrimSpace(field(EnvAuthMode, "auth_mode"))),
 		out:        s.stdout(),
 		err:        s.stderr(),
 	}, nil
+}
+
+// parseCredentialBlob decodes the BILLCOM_CREDENTIALS JSON object into a
+// string map. Missing/invalid JSON yields an empty map (the individual env
+// vars then carry the credential), so a malformed blob is not fatal here — a
+// truly empty credential surfaces as the missing-field error in newClient.
+func parseCredentialBlob(raw string) map[string]string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		if s, ok := v.(string); ok {
+			out[k] = s
+		}
+	}
+	return out
 }
 
 // v3Base returns the v3 gateway base for the given normalized env name.

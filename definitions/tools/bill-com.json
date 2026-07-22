@@ -5,6 +5,10 @@
   "auth": {
     "credentials": [
       {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "BILLCOM_CREDENTIALS"}
+      },
+      {
         "source": {"field": "dev_key"},
         "inject": {"type": "env", "env_var": "BILLCOM_DEV_KEY"}
       },

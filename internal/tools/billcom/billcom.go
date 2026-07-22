@@ -40,6 +40,13 @@ const (
 	EnvOrgID    = "BILLCOM_ORG_ID"
 	EnvAuthMode = "BILLCOM_AUTH_MODE"
 	EnvEnv      = "BILLCOM_ENV"
+	// EnvCredentials carries the whole credential set as one JSON object
+	// {"dev_key","username","password","organization_id","auth_mode","env"}.
+	// This is how Helio's single-secret manual_credentials store projects the
+	// credential (one Vault secret → token.access_token → this env). Individual
+	// env vars above take precedence when set, so the dev harness can supply
+	// fields one at a time (ANYCLI_CRED_DEV_KEY=…) without a JSON blob.
+	EnvCredentials = "BILLCOM_CREDENTIALS"
 )
 
 // authModeSyncToken selects the v2-login path for the AP & AR sync token.

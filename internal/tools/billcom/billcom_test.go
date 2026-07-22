@@ -351,6 +351,29 @@ func TestCreateWithoutDataExit2(t *testing.T) {
 	}
 }
 
+func TestCredentialsBlobIsParsed(t *testing.T) {
+	f, srv := newFakeBill(t)
+	// Helio's single-secret store projects the whole credential set as one
+	// JSON blob in BILLCOM_CREDENTIALS (no individual env vars).
+	env := map[string]string{
+		"BILLCOM_CREDENTIALS": `{"dev_key":"DK","username":"u@e.com","password":"pw","organization_id":"ORG1","auth_mode":"sync_token"}`,
+	}
+	_, _, code := run(t, srv, env, "vendor", "list")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0 for blob credentials", code)
+	}
+	// sync_token in the blob must route through the v2 login.
+	if f.v2LoginForm == nil {
+		t.Fatalf("blob auth_mode=sync_token did not use v2 login")
+	}
+	if f.v2LoginForm.Get("devKey") != "DK" || f.v2LoginForm.Get("orgId") != "ORG1" {
+		t.Errorf("v2 login form = %v", f.v2LoginForm)
+	}
+	if f.lastSession != "SESSION-V2" {
+		t.Errorf("sessionId = %q, want SESSION-V2", f.lastSession)
+	}
+}
+
 func TestNewCommandTreeTraversable(t *testing.T) {
 	s := &Service{}
 	root := s.NewCommandTree()
