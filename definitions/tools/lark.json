@@ -23,6 +23,10 @@
       {
         "source": {"field": "brand"},
         "inject": {"type": "env", "env_var": "LARKSUITE_CLI_BRAND"}
+      },
+      {
+        "source": {"field": "user_access_token"},
+        "inject": {"type": "env", "env_var": "LARKSUITE_CLI_USER_ACCESS_TOKEN"}
       }
     ]
   },

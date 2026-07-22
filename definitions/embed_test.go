@@ -169,6 +169,11 @@ func TestLoadBundled_LarkCliShape(t *testing.T) {
 		{field: "app_id", envVar: "LARKSUITE_CLI_APP_ID"},
 		{field: "access_token", envVar: "LARKSUITE_CLI_TENANT_ACCESS_TOKEN"},
 		{field: "brand", envVar: "LARKSUITE_CLI_BRAND"},
+		// The optional design 255 §3.2 user identity: the host projects the
+		// connection owner's user_access_token only when they granted it —
+		// absent, the empty binding is skipped at inject and the CLI stays
+		// bot-only. Present, lark-cli natively rides it for `--as user`.
+		{field: "user_access_token", envVar: "LARKSUITE_CLI_USER_ACCESS_TOKEN"},
 	}
 	if def.Auth == nil || len(def.Auth.Credentials) != len(want) {
 		t.Fatalf("credentials = %+v, want %d bindings", def.Auth, len(want))
