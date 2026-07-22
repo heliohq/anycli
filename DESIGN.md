@@ -89,21 +89,30 @@ service always sets both headers, so this is non-load-bearing.
 `GET /server` doubles as the identity probe (§4), and its response is a
 **secret-bearing body**: the `ApiTokens` array echoes back the server's live
 Server API Token value(s) (confirmed against the official `GET /server`
-reference). Two distinct sinks must therefore redact it, not one:
+reference). Two distinct sinks must therefore keep `ApiTokens` out of what they
+persist/print — and both do so **by construction**, neither needs a new shared
+capability:
 
 1. **anycli CLI output** (`postmark server get`) — print only `ID`, `Name`,
    `ServerLink`, and safe metadata (opens/links tracking, delivery type,
-   inbound address); never the raw body, never `ApiTokens`.
+   inbound address); never the raw body, never `ApiTokens`. Provider-local to
+   the anycli service package.
 2. **integration-service identity persistence** (the connect path, §3/§4) — the
-   `declarativeManualTokenVerifier` returns the parsed `/server` body as the
-   `identity` map, and `ManualCredentialService.Connect` writes it verbatim to
-   `metadata["identity"]` in the `connections` collection, which is **plaintext
-   at rest** (only the credential referenced by `credential_id` is KMS-vaulted).
-   Left unredacted this writes the real Server API Token a **second time, in
-   cleartext**, into connection metadata that the internal read APIs and the AI
-   can surface. This sink — not the CLI path above — is the actual
-   secret-at-rest leak, and it is closed in §3 (bundle-declared identity
-   redaction).
+   default `declarativeManualTokenVerifier` returns the **entire** parsed
+   `/server` body as the `identity` map, and `ManualCredentialService.Connect`
+   writes it verbatim to `metadata["identity"]` in the `connections` collection,
+   which is **plaintext at rest** (only the credential referenced by
+   `credential_id` is KMS-vaulted). For Postmark that map would carry the live
+   Server API Token a **second time, in cleartext** — duplicating a KMS-vaulted
+   secret into plaintext Mongo, which defeats the point of vaulting it. This
+   **at-rest duplication is the load-bearing, verified harm.** It is *not*
+   additionally an AI / read-API exposure: `dto.Connection` — the shape returned
+   by `GET /connections` and the internal `GET /internal/connections/by-identity`
+   — has **no `Metadata` field** (verified in `dto/connection.go`), so
+   `metadata["identity"]` is never marshalled to any client. This sink is closed
+   in §3 by a **provider-local named verifier that builds the identity map from
+   only the safe fields** (`ApiTokens` never enters it), with zero change to the
+   shared declarative identity contract.
 
 ---
 
@@ -229,74 +238,72 @@ Directory `integrations/providers/postmark/provider.yaml`. Axis ①
 NO `toolToProvider` entry** is added (the resolver map holds only ②↔③
 divergences). No grouped family; flat command.
 
-This is a **manual API-token** bundle that DOES have a real HTTPS verification
-endpoint (`GET /server`), so it uses `runtime_strategy: manual_api_token` +
-`declarativeManualTokenVerifier` — distinct from mongodb's
-`manual_credentials` no-verify DSN path. The header/stable-key/label mechanics
-need **no** new capability: the `manual_api_token` strategy on `main` already
-GETs `identity.url` with the bundle-declared `auth.api_key.header`
-(`req.Header.Set(definition.APIKey.Header, token)`), then extracts a string
-stable key + label via JSON pointer (`service/manual_token_verifier.go` →
-`declarativeManualTokenVerifier`, selected in `provider_registry.go` for
-`RuntimeStrategyManualAPIToken`) — the same Loops/Tally-class Bearer-verifier
-shape with a custom fixed header.
+This is a **manual API-token** bundle with a real HTTPS verification endpoint
+(`GET /server`), so `runtime_strategy: manual_api_token` — distinct from
+mongodb's `manual_credentials` no-verify DSN path. The header/stable-key/label
+mechanics reuse the existing `manual_api_token` shape (GET `identity.url` with
+the bundle-declared `auth.api_key.header`
+`req.Header.Set(definition.APIKey.Header, token)`, then extract a string stable
+key + label via JSON pointer) — the same Loops/Tally-class fixed-header
+verifier shape.
 
-**One narrow integration-service change IS required, and this DESIGN owns it —
-the "zero capability growth" premise does NOT hold for Postmark.** Postmark is
-the first `manual_api_token` provider whose identity endpoint returns a
-**secret-bearing body**: `GET /server` echoes the caller's own Server API Token
-in `ApiTokens` (§1). Both `declarativeManualTokenVerifier.Verify` (manual path)
-and `fetchUserInfo` (userinfo path) today return the full parsed body as the
+**The one integration-service change is a provider-local named verifier — NOT a
+shared-contract change.** Postmark is the first `manual_api_token` provider
+whose identity endpoint returns a **secret-bearing body**: `GET /server` echoes
+the caller's own Server API Token in `ApiTokens` (§1). The default
+`declarativeManualTokenVerifier.Verify` returns the **whole** parsed body as the
 `identity` map, and `Connect` persists it verbatim to plaintext
-`metadata["identity"]` — so for Postmark that map would carry the live token in
-cleartext. The codebase already holds the invariant this violates: the
-token-response identity path strips secrets via `accountIdentityFromToken`
-(`service/oauth.go`: drops `access_token`/`refresh_token`/`id_token` "so they
-never land on the Connection's Metadata"). The fix **extends that same reviewed
-invariant** to the manual/userinfo identity paths via a bundle-declared
-redaction list — NOT arbitrary provider scripting:
+`metadata["identity"]` — so for Postmark that map would duplicate the live token
+in cleartext. On the postmark branch base the `RuntimeStrategyManualAPIToken`
+case hardcodes `declarativeManualTokenVerifier{}` (verified in
+`provider_registry.go`), so Postmark does need *some* code to close this — but
+the minimal, idiomatic fix is a **provider-local named verifier**, not a new
+field on the shared declarative Identity contract:
 
-- Add an optional `identity.redact` field (a list of RFC 6901 JSON pointers,
-  the same closed vocabulary as `stable_key`/`label_candidates`) to the
-  provider bundle + generated `Identity` contract (`model/catalog.go` +
-  `cmd/provider-gen` projection + strict-decode validation).
-- In `declarativeManualTokenVerifier.Verify` (and, for symmetry, the userinfo
-  branch of `declarativeIdentityResolver`), delete each declared pointer's node
-  from the `identity` map **before** it is returned — so the redacted map is
-  what reaches `metadata["identity"]`. Stable-key/label extraction is
-  unaffected: they read `/ServerLink` and `/Name`, never `/ApiTokens`.
-- Postmark declares `identity.redact: [/ApiTokens]`. v1 needs only top-level
-  pointer deletion (`ApiTokens` is top-level), matching the existing
-  `accountIdentityFromToken` top-level-key strip.
+- Add `postmarkServerVerifier` (implements the existing `manualTokenVerifier`
+  interface, `service/manual_token_verifier.go` neighborhood). It GETs the
+  bundle-declared `identity.url` (`/server`) with the bundle-declared
+  `auth.api_key.header`, treats **2xx as valid** (`401/403` →
+  `invalid_provider_credential`), extracts the stable key (`/ServerLink`) and
+  label (`/Name`) via the declared JSON pointers, and returns a **freshly built
+  identity map containing only those safe values** — `{ServerLink, Name}`. The
+  raw body (and therefore `ApiTokens`) is never copied into the map.
+- Select it for Postmark in `composeProviderRegistration` — a small
+  provider-keyed branch in the `RuntimeStrategyManualAPIToken` case that
+  **defaults to `declarativeManualTokenVerifier{}`** for every other
+  `manual_api_token` provider. This mirrors exactly how the
+  `RuntimeStrategyManualCredentials` case already selects `dsnHostIdentityDeriver{}`
+  (mongodb), whose `Verify` likewise returns only a derived safe field
+  (`{"host": host}`) and never lets the secret reach `metadata["identity"]`.
 
-**Denylist vs. allowlist — a deliberate choice, flagged for the shared-capability
-reviewer.** `identity.redact` is a **denylist**: it names the pointers to strip
-and persists everything else. The safer-by-default alternative is an
-**allowlist** — since the framework only ever reads the declared `stable_key`
-and `label_candidates` pointers, it could persist *only* those referenced nodes
-and drop the rest, so any future secret-echoing identity field would be safe
-without anyone having to enumerate it. This DESIGN deliberately chooses the
-denylist because it **extends the existing, already-reviewed
-`accountIdentityFromToken` invariant** (itself a denylist keyed on
-`access_token`/`refresh_token`/`id_token`) rather than introducing a second,
-divergent redaction model, and because it is lower blast radius — it changes
-what one map drops, not what the whole identity-persistence path keeps. The
-tradeoff (a future secret-echoing field silently leaks until added to `redact`)
-is real; the owner of the shared `identity.redact` capability should make the
-denylist-vs-allowlist call knowingly. Postmark itself is safe either way — its
-one secret-bearing pointer (`/ApiTokens`) is explicitly listed.
+**Why the named verifier and not an `identity.redact` field.** An earlier draft
+closed the leak by adding a general `identity.redact` denylist to the **shared**
+declarative Identity contract (`model/catalog.go` + `cmd/provider-gen`
+projection + strict-decode + the five generated projections). That is
+unnecessary capability growth for one provider's need, and it is a **denylist** —
+the DESIGN itself conceded a denylist is the less-safe model (a future
+secret-echoing identity field would leak until someone enumerates it in
+`redact`). The named verifier is **allowlist-by-construction**: it emits only
+the two fields the framework actually reads, so no secret-bearing field can leak
+regardless of what `/server` returns later. It also needs **zero** change to the
+shared Identity contract or any of the five generated projections, and it
+matches the program's established idiom — the many named `*Verifier`/`*Deriver`
+capabilities (`dsnHostIdentityDeriver`, and the semrush/fullstory-class named
+verifiers), the integration-service rule *"prefer a compiled generic capability
+or a narrow named strategy, never an unbounded YAML expression"*, and the repo's
+*"subtract before adding / minimal orthogonal"* discipline. If a general
+redaction/allowlist capability is later judged worthwhile program-wide, it
+should be escalated as its **own** shared-capability decision (allowlist
+preferred — persist only the referenced pointers), not smuggled in via one
+tool's bundle.
 
-**Why not the alternative (a secret-free identity endpoint).** The reviewer's
-option (b) — verify against a Server-token endpoint that does not echo the
-credential — is not free and is rejected: `GET /server` is the **only**
+**Why not a secret-free identity endpoint.** `GET /server` is the **only**
 Server-token endpoint that returns a stable per-server identity (`ID` / `Name`
 / `ServerLink`). The other Server-token reads (`/deliverystats`,
 `/messages/outbound`, `/templates`, `/bounces`) return activity/summary lists
-with **no stable server-identity key** to anchor `account_key` on, so (b) would
-sacrifice the connection's identity model to avoid a leak that a one-field
-redaction closes directly. Redaction is the minimal orthogonal fix: it keeps
-`/server` as the identity probe and adds one general, reviewed safety field
-that any future secret-echoing identity endpoint can reuse.
+with **no stable server-identity key** to anchor `account_key` on. Keeping
+`/server` as the probe and having `postmarkServerVerifier` build a safe identity
+map from it is the minimal orthogonal fix.
 
 ```yaml
 schema: helio.provider/v1
@@ -325,16 +332,14 @@ auth:
     setup_url: https://postmarkapp.com/support/article/1008-what-are-the-account-and-server-api-tokens
 
 identity:
-  source: userinfo            # GET /server verifies the token & names the server
+  source: userinfo            # GET /server verifies the token & names the server;
+                              # postmarkServerVerifier (§3) reads it and emits a
+                              # safe identity map — ServerLink + Name only, never
+                              # the raw body. No new bundle field.
   url: https://api.postmarkapp.com/server
-  stable_key: /ServerLink     # STRING & stable (embeds the immutable server id);
-                              # /ID is a JSON number and jsonPointerString is
-                              # string-only on main, so ServerLink is the
-                              # string stable key (see §3 note).
+  stable_key: /ServerLink     # string, stable (embeds the immutable server id),
+                              # unique per server — see the stable-key note (§3).
   label_candidates: [/Name, /ServerLink]
-  redact: [/ApiTokens]        # GET /server echoes the live Server API Token in
-                              # ApiTokens; strip it from the identity map before
-                              # it lands in plaintext metadata["identity"] (§3).
 
 connection:
   mode: isolated
@@ -356,18 +361,17 @@ tool:
   kind: api-key
 ```
 
-**Stable-key choice (verified against the code, not assumed).** `GET /server`
-returns `ID` as a JSON **number**; `manual_token_verifier.go` extracts the
-stable key via `jsonPointerString`, which returns only `string` values
-(`declarative_identity.go`). A numeric `/ID` would fail verification on `main`.
-`/ServerLink` is a **string**, is **stable** (it embeds the immutable numeric
+**Stable-key choice.** `/ServerLink` is the correct stable key on its own
+merits: it is a **string**, it is **stable** (it embeds the immutable numeric
 server id — the documented response shape is
-`https://postmarkapp.com/servers/<id>/streams`), and is unique per server — so
-it is the correct string stable key. `/Name` is the human-readable label
-(server rename keeps `/ServerLink` stable). Deliberately **not** growing
-numeric-stable-key coercion: a string key is already available, so the only
-integration-service change this tool needs is the one-field identity redaction
-(above) — no stable-key-coercion capability on top of it.
+`https://postmarkapp.com/servers/<id>/streams`, so a server rename does not
+change it), and it is **unique per server**. `/Name` is the human-readable
+label. `GET /server` returns `ID` as a JSON number, but `/ServerLink` is
+preferred over `/ID` because it is already a stable *string* — this holds
+independent of whether numeric-stable-key coercion (in-flight in sibling work)
+has landed, so the choice introduces no stable-key-coercion dependency. The only
+integration-service change this tool needs is the provider-local
+`postmarkServerVerifier` (above).
 
 **Config.** `manual_api_token` uses **no** `required_config_fields` and no
 integration-service secrets (validator: `manual_api_token … does not use
@@ -394,13 +398,14 @@ or `deploy/` change** — Postmark has nothing in the seventh shared surface
   1. `heliox tool postmark auth` mints a connect intent → connect link.
   2. User pastes the Server API Token into the connect form (single secret
      field, `secret: true`).
-  3. integration-service runs `declarativeManualTokenVerifier`: `GET
-     https://api.postmarkapp.com/server` with `X-Postmark-Server-Token: <token>`
-     + `Accept: application/json`. `401/403` → `invalid_provider_credential`
-     ("the provider rejected this token"); `2xx` → extract `account_key =
-     /ServerLink`, `label = /Name`, then **strip `identity.redact`
-     (`/ApiTokens`) from the identity map** so the persisted
-     `metadata["identity"]` never carries the live Server API Token (§3).
+  3. integration-service runs the provider-local `postmarkServerVerifier` (§3):
+     `GET https://api.postmarkapp.com/server` with `X-Postmark-Server-Token:
+     <token>` + `Accept: application/json`. `401/403` →
+     `invalid_provider_credential` ("the provider rejected this token"); `2xx` →
+     extract `account_key = /ServerLink`, `label = /Name`, and return an
+     identity map built from **only** those safe fields, so the persisted
+     `metadata["identity"]` never carries the live Server API Token (`ApiTokens`
+     is never copied into the map — §3).
   4. Token stored in Vault via `writeUserTokenCredential`; connection row
      upserts by `(org, assistant, provider=postmark, account_key)` and shows
      **connected** in the integrations UI.
@@ -423,7 +428,7 @@ or `deploy/` change** — Postmark has nothing in the seventh shared surface
 |---|---|---|
 | **L1** anycli unit (`go test ./...`) | `httptest` fake for `api.postmarkapp.com`: assert `X-Postmark-Server-Token` header injection, `Accept`/`Content-Type` set on writes, request shape for `POST /email` + `send-template` + each GET; assert the single-send error contract — a `422` + non-zero `ErrorCode` (e.g. `406` inactive recipient) → exit 1 with `Message` surfaced, `200` + `ErrorCode 0` → exit 0 — plus the `ErrorCode == 0` success key (which also covers the v1.1 batch `200` + per-message non-zero `ErrorCode` case once added) and the `--json` error envelope; assert `server get` redacts `ApiTokens`. | No — fakes only |
 | **L2** dev-harness real API (`anycli postmark -- …` + `ANYCLI_CRED_SERVER_TOKEN`) | Run against a **real Postmark server**: `server get`, `message list-outbound`, `template list`, `bounce list`, and a `email send` using the `POSTMARK_API_TEST` sandbox token (no real delivery) + one real send to a controlled inbox. Proves field names + header injection match the live contract. | **Yes** — a real Server API Token (test account pool, lane 2) |
-| **L3** `provider-gen --check` + both repos' unit suites | Regenerate the five projections locally (uncommitted); confirm `postmark` bundle strict-decodes, `manual_api_token` needs no config fields, `identity.source: userinfo` + `identity.url` + `identity.redact: [/ApiTokens]` validate, `tool.kind: api-key`. **New integration-service unit test**: `declarativeManualTokenVerifier.Verify` against a `/server` fake whose body includes `ApiTokens` returns an identity map with `ApiTokens` **stripped** (and `ServerLink`/`Name` retained), proving the persisted `metadata["identity"]` is secret-free. helio-cli builds with a local `replace` → anycli branch. | No |
+| **L3** `provider-gen --check` + both repos' unit suites | Regenerate the five projections locally (uncommitted); confirm `postmark` bundle strict-decodes, `manual_api_token` needs no config fields, `identity.source: userinfo` + `identity.url` + `stable_key`/`label_candidates` validate (**no new bundle field**), `tool.kind: api-key`. **New integration-service unit tests**: (a) `postmarkServerVerifier.Verify` against a `/server` fake whose body includes `ApiTokens` returns an identity map containing **only** `ServerLink` + `Name` (`ApiTokens` absent **by construction**), proving the persisted `metadata["identity"]` is secret-free; (b) a registry test that Postmark composes `postmarkServerVerifier` while every other `manual_api_token` provider still gets the default `declarativeManualTokenVerifier`. helio-cli builds with a local `replace` → anycli branch. | No |
 | **L4** singleton + seed endpoint | `POST /internal/test-only/connections/seed` with `provider: postmark`, `access_token: <real server token>`, a real seeded assistant/org identity; then `heliox tool postmark -- server get` reaches the live API through the token gateway. Seed **access_token only**. | **Yes** — a real Server API Token (same as L2) |
 | **L5** full connect flow (once, pre-flip) | **api_key key-entry path** (master plan §2, not OAuth): open connect link → paste the Server API Token in the real UI → connection shows connected/configured (`GET /connections`) → one **unseeded** live `postmark server get` succeeds. Agent-drivable (agent-browser), human fallback on UI breakage. | **Yes** — a real Server API Token + connect UI |
 
@@ -437,22 +442,26 @@ L1 and L3 are fully hermetic.
 ## 6. Stage checklist status & shared-surface impact
 
 - Axis ②↔③ identity → **no `toolcred/resolver.go` entry**.
-- **One narrow integration-service Go change** (§3): add the optional
-  `identity.redact` JSON-pointer list to the `Identity` contract
-  (`model/catalog.go` + `cmd/provider-gen` projection/validation) and strip the
-  declared pointers in `declarativeManualTokenVerifier.Verify` (and the userinfo
-  identity branch) **before** the identity map is persisted. This extends the
-  existing `accountIdentityFromToken` secret-stripping invariant — a bounded,
-  reviewed, general capability, not provider scripting — and ships with a unit
-  test (§5 L3). The "zero integration-service change" note in an earlier draft
-  did not hold for Postmark and is corrected here.
+- **One narrow, provider-local integration-service Go change** (§3): add
+  `postmarkServerVerifier` (a named `manualTokenVerifier` alongside
+  `declarativeManualTokenVerifier` / `dsnHostIdentityDeriver`) that builds the
+  identity map from only the safe `/ServerLink` + `/Name` fields, and select it
+  for Postmark via a provider-keyed branch in the `RuntimeStrategyManualAPIToken`
+  case of `composeProviderRegistration` (defaulting to
+  `declarativeManualTokenVerifier{}` for all other providers). This is
+  allowlist-by-construction and touches **no** shared declarative-identity
+  contract, **no** `cmd/provider-gen` projection, and **none** of the five
+  generated projections. It ships with unit tests (§5 L3). An earlier draft
+  proposed a general `identity.redact` field on the shared `Identity` contract;
+  that is rejected in favor of this narrower named verifier (§3).
 - **No `config/` or `deploy/` change** — manual token, no server-side secrets.
 - Shared surfaces this tool touches at batch-end: the **integration-service
-  identity-redaction capability** (`service/manual_token_verifier.go` +
-  `service/declarative_identity.go` + `model/catalog.go` `Identity.Redact` +
-  `cmd/provider-gen` + unit test), anycli `register.go`
-  (`RegisterService("postmark", …)`), the anycli pin bump, `provider-gen`
-  regen (five projections), `providerIcons.ts` append, and the plugin
-  version bump + docs publish (`agents/plugins/heliox/skills/tool/`). It does
-  **not** touch the resolver map or the OAuth config surface.
+  named-verifier capability** (`service/manual_token_verifier.go` new
+  `postmarkServerVerifier` + `service/provider_registry.go` provider-keyed
+  selection + unit tests) — **no** `model/catalog.go` / `cmd/provider-gen`
+  change; anycli `register.go` (`RegisterService("postmark", …)`), the anycli
+  pin bump, `provider-gen` regen (five projections, unchanged shape),
+  `providerIcons.ts` append, and the plugin version bump + docs publish
+  (`agents/plugins/heliox/skills/tool/`). It does **not** touch the resolver map
+  or the OAuth config surface.
 - Ships **hidden**; visible flip is the single go-live change after L5.
