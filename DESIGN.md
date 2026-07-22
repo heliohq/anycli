@@ -5,6 +5,43 @@ the `helio-tool-provider` pipeline and the 298-tool master rollout plan
 (`docs/design/008-300-integrations-rollout-plan.md`). Batch-lead strips this
 file at batch end.
 
+## Implementation divergences (as built — read before the batch-end regen)
+
+Two mechanism divergences from §4.2/§4.3 surfaced when building against the
+actual integration-service code; both were resolved cleanly and are recorded
+here per the ground-truth rule.
+
+1. **base_uri capture is via the identity blob, not a direct adapter write.**
+   §4.2 said "the adapter writes `base_uri` into connection metadata directly
+   during exchange." The `tokenExchanger.Exchange` / `identityResolver.Identity`
+   facets have no access to the `Connection`, so the adapter cannot write
+   metadata directly. As built, `adapter_adobesign.go`'s `Identity` returns
+   `base_uri` in the identity map, and `callbackConnectionMetadata` promotes it
+   to a top-level `Connection.Metadata["base_uri"]` — mirroring the existing
+   `person_urn` promotion exactly. Net-new credential source
+   `connection.metadata.base_uri` + `TokenResult.BaseURI` projection as planned.
+
+2. **Code exchange targets the generic host + captures api_access_point from the
+   token RESPONSE (not the redirect param).** §4.3 said the exchange host comes
+   from the redirect's `api_access_point`. On this base the redirect query
+   params are NOT plumbed to the exchanger (`authorizationCodeGrant` carries only
+   code/redirect_uri/verifier, and the callback DTO does not capture the param).
+   Threading that param through the public callback DTO → session → grant →
+   exchanger is a cross-cutting change beyond a narrow adapter. As built, the
+   adapter exchanges against the bundle's shardless `token_url`
+   (`secure.adobesign.com/oauth/v2/token`) and reads `api_access_point` from the
+   **token response** (the Salesforce `instance_url` pattern). **Refresh IS
+   shard-aware** as designed: `token_refresh.go` now threads the `Connection` and
+   targets `{base_uri}oauth/v2/refresh`.
+
+   **Lane-1 / stage-1 residual (was the DESIGN's "generic-host probe"):** confirm
+   against a real Adobe partner/dev account whether `secure.adobesign.com/oauth/
+   v2/token` accepts the code exchange for all shards (returning
+   `api_access_point`). If it does NOT — i.e. exchange is strictly shard-hosted —
+   the redirect-param → exchanger plumbing becomes required before L5. Refresh is
+   already shard-hosted and correct either way. This is the one L2/L4-only item;
+   L1/L3 are self-contained and green.
+
 - **Catalog row 220** — Product: Adobe Acrobat Sign · anycli id `adobe-sign` ·
   provider key `adobe_sign` · auth lane **oauth_review** · **Wave 3** (3-hold?
   no — plain Wave 3) · category Scheduling & eSign.
