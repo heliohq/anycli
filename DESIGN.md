@@ -151,11 +151,14 @@ interactive user authorization (this is why L5 is human-in-the-loop, §6).
   - Refresh token **rotates on every use**: each refresh returns a *new*
     refresh token and invalidates the old one. Refresh token expires after
     **31 days of inactivity** (`refresh_token_expires_in: 2678400`).
-  - Consequence: the token gateway MUST (a) capture `expires_at` from
-    `expires_in` so it refreshes proactively before the 5-minute window, and
-    (b) **persist the rotated refresh token on every refresh** (write-back).
-    Dropping a rotated refresh token strands the connection with no recovery
-    but full re-consent.
+  - Consequence: the connection depends on (a) `expires_at` captured from
+    `expires_in` so refresh fires proactively before the 5-minute window, and
+    (b) the rotated refresh token being **persisted on every refresh**
+    (write-back). Both are handled automatically and provider-agnostically by
+    the integration-service token gateway (see §3 capability note); Sage adds
+    no work here beyond choosing a non-`none` `refresh_lease` for concurrency.
+    Dropping a rotated refresh token would strand the connection with no
+    recovery but full re-consent — which is why the lease matters (§3).
 
 ### Helio provider bundle plan (`integrations/providers/sage/provider.yaml`)
 
@@ -188,7 +191,7 @@ auth:
     scopes: [full_access]
     display_scopes: [full_access]
     single_active_token: false
-    refresh_lease: <rotating-refresh value>   # see capability note below
+    refresh_lease: credential          # serialize per-credential refresh; see note below
 identity:
   source: userinfo
   url: https://api.accounting.sage.com/v3.1/user
@@ -221,21 +224,45 @@ tool:
   `sage` sub-doc under `agents/plugins/heliox/skills/tool/`, riding the
   batch-end plugin version bump.
 
-### Integration-service capability note (verify on worktree base)
+### Integration-service capability note (verified on worktree base)
 
-The one non-boilerplate risk is the **rotating refresh token + 5-minute TTL**.
-The shipped `gmail` bundle uses `refresh_lease: none` because Google's refresh
-token does **not** rotate; Sage's **does**. Recent rotating-refresh /
-short-TTL providers (keap, signnow, hootsuite, square) each required a small
-`standard_oauth` capability growth — adding the provider to the
-`refresh_lease` allowed-set and/or ensuring `expires_at` capture from
-`expires_in`. So at implementation time, on the worktree base:
-1. Confirm the exact `refresh_lease` enum value that enables **write-back of
-   the rotated refresh token**, and add `sage` to that allowed-set if it is
-   gated (mirroring the keap/signnow/square precedents).
-2. Confirm the token exchange captures `expires_at` from `expires_in: 300`.
-Grow the capability with a reviewed enum value + test only if the existing set
-does not already cover it — do not fork a Sage-specific adapter for it.
+The one non-boilerplate concern is the **rotating refresh token + 5-minute
+TTL**. Verified against the integration-service base, this needs **zero
+capability growth** — the platform already covers it, and the only bundle
+decision is the `refresh_lease` value.
+
+- **Write-back of the rotated refresh token is automatic and
+  provider-agnostic.** `service/token_refresh.go` computes
+  `refreshed.RefreshToken = firstNonEmpty(newTok.RefreshToken, td.RefreshToken)`
+  and, on every refresh, unconditionally calls `writeBackRefreshedToken`
+  (`service/token_gateway.go:254` — "enforces A3 strict write-back", 227 A3:
+  never return an unpersisted token). `expires_at` is likewise captured
+  automatically from the oauth2 library's `Token.Expiry`
+  (`token_refresh.go:53-54`). No provider is enrolled into a write-back
+  allowed-set, and no `refresh_lease` value gates any of this. So there is
+  **no** "enable write-back" enum to hunt and **no** `expires_in: 300`-capture
+  step to add — both are already unconditional for every provider.
+- **`refresh_lease` is *only* about concurrency serialization, not
+  write-back.** `model.OAuthLeaseScope` (`model/catalog.go:280`,
+  `RefreshLeaseScope` — "how refreshes are serialized across replicas") is a
+  free enum validated solely by `oneOf("none","credential","provider")`
+  (`cmd/provider-gen/validate.go:261`). There is **no per-provider allowed-set
+  to add `sage` to** (the keap/signnow/square "allowed-set growth" framing
+  does not match this base — do not carry it over).
+- **Why Sage still needs a non-`none` lease → set `refresh_lease:
+  credential`.** Sage invalidates the old refresh token on every use, and — per
+  Sage's own developer docs / community guidance — using the same refresh
+  token twice in a race invalidates *both* tokens, with no server-side grace
+  window and no recovery short of full interactive re-consent. The documented
+  mitigation is to serialize refreshes per tenant. `credential` scope makes
+  `acquireRefreshLease` (`token_refresh.go:79-113`) take a per-credential lease
+  so concurrent replicas can't double-spend the rotating refresh token. This
+  mirrors the **Lark** rotation-type precedent exactly (`server/server.go:332`:
+  "The Lark user token is rotation-type: its refresh must be serialized across
+  replicas"; `service/lark_user_token_refresh.go:51-55`) and satisfies the
+  horizontal-scale hard rule. The bundle therefore commits the concrete value
+  `refresh_lease: credential` (not a placeholder) — a reviewed, existing enum
+  value, no capability growth, no Sage-specific adapter.
 
 ## 4. Identity
 
@@ -264,11 +291,15 @@ External-credential layers: **L2, L4, L5**. Credential-free: **L1, L3**.
 
 Deploy hidden (`visible: false`), land the anycli pin, run L1–L4 while hidden,
 run the one human L5 consent, then flip `presentation.visible: true` +
-regenerate as the single go-live change. Nothing here needs a compiled
-adapter; the only integration-service touch is the possible `refresh_lease`
-allowed-set / `expires_at` capability check in §3, verified and grown (if
-needed) at implementation time. Divergences recorded above vs. inherited
+regenerate as the single go-live change. Nothing here needs a compiled adapter
+**or any integration-service capability growth**: write-back of the rotated
+refresh token and `expires_at` capture are already automatic and
+provider-agnostic (§3), and `refresh_lease: credential` is an existing enum
+value, not a new capability. The only integration-service-relevant bundle
+decision is that lease value. Divergences recorded above vs. inherited
 assumptions: (a) no audit row for Sage — lane verified independently;
 (b) PKCE explicitly `none` (Sage Active's PKCE does not apply);
-(c) rotating refresh token is the design-critical behavior and the only likely
+(c) rotating refresh token is the design-critical behavior, handled by
+`refresh_lease: credential` (per-credential refresh serialization, Lark
+rotation-type precedent) with **zero** capability growth — not a
 capability-growth point.
