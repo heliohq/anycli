@@ -98,6 +98,25 @@ the catalog, and ZOQL as the power tool. Larger async exports (Data Query
 `POST /query/jobs`) are intentionally excluded from v1 — agent commands are
 synchronous and short.
 
+**Two caveats worth recording (verified against official docs):**
+
+- **`payment get` / `payment list` depend on the Invoice Settlement feature.**
+  Per Zuora's `GET_Payment` / `GET_RetrieveAllPayments` references, `GET
+  /v1/payments/{key}` and `GET /v1/payments` are only available when the tenant
+  has **Invoice Settlement** enabled (GA Zuora Billing Release 296, March 2021,
+  but not universal — older tenants may not have it). On a tenant without it,
+  every payment read errors, otherwise indistinguishable from a bad key. This
+  dependency is called out in the AI-facing sub-doc (§4) so the failure is
+  diagnosable rather than mysterious. `payment` via the `query` ZOQL escape hatch
+  (`select … from Payment`) does not carry this dependency and is the fallback.
+- **Version stance: legacy v1 chosen deliberately, not by default.** All wrapped
+  endpoints (accounts, summary, subscriptions, invoices, payments, catalog, and
+  `action/query`) are Zuora's **legacy v1** Billing APIs. Zuora now steers new
+  integrations toward **Object Query** (`/object-query/...`) and Commerce APIs.
+  v1 is chosen for stability and documentation coverage (mature, exhaustively
+  documented, stable request/response shapes); Object Query is the modern
+  alternative and the natural v2 migration target if v1 endpoints are deprecated.
+
 ---
 
 ## 3. anycli definition & service
@@ -138,15 +157,39 @@ cache in the process → run the subcommand with `Authorization: Bearer …`.
 stdout (+ trailing newline); no re-wrapping on success. `--json` is accepted for
 uniformity (always structured).
 
-**Error dialect — Slack-like `success:false` on 200.** Zuora's `/v1/action/query`
-(and Object APIs) return **HTTP 200 with `{"success": false, "reasons":[{code,
-message}]}`** on logical failure, while plain REST reads return normal non-2xx.
-The service treats **both** as failures: a typed `apiError` carrying the Zuora
-`reasons[]` / HTTP status, rendered as a `--json` error envelope. A 401 on the
-token exchange (bad id/secret) or on a REST call is a hard credential rejection.
-**Exit codes:** `0` success, `1` runtime/API failure (non-2xx or `success:false`),
-`2` usage/parse. Unit tests assert form-encoded client-credentials body, Bearer
-injection, `success:false` handling, and both plain + `--json` error rendering.
+**Error dialect — two distinct envelopes, verified against official docs.**
+Zuora does **not** use one uniform error shape, and the earlier draft had the
+casing inverted for the exact endpoint it named. Verified on `developer.zuora.com`:
+
+- **Standard `/v1` resource reads** (`accounts`, `subscriptions`, `invoices`,
+  `payments`, `catalog`) — *except* Actions and CRUD — use the **lowercase**
+  envelope `{"success": false, "processId", "reasons":[{code, message}]}` with an
+  eight-digit numeric `code`. These GETs normally fail with a **non-2xx** status;
+  some responses additionally carry the `success` flag in a 200 body.
+- **Actions and CRUD** — and `POST /v1/action/query` **is** an Action — use the
+  SOAP-derived **capitalized** envelope `{"Success": false, "Errors":[{"Code",
+  "Message"}]}`. Separately, the official `Action_POSTquery` operation reference
+  documents query *failure* as **HTTP 400/401 with a bare `{"message": …}`**
+  (400 = unrecognised fields under `rejectUnknownFields`, 401 = auth), and query
+  *success* as `{"done", "queryLocator", "records", "size"}` — it does **not**
+  document a 200-with-`success:false` envelope for query at all.
+
+So the service must recognize **three** failure forms and treat all as failures:
+(1) non-2xx with lowercase `reasons[]`, (2) 200-or-non-2xx with capitalized
+`Errors[]` (Actions/CRUD), and (3) bare `{"message": …}` at 400/401. Detection is
+**case-insensitive across both `success`/`Success` and `reasons`/`Errors`, and
+also checks the bare `message` form**, *before* deciding the exit code — anything
+less risks silent-success-on-failure (exit 0 while passing an error body through
+as a result), which violates the repo's fail-fast / no-silent-fallback rule. A
+typed `apiError` normalizes whichever envelope matched (status + code/Code +
+message/Message) and renders as a `--json` error envelope. A 401 on the token
+exchange (bad id/secret) or on a REST call is a hard credential rejection.
+**Exit codes:** `0` success, `1` runtime/API failure (non-2xx, lowercase
+`success:false`, capitalized `Success:false`, or bare `message`), `2` usage/parse.
+The real envelopes are **pinned from the L2 sandbox capture first** (§5), then the
+L1 unit tests assert against those captured shapes — the earlier plan asserted the
+lowercase shape for query up front, which would have baked the wrong casing into
+green tests that mask the live mismatch until L2.
 
 ---
 
@@ -218,8 +261,8 @@ the batch lead's canonical regen).
 
 | Layer | What it proves for Zuora | Ext. creds? |
 |---|---|---|
-| **L1** | anycli unit tests: httptest fake serving `/oauth/token` + resource/query endpoints. Assert form-encoded `grant_type=client_credentials` body with **no** auth headers, single token mint per invocation, `Authorization: Bearer` on REST, `success:false`-on-200 → exit 1, plain + `--json` error envelopes, exit codes 0/1/2. | **No** |
-| **L2** | Dev harness against a **real Zuora API Sandbox** tenant: `ANYCLI_CRED_BASE_URL=https://rest.apisandbox.zuora.com ANYCLI_CRED_CLIENT_ID=… ANYCLI_CRED_CLIENT_SECRET=… anycli zuora -- catalog products` (and an `account summary` / `query`). Mandatory before the pin bump — proves field names, form body, and REST shapes match live. | **Yes** (Zuora sandbox tenant + OAuth client; test-account pool, human lane 2) |
+| **L1** | anycli unit tests: httptest fake serving `/oauth/token` + resource/query endpoints. Assert form-encoded `grant_type=client_credentials` body with **no** auth headers, single token mint per invocation, `Authorization: Bearer` on REST, and **all three failure envelopes → exit 1**: lowercase `success:false`/`reasons[]` (resource reads), capitalized `Success:false`/`Errors[]` (Actions/CRUD), and bare `{message}` at 400/401 (query). Plain + `--json` error envelopes, exit codes 0/1/2. **Assertions are written against the shapes captured in L2, not asserted up front** — the query envelope is casing-sensitive and must be pinned live first (§3). | **No** |
+| **L2** | Dev harness against a **real Zuora API Sandbox** tenant: `ANYCLI_CRED_BASE_URL=https://rest.apisandbox.zuora.com ANYCLI_CRED_CLIENT_ID=… ANYCLI_CRED_CLIENT_SECRET=… anycli zuora -- catalog products` (and an `account summary` / `query`). Mandatory before the pin bump — proves field names, form body, and REST shapes match live. **Also captures the real failure envelopes** (a deliberately bad ZOQL for the Action path, a bad key for a resource read) so the L1 assertions pin the true `Success`/`Errors` vs `success`/`reasons` vs bare `message` shapes rather than a guessed casing. | **Yes** (Zuora sandbox tenant + OAuth client; test-account pool, human lane 2) |
 | **L3** | `provider-gen --check` + both repos' unit suites, **plus** the integration-service tests for the multi-field `manual_credentials` growth and `zuoraTokenVerifier` (200-valid / 401-reject / identity = client_id + host). | **No** |
 | **L4** | Singleton + `POST /internal/test-only/connections/seed` (manual/api-key providers are seedable): seed `base_url`+`client_id`+`client_secret` for a real seeded assistant/org, then `heliox tool zuora -- catalog products` reaches live Zuora through the token gateway → anycli. Seeded row is indistinguishable from a real connect. | **Yes** (same sandbox OAuth client — the seeded creds must reach live Zuora) |
 | **L5** | api_key key-entry path (agent-drivable, §2 master plan): open the connect link → paste base_url/client_id/client_secret in the real connect UI → `zuoraTokenVerifier` accepts → connection shows connected/configured in `GET /connections` → **one unseeded** `heliox tool zuora` live command succeeds. Run once, still hidden, before the visible flip. | **Yes** (Zuora sandbox creds) |
@@ -240,3 +283,17 @@ manual-credential provider.
   `zuoraTokenVerifier` — not a single-header static key. This is the
   paypal/zoominfo (multi-field) + servicenow/later (client-credentials verifier)
   capability lineage, reused rather than forked.
+- **Error contract (corrected against official docs — supersedes the first
+  draft):** an earlier revision of this doc claimed `/v1/action/query` returns
+  HTTP 200 with the **lowercase** `{success:false, reasons:[…]}` envelope, and
+  built the typed `apiError` + L1 assertions on that shape. That is wrong per
+  `developer.zuora.com`: the lowercase `success`/`reasons` envelope is the
+  standard-`/v1`-resource form used **except** for Actions and CRUD; `action/query`
+  **is** an Action and uses either the SOAP-derived capitalized
+  `{Success:false, Errors:[{Code,Message}]}` form or (per the `Action_POSTquery`
+  reference) a bare `{message}` at HTTP 400/401, with success as
+  `{done, queryLocator, records, size}` — no 200-`success:false` for query at all.
+  §3 now detects all three forms case-insensitively before deciding the exit code
+  (guarding against silent-success-on-failure), and pins the real shapes from the
+  L2 sandbox capture before writing the L1 assertions. Lane unchanged; only the
+  error-handling contract was corrected.
