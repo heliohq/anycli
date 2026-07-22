@@ -31,8 +31,10 @@ app is registered, but registration is gated behind a manual
 correct. No divergence to record. One nuance the catalog does not capture and
 this design pins down: **Copper access tokens do not expire and there is no
 refresh token** (official flow doc: "access tokens do not expire and do not
-need to be refreshed"). This drives `refresh_lease: none` in the bundle (the
-Notion precedent shape), not the usual short-expiry refresh cycle.
+need to be refreshed"). This drives `refresh_lease: none` in the bundle — the
+shipped **bitly** bundle is the exact precedent (non-expiring token, no refresh,
+`form_secret` exchange, `userinfo` identity), not the usual short-expiry refresh
+cycle.
 
 ## 1. Which official API surface & endpoints, and why
 
@@ -164,8 +166,15 @@ subcommand). Errors render plain-text by default, JSON envelope under `--json`.
    endpoint for the token).
 
 **Scopes:** exactly one — `developer/v1/all` (read + modify all user records).
-Copper documents finer scopes as "planned" but none exist today, so
-`display_scopes` is the single full-access scope.
+Copper documents finer scopes as "planned" but none exist today. Copper's
+authorize endpoint **requires** a wire-level `scope=developer/v1/all` param
+(verified against the official flow doc — `scope` is a required authorize
+parameter with that fixed value), so this value is the wire scope. In the
+bundle that means it goes in **`oauth.scopes:`** (the `scope=` sent to the
+authorize URL), and is mirrored in **`oauth.display_scopes:`** (the UI-only
+consent slug). This is the **gmail** split (a real wire `scopes:` list plus a
+short `display_scopes:` list), NOT the bitly/notion shape (those providers have
+NO wire scope param, so they carry `display_scopes:` only).
 
 **PKCE:** not documented/supported → `pkce: none`.
 
@@ -177,9 +186,10 @@ Copper documents finer scopes as "planned" but none exist today, so
 Hidden-first (`presentation.visible: false`). This is a **pure `standard_oauth`
 bundle — zero service-side Go adapter** (the flow is textbook auth-code +
 Bearer; nothing falls outside the closed `standard_oauth` capability set).
-Shape follows the shipped `notion` bundle (non-expiring token, `refresh_lease:
-none`), with a `userinfo` identity source since Copper's token response carries
-no account/user id.
+Shape follows the shipped **bitly** bundle (non-expiring token, `refresh_lease:
+none`, `form_secret` exchange, flat `userinfo` identity), since Copper's token
+response carries no account/user id — plus the **gmail** wire-`scopes:` /
+`display_scopes:` split for the required `developer/v1/all` authorize scope.
 
 ```yaml
 schema: helio.provider/v1
@@ -202,14 +212,14 @@ auth:
     token_url: https://app.copper.com/oauth/token
     token_exchange_style: form_secret
     pkce: none
-    display_scopes: [developer/v1/all]
+    scopes: [developer/v1/all]        # wire scope=; Copper authorize requires it
+    display_scopes: [developer/v1/all] # UI consent slug (same value)
     single_active_token: false
     refresh_lease: none               # tokens never expire
 
 identity:
   source: userinfo                    # token response has no id; GET /users/me
-  userinfo:
-    url: https://api.copper.com/developer_api/v1/users/me
+  url: https://api.copper.com/developer_api/v1/users/me   # flat field (bitly/gmail shape)
   stable_key: /id                     # Copper user id (OAuth token is per-user)
   label_candidates: [/name, /email, /id]
 
@@ -250,8 +260,11 @@ together (partial config fails integration-service startup) in **both**
 per-provider append, landing before this provider's L5. Never in the bundle.
 
 **Service code:** none. `standard_oauth` with `form_secret` + `pkce: none` +
-`userinfo` identity + `refresh_lease: none` is fully within the existing
-declarative capability set (Notion/Calendly/Zoho-CRM precedents). If, at
+flat `userinfo` identity + `refresh_lease: none` is fully within the existing
+declarative capability set — every one of these enum values is already shipped
+on `main` by the **bitly** bundle (`form_secret` + `userinfo` + `refresh_lease:
+none`) and the **gmail** bundle (`form_secret` + wire `scopes:` + `userinfo`).
+If, at
 implementation, `GET /users/me` is found to need any non-Bearer header (it does
 not, per docs), that would be the only trigger to reconsider — flagged here at
 stage 1 per the master plan, expected negative.
