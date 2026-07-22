@@ -94,7 +94,7 @@ func (f *messageSendFlags) applyTargeting(body map[string]any) error {
 	targets := []target{
 		{"included_segments", len(f.segments) > 0, func() { body["included_segments"] = f.segments }},
 		{"include_subscription_ids", len(f.subscriptionID) > 0, func() { body["include_subscription_ids"] = f.subscriptionID }},
-		{"include_email_tokens", len(f.emails) > 0, func() { body["include_email_tokens"] = f.emails }},
+		{"email_to", len(f.emails) > 0, func() { body["email_to"] = f.emails }},
 		{"include_phone_numbers", len(f.phones) > 0, func() { body["include_phone_numbers"] = f.phones }},
 		{"filters", f.filters != "", nil},
 	}

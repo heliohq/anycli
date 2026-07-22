@@ -64,9 +64,12 @@ func TestMessageSend_Email_UsesEmailSubjectAndBody(t *testing.T) {
 	if body["email_body"] != "<p>Body</p>" {
 		t.Errorf("email_body = %v", body["email_body"])
 	}
-	toks, ok := body["include_email_tokens"].([]any)
-	if !ok || len(toks) != 1 || toks[0] != "a@b.com" {
-		t.Errorf("include_email_tokens = %v", body["include_email_tokens"])
+	to, ok := body["email_to"].([]any)
+	if !ok || len(to) != 1 || to[0] != "a@b.com" {
+		t.Errorf("email_to = %v", body["email_to"])
+	}
+	if _, present := body["include_email_tokens"]; present {
+		t.Errorf("email send should use email_to, not the deprecated include_email_tokens: %v", body)
 	}
 	if _, present := body["contents"]; present {
 		t.Errorf("email send should not set contents, body = %v", body)
