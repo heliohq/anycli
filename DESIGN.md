@@ -211,12 +211,20 @@ need it.
 token across refreshes; each use resets its idle-expiry to 60 days from now.
 The token expires only after **60 days of inactivity**. Consequences:
 
-- **No `refresh_lease: credential` needed for a rotation hazard.** Unlike
-  DocuSign/SignNow (which mint a new refresh token every refresh and therefore
-  serialize per credential to avoid breaking the chain), Adobe's non-rotating
-  token has no such hazard. Leave `refresh_lease` unset (default). This is a
-  genuine divergence from the sibling eSign tools — do not copy their
-  `refresh_lease: credential` line.
+- **`refresh_lease: none` — explicit, not omitted, and not `credential`.**
+  Unlike DocuSign/SignNow (which mint a new refresh token every refresh and
+  therefore serialize per credential to avoid breaking the chain), Adobe's
+  non-rotating token has no such hazard — so the *correct* lease is `none`, not
+  `credential`. But `refresh_lease` is a **mandatory enum, not an omittable
+  field**: `oauthManifest.RefreshLease` (`manifest.go:90`) carries no
+  `omitempty`, and `validateAuth` (`validate.go:249`) runs
+  `oneOf(RefreshLease, "none", "credential", "provider")`, so an omitted key
+  decodes to `""` and fails `provider-gen --check` with
+  `auth.oauth.refresh_lease "" is invalid`. All 19 shipped OAuth bundles set it
+  explicitly (18 `none`, 1 `provider`). So set it **explicitly to `none`**
+  (→ `OAuthLeaseNone`, `validate.go:441-443`); do **not** leave it unset. The
+  divergence from the sibling eSign tools is the *value* (`none`, not their
+  `credential`), not the omission.
 - **60-day idle expiry is a real operational risk**, not a code concern: a
   connection unused for 60 days dies and needs re-auth. This is inherent to
   Adobe and acceptable for v1 (an assistant that never touches Adobe for two
@@ -270,69 +278,88 @@ branch), Adobe reuses it wholesale by pointing `metadata_capture.base_uri` at
 `/api_access_point` and adding the one `connection.metadata.base_uri`
 credential source.
 
-### 4.3 Per-account OAuth **host** for token exchange + refresh (the second, harder design decision)
+**Note the interaction with §4.3.** Because the official docs make the token
+exchange + refresh **shard-hosted** (§4.3), the default path is a compiled
+adapter that *already* reads `api_access_point` to target the shard — so that
+adapter can write `base_uri` into connection metadata directly, and the
+declarative `metadata_capture` field is then only the *alternative* mechanism
+(useful if a future declarative simplification lands). Either way, the
+`connection.metadata.base_uri` **credential source** is net-new and required for
+anycli to receive `base_uri`.
 
-This is where Adobe diverges from **every** OAuth tool shipped so far, and it
-is the tool's defining risk. Two facts collide:
+### 4.3 Per-account OAuth **host** for token exchange + refresh (compiled adapter — the documented-required path)
 
-- **The refresh endpoint is a different path (`/oauth/v2/refresh`) on the
-  account shard host.** integration-service refreshes via
-  `token_refresh.go:153`: `endpoint := oauth2.Endpoint{TokenURL:
-  def.OAuth.TokenURL}` — the refresh POST reuses the **single fixed
-  `token_url`** through `golang.org/x/oauth2`, which appends
-  `grant_type=refresh_token` to that same URL. Adobe's refresh needs (a) a
-  **`/refresh` path** (not `/token`) and (b) potentially the **shard host** —
-  neither expressible with one fixed `token_url`.
-- **The code→token exchange host may also be shard-specific.** The official
-  quickstart POSTs the exchange to a fixed host in its example, but the
-  redirect hands back `api_access_point` *before* the exchange precisely so the
-  app can target the account shard, and older Adobe walkthroughs fetch the base
-  host via `GET /baseUris` before any REST call. Whether a **generic**
-  `secure.adobesign.com` (or `api.adobesign.com`) host accepts the exchange +
-  refresh for **all** shards, or whether the shard host is mandatory, is
-  **genuinely ambiguous in the docs and MUST be resolved at stage-1 L2** with a
-  real developer account.
+This is where Adobe diverges from **every** OAuth tool shipped so far, and it is
+the tool's defining risk. The official docs are **not ambiguous**: both the
+code→token exchange and the refresh are **shard-hosted on `api_access_point`**
+(verified against the Getting Started and Managing OAuth Tokens guides):
 
-**Stage-1 L2 decision gate (the single most important pre-dev check):**
+- **Token exchange is shard-hosted.** The Getting Started guide POSTs the
+  code→token exchange to the account shard: `POST /oauth/v2/token` with
+  `Host: api.na1.adobesign.com` — i.e. the `api_access_point`. The redirect
+  hands back `api_access_point` *before* the exchange precisely so the app
+  targets the account shard.
+- **Refresh is a different path on the same shard host.** The Managing OAuth
+  Tokens guide states the refresh POST *"must use the api_access_point (shard)
+  … as the base URL"*: `POST /oauth/v2/refresh` with
+  `Host: api.na1.adobesign.com`. It is both a **different path** (`/refresh`,
+  not `/token`) **and** a **per-account host**. Adobe's own guidance: *"Always
+  dynamically use the `api_access_point` host returned during the access token
+  exchange (rather than hardcoding `na1`)."*
+- Only the **authorize** link is shard-less (generic host, §4.1). Everything
+  after the redirect is shard-hosted.
 
-- **If a generic OAuth host accepts both `/oauth/v2/token` and `/oauth/v2/refresh`
-  for any shard** → **Option A (declarative), recommended:** `token_url` is the
-  fixed generic host; add one net-new **`refresh_url`** field to `oauthManifest`
-  and thread it into `token_refresh.go` (use `refresh_url` when set, else fall
-  back to `token_url`) so the refresh POST hits `/oauth/v2/refresh`. Combined
-  with §4.2's `metadata_capture` for the *API* base, the bundle stays
-  `standard_oauth` with **two** narrow declarative growths (`refresh_url` +
-  `metadata_capture`/`connection.metadata.base_uri`). No compiled adapter.
-- **If the exchange and/or refresh must target the per-account shard host** →
-  **Option B (narrow compiled adapter `service/adapter_adobesign.go`),
-  required, not optional.** A fixed `refresh_url` cannot express a per-account
-  host, so declarative growth is insufficient. The adapter — precedent
-  `adapter_slack.go` / `adapter_linkedin.go` / `adapter_x.go` for
-  "response shape or lifecycle outside the closed capability set" — would: read
-  `api_access_point` from the callback/token response, perform the code→token
-  exchange and the `/oauth/v2/refresh` refresh against `{api_access_point}`,
-  and populate `base_uri` into connection metadata (projected through the
-  still-net-new `connection.metadata.base_uri` credential source). This is the
-  master plan's anticipated "a handful of the review lane need a narrow adapter"
-  (§5, Bill.com-class) case.
+integration-service **cannot** express this declaratively. `token_refresh.go:153`
+builds `endpoint := oauth2.Endpoint{TokenURL: def.OAuth.TokenURL}` — the refresh
+POST reuses the **single fixed `token_url`** through `golang.org/x/oauth2`
+(appending `grant_type=refresh_token`), and `validateHTTPSURL` requires
+`token_url` to be one concrete host. A fixed `token_url` — or a fixed net-new
+`refresh_url` — **cannot** encode a per-account shard host. A purely declarative
+bundle is therefore **not viable** for Adobe.
 
-**Recommendation:** treat Option A as the target and Option B as the
-contingency; **the stage-1 L2 host probe decides**. Do not assume A silently —
-the DocuSign design's lesson applies doubly here: "no adapter" and "reuses
-shipped capabilities" are not both guaranteed true, and Adobe's separate-path
-shard-hosted refresh is stronger evidence for an adapter than DocuSign's was.
-Either way, `base_uri` reaches anycli as a credential field and the anycli
-service is unchanged — all shard/OAuth complexity is Helio-side.
+**→ Option B (compiled adapter) is the default, documented-required path — not a
+contingency.** Precedent: `adapter_slack.go` / `adapter_linkedin.go` /
+`adapter_x.go`, wired via `provider_registry.go`'s
+`composeExplicitOAuthRegistration` (adapter serves as both `tokenExchanger` and
+`identityResolver`). `service/adapter_adobesign.go` would: read
+`api_access_point` from the redirect callback / token response, perform **both**
+the code→token exchange and the `/oauth/v2/refresh` refresh against
+`{api_access_point}`, do the shard-hosted `GET /users/me` identity call (§5),
+and populate `base_uri` into connection metadata (projected through the
+still-net-new `connection.metadata.base_uri` credential source, §4.2). The
+bundle still declares a schema-required `token_url` (a generic placeholder to
+satisfy `validateHTTPSURL`), but the adapter overrides the host at runtime with
+the captured shard. This is the master plan's anticipated "a handful of the
+review lane need a narrow adapter" (§5, Bill.com-class) case.
+
+**Adapter selection is by `RuntimeStrategy`, a closed enum — so Option B needs a
+net-new runtime strategy.** `provider_registry.go` routes `standard_oauth` to
+the declarative `standardOAuthExchanger{}` (line 80); only the fixed set
+`{linkedin_oidc, x_exclusive_grant, slack_self_built_app, discord_bot_install}`
+routes to compiled adapters via `composeExplicitOAuthRegistration`. Adobe's
+adapter therefore requires a **new `model.RuntimeStrategy` value** (e.g.
+`adobe_sign_shard`), added to the enum + both `provider_registry.go` switches +
+the runtime-contract validation. **`runtime_strategy: standard_oauth` is
+wrong** for this tool — that is the crux the earlier "Option A stays
+standard_oauth" framing got backwards.
+
+**Stage-1 L2 probe (narrowed, not a decision gate).** The host question is
+*settled* by the docs (shard-hosted); build Option B. The only residual stage-1
+check is the **inverse**: does a generic host *also* accept the exchange/refresh
+for all shards (which would enable a future declarative simplification)? Treat
+that strictly as a note for later — **do not** hold Option B on it. Either way,
+`base_uri` reaches anycli as a credential field and the anycli service is
+unchanged — all shard/OAuth complexity is Helio-side.
 
 ### 4.4 Disconnect / revoke
 
-Adobe has `POST /oauth/v2/revoke`, but it is **shard-hosted** (same per-account
-host problem as refresh) and integration-service's declarative revoker uses a
-fixed `revoke.url`. So set **`disconnect_mode: local_only`** (the SignNow /
-DocuSign precedent): Helio forgets the credential; the user revokes app access
-from their Adobe account. A declarative shard-aware revoker is only worth
-building if Option B's adapter already exists (it would own the shard host
-anyway) — defer.
+Adobe has `POST /oauth/v2/revoke`, but it is **shard-hosted** (verified — same
+`api_access_point` base as refresh) and integration-service's declarative
+revoker uses a fixed `revoke.url`. So set **`disconnect_mode: local_only`** (the
+SignNow / DocuSign precedent): Helio forgets the credential; the user revokes
+app access from their Adobe account. Since the §4.3 adapter already owns the
+shard host, a shard-aware revoke could later be folded into it — but
+`local_only` is the correct, safe v1 choice; defer the active revoke.
 
 ### 4.5 oauth_review lane — verified from first principles
 
@@ -375,9 +402,13 @@ specific, so lane 1 records which data center the Helio partner app lives on.
 
 Directory / `key:` = `adobe_sign` (axis ③). Bundle sketch (final field
 spellings confirmed against `provider-yaml.md` + `provider-gen --check` at
-build time). **Assumes Option A (declarative)**; Option B replaces the OAuth
-host handling with a compiled adapter and drops `refresh_url` in favor of the
-adapter, but keeps the same `credential.fields` / `metadata_capture` sources.
+build time). **Uses the §4.3 compiled adapter (`adapter_adobesign.go`) — the
+documented-required path** — for the shard-hosted exchange, the
+`/oauth/v2/refresh` refresh, and the `GET /users/me` identity. Consequences that
+shape the sketch: `token_url` is declared only to satisfy the schema and is
+host-overridden at runtime; `runtime_strategy` is a **net-new compiled
+strategy**, not `standard_oauth`; and there is **no** `refresh_url` (a fixed URL
+cannot reach a per-account shard).
 
 ```yaml
 schema: helio.provider/v1
@@ -396,32 +427,45 @@ auth:
   owner: individual        # consent authenticates an Adobe Sign user; connection belongs to the assistant
   required_config_fields: [oauth.client_id, oauth.client_secret]
   oauth:
-    authorize_url: https://secure.adobesign.com/public/oauth/v2   # generic host, NO shard
-    token_url: https://secure.adobesign.com/oauth/v2/token         # Option A: generic host (stage-1 L2 must confirm)
+    authorize_url: https://secure.adobesign.com/public/oauth/v2   # generic host, NO shard (shardless authorize)
+    token_url: https://secure.adobesign.com/oauth/v2/token         # schema-required placeholder only; adapter_adobesign.go
+                                                                   # overrides the host to {api_access_point} at runtime (§4.3)
     token_exchange_style: form_secret     # client creds in FORM BODY (NOT form_basic — the DocuSign divergence)
     pkce: none                            # confidential client
     scopes: [agreement_read:self, agreement_write:self, agreement_send:self, library_read:self, user_login:self]
     display_scopes: [agreement_read, agreement_write, agreement_send, library_read]
     single_active_token: false
-    # NO refresh_lease — Adobe refresh tokens are NON-rotating (60-day idle reset),
-    # so there is no per-credential rotation hazard (unlike DocuSign/SignNow).
-    # NET-NEW FIELD (Option A): refresh_url points the refresh POST at /oauth/v2/refresh
-    # (different path from token). oauthManifest has no refresh_url on this base
-    # (manifest.go:81-91) and token_refresh.go:153 reuses def.OAuth.TokenURL — so this
-    # key fails strict-decode until the field + token_refresh.go threading are added.
-    refresh_url: https://secure.adobesign.com/oauth/v2/refresh
+    refresh_lease: none    # MANDATORY enum (validate.go:249; RefreshLease has no omitempty, manifest.go:90) — an omitted
+                           # key decodes to "" and fails provider-gen --check. Adobe refresh tokens are NON-rotating
+                           # (60-day idle reset), so the correct value is `none`, NOT `credential` (unlike DocuSign/SignNow).
+    # NO refresh_url: refresh is shard-hosted on {api_access_point}/oauth/v2/refresh (§4.3), which a fixed
+    # token_url/refresh_url cannot express — adapter_adobesign.go owns the shard-aware exchange + refresh.
 
 identity:
-  source: token_response     # no cheap userinfo needed for identity; token response suffices,
-                             # OR source: userinfo with url https://secure.adobesign.com/oauth/v2/userinfo
-  stable_key: /userId        # stage-1: confirm which identity field Adobe returns (userinfo /userId/email)
-  label_candidates: [/email, /userId]
+  # VERIFIED against the official token guide: the token response carries NO identity field —
+  # only access_token/refresh_token/token_type/expires_in/api_access_point/web_access_point. So
+  # `source: token_response` with `/userId` would FAIL identity extraction at runtime (there is no
+  # /userId in the response). There is also NO Acrobat-Sign OIDC userinfo on the OAuth host; the v6
+  # caller-identity call is `GET /users/me` on the SHARD host {api_access_point} — shard-hosted like
+  # refresh, so no fixed userinfo url can reach it. Identity is therefore owned by the §4.3 compiled
+  # adapter (adapter_adobesign.go's identityResolver does the shard-hosted GET /users/me and returns
+  # the account key + label directly), selected by the net-new runtime_strategy below — exactly as
+  # x/slack's adapters own identity. So identity is adapter-owned, not declarative:
+  source: strategy           # compiled resolver (shard GET /users/me); stage-1 confirms exact field (userId / email)
+  # Declarative alternative (rejected for v1): Adobe IMS userinfo
+  # https://ims-na1.adobelogin.com/ims/userinfo/v2 — but it is IMS-region-hosted and requires
+  # openid/email/profile scopes NOT in the Acrobat Sign scope set above, a worse fit than the
+  # adapter's shard GET /users/me.
 
 connection:
   mode: isolated
   disconnect_mode: local_only            # revoke exists but is shard-hosted; local_only is the safe choice (§4.4)
-  runtime_strategy: standard_oauth
-  # base_uri captured from the token response's api_access_point (Salesforce instance_url pattern).
+  runtime_strategy: adobe_sign_shard      # NET-NEW compiled strategy (NOT standard_oauth): routes to adapter_adobesign.go
+                                          # via composeExplicitOAuthRegistration (§4.3). Needs a runtimeStrategyContracts
+                                          # entry pinning provider=adobe_sign + the oauth/owner/mode/disconnect tuple,
+                                          # plus the model.RuntimeStrategy enum value + both provider_registry.go switches.
+  # base_uri = api_access_point, present in the TOKEN response — persisted for anycli via metadata_capture below
+  # (complements the adapter, which owns the shard-aware exchange/refresh/identity).
   # NET-NEW FIELD: connectionManifest has no metadata_capture and KnownFields(true) rejects it (§4.2 item 1).
   metadata_capture:
     base_uri: /api_access_point          # static RFC-6901 pointer into the TOKEN response (not a deriver)
@@ -444,27 +488,41 @@ tool:
 **Capability growth needed (Helio side) — verified against this base, honest
 accounting:**
 
-1. **`connection.metadata_capture` manifest field** accepting a
+1. **Compiled `service/adapter_adobesign.go` + a net-new
+   `model.RuntimeStrategy` (`adobe_sign_shard`)** — the §4.3
+   documented-required path. `provider_registry.go` routes `standard_oauth` to
+   the declarative `standardOAuthExchanger{}`; only a strategy in
+   `composeExplicitOAuthRegistration`'s closed set reaches a compiled adapter.
+   Growth: the enum value, a `runtimeStrategyContracts` entry (pinning
+   provider=`adobe_sign` + the oauth/owner/mode/disconnect tuple), both
+   `provider_registry.go` switches, and the adapter body itself (shard-hosted
+   code→token exchange, `{api_access_point}/oauth/v2/refresh` refresh, and the
+   shard-hosted `GET /users/me` identity). Precedent mechanism:
+   `adapter_slack.go` / `adapter_x.go`.
+2. **`connection.metadata_capture` manifest field** accepting a
    token-response JSON Pointer — absent from `connectionManifest`
    (`manifest.go:109-113`); `KnownFields(true)` rejects the sketch. Same field
    Salesforce/DocuSign need; **Adobe's variant is the simplest** (static token-
-   response pointer, no userinfo GET, no array selection).
-2. **`connection.metadata.base_uri` credential source** — absent from
+   response pointer, no userinfo GET, no array selection). Persists `base_uri`
+   for the credential projection, complementing the item-1 adapter.
+3. **`connection.metadata.base_uri` credential source** — absent from
    `knownCredentialSources` (`validate.go:53-59`); `validateCredentials` rejects
-   it today.
-3. **`refresh_url` on `oauthManifest` + `token_refresh.go` threading**
-   (**Option A only**) — `token_refresh.go:153` reuses `def.OAuth.TokenURL`; a
-   `refresh_url` (when set) must override it so refresh hits `/oauth/v2/refresh`.
-   **Contingent on the §4.3 stage-1 L2 host probe:** if the exchange/refresh
-   must be shard-hosted, item 3 is replaced by **Option B's compiled
-   `adapter_adobesign.go`**, which owns the shard-aware exchange + refresh +
-   `base_uri` capture instead.
+   it today. Required regardless — it is how anycli receives `base_uri`.
+
+**No `refresh_url`:** an earlier draft proposed a declarative `refresh_url` as
+an "Option A." The official docs make exchange + refresh **shard-hosted**
+(§4.3), which a fixed URL cannot express, so `refresh_url` is *not* the path —
+the item-1 adapter owns refresh instead.
 
 **Genuinely reused / shipped (not net-new):** `form_secret` token exchange,
-`pkce: none`, `local_only` disconnect, `standard_oauth` runtime strategy,
-`isolated` connection mode, the generic `authorize_url`. **NOT shipped — do not
-treat as such:** `metadata_capture`, the `connection.metadata.base_uri`
-credential source, and (Option A) `refresh_url`.
+`pkce: none`, `local_only` disconnect, `isolated` connection mode, the generic
+`authorize_url`, and the adapter **mechanism**
+(`tokenExchanger`/`identityResolver` + `composeExplicitOAuthRegistration`,
+already used by slack/x/linkedin/discord). **NOT shipped — do not treat as
+such:** the net-new `adobe_sign_shard` runtime strategy + `adapter_adobesign.go`
+body, `metadata_capture`, and the `connection.metadata.base_uri` credential
+source. **`standard_oauth` is NOT usable here** (it forces the declarative
+exchanger).
 
 - **`toolToProvider` divergence (required):** add `"adobe-sign":
   "adobe_sign"` to `helio-cli/internal/toolcred/resolver.go` — verified: on this
@@ -489,16 +547,18 @@ credential source, and (Option A) `refresh_url`.
 | Layer | Adobe Sign specifics | Needs external creds? |
 |---|---|---|
 | **L1** anycli unit | `httptest` fake of the v6 API: assert base path `{base_uri}api/rest/v6`, `Authorization: Bearer` header; `transientDocuments` multipart upload → id; `agreement send` two-step (transient-then-create AND `--library-id` single-step); `agreement list/get/members`; `agreement cancel` PUT `/state` body `state:CANCELLED`; `combinedDocument` download to `--out`; `library list/get`; plain + `--json` error rendering (401/404). The `api_access_point` capture and the OAuth host handling are **Helio-side** concerns, unit-tested there, not in anycli. | No |
-| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN` + `ANYCLI_CRED_BASE_URI` (the shard host) from a real Adobe Sign **developer** account; run `document upload`, `agreement send`, `agreement get`, `agreement list`, `library list` against the account's shard. Proves field names + the two-step send + request shapes match the live v6 API. **Also the §4.3 stage-1 host probe** (does the generic host accept token exchange + refresh, or is the shard mandatory?) — this decides Option A vs B and MUST run before Helio-side dev commits to a shape. | **Yes** — Adobe Acrobat Sign developer account (free dev tier) + a token minted from a registered app (lane 1). |
-| **L3** generation + suites | `provider-gen` + `provider-gen --check` (5 projections) green **only after the §4.2/§4.3 growth lands** (the `metadata_capture` field + `connection.metadata.base_uri` source, plus Option A's `refresh_url` field OR Option B's adapter registration — without them the bundle fails strict-decode / the credential-source allowlist); the new metadata-capture (and/or refresh_url / adapter) unit tests green; helio-cli + integration-service suites green; `toolToProvider` resolver test covers `adobe-sign`→`adobe_sign`. On-branch: local `replace` to the anycli branch + local regen (not committed). | No |
-| **L4** singleton + seed | `POST /internal/test-only/connections/seed` with `provider:"adobe_sign"`, seeding `access_token` (+ short `expires_at`) **and** `refresh_token` **and** the captured `base_uri` metadata, then `heliox tool adobe-sign -- agreement list`. Exercises token gateway → refresh (against `/oauth/v2/refresh`, Option A) → metadata-injected `base_uri` → anycli path. Seed `base_uri` explicitly since L4 bypasses the connect-time capture. The short-`expires_at` forces the refresh path — the single best test of the §4.3 divergence. | **Yes** — a real developer access + refresh token and the shard `base_uri` (lane 1 dev app). |
+| **L2** harness real API | `ANYCLI_CRED_ACCESS_TOKEN` + `ANYCLI_CRED_BASE_URI` (the shard host) from a real Adobe Sign **developer** account; run `document upload`, `agreement send`, `agreement get`, `agreement list`, `library list` against the account's shard. Proves field names + the two-step send + request shapes match the live v6 API. The §4.3 host question is already settled by the docs (exchange + refresh are shard-hosted → compiled adapter); L2 optionally records whether a generic host *also* accepts exchange/refresh (a future-simplification note only, not a gate). | **Yes** — Adobe Acrobat Sign developer account (free dev tier) + a token minted from a registered app (lane 1). |
+| **L3** generation + suites | `provider-gen` + `provider-gen --check` (5 projections) green **only after the §4.2/§4.3 growth lands** (the `metadata_capture` field + `connection.metadata.base_uri` source + the net-new `adobe_sign_shard` runtime strategy & `adapter_adobesign.go` registration — without them the bundle fails strict-decode / the credential-source allowlist / the runtime-strategy contract); the new metadata-capture + adapter unit tests green; helio-cli + integration-service suites green; `toolToProvider` resolver test covers `adobe-sign`→`adobe_sign`. On-branch: local `replace` to the anycli branch + local regen (not committed). | No |
+| **L4** singleton + seed | `POST /internal/test-only/connections/seed` with `provider:"adobe_sign"`, seeding `access_token` (+ short `expires_at`) **and** `refresh_token` **and** the captured `base_uri` metadata, then `heliox tool adobe-sign -- agreement list`. Exercises token gateway → the `adapter_adobesign.go` refresh (POST `{api_access_point}/oauth/v2/refresh`, §4.3) → metadata-injected `base_uri` → anycli path. Seed `base_uri` explicitly since L4 bypasses the connect-time capture. The short-`expires_at` forces the refresh path — the single best test of the §4.3 shard-hosted-refresh divergence. | **Yes** — a real developer access + refresh token and the shard `base_uri` (lane 1 dev app). |
 | **L5** full connect (pre-flip, once) | `heliox tool adobe-sign auth` → real Adobe consent on the dev/partner app → confirm `oauth_connected` event → confirm `api_access_point` captured as `base_uri` on the connection → run `agreement list` unseeded through the new connection. Human-in-the-loop (oauth L5). Gates the visible flip together with **partner certification clearance**. | **Yes** — human consent on a real Adobe Sign account (lane 3) + partner certification (lane 1 review) before the flip. |
 
 **Layers needing externally supplied credentials:** L2, L4, L5 (an Adobe
 Acrobat Sign developer account + the lane-1 partner/dev app; L5 additionally
 needs a human consent session and partner certification before the visible
-flip). L1 and L3 are fully self-contained. **L2 additionally carries the
-stage-1 host-probe that selects Option A vs Option B — the earliest gate.**
+flip). L1 and L3 are fully self-contained. **L2 additionally validates the
+compiled-adapter request shapes against the live shard, and optionally notes
+whether a generic host also accepts exchange/refresh (future simplification
+only — the shard-hosted adapter path is already fixed by the docs).**
 
 ---
 
@@ -517,30 +577,40 @@ stage-1 host-probe that selects Option A vs Option B — the earliest gate.**
   token exchange (form-body client creds — NOT Basic), scopes
   `agreement_read/write/send:self library_read:self user_login:self` (no
   `offline_access`), 1-hour access token (`expires_in` present, no
-  `assumed_ttl`), **non-rotating** refresh token with 60-day idle expiry (**no
-  `refresh_lease`**), `local_only` disconnect.
+  `assumed_ttl`), **non-rotating** refresh token with 60-day idle expiry
+  (**`refresh_lease: none`, set explicitly — mandatory enum, not omittable**),
+  `local_only` disconnect.
 - **Three verified divergences from the shipped eSign tools, all Helio-side:**
   (1) `form_secret` not `form_basic`; (2) API base host is the per-account
   `api_access_point` shard → **`metadata_capture` static token-response pointer
   `/api_access_point`** (Salesforce pattern, simpler than DocuSign's userinfo
   deriver) + **`connection.metadata.base_uri` credential source** — both
   net-new on this base (`manifest.go:109-113` / `validate.go:53-59`); (3)
-  **refresh is a different path (`/oauth/v2/refresh`) on a possibly shard-
-  specific host**, which `token_refresh.go:153`'s single fixed `token_url`
-  cannot express.
-- **Option A vs B decision gate (§4.3), decided at stage-1 L2:** if a generic
-  OAuth host serves exchange + refresh for all shards → **Option A
-  (declarative):** add a `refresh_url` field + `metadata_capture`; bundle stays
-  `standard_oauth`, no adapter. If exchange/refresh must be shard-hosted →
-  **Option B (narrow compiled `adapter_adobesign.go`), required** — owns the
-  shard-aware exchange, `/oauth/v2/refresh`, and `base_uri` capture. Do not
-  assume A silently.
+  **both token exchange and refresh are shard-hosted on `api_access_point`**
+  (exchange `POST /oauth/v2/token`, refresh `POST /oauth/v2/refresh` — both with
+  `Host: api.na1.adobesign.com`), which `token_refresh.go:153`'s single fixed
+  `token_url` cannot express → a compiled `adapter_adobesign.go` behind a
+  net-new `adobe_sign_shard` runtime strategy (NOT `standard_oauth`).
+- **OAuth host (§4.3), settled by the official docs:** token exchange **and**
+  refresh are shard-hosted on `api_access_point`, which no fixed
+  `token_url`/`refresh_url` can express → the required path is a **compiled
+  `adapter_adobesign.go` behind a net-new `adobe_sign_shard` runtime strategy**
+  (NOT `standard_oauth`; that forces the declarative exchanger). The adapter
+  owns the shard-aware exchange, `/oauth/v2/refresh`, and the `GET /users/me`
+  identity; `metadata_capture` persists `base_uri`. There is **no declarative
+  "Option A"** — a stage-1 probe for whether a generic host *also* accepts
+  exchange/refresh is only a note for a possible future simplification, not a
+  gate on v1.
 - **oauth_review:** Adobe **PARTNER** (multi-tenant) app requires **partner
   certification** before production; self-serve dev/test app is immediate, so
   the gate is on the **visible flip only**, not dev/L4/merge. Lane correct
   (high confidence). Wave-board note: partner-certification tail, longer than
   DocuSign Go-Live but a normal partner program.
-- **Open items for lane 1 / batch lead:** (a) the §4.3 host probe result (A vs
-  B); (b) which Adobe data center the Helio partner app is registered on (app
-  credentials are shard/account specific); (c) confirm the identity field
-  Adobe returns (`token_response` vs a `/oauth/v2/userinfo` GET) at stage-1.
+- **Open items for lane 1 / batch lead:** (a) stage-1 confirmation of the exact
+  identity field from the shard-hosted `GET /users/me` (`userId` vs `email`) for
+  the adapter's resolver — the token response carries no identity, and there is
+  no Acrobat-Sign OIDC userinfo on the OAuth host (verified §5); (b) which Adobe
+  data center the Helio partner app is registered on (app credentials are
+  shard/account specific); (c) optional: a stage-1 note on whether a generic
+  host *also* accepts exchange/refresh (future declarative simplification only —
+  does not change the v1 adapter path).
