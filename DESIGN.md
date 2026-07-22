@@ -351,3 +351,83 @@ agent throughput.
   earlier draft implied). In that case escalate to the §6 catalog-amendment:
   ship api_key-with-caveat, or swap Buffer out (Hootsuite covers the category).
   Record whichever on the wave-board.
+
+## 8. Stage-2 verification (2026-07-22) — schema confirmed against official docs
+
+Every gate the earlier sections flagged as "unconfirmed" was verified against
+developers.buffer.com. Resolutions (and the resulting divergences from the
+§1–§7 sketch, which drove implementation):
+
+- **MutationError arm — RESOLVED, single arm suffices.** The official *first
+  post* guide (`guides/your-first-post.html`) shows the `createPost` response
+  union selected with exactly `... on PostActionSuccess { post { id text dueAt } }`
+  plus `... on MutationError { message }`, and explicitly advises "always include
+  `... on MutationError { message }` to catch errors." `MutationError` is the
+  base error interface these mutations resolve against, so one arm surfaces every
+  failure. Implementation additionally selects `__typename` on every mutation
+  payload and treats any non-success typename as a failure (surfacing `message`,
+  falling back to the typename) — so fail-fast holds even for an error type that
+  doesn't implement the interface. No enumeration of NotFoundError /
+  RestProxyError / VoidMutationError is required.
+- **`posts` query — Relay connection, NOT a flat list (divergence from §3).**
+  Verified verbatim (`examples/get-paginated-posts.html`): `posts(after, first,
+  input: { organizationId, filter: { status, channelIds } }) { pageInfo {
+  startCursor endCursor hasNextPage } edges { node { id text createdAt channelId
+  } } }`. Confirmed Post read-fields are `id text createdAt channelId` (NOT
+  `dueAt`/`status` in the node — `status` is an input filter only). `--org` is
+  required; `--channel` and `--status` are optional filters. Pagination exposed
+  as `--first` / `--after`.
+- **`filter.status` is `[PostStatus!]` (array of enum), not a scalar string
+  (divergence from §3).** Confirmed value `sent` in the official example (plus
+  `draft` elsewhere). Passed via a typed GraphQL variable (`$input: PostsInput!`)
+  so the server coerces the JSON string to the enum; `--status <s>` maps to
+  `filter: { status: ["<s>"] }`. The full `PostStatus` member set is still not
+  enumerated in the reference, so the flag stays an un-validated pass-through
+  (L2 confirms live values).
+- **`createPost` minimal input (refines §1's "assets required" schema-reference
+  read).** The working example creates a text-only post with just `text`,
+  `channelId`, `schedulingType: automatic`, `mode: addToQueue` — `assets` is NOT
+  required in practice. Enum values confirmed: `schedulingType: automatic`;
+  `mode ∈ {addToQueue, customScheduled}`; `customScheduled` pairs with `dueAt`
+  (ISO-8601 UTC); `saveToDraft: true` for drafts.
+- **`assets`/`metadata` are raw JSON pass-throughs, not a cooked `--image-url`
+  (divergence from §3).** The `assets` object shape is undocumented on any
+  fetchable page (the images example 404s; data-model omits it), so — per the
+  no-silent-guess / fail-fast rule — the tool exposes `--assets-json` and
+  `--metadata-json` (validated as JSON, exit 2 on parse failure) rather than
+  guessing a structure. The changelog `assets.videos` × `metadata.*.linkAttachment`
+  mutual-exclusion is enforced as a structural check on the parsed JSON (exit 2).
+- **`createIdea` content is `{ title, text }` (refines §3's `--text`-only).**
+  Verified (`examples/create-idea.html`): `content: { title, text }`, response
+  `... on Idea { id content { title text } }`. Tool exposes `--text` (required)
+  and `--title` (optional).
+- **Identity query trimmed to verified fields.** The only account fields the
+  official docs demonstrate are `id`, `email` (auth guide) and `organizations {
+  id name }` (data model). Identity resolution uses `query { account { id email
+  } }` → stable_key `/data/account/id`, labels `[/data/account/email,
+  /data/account/id]` (the unverified `name` field is dropped from §5's plan).
+  `account get` selects `id email organizations { id name }`; `channel list`
+  selects the verified `id name service` only.
+- **All auth params confirmed unchanged** (`guides/authentication.html`):
+  authorize `https://auth.buffer.com/auth`, token `https://auth.buffer.com/token`,
+  API base `https://api.buffer.com`, PKCE S256 required for all clients,
+  single-use rotating refresh tokens, scopes as in §4.
+
+### Helio-side capability growths this required (integration-service)
+
+Buffer is the first `standard_oauth` provider whose account identity comes from
+a **GraphQL POST** and whose refresh token **rotates**. Two reviewed capability
+additions (both DESIGN-mandated in §4/§5, both with sibling-branch precedent):
+
+1. **`identity.source: post_userinfo`** — a new declarative identity source that
+   POSTs a fixed GraphQL query (`identity.query`) to `identity.url` with Bearer
+   auth and extracts `stable_key` / `label_candidates` via the existing JSON
+   Pointer machinery (pointers address into the `{ data: { account: … } }`
+   envelope). Keeps Buffer on `runtime_strategy: standard_oauth` with zero
+   provider-specific Go (DESIGN §4 option 1, chosen over the adapter option). A
+   GraphQL `errors` array in the identity response fails Connect fast.
+2. **`standard_oauth` refresh-lease allowed-set** — the standard_oauth runtime
+   contract previously pinned `refresh_lease: none` exactly; it now accepts
+   `{none, provider}`. Buffer selects `refresh_lease: provider` so refreshes of
+   its single-use rotating refresh token are serialized per-connection across
+   replicas (a concurrent double-refresh would otherwise invalidate the grant).
