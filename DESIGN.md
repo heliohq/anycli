@@ -21,18 +21,26 @@ a short-lived **`sessionId`**; both `devKey` and `sessionId` then ride as HTTP
 **headers** on every call. There is no `/authorize` redirect, no `code`
 exchange, no `access_token`/`refresh_token`, no consent screen. (Sources below.)
 
-So the `oauth_review` label captures the *right operational gate for the wrong
-reason*: BILL API access is restricted to **select partners** ("reach out to
-your account manager"), which is a real human review/partner clock — but it is
-an **API-access partner gate**, not an OAuth app-review gate. Recording the
-divergence per the independent-judgment mandate:
+So the `oauth_review` label is **not** describing an OAuth app-review gate, and
+the earlier "restricted to select partners" reading of it was **too strong**.
+Verified against BILL's own `get-started-in-production` page (§3): a **per-org
+production devKey is self-service** — sign up at `bill.com/signup`, then
+Settings → Sync & Integrations → Manage Developer Keys → Generate developer key.
+The genuine human/partner clock applies to the narrower **app-partner /
+multi-tenant path** — the "As a BILL app partner…" onboarding model and its **AP
+& AR sync token** (§3.1) — not to obtaining a devKey per se. So `oauth_review`'s
+real content here is: *(a)* it is not OAuth (no authorize/consent/refresh), and
+*(b)* if we adopt the app-partner model (the recommended multi-tenant shape),
+that model's onboarding + sync-token issuance carries a partner review clock.
+Recording the divergence per the independent-judgment mandate:
 
 | Axis | Catalog says | Official docs say | This design |
 |---|---|---|---|
 | Auth protocol | `oauth_review` (implies OAuth2 authorize) | devKey + credential login → `sessionId` header | **manual multi-field credentials** (api_key-class), **no OAuth** |
 | Helio runtime strategy | (implied `standard_oauth`) | n/a | `manual_credentials` (multi-field) |
 | Where the "adapter" lives | "one of the §5 narrow **integration-service** service adapters" (§6) | n/a | **anycli service** owns the login→call session dance; integration-service stays on the existing manual path + one narrow **verifier** — **no** `service/adapter_billcom.go` |
-| Wave / scheduling | 3-hold, partner-gated | partner-only API access confirmed | **keep** 3-hold + partner gate |
+| Production API access | (implied hard partner gate) | **self-serve per-org devKey**; partner gate is on the app-partner/sync-token path only | 3-hold is a *choice* tied to the recommended app-partner model, **not** a hard "no devKey without a partner" constraint (§3, §6) |
+| Per-user credential | (n/a) | raw username/password (v3 login) **or** AP & AR sync token (partner, v2 login, no-payments) | **prefer the sync token** in the app-partner model (§3.1/§4.3); raw password only in the single-org fallback |
 | L4 seedability | (oauth_review normally seedable as user-token) | credentials are static, api_key-class | **seedable** (multi-field user-token) |
 
 The master plan anticipated a compiled integration-service adapter. Verified
@@ -79,17 +87,25 @@ session introspection:
 | **Payments** (AP, money-out) | `GET /payments`, `GET /payments/{id}` | **read only** (see money-movement carve-out) |
 | **Session/org** | `GET /login/session`, `GET /organizations` | whoami / health / list login orgs |
 
-**Money-movement carve-out (auth-model-driven, not arbitrary).** `POST /login`
-mints a **limited-access** session. BILL requires an **MFA-trusted API session**
-(minted via `rememberMeId`+`device`, or MFA step-up) to **create payments** or
-**add bank accounts**. A headless AI teammate cannot complete an interactive MFA
-step-up, so **`POST /payments`, `POST /payments/bulk`, bank-account setup, and
-`/bulk` money endpoints are OUT OF SCOPE for v1**. Payments are exposed
-**read-only**. This is a deliberate safety + feasibility boundary: the valuable,
-low-risk surface (payables/receivables visibility + draft creation) ships;
-irreversible money movement that also can't authenticate headless does not.
-Revisit only if a service-account/MFA-trusted-session story lands at the
-pre-verify gate.
+**Money-movement carve-out (safety boundary; sourcing hedged).** `POST /login`
+mints a **limited-access** session. BILL documents that creating payments /
+adding bank accounts needs an elevated ("MFA-trusted") session rather than a
+plain login session — but note the **exact** mechanism (whether the gate is
+`rememberMeId`+`device`, an MFA step-up, or another trusted-session flow, and
+whether it applies to `POST /payments` specifically) **could not be pinned to a
+single official page during this pass** (the MFA-trusted doc URL 404s). What
+**is** corroborated by the keys-&-tokens doc: a partner **AP & AR sync token**
+session has "BILL payment capabilities are not available" (limited access, §3.1).
+Either way the design outcome is the same and conservative: **`POST /payments`,
+`POST /payments/bulk`, bank-account setup, and `/bulk` money endpoints are OUT OF
+SCOPE for v1**; payments are exposed **read-only**. The valuable, low-risk
+surface (payables/receivables visibility + draft creation) ships; irreversible
+money movement does not. If we adopt the **sync-token** per-user credential
+(§3.1/§4.3, the recommended app-partner shape), this carve-out becomes
+**automatic** — payments are simply unavailable on that session, so the boundary
+no longer rests on the unverified MFA-step-up argument. Revisit payment writes
+only if a service-account / MFA-trusted-session story is confirmed at the
+pre-verify gate against an official page that actually states it.
 
 ---
 
@@ -135,14 +151,19 @@ anycli is the credential-safe execution engine: it "never imports Helio code
 and knows nothing about OAuth, Vault, or connections — it only executes one
 embedded definition against a resolver-supplied credential map"
 (`references/anycli-development.md`). The bill-com service receives a **static
-four-field credential map** and performs the login→call dance itself, per
-invocation:
+credential map** and performs the login→call dance itself, per invocation:
 
 1. Read injected env: `BILLCOM_DEV_KEY`, `BILLCOM_USERNAME`,
    `BILLCOM_PASSWORD`, `BILLCOM_ORG_ID`, optional `BILLCOM_ENV`
-   (`prod` default | `stage`) selecting the base URL.
-2. `POST {base}/login` with JSON body
-   `{devKey, username, password, organizationId}` → `sessionId`.
+   (`prod` default | `stage`) selecting the base URL, and `BILLCOM_AUTH_MODE`
+   (`v3` default | `sync_token`) selecting the login endpoint (§3.1).
+2. Log in → `sessionId`. Endpoint depends on the credential type (§3.1): the
+   raw/console credential uses `POST {base}/v3/login` with JSON body
+   `{devKey, username, password, organizationId}`; the AP & AR sync-token
+   credential uses the v2 login (`POST /v2/Login.json`) per the keys-&-tokens
+   callout (pre-verify: confirm against sandbox). A single `BILLCOM_AUTH_MODE`
+   env flag (`v3` default | `sync_token`) selects the path; the returned
+   `sessionId` rides as a header on the v3 resource calls in both cases.
 3. Set headers `devKey: <devKey>`, `sessionId: <sessionId>`,
    `content-type: application/json` on the requested operation and execute it.
 4. On `sessionId`-expired errors (35-min inactivity), re-login once and retry —
@@ -166,9 +187,14 @@ Four `CredentialBinding` entries, each a `field` source → `env` inject:
 | `password` | `BILLCOM_PASSWORD` | login body `password` |
 | `organization_id` | `BILLCOM_ORG_ID` | login body `organizationId` |
 
-(`BILLCOM_ENV` is a non-credential env flag set by the definition/runtime, not a
-resolver field.) anycli is agnostic to whether each field originated from Helio
-app-config or per-user Vault — it only sees the map (see §4 for the split).
+(`BILLCOM_ENV` (base URL) and `BILLCOM_AUTH_MODE` (`v3` | `sync_token`, selecting
+the login endpoint per §2.1/§3.1) are non-credential env flags projected from the
+definition/bundle, not secret resolver fields.) The map keys stay `username` /
+`password` regardless of model — Model A projects `token.sync_token_name` →
+`username` and `token.sync_token_value` → `password` (§4.3), so anycli is
+agnostic to whether the pair is a raw login or a sync token, and to whether each
+field originated from Helio app-config or per-user Vault — it only sees the map
+(see §4 for the split).
 
 **L1 (unit tests):** httptest fake serving `/login` (asserts JSON body carries
 all four fields) + each resource endpoint (asserts `devKey`/`sessionId` headers,
@@ -181,10 +207,13 @@ usage/parse exit-2. Never hit the real API from a unit test.
 ## 3. Credential fields & the exact auth flow (verified)
 
 **Login (POST `/connect/v3/login`), JSON body:**
-`devKey` (dev account key, **required**), `username` (BILL sign-in email,
-**required**), `password` (**required**; or `consoleApiToken` for Accountant
-Console users), `organizationId` (**required**). Optional `rememberMeId`+`device`
-for an MFA-trusted session (out of scope — money movement only).
+`devKey` (dev account key, **required**), `username` (**required**),
+`password` (**required**), `organizationId` (**required**). The `username` /
+`password` pair carries one of three documented credential shapes (see §3.1):
+(a) the customer's raw BILL sign-in email + password; (b) an Accountant Console
+`consoleApiToken`; or (c) an **AP & AR sync token** name/value pair (partner
+onboarding; note the v2-login wrinkle in §3.1). Optional `rememberMeId`+`device`
+for an elevated session (money movement only — out of scope).
 
 **Response:** `200` with a BILL-generated **`sessionId`** (scoped to the
 `devKey` used).
@@ -192,18 +221,96 @@ for an MFA-trusted session (out of scope — money movement only).
 **Authenticated calls:** headers `content-type: application/json`,
 `devKey: <devKey>`, `sessionId: <sessionId>`.
 
-**Session lifetime (verified):** expires after **35 minutes inactivity**;
-`sessionId` invalid after **48 hours** inactive; explicit `POST /logout`.
+**Session lifetime (verified).** The two credential types have **different**
+sessions, and the original draft conflated them:
+- **Developer-key login session:** expires after **35 minutes inactivity**
+  (keys-&-tokens). No documented 48-hour figure for this session type.
+- **AP & AR sync-token session:** "The generated `sessionId` expires when it is
+  inactive for **48 hours**, and provides limited access to the BILL API"
+  (keys-&-tokens). The 48-hour window belongs to the sync-token session, not the
+  plain dev-key session.
 
-**Access gate (verified):** production BILL API access is granted to **select
-partners only** — a real partner/account-manager review clock. This is the true
-content of the `oauth_review` lane for bill-com. Sandbox
-(`gateway.stage.bill.com`) is available for dev/L1–L4; production keys are
-partner-gated and are the L2/L5 blocker (§6).
+The §2.1-step-4 re-login-and-retry design is unaffected either way (both are
+inactivity-expiry windows; anycli re-logs-in on an expired `sessionId`).
+
+**Access gate (verified — scoped precisely).** Two distinct things must not be
+conflated:
+- **(a) Per-org production devKey — self-service.** BILL's own
+  `get-started-in-production` page documents: sign up at `bill.com/signup`
+  (select Accounts Payable & Receivable), then Settings → Sync & Integrations →
+  Manage Developer Keys → Generate developer key → accept terms. **No account
+  manager, no approval, no marketplace step** for a single-org devKey.
+- **(b) App-partner / multi-tenant path — partner-gated.** The "As a BILL app
+  partner, you can onboard your customers…" model and its **AP & AR sync token**
+  issuance are the genuine partner clock. This is the true, *narrow* content of
+  the `oauth_review` lane for bill-com.
+
+Sandbox (`gateway.stage.bill.com`) is available for dev/L1–L4. Whether L2/L5 are
+gated depends on the §4.3 model choice: the single-org self-serve model can
+obtain a devKey without partner approval; the recommended app-partner model
+takes on the partner clock for prod sync-token issuance (§6). The earlier blanket
+"production access is restricted to select partners" label is dropped — it
+overstated a gate its own cited source contradicts.
 
 **No OAuth2.** Verified across login reference, keys-&-tokens, and
 get-started-in-production: no authorize endpoint, no code exchange, no
 refresh token. → `manual_credentials`, not `standard_oauth`.
+
+### 3.1 Credential-type analysis — sync token vs raw password (decision)
+
+BILL's login body accepts more than one `username`/`password` shape, and the
+choice is a **material security decision** the original draft skipped. The three
+per-user credential types, per keys-&-tokens + get-started-in-production:
+
+| Per-user credential | `username` / `password` fields | Login op | Session access | Who it's for |
+|---|---|---|---|---|
+| **Raw sign-in** | customer's BILL email + **account password** | `POST /v3/login` | full (payments possible with an elevated session) | any org |
+| **Accountant Console** | email + `consoleApiToken` | `POST /v3/login` | full AP/AR in client orgs | Accountant Console users |
+| **AP & AR sync token** | `{sync_token_name}` + `{sync_token_value}` | see wrinkle ↓ | **limited — "BILL payment capabilities are not available"**; 48h inactivity | **"BILL app partners… to onboard customers, who can then pull or push key financial data"** |
+
+**The AP & AR sync token is a near-exact match for this design's scope and
+model,** and is materially safer than storing the raw password:
+
+1. **Scope fit.** Its stated purpose — partners onboarding customers who then
+   "pull or push key financial data for reporting or ERP syncing" — is precisely
+   this design's read + non-payment draft-create surface (§1).
+2. **Security posture.** The raw password is the customer's **master
+   credential**: it can move money, change bank accounts, and do anything in the
+   web app. Persisting it in Vault is a strictly worse blast radius than a
+   **revocable, named, limited-access** token minted for integration use. If the
+   token leaks or is misused, the customer revokes that one token; the master
+   password is untouched.
+3. **Automatic money-movement carve-out.** Because payment capabilities are
+   "not available" on a sync-token session, the §1 carve-out becomes a property
+   of the credential, not an argument resting on the (unverified, §1) MFA
+   step-up mechanism. Subtract-before-add: the safer credential *removes* a risk
+   we were otherwise reasoning our way around.
+
+**Two real wrinkles (why it isn't a free swap):**
+
+- **v2-login wrinkle.** keys-&-tokens carries a callout that AP & AR sync-token
+  sign-in must use the **BILL v2 login operation `POST /v2/Login.json`**, while
+  the same page's sync-token example shows `POST /v3/login` — the official page
+  is **internally inconsistent**. If v2 login is required, the anycli service's
+  session dance (§2.1) must POST `/v2/Login.json` for the sync-token credential
+  and `/v3/login` for the raw/console credential (the returned `sessionId` still
+  rides as a header on the v3 resource calls). **Pre-verify item:** confirm the
+  exact login endpoint for the sync token against the sandbox before coding.
+- **Partner-scoping wrinkle.** The sync token only exists in the app-partner
+  onboarding model (Settings → Sync & Integrations → **Tokens**), so choosing it
+  couples us to the app-partner path — the same path that carries the partner
+  clock (§3 access gate (b), §6). In the single-org self-serve model there is no
+  sync token; the per-user credential is necessarily the raw password.
+
+**Decision.** In the **recommended app-partner model** (§4.3), adopt the **AP &
+AR sync token** as the per-user credential (`token.username` =
+`sync_token_name`, `token.password` = `sync_token_value` (secret)), and teach
+the anycli service the v2-login path for it. Use the **raw password only** as
+the explicit fallback for the single-org self-serve model, where no sync token
+is available and payments are held read-only by the §1 carve-out (accepting the
+larger blast radius as the documented cost of the self-serve shape). Either way
+the Helio field set stays a multi-field `manual_credentials` store; only the
+verifier's login endpoint and the credential's semantics differ.
 
 ---
 
@@ -236,11 +343,14 @@ presentation:
 auth:
   type: credentials
   owner: individual
+  # RECOMMENDED app-partner model (§3.1 / §4.3): per-user credential is the
+  # AP & AR sync token (revocable, limited-access, no-payments). The single-org
+  # self-serve fallback swaps sync_token_name/value → username/password (raw).
   credential_input:         # PER-USER fields → Vault (see 4.3)
     fields:
-      - { name: username,        label_key: billcom_username,        secret: false, required: true }
-      - { name: password,        label_key: billcom_password,        secret: true,  required: true }
-      - { name: organization_id, label_key: billcom_organization_id, secret: false, required: true }
+      - { name: sync_token_name,  label_key: billcom_sync_token_name,  secret: false, required: true }
+      - { name: sync_token_value, label_key: billcom_sync_token_value, secret: true,  required: true }
+      - { name: organization_id,  label_key: billcom_organization_id,  secret: false, required: true }
     setup_url: https://developer.bill.com/docs/bill-keys-tokens
   required_config_fields: [billcom.dev_key]   # APP/PARTNER-level → integration-service config
 identity:
@@ -251,38 +361,58 @@ connection:
   runtime_strategy: manual_credentials
 credential:                 # outbound projection into the anycli credential map
   fields:
-    dev_key:         config.billcom.dev_key      # app-level
-    username:        token.username              # per-user (Vault)
-    password:        token.password              # per-user (Vault)
-    organization_id: token.organization_id       # per-user (Vault)
+    dev_key:         config.billcom.dev_key      # app/partner-level
+    username:        token.sync_token_name        # per-user (Vault) → login username
+    password:        token.sync_token_value       # per-user (Vault) → login password (secret)
+    organization_id: token.organization_id        # per-user (Vault)
+    auth_mode:       "sync_token"                  # selects anycli v2-login path (§2.1)
     account_key:     connection.account_key
 tool:
   name: bill-com
   kind: api-key             # clients route the connect drawer by auth_type
 ```
 
-### 4.3 The credential split — devKey is app-level (recommended), with a gate
+### 4.3 The credential model — two coherent shapes, one recommended
 
-BILL's `devKey` is issued to the **developer/partner** ("sent to you by BILL
-when you create a developer account"), while username/password/organizationId
-identify the **customer's** BILL org. The natural, precedent-backed split:
+There are **two axes** here — (i) where the `devKey` lives, and (ii) what the
+per-user credential is — and they are **coupled**, because the AP & AR sync token
+only exists inside the app-partner path. So the decision collapses to a choice
+between two coherent models, not four independent knobs:
 
-- **App/partner-level (integration-service config, lane 1):** `billcom.dev_key`
-  — landed in `config/` **and** the `deploy/` Helm Secret together (Config Sync
-  hard rule), projected via a `config.billcom.dev_key` credential source. This
-  is the **exact shape of Google Ads' `config.developer_token`** growth (an
-  app-level developer token injected alongside per-user auth) and Twitch's
+**Model A — app-partner + sync token (RECOMMENDED).**
+- **devKey → app/partner config (lane 1):** one partner `billcom.dev_key` landed
+  in `config/` **and** the `deploy/` Helm Secret together (Config Sync hard
+  rule), projected via a `config.billcom.dev_key` source. This is the **exact
+  shape of Google Ads' `config.developer_token`** growth and Twitch's
   `config.oauth.client_id` source — a reviewed, existing capability class.
-- **Per-user (connect form → Vault):** `username`, `password`,
-  `organization_id`.
+- **Per-user → sync token (connect form → Vault):** `sync_token_name`,
+  `sync_token_value` (secret), `organization_id`. Login via the v2 path (§2.1),
+  `auth_mode: sync_token`.
+- **Why recommended:** materially smaller blast radius than a stored master
+  password, automatic money-movement carve-out (§1/§3.1), and it matches the
+  onboard-customers use case BILL built the token for.
+- **Cost:** takes on the partner clock for prod sync-token issuance (§3 access
+  gate (b), §6), and the v2-login wrinkle (§3.1) must be confirmed at pre-verify.
 
-**Pre-verify decision gate (§5 / stage 1):** confirm whether BILL issues **one
-partner devKey** (→ config, as above — recommended) or **per-customer devKeys**
-(→ move `dev_key` into the Vault field set: four-field manual, drop
-`required_config_fields`/`config.billcom.dev_key`). The bundle switches cleanly
-between the two; the anycli side is unchanged (it always receives four map
-fields). Default to the partner/config model unless the pre-verify proves
-per-customer keys.
+**Model B — single-org self-serve + raw password (fallback).**
+- **devKey → per-customer, self-serve.** Because per-org devKeys are self-serve
+  (§3), `dev_key` can move into the **Vault field set** (four-field manual; drop
+  `required_config_fields`/`config.billcom.dev_key`), or stay in config if the
+  operator provisions one devKey. No partner gate to obtain it.
+- **Per-user → raw:** `username` + `password` (secret) + `organization_id`, v3
+  login (`auth_mode: v3`).
+- **Cost:** stores the customer's master credential in Vault (larger blast
+  radius); payments held read-only by the §1 carve-out, which then rests on the
+  *unverified* MFA-step-up argument rather than an intrinsic session limit.
+
+**Pre-verify decision gate (§5 / stage 1):** pick A vs B, and for the sync-token
+path confirm the v2-login endpoint against the sandbox. **Default to Model A**
+unless the partner clock is unacceptable for the wave, in which case Model B
+ships hidden without a partner gate (at the documented security cost). Either
+way the anycli side is unchanged in shape — it always receives
+`{dev_key, username, password, organization_id, auth_mode}` and branches the
+login endpoint on `auth_mode` (§2.1). The provider bundle switches between the
+two by swapping the Vault field set and the `credential.auth_mode` literal.
 
 ### 4.4 Integration-service capabilities (reuse-or-grow, no compiled adapter)
 
@@ -301,13 +431,16 @@ else grow**, mirroring their pattern:
    not bill-com-specific.
 2. **`billcomLoginVerifier` (Growth #2, narrow, bill-com-specific).** A compiled
    verifier (precedents: `sproutClientVerifier`, `mastodonAccountVerifier`,
-   `zuoraTokenVerifier`, `postmarkServerVerifier`) that at connect time:
-   `POST {base}/login` with `{config devKey, user username/password/org}` →
-   `200`+`sessionId` proves the whole credential set before it reaches Vault;
-   then `GET /login/session` (getsessioninfo) or `GET /organizations` for a
-   human-readable org name. Returns **account_key = `organizationId`** (stable,
-   non-secret) and **label = org name** (fallback: `organizationId`). The
-   password never enters the identity map or Connection metadata.
+   `zuoraTokenVerifier`, `postmarkServerVerifier`) that at connect time logs in
+   (v2 `POST /v2/Login.json` for the sync-token model, v3 `POST {base}/login` for
+   the raw model — branch on the same `auth_mode` §2.1 uses) with
+   `{config devKey, user credential/org}` → `200`+`sessionId` proves the whole
+   credential set before it reaches Vault; then `GET /login/session`
+   (getsessioninfo) or `GET /organizations` for a human-readable org name.
+   Returns **account_key = `organizationId`** (stable, non-secret) and
+   **label = org name** (fallback: `organizationId`). The secret
+   (sync-token-value or password) never enters the identity map or Connection
+   metadata.
 
    A verifier is chosen over mongodb-style **no-verify** because a login POST
    cleanly validates all four credentials at once (a wrong password is otherwise
@@ -328,8 +461,10 @@ This is the design's core subtraction versus the master-plan expectation.
   safe to ship hidden). Must land before bill-com's L5.
 - **Icon:** `ui/helio-app/src/integrations/icons/bill_com.svg` + hand-register
   in `providerIcons.ts` (never generated).
-- **i18n:** `billcom_username` / `billcom_password` / `billcom_organization_id`
-  label keys across all locales; `tools.desc.bill_com`.
+- **i18n:** `billcom_sync_token_name` / `billcom_sync_token_value` /
+  `billcom_organization_id` label keys across all locales (Model A;
+  `billcom_username` / `billcom_password` if Model B is chosen at pre-verify);
+  `tools.desc.bill_com`.
 - **AI-facing doc:** provider sub-doc under
   `agents/plugins/heliox/skills/tool/`, plugin version bump — must call out the
   money-movement carve-out (read-only payments; no headless payment creation)
@@ -345,38 +480,60 @@ This is the design's core subtraction versus the master-plan expectation.
 | Layer | What it proves for bill-com | Needs external creds? |
 |---|---|---|
 | **L1** | anycli `go test ./...`: login body carries 4 fields; `devKey`+`sessionId` headers on ops; pagination envelope; `sessionId`-expiry re-login-retry; typed `apiError` plain + `--json`; exit 0/1/2. httptest fakes only. | **No** |
-| **L2** | `BILLCOM_DEV_KEY=… BILLCOM_USERNAME=… BILLCOM_PASSWORD=… BILLCOM_ORG_ID=… BILLCOM_ENV=stage anycli bill-com -- bill list --max 5` against the **real BILL sandbox** (`gateway.stage.bill.com`). Proves the live login→session→call chain and field/header names. | **YES** — sandbox devKey + a sandbox org login (partner-gated; the 3-hold account-pool blocker) |
+| **L2** | `BILLCOM_DEV_KEY=… BILLCOM_USERNAME=… BILLCOM_PASSWORD=… BILLCOM_ORG_ID=… BILLCOM_ENV=stage anycli bill-com -- bill list --max 5` against the **real BILL sandbox** (`gateway.stage.bill.com`). Proves the live login→session→call chain and field/header names. | **YES** — sandbox devKey (self-serve) + a sandbox org login; a sandbox sync token too if testing Model A |
 | **L3** | `provider-gen --check` (bundle validates: dir==key, HTTPS setup_url, `manual_credentials`, closed field/enum contract, unique names) + `go test` in both repos (helio-cli incl. new `toolToProvider`/`resolve_test.go` entry; integration-service incl. multi-field policy + `billcomLoginVerifier` tests). helio-cli built against this anycli branch via **local uncommitted `go.mod` replace**. | **No** |
-| **L4** | Singleton + `POST /internal/test-only/connections/seed` seeding `username`/`password`/`organization_id` (multi-field user-token; **seedable** — api_key-class, not a minted provider) with `billcom.dev_key` in local `config/cloud.yaml`, then `heliox tool bill-com -- whoami` reaches the live sandbox through the token gateway → anycli login → getsessioninfo. Bypasses the connect UI. | **YES** — same sandbox creds as L2 |
-| **L5** | Hidden-still: mint connect intent (`heliox tool bill-com auth`), enter username/password/org in the **real connect UI** → `billcomLoginVerifier` runs → connection shows connected/`configured` in `GET /connections` → one **unseeded** `heliox tool bill-com -- vendor list` through the real token gateway. This is the **api_key key-entry L5 path** (master plan §2), agent-drivable with human fallback — **not** the OAuth-consent path (there is no consent screen). Runs once before the visible flip. | **YES** — sandbox creds + `billcom.dev_key` landed in config |
+| **L4** | Singleton + `POST /internal/test-only/connections/seed` seeding the per-user fields (Model A: `sync_token_name`/`sync_token_value`/`organization_id`; Model B: `username`/`password`/`organization_id`) — multi-field user-token, **seedable** (api_key-class, not a minted provider) — with `billcom.dev_key` in local `config/cloud.yaml`, then `heliox tool bill-com -- whoami` reaches the live sandbox through the token gateway → anycli login → getsessioninfo. Bypasses the connect UI. | **YES** — same sandbox creds as L2 |
+| **L5** | Hidden-still: mint connect intent (`heliox tool bill-com auth`), enter the per-user fields (§4.2) in the **real connect UI** → `billcomLoginVerifier` runs → connection shows connected/`configured` in `GET /connections` → one **unseeded** `heliox tool bill-com -- vendor list` through the real token gateway. This is the **api_key key-entry L5 path** (master plan §2), agent-drivable with human fallback — **not** the OAuth-consent path (there is no consent screen). Runs once before the visible flip. | **YES** — sandbox creds + `billcom.dev_key` landed in config |
 
-**Layers needing externally-supplied credentials: L2, L4, L5** — all blocked on
-a **partner-gated BILL sandbox devKey + a sandbox org login** (account-pool lane
-2 / 3-hold pre-verify). L1 and L3 are fully agent-runnable now.
+**Layers needing externally-supplied credentials: L2, L4, L5** — all need a
+**BILL sandbox devKey + a sandbox org login** (self-serve to obtain per §3;
+Model A additionally needs a sandbox sync token). Procuring the sandbox account
+is the account-pool lane-2 item; it is not itself partner-gated. L1 and L3 are
+fully agent-runnable now.
 
 **Pre-verify gate exit criteria (before the 3-hold batch starts bill-com):**
-(a) confirm the auth shape above against the sandbox (login→sessionId→headers);
-(b) resolve the devKey placement gate (§4.3: partner-key-in-config vs
-per-customer-in-Vault); (c) secure a sandbox devKey + test org login. If (c)
-cannot be procured, bill-com is swapped out via the catalog-amendment mechanism
-(master plan §6 risk #2), holding the 298 total. Because access is
-production-partner-gated, the **visible flip** additionally waits on production
-partner approval (the genuine `oauth_review`-class clock) — dev, L1–L4, and the
-batch-end merge are not gated by it (hidden-first).
+(a) confirm the auth shape above against the sandbox (login→sessionId→headers),
+**including the sync-token v2-login endpoint** (§3.1) if Model A is chosen;
+(b) pick the credential model (§4.3 Model A app-partner+sync-token vs Model B
+single-org+raw), which also fixes devKey placement; (c) secure a sandbox devKey
++ test org login (and, for Model A, a sandbox sync token). If (c) cannot be
+procured, bill-com is swapped out via the catalog-amendment mechanism (master
+plan §6 risk #2), holding the 298 total. In **Model A only**, the **visible
+flip** additionally waits on production partner approval for sync-token issuance
+(the genuine `oauth_review`-class clock); in Model B the prod devKey is
+self-serve so the flip is gated only by hidden-first L5, not a partner clock.
+Dev, L1–L4, and the batch-end merge are not gated by partner approval in either
+model (hidden-first).
 
 ---
 
 ## 6. Risks / open items
 
-- **Partner-gated API access** (verified) is the dominant risk — it blocks L2/L4/
-  L5 (sandbox devKey) and the visible flip (prod partner approval). This is why
-  bill-com sits in 3-hold. Mitigation: hidden-first (zero code waste); swap via
-  §6 amendment if the sandbox key can't be procured.
-- **devKey placement** (§4.3) — one real decision, gated at pre-verify; the
-  bundle supports both outcomes with no anycli change.
-- **Money movement out of scope** (§1) — payment/bank writes need an MFA-trusted
-  session a headless agent can't mint; v1 is read + non-money draft-create. Must
-  be stated in the AI-facing doc.
+- **Access gate — scoped, not blanket** (§3, corrected). Obtaining a **per-org
+  devKey is self-service** (get-started-in-production), so it does **not** block
+  dev/L1–L4 by itself. The genuine partner clock applies to the **app-partner /
+  sync-token path (Model A)** — its prod sync-token issuance is what gates the
+  **visible flip**. The 3-hold placement is therefore a *choice* coupled to
+  recommending Model A (safer credential), **not** a hard "no API without a
+  partner" constraint; Model B could ship on self-serve devKeys with no partner
+  clock at a documented security cost. Mitigation either way: hidden-first (zero
+  code waste); swap via master-plan §6 amendment if sandbox creds can't be
+  procured. The earlier "restricted to select partners (verified)" framing
+  overstated its own cited source and is retracted.
+- **Credential model + devKey placement** (§3.1/§4.3) — the one real design
+  decision, gated at pre-verify: Model A (app-partner + AP & AR **sync token**,
+  recommended for its smaller blast radius and automatic money-movement
+  carve-out) vs Model B (single-org self-serve + raw password). Also confirm the
+  sync-token **v2-login endpoint** (`POST /v2/Login.json`) against the sandbox —
+  the official page is internally inconsistent (v2 callout vs v3 example). The
+  bundle supports both outcomes by swapping the Vault field set + `auth_mode`;
+  anycli branches the login endpoint on `auth_mode`.
+- **Money movement out of scope** (§1) — payment/bank writes are held read-only.
+  Under Model A this is intrinsic (sync-token sessions have "BILL payment
+  capabilities are not available"); under Model B it is a deliberate
+  conservative boundary (the specific MFA-step-up-for-payments mechanism is
+  **not** confirmed from an official page, §1/§4). Must be stated in the
+  AI-facing doc so the assistant never attempts an MFA/partner-gated write.
 - **Session churn** — one login per invocation (35-min/48-h session, fresh
   process each call). Acceptable; the token gateway caches only the four static
   fields, and anycli caches the resolved credential per its own `CacheUntil`.
