@@ -560,3 +560,32 @@ gates the flip, never dev/L4/merge).
   revoke adapter.
 - **No `toolToProvider` entry** (id == key == `ramp`), and **no grouped command**
   (Ramp is not a corporate family in this catalog).
+
+---
+
+## 8. Stage-1 verification (resolved against the official OpenAPI + llms docs)
+
+All items below were read directly off Ramp's authoritative machine-readable
+sources — `https://docs.ramp.com/openapi/developer-api.json` (OpenAPI 3),
+`/llms-api.txt`, `/llms-full.txt`, `/llms-guides/authorization.txt` (July 2026)
+— at implementation time, not inherited. Four load-bearing facts **changed** the
+design from the pre-verification draft; each is recorded here and reflected in
+the shipped bundle/service.
+
+| Item | Draft (§0–§7) | Official docs verdict | Action |
+|---|---|---|---|
+| Token endpoint | `api.ramp.com/developer/v1/token` | ✓ confirmed; `Content-Type: x-www-form-urlencoded`, `Authorization: Basic <b64 client_id:client_secret>` | keep `form_basic` |
+| `expires_in` presence | UNCONFIRMED (Branch A/B open) | **PRESENT** — `POST /developer/v1/token` response schema lists `expires_in?: number` (also `refresh_token`, `refresh_token_expires_in`, `id_token`, `scope`, `token_type`) | **Branch A settled** — pure stock `standard_oauth`, NO assumed-TTL field (§3.5 open question closed) |
+| Token revocation | "none documented" → `local_only` (§3.6) | **EXISTS** — `POST /developer/v1/token/revoke`, Basic client auth, form body `token=<token>`, optional `token_type_hint` | **DIVERGENCE** → ship `disconnect_mode: provider_revoke` + declarative `revoke:` block (`client_auth: basic`, `token: refresh_token`, `fallback_token: access_token`), validator-supported (validate.go:492/515) — gmail precedent. No code. |
+| Authorize URL host | working `https://app.ramp.com/v1/authorize` (§3.1) | OpenAPI `securitySchemes.oauth2.authorizationCode.authorizationUrl = https://api.ramp.com/v1/authorize` | **DIVERGENCE** → use OpenAPI's `https://api.ramp.com/v1/authorize` (canonical declaration; `app.ramp.com` is the frontend host that 302s here). Params `response_type,scope,client_id,redirect_uri,state` all confirmed. |
+| Cards surface | `/developer/v1/cards`, `/cards/:id` (§1) | **NO plain `/cards`** — only `GET /developer/v1/cards/virtual`(+`/{id}`) and `GET /developer/v1/cards/physical`(+`/{id}`) | **DIVERGENCE** → `card virtual [id]` and `card physical [id]` subcommands; both `cards:read` |
+| Pagination | `data`+`page.next`; `--cursor`/`--limit` (§1) | ✓ envelope `{data:[…], page:{next: url\|null}}`; wire query params are **`start`** (cursor) + **`page_size`** (int), `page.next` is a full URL | `--cursor`→`start`, `--limit`→`page_size`; `--all` follows `page.next` by extracting its `start` param |
+| Business endpoint | `/developer/v1/business` singular (§3.4) | ✓ singular `GET /developer/v1/business`; fields include `id`, `business_name_legal`, `business_name_on_card` | identity `stable_key: /id`, labels confirmed |
+| Scopes (7) | all `resource:read` (§3.1) | ✓ each GET's `security` block confirms exactly: transactions/reimbursements/cards/users/departments/locations/business `:read` | `oauth.scopes` = the 7, feeds `DefaultScopes` |
+| PKCE | none (§3.1) | ✓ authorize params carry no `code_challenge` | `pkce: none` |
+| refresh_lease | `none`, L2-confirm rotation (§4) | refresh grant response *may* echo a new `refresh_token` (schema-optional; rotation not asserted) | keep `refresh_lease: none`; L2 confirms — flip to `credential` only if rotation observed |
+
+Net capability growth: **zero** (Branch A stock exchanger, stock `form_basic`,
+stock `userinfo` identity, stock `provider_revoke`). The only design deltas vs
+the draft are bundle/service *values* (revoke block added, authorize host,
+cards split, pagination param names), not new Helio capabilities.
