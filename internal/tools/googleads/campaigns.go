@@ -68,7 +68,11 @@ func (s *Service) newCampaignSetStatusCmd(c creds) *cobra.Command {
 			if _, ok := campaignSetStatuses[up]; !ok {
 				return &usageError{msg: fmt.Sprintf("--status %q is invalid (want ENABLED|PAUSED)", status)}
 			}
-			c.loginCustomerID = loginCustomerID(cmd)
+			lc, err := loginCustomerID(cmd)
+			if err != nil {
+				return err
+			}
+			c.loginCustomerID = lc
 			payload := map[string]any{
 				"operations": []any{
 					map[string]any{
@@ -117,7 +121,11 @@ func (s *Service) newBudgetSetCmd(c creds) *cobra.Command {
 			if amountMicros <= 0 {
 				return &usageError{msg: "--amount-micros must be a positive integer (1_000_000 micros = 1 unit of the account currency)"}
 			}
-			c.loginCustomerID = loginCustomerID(cmd)
+			lc, err := loginCustomerID(cmd)
+			if err != nil {
+				return err
+			}
+			c.loginCustomerID = lc
 			payload := map[string]any{
 				"operations": []any{
 					map[string]any{

@@ -173,12 +173,35 @@ func TestQuery_LoginCustomerIDHeaderInjected(t *testing.T) {
 	srv := newServer(t, http.StatusOK, `{"results":[]}`, &got)
 	defer srv.Close()
 
+	// A UI-copied, hyphenated manager id must be normalized to the digits-only
+	// form the Google Ads API requires for the login-customer-id header
+	// (1234567890, not 123-456-7890); a hyphenated value is rejected upstream.
 	code, _, _ := run(t, srv, "query", "--customer-id", "1234567890",
 		"--gaql", "SELECT campaign.id FROM campaign", "--login-customer-id", "555-000-1111")
 	if code != 0 {
 		t.Fatalf("exit code = %d", code)
 	}
-	if got.LoginCustomerID != "555-000-1111" {
-		t.Errorf("login-customer-id header = %q, want the flag value verbatim", got.LoginCustomerID)
+	if got.LoginCustomerID != "5550001111" {
+		t.Errorf("login-customer-id header = %q, want digits-only 5550001111", got.LoginCustomerID)
+	}
+}
+
+func TestQuery_NonNumericLoginCustomerIDIsUsageError(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{"results":[]}`, &got)
+	defer srv.Close()
+
+	// A garbage login-customer-id is a local usage error (exit 2), not an
+	// opaque provider-side rejection: no request is sent.
+	code, _, stderr := run(t, srv, "query", "--customer-id", "1234567890",
+		"--gaql", "SELECT campaign.id FROM campaign", "--login-customer-id", "not-a-number")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2", code)
+	}
+	if got.Method != "" {
+		t.Errorf("a request was sent for a bad login-customer-id: %s %s", got.Method, got.Path)
+	}
+	if stderr == "" {
+		t.Error("expected a usage error on stderr")
 	}
 }

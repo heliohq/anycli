@@ -47,7 +47,11 @@ func normalizeCustomerID(raw string) (string, error) {
 // googleAds:search and emits its single-object response verbatim (results +
 // nextPageToken passthrough).
 func (s *Service) runSearch(cmd *cobra.Command, c creds, customerID, gaql string, stream bool, pageSize int, pageToken string) error {
-	c.loginCustomerID = loginCustomerID(cmd)
+	lc, err := loginCustomerID(cmd)
+	if err != nil {
+		return err
+	}
+	c.loginCustomerID = lc
 	if stream {
 		payload := map[string]any{"query": gaql}
 		body, err := s.call(cmd.Context(), c, http.MethodPost, "/customers/"+customerID+"/googleAds:searchStream", nil, payload)

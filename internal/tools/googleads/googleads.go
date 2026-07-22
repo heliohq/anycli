@@ -165,10 +165,22 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // loginCustomerID reads the effective manager id from the persistent flag
-// (which is seeded from the env default), trimming surrounding whitespace.
-func loginCustomerID(cmd *cobra.Command) string {
+// (which is seeded from the env default) and normalizes it to the digits-only
+// form the Google Ads API requires for the login-customer-id header
+// (1234567890, not 123-456-7890 — a hyphenated value is rejected upstream). An
+// empty value is valid and means "no header"; a non-numeric value is a local
+// usage error so the agent gets an actionable message instead of an opaque
+// provider-side failure.
+func loginCustomerID(cmd *cobra.Command) (string, error) {
 	v, _ := cmd.Flags().GetString("login-customer-id")
-	return strings.TrimSpace(v)
+	if strings.TrimSpace(v) == "" {
+		return "", nil
+	}
+	id := strings.NewReplacer("-", "", " ", "").Replace(strings.TrimSpace(v))
+	if !customerIDPattern.MatchString(id) {
+		return "", &usageError{msg: fmt.Sprintf("--login-customer-id %q must be a numeric Google Ads manager (MCC) customer id (digits, optional hyphens)", v)}
+	}
+	return id, nil
 }
 
 // hasJSONArg reports whether the raw args carry the --json global flag, used to
