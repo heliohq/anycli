@@ -59,9 +59,12 @@ Wrapped resources (path forms are the site-scoped V3 shapes; `{id}` accepts the 
   `PUT /accounts/{account_id}`, `GET /accounts/{account_id}/balance`,
   `GET /accounts/{account_id}/billing_info`. The customer entry point.
 - **subscriptions** — `GET /subscriptions`, `GET /subscriptions/{id}`,
-  `GET /accounts/{account_id}/subscriptions`, `POST /subscriptions`, `PUT /subscriptions/{id}`,
+  `GET /accounts/{account_id}/subscriptions`, `POST /subscriptions`,
+  `POST /subscriptions/{id}/change` (Create Subscription Change — plan/quantity/price/add-on edits),
   `PUT /subscriptions/{id}/cancel`, `PUT /subscriptions/{id}/pause`,
-  `PUT /subscriptions/{id}/resume`, `DELETE /subscriptions/{id}` (terminate). Core lifecycle.
+  `PUT /subscriptions/{id}/resume`, `PUT /subscriptions/{id}/terminate` (terminate, `?refund=none|partial|full`).
+  Core lifecycle. (Recurly V3 has **no** `DELETE /subscriptions/{id}` route and the `PUT /subscriptions/{id}`
+  update endpoint does not accept `plan_code` — plan changes go through the `/change` sub-resource.)
 - **invoices** — `GET /invoices`, `GET /invoices/{invoice_id}`,
   `GET /accounts/{account_id}/invoices`, `GET /invoices/{invoice_id}/line_items`,
   `PUT /invoices/{invoice_id}/collect` (retry collection). Dunning / past-due answers.
@@ -243,3 +246,19 @@ Three divergences, all driven by base reality, none by the official docs (which 
    binding + bundle region-field re-add with **no service change**. An EU-region key fails
    verification against the US host rather than silently hitting the wrong data center (fail-fast, not
    a silent fallback).
+
+4. **Subscription write routes corrected against the official V3 spec (code review, post-L1).** The
+   first cut mis-modeled two lifecycle writes; both were verified against Recurly's official V3 docs
+   (v2021-02-25) and repointed:
+   - **`terminate`** now issues `PUT /subscriptions/{id}/terminate?refund=none|partial|full` — Recurly
+     V3 has **no** `DELETE /subscriptions/{id}` route (the original `DELETE` form 404s and drops
+     `--refund`). Source: Recurly "Terminate Subscription" (`dev.recurly.com/docs/terminate-subscription`).
+   - **`change`** now `POST /subscriptions/{id}/change` (Create Subscription Change) — plan/quantity/
+     price/add-on changes go through the `/change` sub-resource; the `PUT /subscriptions/{id}` update
+     endpoint only edits non-plan fields (postpone, auto_renew, next_bill_date, collection_method) and
+     rejects `plan_code`, so the old `PUT` mapping could not perform the primary "change a
+     subscription" job (§2). Source: Recurly "Change subscription" / Subscription management guide.
+   Both routes are now pinned by unit tests (`TestSubscriptionLifecycleVerbs`,
+   `TestSubscriptionTerminateCarriesRefundQuery`, `TestSubscriptionChangePostsToChangeEndpoint`); the
+   non-plan `PUT` update endpoint is intentionally left unexposed in this cut (add later behind a
+   distinct `update`/`modify` verb if a real workflow needs it).

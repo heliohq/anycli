@@ -126,8 +126,11 @@ func (s *Service) newSubscriptionGroup(key, region string) *cobra.Command {
 		return s.runGet(cmd.Context(), key, region, "POST", "/subscriptions", nil, payload)
 	}
 
-	change := s.newBodyLeaf(key, region, "change", "Modify a subscription", "PUT",
-		func(id string) string { return "/subscriptions/" + id })
+	// Plan upgrades/downgrades and quantity/price/add-on edits go through
+	// Create Subscription Change (POST /subscriptions/{id}/change), not the PUT
+	// update endpoint (which only edits non-plan fields and rejects plan_code).
+	change := s.newBodyLeaf(key, region, "change", "Change a subscription's plan/quantity/price/add-ons", "POST",
+		func(id string) string { return "/subscriptions/" + id + "/change" })
 
 	pause := &cobra.Command{Use: "pause <id>", Short: "Pause a subscription", Args: cobra.ExactArgs(1), Annotations: sideEffect(true)}
 	cycles := pause.Flags().Int("cycles", 0, "number of billing cycles to pause (remaining_pause_cycles)")
@@ -143,7 +146,7 @@ func (s *Service) newSubscriptionGroup(key, region string) *cobra.Command {
 		if *refund != "" {
 			q.Set("refund", *refund)
 		}
-		return s.runGet(cmd.Context(), key, region, "DELETE", "/subscriptions/"+args[0], q, nil)
+		return s.runGet(cmd.Context(), key, region, "PUT", "/subscriptions/"+args[0]+"/terminate", q, nil)
 	}
 
 	g.AddCommand(

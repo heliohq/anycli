@@ -124,7 +124,9 @@ func TestSubscriptionLifecycleVerbs(t *testing.T) {
 		{[]string{"subscription", "cancel", "uuid-abc"}, "PUT", "/subscriptions/uuid-abc/cancel"},
 		{[]string{"subscription", "pause", "uuid-abc", "--cycles", "2"}, "PUT", "/subscriptions/uuid-abc/pause"},
 		{[]string{"subscription", "resume", "uuid-abc"}, "PUT", "/subscriptions/uuid-abc/resume"},
-		{[]string{"subscription", "terminate", "uuid-abc"}, "DELETE", "/subscriptions/uuid-abc"},
+		// Terminate is PUT /subscriptions/{id}/terminate (Recurly V3 has no
+		// DELETE-subscription route); refund rides as a query param.
+		{[]string{"subscription", "terminate", "uuid-abc"}, "PUT", "/subscriptions/uuid-abc/terminate"},
 	}
 	for _, c := range cases {
 		var reqs []capturedRequest
@@ -139,6 +141,49 @@ func TestSubscriptionLifecycleVerbs(t *testing.T) {
 			t.Fatalf("%v did not hit %s %s", c.args, c.method, c.path)
 		}
 		srv.Close()
+	}
+}
+
+func TestSubscriptionTerminateCarriesRefundQuery(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"PUT /subscriptions/uuid-abc/terminate": {status: 200, body: `{"object":"subscription"}`},
+	})
+	defer srv.Close()
+
+	if _, stderr, res := runService(t, srv, testKey, "", "subscription", "terminate", "uuid-abc", "--refund", "partial"); res.ExitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (stderr=%s)", res.ExitCode, stderr)
+	}
+	req := findReq(reqs, "PUT", "/subscriptions/uuid-abc/terminate")
+	if req == nil {
+		t.Fatal("terminate did not hit PUT /subscriptions/uuid-abc/terminate")
+	}
+	if got := req.Query.Get("refund"); got != "partial" {
+		t.Errorf("refund query = %q, want partial", got)
+	}
+}
+
+func TestSubscriptionChangePostsToChangeEndpoint(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"POST /subscriptions/uuid-abc/change": {status: 200, body: `{"object":"subscription_change"}`},
+	})
+	defer srv.Close()
+
+	payload := `{"plan_code":"silver"}`
+	if _, stderr, res := runService(t, srv, testKey, "", "subscription", "change", "uuid-abc", "--body", payload); res.ExitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (stderr=%s)", res.ExitCode, stderr)
+	}
+	req := findReq(reqs, "POST", "/subscriptions/uuid-abc/change")
+	if req == nil {
+		t.Fatal("change did not POST to /subscriptions/uuid-abc/change (plan changes go through Create Subscription Change, not PUT update)")
+	}
+	var body map[string]any
+	if err := json.Unmarshal(req.Body, &body); err != nil {
+		t.Fatalf("change body not JSON: %v", err)
+	}
+	if body["plan_code"] != "silver" {
+		t.Errorf("change body plan_code = %v, want silver", body["plan_code"])
 	}
 }
 
