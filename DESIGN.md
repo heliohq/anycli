@@ -30,50 +30,77 @@ The self-serve credential is a **personal API token**, minted at
 (2-step login required), and passed as `Authorization: Bearer <token>`. This is
 what the account pool supplies for L2 and what the user pastes at L5.
 
-**One load-bearing constraint that DOES belong in this design** (verified in the
-official personal-tokens docs): under PSD2, **EU/UK personal tokens cannot fund
-transfers or read balance *statements* via the API**, and several money-movement
-and statement endpoints additionally require a Strong Customer Authentication
-one-time-token (`x-2fa-approval` challenge/signature flow). A passthrough
-`api_key` tool cannot carry the SCA signing dance, and funding is out of an AI
-teammate's remit anyway. **This tool is therefore scoped read / monitoring
-only** — see §2. Recording this here because it is a real capability boundary,
-not an omission.
+**Two load-bearing capability boundaries that DO belong in this design** (both
+verified against the official docs, not inherited):
+
+1. **PSD2 / SCA (money movement + statements).** Under PSD2, **EU/UK personal
+   tokens cannot fund transfers or read balance *statements* via the API**, and
+   several money-movement and statement endpoints additionally require a Strong
+   Customer Authentication one-time-token (`x-2fa-approval` challenge/signature
+   flow). A passthrough `api_key` tool cannot carry the SCA signing dance, and
+   funding is out of an AI teammate's remit anyway.
+
+2. **`/v1/rates` is Affiliate-Basic-auth-only, NOT the personal Bearer token
+   (divergence found at revision).** Wise's official Rate reference scopes
+   `GET /v1/rates` (and "Get Temporary Quote") to **Affiliate partners using
+   HTTP Basic auth with `client_id:client_secret`**, credentials issued only via
+   `partnerwise@wise.com` after an affiliate relationship — the official example
+   is `curl .../v1/rates --user <client_id>:<client_secret>`. That is a
+   different, partner-gated credential from the self-serve personal Bearer token
+   this tool carries, so a `rate list` verb **would not execute** with the tool's
+   own credential. The originally-drafted `rate list` verb is therefore
+   **dropped** (see §2); the mid-market rate is already returned inside the quote
+   response, which the personal token *can* obtain. Recording this as an explicit
+   auth-boundary divergence — it is the same class of check that caught the PSD2
+   boundary and it must not be silently assumed away.
+
+Together these keep **this tool scoped read / non-committal-pricing only** — see
+§2. Recording both here because they are real capability boundaries, not
+omissions.
 
 Sources checked:
 - Personal tokens & auth: https://docs.wise.com/api-docs/features/authentication-access/personal-tokens
 - Environments (base URLs): https://docs.wise.com/guides/developer/environments
 - Activities endpoint (declares `PersonalToken` security): https://docs.wise.com/api-reference/activity/activitylist
+- Affiliates guide — `/v1/rates` Basic auth (`--user client_id:client_secret`), via `partnerwise@wise.com`: https://docs.wise.com/api-docs/guides/affiliates
+- Unauthenticated vs authenticated quotes (`POST /v3/quotes` needs no auth/profile): https://docs.wise.com/guides/product/send-money/quotes/unauthenticated-quote
 
 ## 2. API surface this tool wraps, and why
 
 **What an AI teammate actually does with Wise:** it is a treasury/ops copilot —
 "what's our EUR balance?", "did the payout to vendor X land?", "show this week's
 account activity", "what would a 5000 USD→EUR transfer cost right now?". That is
-**read-and-monitor**, not initiate-and-fund (which is PSD2/SCA-gated and a human
-approval action regardless). The verb set below reflects that.
+**read-and-monitor plus non-committal pricing**, not initiate-and-fund (which is
+PSD2/SCA-gated and a human approval action regardless). The verb set below
+reflects that.
 
-- **Production base URL (TLS-only):** `https://api.wise.com`
-- **Sandbox (L2/L5 testing):** V1 `https://api.sandbox.transferwise.tech` is
-  deprecating 2026-06-30; new integrations target the **V2 sandbox**
-  `https://api.sandbox.wise.tech` (aka `api.wise-sandbox.com`). The service reads
-  its base URL from a `--base-url` flag (default production) so the account pool
-  can point L2 at whichever sandbox host its test token was minted in — V1 and V2
-  tokens are not interchangeable.
+- **Production base URL (TLS-only):** `https://api.wise.com` (the current live
+  host; the legacy `api.transferwise.com` still resolves).
+- **Sandbox (L2/L5 testing):** the confirmed sandbox host in Wise's official
+  examples is **`https://api.wise-sandbox.com`** (older alias
+  `https://api.sandbox.transferwise.tech`). The service reads its base URL from a
+  `--base-url` flag (default production) so the account pool can point L2 at
+  whichever sandbox host its test token was minted in — sandbox tokens are not
+  valid against production. **Pin the exact host the pool's token belongs to at
+  stage-1/L2** (see §7) so the environment is unambiguous.
 - **Auth header:** `Authorization: Bearer <personal_token>`.
 
 | Verb (proposed) | Endpoint | Why |
 |---|---|---|
-| `profile list` | `GET /v1/profiles` | The token's personal + business profiles; also the **identity/verification** call (§5). Every other call needs a `profileId`. |
-| `balance list` | `GET /v4/profiles/{profileId}/balances?types=STANDARD` | Multi-currency balances — the top treasury question. (Balance *amounts* are readable; balance *statements* are PSD2-gated and intentionally omitted.) |
+| `profile list` | `GET /v1/profiles` | The token's personal + business profiles; also the **identity/verification** call (§5). Every other profile-scoped call needs a `profileId`. |
+| `balance list` | `GET /v4/profiles/{profileId}/balances?types=STANDARD,SAVINGS` | Multi-currency balances — the top treasury question. `types` is a required comma-separated param (STANDARD + SAVINGS/Jars); **default to `STANDARD,SAVINGS`** so money held in Jars is not silently under-reported, with a `--types` flag to narrow. (Balance *amounts* are readable; balance *statements* are PSD2-gated and intentionally omitted.) |
 | `balance get` | `GET /v4/profiles/{profileId}/balances/{balanceId}` | Drill into one currency balance. |
 | `transfer list` | `GET /v1/transfers?profile={id}&status={status}&offset=&limit=&createdDateStart=&createdDateEnd=` | Monitor outgoing payouts by status/date. |
 | `transfer get` | `GET /v1/transfers/{transferId}` | Status of a specific payout. |
 | `activity list` | `GET /v1/profiles/{profileId}/activities?status=&since=&until=&size=&nextCursor=` | Unified human-readable account activity feed (cursor-paginated, `size` 1–100). |
-| `recipient list` | `GET /v1/accounts?profile={id}&currency={c}` | Look up saved recipient/beneficiary accounts. |
-| `quote create` | `POST /v3/profiles/{profileId}/quotes` | Price a hypothetical transfer (rate + fee estimate). A quote is read-ish — it moves no money; it answers "what would this cost". |
-| `rate list` | `GET /v1/rates?source={c}&target={c}` | Current/historical exchange rate. |
+| `recipient list` | `GET /v2/accounts?profile={id}&currency={c}` | Look up saved recipient/beneficiary accounts. **v2** (not v1): Wise's v1 recipient page says "for new integrations please use the latest version," and v2 returns the richer `accountSummary`/`longAccountSummary`/`displayFields`/`hash` fields — materially better for an AI rendering or diffing recipient details. Same `profile`/`currency` filters; recipient IDs are cross-compatible with v1. |
+| `quote create` | `POST /v3/quotes` | Price a hypothetical transfer (mid-market rate + fee estimate). Uses the **unauthenticated** quote endpoint: it takes **no `profileId`** and creates no persistent, profile-scoped resource — it returns a display/comparison estimate and moves nothing, which fits the read/pricing scope far more cleanly than the authenticated `POST /v3/profiles/{profileId}/quotes` (that one is the first step of a real transfer). The tool still injects its Bearer token (harmless — the endpoint ignores it), so no extra credential is needed. This also serves the exchange-rate need that the dropped `rate list` would have. |
 | `currency list` | `GET /v1/currencies` | Supported currencies / routes reference. |
+
+**Dropped from the initial draft:** `rate list` (`GET /v1/rates`) — that endpoint
+requires **Affiliate HTTP Basic auth** (`client_id:client_secret` via
+`partnerwise@wise.com`), which the tool's personal Bearer token is not (§1). The
+rate need is served by the `quote create` response instead.
 
 **Deliberately excluded** (out of scope for an `api_key` passthrough teammate):
 creating/funding transfers (`POST /v1/transfers`, `POST /v3/.../payments`),
@@ -82,8 +109,10 @@ batch groups, balance statements, and any endpoint requiring the SCA
 partner OAuth + an SCA-signing adapter — a separate, non-`api_key` effort.
 
 `profileId` is a required, per-invocation AI parameter (`--profile`) on every
-profile-scoped verb, resolved by the AI from `profile list` — never baked into
-the credential (a token may see several profiles).
+profile-scoped verb (`balance`, `transfer list`, `activity`, `recipient`),
+resolved by the AI from `profile list` — never baked into the credential (a token
+may see several profiles). `quote create` and `currency list` are **not**
+profile-scoped and take no `--profile`.
 
 ## 3. anycli definition
 
@@ -100,7 +129,7 @@ the credential (a token may see several profiles).
   the package name is the id verbatim), registered via
   `RegisterService("wise", &wise.Service{})` in `internal/tools/register.go`.
 - **Shape:** copy `internal/tools/notion/` — a cobra tree grouped by resource
-  (`profile`, `balance`, `transfer`, `activity`, `recipient`, `quote`, `rate`,
+  (`profile`, `balance`, `transfer`, `activity`, `recipient`, `quote`,
   `currency`), a `BaseURL`/`HC`/`Out`/`Err` struct so tests point at `httptest`,
   and the documented exit-code contract (0 ok / 1 API failure via typed
   `apiError` / 2 usage), with a `--json` structured error envelope.
@@ -175,32 +204,43 @@ Hidden-first (`presentation.visible: false`) until the anycli pin ships the
 
 | Layer | Wise-specific plan | Needs external creds? |
 |---|---|---|
-| **L1** | anycli `go test ./...`: `httptest` fake for each verb — assert request path (`/v1/profiles`, `/v4/profiles/{id}/balances`, `/v1/transfers?profile=…&status=…`, `/v1/profiles/{id}/activities?size=…&nextCursor=…`, `POST /v3/profiles/{id}/quotes`), the injected `Authorization: Bearer` header, `--base-url` override, cursor passthrough on `activity`, and both plain + `--json` error rendering (401/403 → typed `apiError`, exit 1). | No |
-| **L2** | Dev harness against the **real Wise sandbox** (V2 host): `ANYCLI_CRED_ACCESS_TOKEN=<sandbox personal token> anycli wise -- profile list`, then `balance list --profile <id>`, `activity list --profile <id>`, `quote create`. Proves field name, header, request shapes, and JSON match live. | **Yes** — a sandbox personal token from the account pool (V2 host). |
+| **L1** | anycli `go test ./...`: `httptest` fake for each verb — assert request path (`/v1/profiles`, `/v4/profiles/{id}/balances?types=STANDARD,SAVINGS`, `/v1/transfers?profile=…&status=…`, `/v1/profiles/{id}/activities?size=…&nextCursor=…`, `/v2/accounts?profile=…&currency=…`, `POST /v3/quotes` with no profile in path), the injected `Authorization: Bearer` header, `--base-url` override, `--types` override on `balance list`, cursor passthrough on `activity`, and both plain + `--json` error rendering (401/403 → typed `apiError`, exit 1). | No |
+| **L2** | Dev harness against the **real Wise sandbox** (`api.wise-sandbox.com`, `--base-url`): `ANYCLI_CRED_ACCESS_TOKEN=<sandbox personal token> anycli wise -- profile list`, then `balance list --profile <id>`, `activity list --profile <id>`, `recipient list --profile <id>`, `quote create` (no `--profile`). Proves field name, header, request shapes, and JSON match live. | **Yes** — a sandbox personal token from the account pool, minted against the confirmed sandbox host. |
 | **L3** | `provider-gen` + `provider-gen --check` (five projections regen locally, uncommitted); anycli + integration-service + helio-cli unit suites green; helio-cli built with a local `replace` at the anycli branch. | No |
 | **L4** | Singleton + `POST /internal/test-only/connections/seed` with `provider: wise`, `access_token: <sandbox token>` (api_key ⇒ seedable, non-expiring ⇒ seed `access_token` only, no refresh), then `heliox tool wise -- balance list --profile <id>` reaches the live sandbox API through the token gateway. | **Yes** — same sandbox token as L2. |
 | **L5** | Pre-flip, hidden: `heliox tool wise auth` → open connect link → **paste the personal token** through the real connect UI (`POST /connections/credentials`) → verifier hits `GET /v1/profiles` → connection shows connected/configured (`GET /connections`) → one **unseeded** live `wise -- profile list` succeeds. This is the api_key key-entry L5 path (master-plan §2), agent-drivable via agent-browser with human fallback. | **Yes** — a real (sandbox or production) personal token pasted at connect time. |
 
 L2/L4/L5 all depend on the account pool supplying **one Wise personal token
-minted in the environment the test runs against** (V2 sandbox strongly preferred;
-V1 tokens will stop working 2026-06-30 and are not valid in V2). No OAuth app
-registration is required (no lane-1 dev-app dependency), which is why Wise can run
-in the api_key sub-batch of Wave 3 on pure agent throughput up to the L5 sweep.
+minted in the environment the test runs against** — the confirmed sandbox host
+(`api.wise-sandbox.com`) for L2/L4, sandbox or production for L5. Sandbox tokens
+are not valid against production and vice-versa, so the pool must state which host
+each token belongs to (pinned in the L2 note). No OAuth app registration is
+required (no lane-1 dev-app dependency), which is why Wise can run in the api_key
+sub-batch of Wave 3 on pure agent throughput up to the L5 sweep.
 
 ## 7. Open risks / notes for the implementer
 
-- **PSD2 scope boundary is real, not conservative.** Do not add funding or
-  statement verbs to "round out" the tool — those endpoints will 403 on an EU/UK
-  personal token and/or demand SCA the passthrough cannot supply. Keep the verb
-  set read/monitor as in §2.
-- **Sandbox host churn.** Hardcode nothing but the production default; make
-  `--base-url` the single knob. Confirm at stage-1/L2 which sandbox host the
-  pool's token belongs to (V1 `*.transferwise.tech` vs V2 `*.wise.tech` /
-  `wise-sandbox.com`).
+- **Auth-boundary scope is real, not conservative (two boundaries).** (a) PSD2:
+  do not add funding or statement verbs to "round out" the tool — those endpoints
+  will 403 on an EU/UK personal token and/or demand SCA the passthrough cannot
+  supply. (b) `/v1/rates` (and "Get Temporary Quote") is **Affiliate Basic-auth
+  only** (`client_id:client_secret` via `partnerwise@wise.com`), not the personal
+  Bearer token — do not re-add a `rate list` verb; the rate is in the
+  `quote create` (`POST /v3/quotes`) response. Keep the verb set read/monitor +
+  non-committal pricing as in §2.
+- **Sandbox host.** Hardcode nothing but the production default; make `--base-url`
+  the single knob. The confirmed sandbox host in Wise's official examples is
+  `api.wise-sandbox.com` (older alias `api.sandbox.transferwise.tech`, whose V1
+  surface has already reached end-of-life). Confirm at stage-1/L2 which exact host
+  the pool's token was minted against and pin it in the L2 note so the
+  environment is unambiguous.
 - **Numeric identity id.** `stable_key` derives from a numeric profile `id`;
   confirm the existing numeric-stable-key coercion (hubspot/kit) is on the branch
   base before relying on it, else it is a one-line reuse, not a new capability.
-- **No divergence entry, no config appends** — Wise is the cheap end of the
-  spectrum: identical ②/③, single self-serve secret, no client id/secret. The
-  only shared-surface touches are the registry entry, icon, i18n, and docs at
-  batch end.
+- **One auth-boundary divergence recorded (§1), no *lane/resolver* divergence, no
+  config appends** — the lane stays `api_key` and ②≡③ so there is no resolver
+  entry to write; the only divergence is the verb-level `/v1/rates` auth boundary
+  documented in §1 (which dropped `rate list`). Wise remains the cheap end of the
+  spectrum otherwise: single self-serve secret, no client id/secret. The only
+  shared-surface touches are the registry entry, icon, i18n, and docs at batch
+  end.
