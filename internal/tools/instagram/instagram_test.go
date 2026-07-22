@@ -322,8 +322,36 @@ func TestAccountInsightsParams(t *testing.T) {
 	if req.Query.Get("metric") != accountInsightMetrics || req.Query.Get("period") != "day" {
 		t.Errorf("insights defaults wrong: %v", req.Query)
 	}
+	// profile_views was deprecated in Graph v22.0 (the service pins v23.0), so
+	// it must not appear in the built-in default metric set.
+	if strings.Contains(accountInsightMetrics, "profile_views") {
+		t.Errorf("default account metrics still include deprecated profile_views: %q", accountInsightMetrics)
+	}
+	// metric_type is a passthrough: absent unless the caller supplies it, so a
+	// time_series metric (e.g. follower_count) is not forced onto total_value.
+	if req.Query.Has("metric_type") {
+		t.Errorf("metric_type must not default: %v", req.Query)
+	}
 	if req.Query.Get("since") != "100" || req.Query.Get("until") != "200" {
 		t.Errorf("since/until lost: %v", req.Query)
+	}
+}
+
+// TestAccountInsightsMetricType pins the --metric-type passthrough. Current
+// Graph versions (v22+/v23) require metric_type=total_value for several
+// account-level metrics; the flag lets the assistant supply it without falling
+// back to the raw API.
+func TestAccountInsightsMetricType(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{"GET /me/insights": {http.StatusOK, `{"data":[]}`}})
+	defer srv.Close()
+	run(t, srv, "insights", "--metrics", "reach", "--metric-type", "total_value")
+	req := findReq(reqs, "GET", "/me/insights")
+	if req == nil {
+		t.Fatalf("no insights request; got %+v", reqs)
+	}
+	if req.Query.Get("metric") != "reach" || req.Query.Get("metric_type") != "total_value" {
+		t.Errorf("metric_type not passed through: %v", req.Query)
 	}
 }
 

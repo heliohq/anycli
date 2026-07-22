@@ -191,9 +191,26 @@ hidden-first decouples it from dev).
   scope=instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments,instagram_business_manage_insights`.
 - **Code → short-lived token:** `POST https://api.instagram.com/oauth/access_token`
   (form body: `client_id, client_secret, grant_type=authorization_code,
-  redirect_uri, code`). Response is **JSON** including `access_token` (a
+  redirect_uri, code`). Response is **JSON** carrying `access_token` (a
   ~1-hour short-lived IG User token), the **`user_id`** (Instagram App-scoped
   User ID), and the granted `permissions`.
+  - **Verified response-shape divergence (review fix).** Meta's **current
+    official Business Login doc** returns these fields **wrapped in a
+    single-element `data` array** —
+    `{"data":[{"access_token":...,"user_id":"...","permissions":...}]}` — with
+    `user_id` a **string**, *not* the flat `{access_token,user_id}` this design
+    originally assumed. Community implementations of the same July-2024 flow
+    still parse the **flat** top-level shape, i.e. Meta rolls the envelope out
+    **inconsistently per app**. A static identity pointer therefore cannot cover
+    both shapes. Resolution: the shared code exchanger
+    (`integration-service/service/oauth_exchange.go`, `unwrapDataEnvelope`)
+    **normalizes** a `data[0]`-wrapped body to the top level whenever the flat
+    `access_token` is absent, so one flat contract (`access_token` + identity
+    `/user_id`) serves both wrapped and flat apps. Absent that fix the standard
+    exchanger errored `token endpoint returned no access_token` and the whole
+    connect flow broke on wrapped apps. **L5 must still capture the raw
+    code-exchange body once against a live app** to confirm the shape; the
+    normalization already tolerates either outcome.
 - **Short → long-lived (~60 days):**
   `GET https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=<secret>&access_token=<short>`
   → JSON `{access_token, token_type:"bearer", expires_in≈5184000}`.
@@ -391,3 +408,29 @@ gates L4; Advanced-Access App Review gates only the visible flip.
   insights metrics were deprecated at v21 (2025-01-08), so keep metric names
   matched to the pinned version. Note it for the maintenance board; do not
   scatter it per-request.
+
+## 7. Review-fix as-built notes
+
+- **Code-exchange envelope (Finding 1, major) — RESOLVED.** See §3: Meta's
+  current official Business Login exchange returns the `data[]`-wrapped shape
+  (inconsistently per app), which broke the standard exchanger. The shared
+  exchanger now normalizes `data[0]` to top level (`unwrapDataEnvelope`), so
+  `identity.source: token_response` / `stable_key: /user_id` serves both flat
+  and wrapped apps unchanged. Still needs a one-off L5 capture of the raw body
+  to confirm which shape the live dev app emits (the code tolerates either).
+- **Long-lived refresh (Finding 2, minor) — DOCUMENTED, follow-up tracked.** The
+  shipped bundle takes the §4 growth-#2 zero-capability fallback:
+  `refresh_lease: none`, no `long_lived_refresh`. Consequence, now stated
+  explicitly in `provider.yaml` and the AI-facing doc: a connection's ~60-day
+  token is **not** auto-refreshed and silently lapses, requiring a manual
+  reconnect. Wiring `long_lived_refresh: instagram`
+  (`GET graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token`)
+  is a tracked follow-up **before broad GA**, not just before the visible flip.
+- **Account-insight defaults (Finding 3, minor) — FIXED.** `profile_views` was
+  deprecated in Graph v22.0 while the service pins v23.0, so the old default
+  `reach,follower_count,profile_views` shipped a deprecated metric. The anycli
+  default is now `reach,follower_count`, and a new `--metric-type` flag
+  (passthrough, no default) lets the assistant supply `total_value` for the v22+
+  metrics that require it — previously impossible without dropping to the raw
+  API. The AI-facing doc calls out that account insights are version-sensitive
+  and may need `--metric-type total_value`.
