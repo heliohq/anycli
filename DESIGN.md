@@ -140,8 +140,18 @@ interactive user authorization (this is why L5 is human-in-the-loop, §6).
 - **Token URL:** `https://oauth.accounting.sage.com/token`
   form-encoded `grant_type=authorization_code`, `client_id`, `client_secret`,
   `code`, `redirect_uri` (server-to-server; secret never in the browser).
-- **Scope:** single `full_access` scope (Sage does not offer granular scopes
-  on this API; `full_access` is the documented value).
+- **Scope:** Sage exposes **two** scopes on the Accounting API — `readonly`
+  and `full_access`. Per the official Sage developer docs: the `scope`
+  parameter "can be `readonly` or `full_access`. Read only does not allow you
+  to modify any Sage One data"; omitting it defaults to full access. This tool
+  wraps explicit writes (create contacts, raise sales invoices, record
+  purchase payments), so `full_access` is required — the right choice **because
+  the surface writes**, not because granular scopes are unavailable. `readonly`
+  remains the correct value for a future read-only variant of this bundle.
+  (Divergence recorded per the official-docs-win rule: the earlier
+  catalog/assumption that Sage has no granular scopes is wrong — `readonly`
+  exists and is a legitimate safer option; `full_access` is justified here
+  solely by the write endpoints in §1.)
 - **PKCE: none.** Confidential server-side client with a client_secret; the
   Accounting API does not require PKCE. (PKCE belongs to the separate Sage
   Active Public API V2 for public clients — recorded here so a future author
@@ -188,14 +198,14 @@ auth:
     token_url: https://oauth.accounting.sage.com/token
     token_exchange_style: form_secret
     pkce: none
-    scopes: [full_access]
+    scopes: [full_access]         # write surface (§1) requires it; readonly is the read-only-variant alternative
     display_scopes: [full_access]
     single_active_token: false
     refresh_lease: credential          # serialize per-credential refresh; see note below
 identity:
   source: userinfo
   url: https://api.accounting.sage.com/v3.1/user
-  stable_key: /id
+  stable_key: /id                   # pointers pending L2 verification against a real /user payload (§4)
   label_candidates: [/email, /display_name, /id]
 connection:
   mode: isolated
@@ -235,9 +245,10 @@ decision is the `refresh_lease` value.
   provider-agnostic.** `service/token_refresh.go` computes
   `refreshed.RefreshToken = firstNonEmpty(newTok.RefreshToken, td.RefreshToken)`
   and, on every refresh, unconditionally calls `writeBackRefreshedToken`
-  (`service/token_gateway.go:254` — "enforces A3 strict write-back", 227 A3:
-  never return an unpersisted token). `expires_at` is likewise captured
-  automatically from the oauth2 library's `Token.Expiry`
+  (defined at `service/token_gateway.go:254-260` — the doc comment there
+  "enforces A3 strict write-back", 227 A3: never return an unpersisted token;
+  invoked from `service/token_refresh.go:60`). `expires_at` is likewise
+  captured automatically from the oauth2 library's `Token.Expiry`
   (`token_refresh.go:53-54`). No provider is enrolled into a write-back
   allowed-set, and no `refresh_lease` value gates any of this. So there is
   **no** "enable write-back" enum to hunt and **no** `expires_in: 300`-capture
@@ -268,8 +279,12 @@ decision is the `refresh_lease` value.
 
 `identity.source: userinfo` against `GET /user` (which needs no `X-Business`
 header, so it resolves cleanly at connect time before any business is
-selected). `stable_key: /id`; `label_candidates: [/email, /display_name, /id]`.
-Exact JSON pointers confirmed at L2 against a real `/user` response. The
+selected). **Planned** mapping: `stable_key: /id`; `label_candidates:
+[/email, /display_name, /id]`. These pointers are **not yet confirmed** — the
+GET `/user` v3.1 response shape is not fully corroborated in the public portal
+docs, so they MUST be verified at L2 against a real `/user` payload before the
+bundle is trusted, and may change if `/user` nests identity under a different
+key. The
 connection is per-authorizing-user (`owner: individual`); multi-business is a
 per-invocation `--business`/`X-Business` concern, **not** a per-connection
 identity axis — one Sage connection can address all businesses the user can
