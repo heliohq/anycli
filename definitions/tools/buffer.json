@@ -1,0 +1,13 @@
+{
+  "name": "buffer",
+  "type": "service",
+  "description": "Buffer as a tool (social publishing via the Buffer GraphQL API)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "BUFFER_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
