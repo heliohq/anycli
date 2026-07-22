@@ -10,6 +10,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/figma"
 	"github.com/heliohq/anycli/internal/tools/forms"
 	"github.com/heliohq/anycli/internal/tools/gmail"
+	"github.com/heliohq/anycli/internal/tools/kit"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
@@ -35,6 +36,7 @@ func init() {
 	RegisterService("notion", &notion.Service{})
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
+	RegisterService("kit", &kit.Service{})
 	RegisterService("slides", &slides.Service{})
 	RegisterService("calendar", &calendar.Service{})
 	RegisterService("contacts", &contacts.Service{})
