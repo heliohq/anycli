@@ -318,3 +318,36 @@ assumptions: (a) no audit row for Sage — lane verified independently;
 `refresh_lease: credential` (per-credential refresh serialization, Lark
 rotation-type precedent) with **zero** capability growth — not a
 capability-growth point.
+
+## 7. Implementation divergences (verified against code / official docs)
+
+Recorded per the "official docs / code win over inherited assumptions" rule.
+
+1. **§3 was WRONG about `refresh_lease: credential` needing no growth.** The
+   integration-service base pins `standard_oauth` to `refresh_lease: none`
+   (`model/runtime_contract.go` `oauthRuntimeContract.refreshLeaseScope`, asserted
+   in `ValidateRuntimeContract`); `credential` is rejected at generation. A real
+   **capability growth** was required and made: the `standard_oauth` contract now
+   holds a closed allowed-set `{none, credential}`. The runtime
+   (`service/token_refresh.go acquireRefreshLease`) already keys the lease by
+   credential id for `OAuthLeaseCredential`, so only the generation-time gate was
+   lifted. Negative tests re-pointed to a still-disallowed scope; positive
+   coverage added. NOTE for the integrator: committing the regenerated catalog
+   also requires adding `sage: RuntimeStrategyStandardOAuth` to the
+   `wantStrategies` map in `service/provider_registry_test.go`
+   (`TestDefaultProviderRegistryIsComplete`), which counts committed catalog rows.
+2. **Payment endpoint corrected to `POST /contact_payments`** (root key
+   `contact_payment`, invoice linked via `allocated_artefacts[].artefact_id`), the
+   documented Sage v3.1 payment path — replacing §1's unverified nested
+   `POST /purchase_invoices/{key}/payments`. Exposed as `contact-payment create`.
+3. **`business get <id>` instead of `business lead`** — `/businesses/lead` is not a
+   documented endpoint; `GET /businesses/{key}` is. `business list` still surfaces
+   the ids for `--business`.
+4. **No `--all` accumulation.** Lists emit Sage's `$items`/`$total`/`$next`
+   envelope verbatim; the caller pages with `--page`/`--items-per-page` — simpler
+   and lower-risk than modeling `$next` following.
+5. **Writes take a verbatim `--body` JSON envelope** (not per-field flags), since
+   the accounting schema is country-variable and high-stakes.
+6. **Identity `label_candidates: [/email, /displayed_as, /id]`** (§4 had
+   `display_name`) — `displayed_as` is the standard v3.1 label field. Still
+   pending L2 confirmation against a real `/user` payload.
