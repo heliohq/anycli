@@ -356,3 +356,28 @@ per-batch agent-driven sweep after the batch-end merge; there is no review clock
   the Vault credential. Key revocation stays a dashboard action.
 - **Rate limit 300/min** — the service should surface `429` as a typed exit-1
   error with the provider's retry hint, not silently retry-loop.
+
+---
+
+## 8. Official-docs verification divergences (recorded at implementation)
+
+Verified §1–§4 against the official Lemon Squeezy API docs (2026-07). Auth lane
+`api_key` is **confirmed** (no OAuth authorization-code flow; the audit row 175
+verdict stands) and base URL / three JSON:API headers / `/users/me` shape
+(`{"data":{"id","attributes":{name,email}}}`) all match. Two mechanical
+divergences from the §2 sketch, corrected in the shipped `service` type:
+
+1. **`generate-invoice` is `POST`, not `GET`.** Both
+   `POST /v1/orders/{id}/generate-invoice` and
+   `POST /v1/subscription-invoices/{id}/generate-invoice` are POST endpoints
+   whose invoice fields are **query parameters** (name/address/city/…). The
+   `order invoice` / `subscription-invoice invoice` commands issue POST with a
+   repeatable `--param key=value` query, and read the signed
+   `meta.urls.download_invoice` from the response.
+2. **Order refund exists** (`POST /v1/orders/{id}/refund`, a newer endpoint per
+   the API changelog) alongside `POST /v1/subscription-invoices/{id}/refund`;
+   §2 already listed the former, and both ship as `refund <id>` with an optional
+   `--data` partial-amount body.
+
+No auth-lane or identity-pointer divergence — `/data/id` (string) and
+name/email label candidates are correct.
