@@ -18,6 +18,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/microsoftoutlook"
 	"github.com/heliohq/anycli/internal/tools/mongodb"
 	"github.com/heliohq/anycli/internal/tools/notion"
+	"github.com/heliohq/anycli/internal/tools/pennylane"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -52,6 +53,7 @@ func init() {
 	RegisterService("microsoft-calendar", &microsoftcalendar.Service{})
 	RegisterService("microsoft-onedrive", &microsoftonedrive.Service{})
 	RegisterService("mongodb", &mongodb.Service{})
+	RegisterService("pennylane", &pennylane.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility
