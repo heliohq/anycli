@@ -12,6 +12,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/gmail"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
+	"github.com/heliohq/anycli/internal/tools/metaads"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
 	"github.com/heliohq/anycli/internal/tools/microsoftonedrive"
 	"github.com/heliohq/anycli/internal/tools/microsoftoutlook"
@@ -45,6 +46,7 @@ func init() {
 	RegisterService("forms", &forms.Service{})
 	RegisterService("linkedin", &linkedin.Service{})
 	RegisterService("meet", &meet.Service{})
+	RegisterService("meta-ads", &metaads.Service{})
 	RegisterService("tasks", &tasks.Service{})
 	RegisterService("x", &x.Service{})
 	RegisterService("microsoft-outlook", &microsoftoutlook.Service{})
