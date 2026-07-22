@@ -13,8 +13,10 @@ import (
 // gate can reason over structured action facts before funds move; an
 // unrestricted passthrough would re-admit refundTransaction / reverseTransaction
 // under a benign-looking `query` command, bypassing that gate. So this verb
-// parses the supplied operation and REJECTS any mutation locally (exit 2, no
-// network call); reads pass through unchanged.
+// parses the supplied document and REJECTS it locally if ANY top-level
+// operation is a mutation (exit 2, no network call) — including documents that
+// lead with fragment definitions or comments before the mutation; reads pass
+// through unchanged.
 func (s *Service) newQueryCmd(cl *client) *cobra.Command {
 	var vars []string
 	cmd := &cobra.Command{
@@ -48,38 +50,105 @@ func (s *Service) newQueryCmd(cl *client) *cobra.Command {
 	return cmd
 }
 
-// isMutation reports whether the GraphQL document's first operation is a
-// mutation. It skips leading whitespace, commas, and #-to-end-of-line comments,
-// then reads the first identifier: an anonymous selection ("{ … }") and the
-// `query`/`subscription` keywords are reads; only `mutation` is rejected.
+// isMutation reports whether the GraphQL document contains ANY top-level
+// mutation operation — not just when the first token is `mutation`.
+//
+// This is a money-movement safety boundary: the curated refund/void/reverse
+// verbs route through the design-318 approval gate, and this read-only
+// passthrough must never become an un-gated write channel. A single valid
+// document may legally lead with fragment definitions (or comments) before the
+// operation — e.g. `fragment F on Transaction { id } mutation M {
+// refundTransaction(input:{transactionId:"x"}){ refund { ...F } } }` — so
+// inspecting only the first identifier is exploitable: it reads `fragment`,
+// classifies the document as a read, and forwards the mutation to Braintree.
+//
+// So this scans the whole document and rejects it if a `mutation` keyword
+// appears in operation-definition position — i.e. at top level (brace depth 0),
+// outside string literals and #-comments. Field and argument identifiers live
+// inside a selection set (depth > 0) and never trip the guard; string literals
+// (regular and block) are skipped so their braces cannot corrupt the depth
+// count. The classifier errs toward rejection (an operation merely *named*
+// "mutation" is refused), which is the safe direction for a payments tool.
 func isMutation(document string) bool {
 	i := 0
+	depth := 0
 	for i < len(document) {
 		c := document[i]
 		switch {
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == ',':
-			i++
 		case c == '#':
 			for i < len(document) && document[i] != '\n' {
 				i++
 			}
-		default:
-			// First meaningful token.
-			if c == '{' {
-				return false // anonymous operation is always a query
+		case c == '"':
+			i = skipGraphQLString(document, i)
+		case c == '{':
+			depth++
+			i++
+		case c == '}':
+			if depth > 0 {
+				depth--
 			}
+			i++
+		case isIdentStart(c):
 			start := i
 			for i < len(document) && isIdentChar(document[i]) {
 				i++
 			}
-			return document[start:i] == "mutation"
+			// Only top-level definition keywords start operations; a `mutation`
+			// token inside a selection set is a field/argument name, not a
+			// write operation.
+			if depth == 0 && document[start:i] == "mutation" {
+				return true
+			}
+		default:
+			i++
 		}
 	}
 	return false
 }
 
-func isIdentChar(c byte) bool {
+// skipGraphQLString advances past a string literal starting at index i (the
+// opening quote) and returns the index just after the closing delimiter. It
+// handles both regular ("…") and block ("""…""") strings, honoring escapes, so
+// braces or the word "mutation" inside a string cannot corrupt isMutation's
+// top-level scan.
+func skipGraphQLString(s string, i int) int {
+	if strings.HasPrefix(s[i:], `"""`) {
+		j := i + 3
+		for j < len(s) {
+			if s[j] == '\\' && strings.HasPrefix(s[j+1:], `"""`) {
+				j += 4
+				continue
+			}
+			if strings.HasPrefix(s[j:], `"""`) {
+				return j + 3
+			}
+			j++
+		}
+		return len(s)
+	}
+	j := i + 1
+	for j < len(s) {
+		switch s[j] {
+		case '\\':
+			j += 2
+		case '"':
+			return j + 1
+		case '\n':
+			return j // unterminated at line end; stop scanning the string
+		default:
+			j++
+		}
+	}
+	return len(s)
+}
+
+func isIdentStart(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+}
+
+func isIdentChar(c byte) bool {
+	return isIdentStart(c) || (c >= '0' && c <= '9')
 }
 
 // parseVars turns repeated key=value flags into the GraphQL variables map.

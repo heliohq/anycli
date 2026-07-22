@@ -270,6 +270,24 @@ func TestQueryRejectsMutationLocally(t *testing.T) {
 			t.Fatalf("anonymous selection exit = %d, want 0", res.ExitCode)
 		}
 	})
+	// A single document that leads with a fragment definition (or a comment
+	// then a fragment) before the mutation must NOT slip past the read-only
+	// guard: the mutation still executes at Braintree if forwarded. This is the
+	// prompt-injection write path the boundary exists to block.
+	t.Run("leading fragment then mutation rejected, no request", func(t *testing.T) {
+		fs := newFakeServer(t, 200, `{"data":{}}`)
+		doc := "fragment F on Transaction { id } mutation M { refundTransaction(input:{transactionId:\"x\"}){ refund { ...F } } }"
+		_, errOut, res := fs.run(t, true, "query", doc)
+		if res.ExitCode != 2 {
+			t.Fatalf("exit = %d, want 2", res.ExitCode)
+		}
+		if len(fs.reqs) != 0 {
+			t.Errorf("leading-fragment mutation must not issue an HTTP request, got %d", len(fs.reqs))
+		}
+		if !strings.Contains(errOut, "read-only") {
+			t.Errorf("stderr = %q, want read-only rejection", errOut)
+		}
+	})
 }
 
 func TestIsMutation(t *testing.T) {
@@ -285,6 +303,21 @@ func TestIsMutation(t *testing.T) {
 		{"  query Foo { ping }", false},
 		{"subscription { x }", false},
 		{",, { ping }", false},
+		// Leading fragment (or comment then fragment) before a mutation must
+		// still be classified as a mutation — the first token is `fragment`,
+		// but a later top-level operation is a mutation.
+		{"fragment F on Transaction { id } mutation M { refundTransaction(input:{transactionId:\"x\"}){ refund { ...F } } }", true},
+		{"# lead comment\nfragment F on T { id } mutation M { x }", true},
+		// Leading fragment before a read query stays a read.
+		{"fragment F on T { id } query Q { transaction { ...F } }", false},
+		{"fragment F on T { id }\n{ transaction { ...F } }", false},
+		// A field literally named `mutation` inside a read is not a mutation
+		// operation (it lives inside the selection set, not at top level).
+		{"query { mutation { id } }", false},
+		// A string argument containing braces or the word mutation must not
+		// corrupt the top-level scan.
+		{"query { search(q: \"} mutation {\") { id } }", false},
+		{"mutation { refundTransaction(input:{transactionId:\"x\"}){ refund { id } } }", true},
 	}
 	for _, c := range cases {
 		if got := isMutation(c.doc); got != c.want {
