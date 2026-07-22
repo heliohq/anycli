@@ -190,20 +190,25 @@ only for SPA/mobile where the secret can't be kept.)
 - authorize: `https://api.kit.com/v4/oauth/authorize`
   (params `client_id`, `response_type=code`, `redirect_uri`, optional `scope`,
   `state`)
-- token: `POST https://api.kit.com/v4/oauth/token`
-  (grant `authorization_code` then `refresh_token`; body carries `client_id` +
-  `client_secret` for the confidential flow). **Documented content-type is
-  `application/json`** — Kit's refresh example sends
-  `-H 'Content-Type: application/json'` with a JSON body. This is the crux of
-  the token-exchange-style decision (§5 Q1): the default bundle shape must
-  match this JSON body, not a form-encoded one.
+- token: `POST https://api.kit.com/v4/oauth/token`, grant `authorization_code`
+  then `refresh_token`. **Verified 2026-07-22 against the official curls:**
+  - the **authorization_code** exchange sends `-H 'Content-Type: application/json'`
+    with a JSON body carrying **both** `client_id` **and** `client_secret` (plus
+    `grant_type`, `code`, `redirect_uri`);
+  - the **refresh** call also documents `Content-Type: application/json` but its
+    body carries **only** `client_id` — no `client_secret`. (Kit's published
+    refresh curl is itself buggy: it shows `"code"` where the field should be
+    `"refresh_token"`, so it is not a reliable source for exact body fields.)
+  Content-type is documented as JSON, but the chosen bundle encoding is
+  `form_secret` (form body, `client_secret_post`), NOT a JSON style — see §5 Q1
+  for the architectural reason (the shared refresh path is form-only by
+  construction, and Doorkeeper accepts form on this controller family).
 - revoke: `POST https://api.kit.com/v4/oauth/revoke` (RFC 7009; body `token`,
   `client_id`, `client_secret`, optional `token_type_hint`; always `200`).
-  **Documented content-type here is `application/x-www-form-urlencoded`** — Kit
-  deliberately uses a *different* content-type from `/oauth/token`. This
-  divergence is decisive: because Kit explicitly form-encodes revoke while
-  JSON-encoding token, we must NOT assume the token endpoint silently accepts
-  form-encoding.
+  **Documented content-type here is `application/x-www-form-urlencoded`** —
+  direct proof that Kit's OAuth stack (Doorkeeper) accepts form-encoded bodies
+  on the same controller family. This is exactly what makes `form_secret` safe
+  for the token endpoint too (§5 Q1).
 
 **Scopes:** the only scope today is `public` (default when `scope` is omitted);
 Kit's docs say "Fine-grained access control via scopes coming soon." So the
@@ -248,13 +253,14 @@ enters via the OAuth callback and lives in Vault.
 ## 5. Helio provider bundle plan (`integrations/providers/kit/provider.yaml`)
 
 Ships **hidden-first** (`presentation.visible: false`) — decouples the App
-Store review clock from the anycli pin. Default `standard_oauth`; no
-provider-specific Go adapter is warranted (Kit is a textbook Doorkeeper-style
-authorization-code server — response shapes and lifecycle stay inside the
-`standard_oauth` capability set). The one non-default piece is the token
-**exchange content-type**: Kit documents a JSON body (see §5 Q1), which needs a
-new `json_secret` enum value on `standardOAuthExchanger`. That is planned
-capability growth done up front, not an L2-contingent fallback.
+Store review clock from the anycli pin. Pure `standard_oauth`; no
+provider-specific Go adapter and **no new exchanger capability** are warranted.
+Kit is a textbook Doorkeeper-style authorization-code server — response shapes,
+token lifecycle, and client authentication all sit inside the existing
+`standard_oauth` capability set. The token exchange uses the existing
+`form_secret` enum value (standard OAuth2 `client_secret_post`); §5 Q1 explains
+why that is both the documented-compatible and the architecturally coherent
+choice over a new `json_secret` value.
 
 ```yaml
 schema: helio.provider/v1
@@ -275,7 +281,7 @@ auth:
   oauth:
     authorize_url: https://api.kit.com/v4/oauth/authorize
     token_url: https://api.kit.com/v4/oauth/token
-    token_exchange_style: json_secret   # documented shape: JSON body, client_id+client_secret in body (§5 Q1 — new enum value)
+    token_exchange_style: form_secret   # existing enum; client_secret_post, coherent across auth-code + refresh (§5 Q1)
     pkce: none                          # confidential web-server client
     display_scopes: [public]
     single_active_token: false
@@ -321,27 +327,61 @@ before Kit's L5.
 
 ### Capability questions to resolve against `main` (flag at stage 1)
 
-1. **`token_exchange_style` for Kit's token endpoint — new `json_secret` enum
-   value (primary planned work).** The existing closed enum is
-   `form_secret | form_basic | json_basic`. Kit's **documented** confidential
-   exchange (both the authorization_code and refresh curl examples) sends a
-   **JSON body** with `client_id`+`client_secret` **in the body**
-   (`Content-Type: application/json`) — verified against
-   `developers.kit.com/api-reference/oauth-refresh-token-flow` (2026-07-22),
-   which shows `-H 'Content-Type: application/json'`. None of the three enum
-   values expresses this (there is no `json_secret`: `json_basic` puts creds in
-   an `Authorization: Basic` header, not the JSON body). This is exactly the
-   undocumented-assumption trap: Kit *deliberately* form-encodes `/oauth/revoke`
-   while JSON-encoding `/oauth/token` (§4), so inferring that the token endpoint
-   silently also accepts form-encoding is unsafe. **Plan:** the primary work is
-   to add one reviewed enum value **`json_secret`** (JSON body, `client_id` +
-   `client_secret` in the body) to `standardOAuthExchanger`, ship it as the
-   default (§5 bundle), and confirm it at L2 against the real token endpoint.
-   `form_secret` is demoted to a *fallback to consider only if* we want to avoid
-   the enum addition — and it would only be viable if L2 proves Kit's Doorkeeper
-   server tolerates form-encoding despite the docs; we do not rely on that.
-   Either way no bespoke adapter — this is a single reviewed enum growth on the
-   shared exchanger.
+1. **`token_exchange_style` — ship the existing `form_secret`, not a new
+   `json_secret`.** The closed enum is `form_secret | form_basic | json_basic`
+   (`validate.go:154-161`; `oauth_exchange.go`). `json_basic` is JSON-body but
+   puts the client credentials in an `Authorization: Basic` header
+   (`oauth_exchange.go:106-125`), so none of the three sends
+   `client_id`+`client_secret` **in a JSON body** — the exact shape Kit's
+   documented authorization_code curl uses. An earlier draft concluded we must
+   add a `json_secret` enum value and ship it as the default. **That is wrong,
+   for a decisive architectural reason found by reading the refresh path:** the
+   token **refresh** leg (`token_refresh.go:148-169`) does not use the custom
+   `buildTokenRequest` at all — it uses `golang.org/x/oauth2`
+   (`oauth2.Config.TokenSource(...).Token()`), which **always** encodes the body
+   as `application/x-www-form-urlencoded`. `TokenExchangeStyle` there only toggles
+   credential placement (body vs. `Authorization: Basic`, via
+   `UsesHTTPBasicClientAuth()`) — it can never make the refresh body JSON. Kit
+   uses rotating refresh (`refresh_lease: provider`), so it **will** hit this
+   form-only refresh path. Adding `json_secret` would make only the
+   authorization_code leg JSON while the refresh leg stays form — an incoherent
+   split that still could not honor the documented JSON content-type on refresh.
+   The coherent choice is one encoding for both legs: **`form_secret`** (form
+   body, standard OAuth2 `client_secret_post`).
+   - **Is form-encoding safe against Kit's `/oauth/token`?** Yes, with high
+     confidence: Kit's own `/oauth/revoke` example is `application/x-www-form-
+     urlencoded` (§4), which proves the Doorkeeper OAuth controller family accepts
+     form bodies; and every refreshing OAuth provider Helio already ships
+     (`x`, `keap`, `signnow`, `hootsuite`) exchanges through this same form path
+     against its real endpoint. The documented JSON content-type on `/oauth/token`
+     is an example, not a rejection of form (`client_secret_post` is standard
+     OAuth2). We record this divergence-from-docs explicitly and **confirm it
+     empirically at L2** (a real authorization_code→token exchange with
+     `form_secret`) before leaving the harness.
+   - **Contingency, not up-front growth:** `json_secret` is introduced **only if**
+     L2 proves Kit's `/oauth/token` authorization_code leg rejects form-encoding
+     (highly unlikely). Even then it would fix only the auth-code leg — the
+     form-only refresh leg would still have to be validated separately — so the
+     enum buys little. Per "subtract before adding" and integration-service's
+     rule that a new standard provider should not need a new capability unless
+     the closed set genuinely cannot express it, we do not grow the shared,
+     security-sensitive exchanger ahead of L2 evidence. Either way no bespoke
+     adapter.
+
+   *Review-finding resolution (verified against the official curls on
+   2026-07-22).* The review is **accepted**: default flipped from `json_secret`
+   to `form_secret`; `json_secret` demoted to an L2-gated contingency; the
+   earlier §4/§5 claim that "both the authorization_code and refresh curl
+   examples carry client_id+client_secret in a JSON body" is corrected (the
+   refresh curl carries **only** `client_id`, and is itself buggy — it prints
+   `"code"` in place of `"refresh_token"`). One factual refinement to the review:
+   it stated "there is NO documented Kit example showing client_id+client_secret
+   in a JSON body" — the **authorization_code** exchange curl is exactly such an
+   example (Content-Type `application/json`, both creds in the body). That does
+   not change the conclusion, because (a) Doorkeeper accepts form on the same
+   stack and (b) the refresh leg is form-only regardless, so `form_secret`
+   remains the correct, coherent default and no capability growth is justified
+   up front.
 2. **`refresh_lease: provider` allowed-set.** Prior refreshing OAuth tools
    (keap, signnow, hootsuite) each had to grow the standard_oauth
    `refresh_lease` allowed-set. Check whether `main` still gates `provider`
@@ -365,7 +405,7 @@ existing capabilities, this is a **zero-service-code** provider.
 | Layer | What proves Kit works | External creds? |
 |---|---|---|
 | **L1** anycli `go test ./...` | `internal/tools/kit` unit tests vs `httptest` fakes: request method/path/body, injected `Authorization: Bearer`, cursor pagination, `--json` + plain error rendering. Definition JSON strict-decodes. | No |
-| **L2** dev harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<real> anycli kit -- account get` and `… -- subscriber list` / `-- broadcast list` against live `api.kit.com/v4`. **Confirm the token exchange** — run one real authorization_code→token exchange with the dev app's client creds to prove the documented `json_secret` (JSON body) shape works end-to-end (capability Q1); form-encoding is not the default and is only probed if we later want to avoid the enum addition. | **Yes** — a real Kit account access token (from the account pool) + the dev app client_id/secret |
+| **L2** dev harness real API | `ANYCLI_CRED_ACCESS_TOKEN=<real> anycli kit -- account get` and `… -- subscriber list` / `-- broadcast list` against live `api.kit.com/v4`. **Confirm the token exchange** — run one real authorization_code→token exchange with the dev app's client creds to prove the default `form_secret` (form body, `client_secret_post`) shape is accepted by `/oauth/token` end-to-end (capability Q1). Only if that exchange is rejected do we introduce `json_secret`. | **Yes** — a real Kit account access token (from the account pool) + the dev app client_id/secret |
 | **L3** generation + suites | `provider-gen` then `provider-gen --check` (five projections regen together, run locally only — not committed on the tool branch); `helio-cli` + `integration-service` unit suites green, incl. any capability-growth tests (Q1/Q2/Q3). Branch is *expected* to fail `provider-gen --check` in CI until the batch-end merge. | No |
 | **L4** singleton + seeded creds | `make run-singleton` (env=dev) → `POST /internal/test-only/connections/seed` for provider `kit` with a real dedicated-account `access_token` + `refresh_token` and a deliberately short `expires_at` (force the gateway refresh-and-write-back path, since Kit tokens expire in 48h) → `heliox tool kit -- account get` returns real account JSON via the token gateway. Requires the pinned/`replace`d anycli carrying the `kit` definition. | **Yes** — real Kit access+refresh token; dev app client creds in local uncommitted `config/cloud.yaml` for the refresh exercise |
 | **L5** full connect flow (pre-flip, human-in-the-loop) | `heliox tool kit auth` → connect link → **real Kit OAuth consent on a dev/unpublished app** → `oauth_connected` system event fires → unseeded `heliox tool kit -- account get` succeeds through the freshly created connection. oauth_review ⇒ human consent (lane 3); this validates the connect UX the L4 seed bypasses. | **Yes** — a real Kit creator account for live consent; the registered (unpublished-OK) OAuth app |
