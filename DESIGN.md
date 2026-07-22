@@ -287,3 +287,29 @@ stage 1, don't discover mid-wave.
    options with tests.
 3. **Command-surface breadth.** v1 wraps the resources in §1; `metrics` and the webhook
    simulator are deferred. Confirm no higher-priority resource for the teammate.
+
+## 7. Implementation divergences from this DESIGN (recorded during build)
+
+Verified against the official Paddle API reference while implementing; the code
+follows the official paths, not the §1 draft:
+
+- **Subscription one-time charge is `POST /subscriptions/{id}/charges` (plural)**
+  and its dry run is `POST /subscriptions/{id}/charges/preview` — not the
+  `/charge` / `/charge/preview` the §1 table wrote. CLI verbs unchanged
+  (`subscription charge` / `preview-charge`).
+- **Subscription update preview is `POST /subscriptions/{id}/preview`** — not
+  `/update/preview`. CLI verb `subscription preview-update`.
+- **Paddle Billing paths carry no `/v1` segment** — the version is the
+  `Paddle-Version` header (pinned to `1`), so endpoints are bare
+  (`https://api.paddle.com/transactions`, not `/api/v1/transactions`). This
+  confirms §2b.
+
+**Capability-growth naming, for the batch lead (OQ2).** The worktree base
+carried neither the Bearer-scheme verifier nor the fingerprint identity deriver,
+so this tool added them (both with tests): `APIKeyPolicy.Scheme` (`""`/`bearer`)
+threaded through generator + verifier, and a new `identity.source: fingerprint`
+for `manual_api_token` (liveness GET + SHA-256 credential fingerprint, label =
+provider display name). If the tally/loops (Bearer) or knock/paperform
+(fingerprint) branches shipped equivalents under different names, reconcile to
+one at the batch-end merge — the paddle bundle only needs `scheme: bearer` +
+`identity.source: fingerprint` to exist, however they are spelled.
