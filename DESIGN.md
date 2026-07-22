@@ -55,7 +55,7 @@ Billing (transactions, subscriptions, adjustments, pricing-preview), Reporting
 | subscriptions | `GET /subscriptions`, `GET /subscriptions/{id}` | plan/status lookup |
 | subscriptions | `PATCH /subscriptions/{id}` | change items/quantity/proration |
 | subscriptions | `POST /subscriptions/{id}/cancel`, `.../pause`, `.../resume`, `.../activate` | lifecycle actions |
-| subscriptions | `POST /subscriptions/{id}/charge`, `.../charge/preview`, `.../update/preview` | one-time charge + dry-run previews |
+| subscriptions | `POST /subscriptions/{id}/charge`, `.../charge/preview`, `PATCH .../preview` | one-time charge + dry-run previews |
 | transactions | `GET /transactions`, `GET /transactions/{id}` | payment history |
 | transactions | `GET /transactions/{id}/invoice` | invoice PDF URL |
 | transactions | `POST /transactions`, `POST /transactions/preview` | create / dry-run a charge |
@@ -300,8 +300,13 @@ follows the official paths, not the §1 draft:
   `developer.paddle.com/api-reference/subscriptions/create-one-time-charge` and
   `.../preview-subscription-charge` are singular. Now corrected in code and the
   L1 path test.) CLI verbs unchanged (`subscription charge` / `preview-charge`).
-- **Subscription update preview is `POST /subscriptions/{id}/preview`** — not
-  `/update/preview`. CLI verb `subscription preview-update`.
+- **Subscription update preview is `PATCH /subscriptions/{id}/preview`** — not
+  `/update/preview`, and it is `PATCH` (mirroring the real `PATCH /subscriptions/{id}`
+  update verb), not `POST`. The official reference
+  `developer.paddle.com/api-reference/subscriptions/preview-subscription` is `PATCH`;
+  an earlier build wrongly used `POST` for this one verb (the sibling one-time-charge
+  preview correctly stays `POST /subscriptions/{id}/charge/preview`). Corrected in code
+  and the L1 path test. CLI verb `subscription preview-update`.
 - **Paddle Billing paths carry no `/v1` segment** — the version is the
   `Paddle-Version` header (pinned to `1`), so endpoints are bare
   (`https://api.paddle.com/transactions`, not `/api/v1/transactions`). This

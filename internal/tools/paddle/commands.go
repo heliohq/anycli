@@ -68,13 +68,15 @@ func (s *Service) subscriptionGroup(token string) *cobra.Command {
 		}),
 		s.getCmd(token, "/subscriptions", "get", "Get one subscription"),
 		s.updateCmd(token, "/subscriptions", "Update a subscription (items, proration)"),
-		s.actionCmd(token, "/subscriptions", "cancel", "cancel", "Cancel a subscription", true),
-		s.actionCmd(token, "/subscriptions", "pause", "pause", "Pause a subscription", true),
-		s.actionCmd(token, "/subscriptions", "resume", "resume", "Resume a subscription", true),
-		s.actionCmd(token, "/subscriptions", "activate", "activate", "Activate a trialing subscription", true),
-		s.actionCmd(token, "/subscriptions", "charge", "charge", "Create a one-time charge on a subscription", true),
-		s.actionCmd(token, "/subscriptions", "preview-charge", "charge/preview", "Preview a one-time charge (dry run)", false),
-		s.actionCmd(token, "/subscriptions", "preview-update", "preview", "Preview a subscription update (dry run)", false),
+		s.actionCmd(token, http.MethodPost, "/subscriptions", "cancel", "cancel", "Cancel a subscription", true),
+		s.actionCmd(token, http.MethodPost, "/subscriptions", "pause", "pause", "Pause a subscription", true),
+		s.actionCmd(token, http.MethodPost, "/subscriptions", "resume", "resume", "Resume a subscription", true),
+		s.actionCmd(token, http.MethodPost, "/subscriptions", "activate", "activate", "Activate a trialing subscription", true),
+		s.actionCmd(token, http.MethodPost, "/subscriptions", "charge", "charge", "Create a one-time charge on a subscription", true),
+		s.actionCmd(token, http.MethodPost, "/subscriptions", "preview-charge", "charge/preview", "Preview a one-time charge (dry run)", false),
+		// Preview-update mirrors the real update verb: Paddle serves it as
+		// PATCH /subscriptions/{id}/preview (not POST).
+		s.actionCmd(token, http.MethodPatch, "/subscriptions", "preview-update", "preview", "Preview a subscription update (dry run)", false),
 	)
 	return g
 }
@@ -242,8 +244,10 @@ func (s *Service) updateCmd(token, path, short string) *cobra.Command {
 	return cmd
 }
 
-// actionCmd is POST <path>/<id>/<sub> with an optional --data JSON body.
-func (s *Service) actionCmd(token, path, use, sub, short string, mutates bool) *cobra.Command {
+// actionCmd is <method> <path>/<id>/<sub> with an optional --data JSON body.
+// Most subscription actions are POST; preview-update is PATCH, mirroring the
+// real update verb, so the HTTP method is a parameter.
+func (s *Service) actionCmd(token, method, path, use, sub, short string, mutates bool) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         use + " <id>",
 		Short:       short,
@@ -254,7 +258,7 @@ func (s *Service) actionCmd(token, path, use, sub, short string, mutates bool) *
 			if err != nil {
 				return err
 			}
-			return s.run(c, token, http.MethodPost, path+"/"+url.PathEscape(args[0])+"/"+sub, nil, body)
+			return s.run(c, token, method, path+"/"+url.PathEscape(args[0])+"/"+sub, nil, body)
 		},
 	}
 	dataFlagDef(cmd)

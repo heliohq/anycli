@@ -162,7 +162,7 @@ func TestSubscriptionLifecycleAndPreviewPaths(t *testing.T) {
 		{[]string{"subscription", "activate", "sub_1"}, "POST", "/subscriptions/sub_1/activate"},
 		{[]string{"subscription", "charge", "sub_1", "--data", `{"items":[]}`}, "POST", "/subscriptions/sub_1/charge"},
 		{[]string{"subscription", "preview-charge", "sub_1", "--data", `{"items":[]}`}, "POST", "/subscriptions/sub_1/charge/preview"},
-		{[]string{"subscription", "preview-update", "sub_1", "--data", `{"items":[]}`}, "POST", "/subscriptions/sub_1/preview"},
+		{[]string{"subscription", "preview-update", "sub_1", "--data", `{"items":[]}`}, "PATCH", "/subscriptions/sub_1/preview"},
 	}
 	for _, tc := range cases {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
