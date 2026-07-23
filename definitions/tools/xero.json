@@ -1,0 +1,13 @@
+{
+  "name": "xero",
+  "type": "service",
+  "description": "Xero accounting: invoices, bills, contacts, payments, accounts, and reports",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "XERO_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
