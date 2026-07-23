@@ -9,9 +9,10 @@ import (
 
 func (s *Service) newNewsletterListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List newsletters (GET /v1/newsletters)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List newsletters (GET /v1/newsletters)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd, key, http.MethodGet, "/v1/newsletters", nil, nil)
 			if err != nil {
@@ -25,9 +26,10 @@ func (s *Service) newNewsletterListCmd(key string) *cobra.Command {
 func (s *Service) newNewsletterGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a newsletter (GET /v1/newsletters/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a newsletter (GET /v1/newsletters/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd, key, http.MethodGet, "/v1/newsletters/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -46,9 +48,10 @@ func (s *Service) newNewsletterMetricsCmd(key string) *cobra.Command {
 	var links bool
 	var m metricsParams
 	cmd := &cobra.Command{
-		Use:   "metrics",
-		Short: "Newsletter performance metrics (GET /v1/newsletters/{id}/metrics or /metrics/links)",
-		Args:  cobra.NoArgs,
+		Use:         "metrics",
+		Short:       "Newsletter performance metrics (GET /v1/newsletters/{id}/metrics or /metrics/links)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			m.apply(q)

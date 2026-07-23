@@ -24,9 +24,10 @@ func (s *Service) newSegmentsListCmd(c *client) *cobra.Command {
 	var page int
 	var sortDirection string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List segments (id + name), paginated",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List segments (id + name), paginated",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().IntVar(&page, "page", 0, "0-indexed page of segments to return")
 	cmd.Flags().StringVar(&sortDirection, "sort-direction", "", "asc|desc by creation time")
@@ -51,9 +52,10 @@ func (s *Service) newSegmentsListCmd(c *client) *cobra.Command {
 func (s *Service) newSegmentsDetailsCmd(c *client) *cobra.Command {
 	var segmentID string
 	cmd := &cobra.Command{
-		Use:   "details",
-		Short: "Get a segment's configuration and metadata",
-		Args:  cobra.NoArgs,
+		Use:         "details",
+		Short:       "Get a segment's configuration and metadata",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&segmentID, "segment-id", "", "segment API identifier (required)")
 	_ = cmd.MarkFlagRequired("segment-id")
@@ -75,9 +77,10 @@ func (s *Service) newSegmentsSeriesCmd(c *client) *cobra.Command {
 	var segmentID, endingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:   "series",
-		Short: "Get a segment's size over time",
-		Args:  cobra.NoArgs,
+		Use:         "series",
+		Short:       "Get a segment's size over time",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&segmentID, "segment-id", "", "segment API identifier (required)")
 	cmd.Flags().IntVar(&length, "length", 7, "number of days (max 100) ending at --ending-at")

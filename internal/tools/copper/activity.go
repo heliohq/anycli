@@ -24,9 +24,10 @@ func (s *Service) newActivityCmd(token string) *cobra.Command {
 func (s *Service) newActivityListCmd(token string) *cobra.Command {
 	var f searchFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Search activities (POST /activities/search)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "Search activities (POST /activities/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := f.searchBody()
 			if err != nil {
@@ -46,9 +47,10 @@ func (s *Service) newActivityListCmd(token string) *cobra.Command {
 func (s *Service) newActivityGetCmd(token string) *cobra.Command {
 	var id int
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one activity by id (GET /activities/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one activity by id (GET /activities/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id <= 0 {
 				return &usageError{msg: "--id is required"}
@@ -67,9 +69,10 @@ func (s *Service) newActivityGetCmd(token string) *cobra.Command {
 func (s *Service) newActivityCreateCmd(token string) *cobra.Command {
 	var jsonBody string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Log an activity (POST /activities)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Log an activity (POST /activities)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if jsonBody == "" {
 				return &usageError{msg: "--json-body is required (the activity payload: type, parent, details)"}
@@ -92,9 +95,10 @@ func (s *Service) newActivityCreateCmd(token string) *cobra.Command {
 func (s *Service) newActivityDeleteCmd(token string) *cobra.Command {
 	var id int
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete an activity (DELETE /activities/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete an activity (DELETE /activities/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id <= 0 {
 				return &usageError{msg: "--id is required"}

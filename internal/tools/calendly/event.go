@@ -14,9 +14,10 @@ func (s *Service) newEventListCmd(token string) *cobra.Command {
 	var count int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List booked meetings (GET /scheduled_events)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List booked meetings (GET /scheduled_events)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if org {
@@ -72,9 +73,10 @@ func (s *Service) newEventListCmd(token string) *cobra.Command {
 
 func (s *Service) newEventGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <event-id|uri>",
-		Short: "Inspect one booked meeting (GET /scheduled_events/{uuid})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <event-id|uri>",
+		Short:       "Inspect one booked meeting (GET /scheduled_events/{uuid})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/scheduled_events/"+url.PathEscape(uuidOf(args[0])), nil, nil)
 			if err != nil {
@@ -90,9 +92,10 @@ func (s *Service) newEventInviteesCmd(token string) *cobra.Command {
 	var count int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:   "invitees <event-id|uri>",
-		Short: "Who booked, Q&A answers, cancel/reschedule URLs (GET /scheduled_events/{uuid}/invitees)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "invitees <event-id|uri>",
+		Short:       "Who booked, Q&A answers, cancel/reschedule URLs (GET /scheduled_events/{uuid}/invitees)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if status != "" {
@@ -122,9 +125,10 @@ func (s *Service) newEventInviteesCmd(token string) *cobra.Command {
 func (s *Service) newEventCancelCmd(token string) *cobra.Command {
 	var reason string
 	cmd := &cobra.Command{
-		Use:   "cancel <event-id|uri>",
-		Short: "Cancel a booked meeting with a reason (POST /scheduled_events/{uuid}/cancellation)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "cancel <event-id|uri>",
+		Short:       "Cancel a booked meeting with a reason (POST /scheduled_events/{uuid}/cancellation)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if reason != "" {

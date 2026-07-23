@@ -23,9 +23,10 @@ func (s *Service) newEventsCmd(c *client) *cobra.Command {
 func (s *Service) newEventsListCmd(c *client) *cobra.Command {
 	var page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List custom-event names, paginated",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List custom-event names, paginated",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().IntVar(&page, "page", 0, "0-indexed page of event names to return")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -48,9 +49,10 @@ func (s *Service) newEventsSeriesCmd(c *client) *cobra.Command {
 	var event, unit, endingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:   "series",
-		Short: "Get occurrences of a custom event over time",
-		Args:  cobra.NoArgs,
+		Use:         "series",
+		Short:       "Get occurrences of a custom event over time",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&event, "event", "", "custom-event name (required)")
 	cmd.Flags().IntVar(&length, "length", 7, "number of units (max 100) ending at --ending-at")

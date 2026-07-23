@@ -17,9 +17,10 @@ func (s *Service) newContactCreateCmd(apiKey string) *cobra.Command {
 		updateEnabled                bool
 	)
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create or upsert a contact (POST /contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create or upsert a contact (POST /contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if email != "" {
@@ -63,9 +64,10 @@ func (s *Service) newContactUpdateCmd(apiKey string) *cobra.Command {
 		listIDs, unlinkListIDs                    []int
 	)
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a contact (PUT /contacts/{identifier})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a contact (PUT /contacts/{identifier})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if extID != "" {
@@ -105,9 +107,10 @@ func (s *Service) newContactUpdateCmd(apiKey string) *cobra.Command {
 func (s *Service) newContactGetCmd(apiKey string) *cobra.Command {
 	var id, identifierType string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a contact (GET /contacts/{identifier})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a contact (GET /contacts/{identifier})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), apiKey, http.MethodGet, "/contacts/"+url.PathEscape(id), identifierTypeQuery(identifierType), nil)
 			if err != nil {
@@ -129,9 +132,10 @@ func (s *Service) newContactListCmd(apiKey string) *cobra.Command {
 		sort, modifiedSince string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List / search contacts (GET /contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List / search contacts (GET /contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("limit", itoa(limit))
@@ -160,9 +164,10 @@ func (s *Service) newContactListCmd(apiKey string) *cobra.Command {
 func (s *Service) newContactDeleteCmd(apiKey string) *cobra.Command {
 	var id, identifierType string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a contact (DELETE /contacts/{identifier})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a contact (DELETE /contacts/{identifier})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), apiKey, http.MethodDelete, "/contacts/"+url.PathEscape(id), identifierTypeQuery(identifierType), nil)
 			if err != nil {

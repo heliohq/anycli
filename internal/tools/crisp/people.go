@@ -28,9 +28,10 @@ func (s *Service) newPeopleListCmd(token string) *cobra.Command {
 	var page int
 	var search string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List or search People profiles",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List or search People profiles",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			website, err := websiteFlag(cmd)
 			if err != nil {
@@ -56,9 +57,10 @@ func (s *Service) newPeopleListCmd(token string) *cobra.Command {
 func (s *Service) newPeopleGetCmd(token string) *cobra.Command {
 	var people string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Look up one People profile",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Look up one People profile",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			website, err := websiteFlag(cmd)
 			if err != nil {
@@ -82,9 +84,10 @@ func (s *Service) newPeopleGetCmd(token string) *cobra.Command {
 func (s *Service) newPeopleCreateCmd(token string) *cobra.Command {
 	var email, nickname string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Add a new People profile (contact)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Add a new People profile (contact)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			website, err := websiteFlag(cmd)
 			if err != nil {

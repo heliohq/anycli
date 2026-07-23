@@ -32,9 +32,10 @@ type account struct {
 
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get the authenticated account (id, email, organizations)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the authenticated account (id, email, organizations)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			acct, err := s.fetchAccount(cmd.Context(), token)
 			if err != nil {
@@ -47,9 +48,10 @@ func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 
 func (s *Service) newOrgListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List organizations (workspaces) on the account",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List organizations (workspaces) on the account",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			acct, err := s.fetchAccount(cmd.Context(), token)
 			if err != nil {

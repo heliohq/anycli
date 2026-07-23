@@ -15,9 +15,10 @@ var bookingStatuses = map[string]bool{"upcoming": true, "past": true, "cancelled
 
 func (s *Service) newEventTypeListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List the authenticated user's bookable event types",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the authenticated user's bookable event types",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			data, err := s.getJSON(cmd.Context(), token, "/event-types", verEventTypes, nil)
 			if err != nil {
@@ -31,9 +32,10 @@ func (s *Service) newEventTypeListCmd(token string) *cobra.Command {
 func (s *Service) newEventTypeGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one event type by id",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one event type by id",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}
@@ -54,9 +56,10 @@ func (s *Service) newEventTypeGetCmd(token string) *cobra.Command {
 func (s *Service) newSlotListCmd(token string) *cobra.Command {
 	var eventTypeID, start, end string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List available slots for an event type within a time range",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List available slots for an event type within a time range",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if eventTypeID == "" || start == "" || end == "" {
 				return &usageError{msg: "--event-type-id, --start and --end are required"}
@@ -83,9 +86,10 @@ func (s *Service) newSlotListCmd(token string) *cobra.Command {
 func (s *Service) newBookingListCmd(token string) *cobra.Command {
 	var status string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List bookings (optionally filtered by status)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List bookings (optionally filtered by status)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if status != "" {
@@ -108,9 +112,10 @@ func (s *Service) newBookingListCmd(token string) *cobra.Command {
 func (s *Service) newBookingGetCmd(token string) *cobra.Command {
 	var uid string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one booking by uid",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one booking by uid",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if uid == "" {
 				return &usageError{msg: "--uid is required"}
@@ -130,9 +135,10 @@ func (s *Service) newBookingCreateCmd(token string) *cobra.Command {
 	var eventTypeID int
 	var start, name, email, tz, notes, metadata string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Book a meeting on the user's behalf",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Book a meeting on the user's behalf",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if eventTypeID == 0 || start == "" || name == "" || email == "" || tz == "" {
 				return &usageError{msg: "--event-type-id, --start, --attendee-name, --attendee-email and --attendee-tz are required"}
@@ -178,9 +184,10 @@ func (s *Service) newBookingCreateCmd(token string) *cobra.Command {
 func (s *Service) newBookingCancelCmd(token string) *cobra.Command {
 	var uid, reason string
 	cmd := &cobra.Command{
-		Use:   "cancel",
-		Short: "Cancel a booking",
-		Args:  cobra.NoArgs,
+		Use:         "cancel",
+		Short:       "Cancel a booking",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if uid == "" {
 				return &usageError{msg: "--uid is required"}
@@ -204,9 +211,10 @@ func (s *Service) newBookingCancelCmd(token string) *cobra.Command {
 func (s *Service) newBookingRescheduleCmd(token string) *cobra.Command {
 	var uid, start, reason string
 	cmd := &cobra.Command{
-		Use:   "reschedule",
-		Short: "Move a booking to a new start time",
-		Args:  cobra.NoArgs,
+		Use:         "reschedule",
+		Short:       "Move a booking to a new start time",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if uid == "" || start == "" {
 				return &usageError{msg: "--uid and --start are required"}
@@ -232,9 +240,10 @@ func (s *Service) newBookingRescheduleCmd(token string) *cobra.Command {
 
 func (s *Service) newScheduleListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List the user's availability schedules",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the user's availability schedules",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			data, err := s.getJSON(cmd.Context(), token, "/schedules", verSchedules, nil)
 			if err != nil {
@@ -249,9 +258,10 @@ func (s *Service) newScheduleListCmd(token string) *cobra.Command {
 
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Show the authenticated Cal.com profile",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Show the authenticated Cal.com profile",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			data, err := s.getJSON(cmd.Context(), token, "/me", verMe, nil)
 			if err != nil {

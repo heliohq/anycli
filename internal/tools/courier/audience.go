@@ -10,9 +10,10 @@ import (
 // newAudienceGetCmd builds `audience get <id>` — GET /audiences/{id}.
 func (s *Service) newAudienceGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <audience-id>",
-		Short: "Get an audience",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <audience-id>",
+		Short:       "Get an audience",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out, err := s.call(cmd.Context(), key, http.MethodGet, "/audiences/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -27,9 +28,10 @@ func (s *Service) newAudienceGetCmd(key string) *cobra.Command {
 func (s *Service) newAudienceListCmd(key string) *cobra.Command {
 	var cursor string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List audiences (cursor-paginated)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List audiences (cursor-paginated)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIf(q, "cursor", cursor)

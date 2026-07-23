@@ -13,9 +13,10 @@ import (
 func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "search --data <json|@file>",
-		Short: "Run an Advanced Filtering query (POST /data/search/)",
-		Args:  cobra.NoArgs,
+		Use:         "search --data <json|@file>",
+		Short:       "Run an Advanced Filtering query (POST /data/search/)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := readData("data", data)
 			if err != nil {
@@ -36,9 +37,10 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 // organizations the token can act on. Also the identity/verify endpoint.
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Show the authenticated user and their organizations",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Show the authenticated user and their organizations",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/me/", nil, nil)
 			if err != nil {

@@ -15,9 +15,10 @@ import (
 func (s *Service) newExportDeliveriesCmd(key string) *cobra.Command {
 	var newsletter, campaign, action, start, end, metric string
 	cmd := &cobra.Command{
-		Use:   "deliveries",
-		Short: "Start a deliveries export (POST /v1/exports/deliveries)",
-		Args:  cobra.NoArgs,
+		Use:         "deliveries",
+		Short:       "Start a deliveries export (POST /v1/exports/deliveries)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			set := 0
 			for _, v := range []string{newsletter, campaign, action} {
@@ -54,9 +55,10 @@ func (s *Service) newExportDeliveriesCmd(key string) *cobra.Command {
 func (s *Service) newExportPeopleCmd(key string) *cobra.Command {
 	var filters string
 	cmd := &cobra.Command{
-		Use:   "people",
-		Short: "Start a people export (POST /v1/exports/customers)",
-		Args:  cobra.NoArgs,
+		Use:         "people",
+		Short:       "Start a people export (POST /v1/exports/customers)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// The App API requires the audience filter under `filters` (plural);
 			// omitting it would otherwise export the entire workspace.
@@ -79,9 +81,10 @@ func (s *Service) newExportPeopleCmd(key string) *cobra.Command {
 
 func (s *Service) newExportListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List exports (GET /v1/exports)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List exports (GET /v1/exports)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd, key, http.MethodGet, "/v1/exports", nil, nil)
 			if err != nil {
@@ -96,9 +99,10 @@ func (s *Service) newExportGetCmd(key string) *cobra.Command {
 	var id, out string
 	var download bool
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get an export (GET /v1/exports/{id}); with --download, fetch its signed link (GET /v1/exports/{id}/download) and save the file",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get an export (GET /v1/exports/{id}); with --download, fetch its signed link (GET /v1/exports/{id}/download) and save the file",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if !download {
 				resp, err := s.call(cmd, key, http.MethodGet, "/v1/exports/"+url.PathEscape(id), nil, nil)

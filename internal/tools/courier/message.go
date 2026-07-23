@@ -11,9 +11,10 @@ import (
 // status/outcome of a requestId returned by `send`.
 func (s *Service) newMessageGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <message-id>",
-		Short: "Get a message's delivery status",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <message-id>",
+		Short:       "Get a message's delivery status",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out, err := s.call(cmd.Context(), key, http.MethodGet, "/messages/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -29,9 +30,10 @@ func (s *Service) newMessageGetCmd(key string) *cobra.Command {
 func (s *Service) newMessageListCmd(key string) *cobra.Command {
 	var cursor, status, recipient, notification, list, tags, traceID, enqueuedAfter string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List recent messages (cursor-paginated)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List recent messages (cursor-paginated)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIf(q, "cursor", cursor)
@@ -65,9 +67,10 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 // the per-message delivery timeline.
 func (s *Service) newMessageHistoryCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "history <message-id>",
-		Short: "Get a message's delivery timeline",
-		Args:  cobra.ExactArgs(1),
+		Use:         "history <message-id>",
+		Short:       "Get a message's delivery timeline",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out, err := s.call(cmd.Context(), key, http.MethodGet, "/messages/"+url.PathEscape(args[0])+"/history", nil, nil)
 			if err != nil {
@@ -82,9 +85,10 @@ func (s *Service) newMessageHistoryCmd(key string) *cobra.Command {
 // with no body, cancelling an enqueued/delayed message.
 func (s *Service) newMessageCancelCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "cancel <message-id>",
-		Short: "Cancel an enqueued or delayed message",
-		Args:  cobra.ExactArgs(1),
+		Use:         "cancel <message-id>",
+		Short:       "Cancel an enqueued or delayed message",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out, err := s.call(cmd.Context(), key, http.MethodPost, "/messages/"+url.PathEscape(args[0])+"/cancel", nil, nil)
 			if err != nil {

@@ -25,9 +25,10 @@ func (s *Service) newSubscriptionStatusGetCmd(c *client) *cobra.Command {
 	var externalID, email, phone string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "status-get",
-		Short: "Get a user's subscription-group states",
-		Args:  cobra.NoArgs,
+		Use:         "status-get",
+		Short:       "Get a user's subscription-group states",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&externalID, "external-id", "", "external user id (required unless --email/--phone given)")
 	cmd.Flags().StringVar(&email, "email", "", "email address (alternative identifier)")
@@ -70,9 +71,10 @@ func (s *Service) newSubscriptionStatusSetCmd(c *client) *cobra.Command {
 	var groupID, state string
 	var externalIDs, emails []string
 	cmd := &cobra.Command{
-		Use:   "status-set",
-		Short: "Set a user's subscription-group state (permission-gated)",
-		Args:  cobra.NoArgs,
+		Use:         "status-set",
+		Short:       "Set a user's subscription-group state (permission-gated)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&groupID, "subscription-group-id", "", "subscription group id (required)")
 	cmd.Flags().StringVar(&state, "state", "", "subscribed|unsubscribed (required)")

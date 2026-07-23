@@ -9,9 +9,10 @@ import (
 
 func (s *Service) newCampaignListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns (GET /v1/campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns (GET /v1/campaigns)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd, key, http.MethodGet, "/v1/campaigns", nil, nil)
 			if err != nil {
@@ -25,9 +26,10 @@ func (s *Service) newCampaignListCmd(key string) *cobra.Command {
 func (s *Service) newCampaignGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a campaign (GET /v1/campaigns/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a campaign (GET /v1/campaigns/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd, key, http.MethodGet, "/v1/campaigns/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -46,9 +48,10 @@ func (s *Service) newCampaignMetricsCmd(key string) *cobra.Command {
 	var links, journey bool
 	var m metricsParams
 	cmd := &cobra.Command{
-		Use:   "metrics",
-		Short: "Campaign performance metrics (GET /v1/campaigns/{id}/metrics, /metrics/links, or /journey_metrics)",
-		Args:  cobra.NoArgs,
+		Use:         "metrics",
+		Short:       "Campaign performance metrics (GET /v1/campaigns/{id}/metrics, /metrics/links, or /journey_metrics)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if links && journey {
 				return &usageError{msg: "--links and --journey are mutually exclusive"}

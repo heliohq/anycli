@@ -29,9 +29,10 @@ type sendFlags struct {
 func (s *Service) newSendCmd(key string) *cobra.Command {
 	var f sendFlags
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a notification to a recipient across configured channels",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a notification to a recipient across configured channels",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			to, err := f.recipient()
 			if err != nil {

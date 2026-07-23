@@ -57,9 +57,10 @@ func (s *Service) newPostListCmd(token string) *cobra.Command {
 	var org, channelID, status, after string
 	var first int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List posts in an organization (optionally filtered by channel/status)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List posts in an organization (optionally filtered by channel/status)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if org == "" {
 				return &usageError{msg: "--org is required"}
@@ -122,9 +123,10 @@ func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 	var channelID, text, mode, dueAt, assetsJSON, metadataJSON string
 	var draft bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a post on a channel (queue or custom-scheduled)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a post on a channel (queue or custom-scheduled)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if channelID == "" {
 				return &usageError{msg: "--channel is required"}
@@ -182,9 +184,10 @@ func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 func (s *Service) newPostEditCmd(token string) *cobra.Command {
 	var id, text, mode, dueAt, assetsJSON, metadataJSON string
 	cmd := &cobra.Command{
-		Use:   "edit",
-		Short: "Edit an existing post",
-		Args:  cobra.NoArgs,
+		Use:         "edit",
+		Short:       "Edit an existing post",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}
@@ -238,9 +241,10 @@ func (s *Service) newPostEditCmd(token string) *cobra.Command {
 func (s *Service) newPostDeleteCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a post",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a post",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}

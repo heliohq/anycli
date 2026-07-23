@@ -12,9 +12,10 @@ func (s *Service) newSendEmailCmd(key string) *cobra.Command {
 	var identifiers []string
 	var disableRetention, queueDraft bool
 	cmd := &cobra.Command{
-		Use:   "email",
-		Short: "Send a transactional email (POST /v1/send/email)",
-		Args:  cobra.NoArgs,
+		Use:         "email",
+		Short:       "Send a transactional email (POST /v1/send/email)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ids, err := parseIdentifiers(identifiers)
 			if err != nil {

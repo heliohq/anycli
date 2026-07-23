@@ -30,9 +30,10 @@ func (s *Service) newActivityListCmd(token string) *cobra.Command {
 		typeName string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List activities, optionally filtered by lead and type",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List activities, optionally filtered by lead and type",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			lf.apply(q)
@@ -57,9 +58,10 @@ func (s *Service) newActivityListCmd(token string) *cobra.Command {
 
 func (s *Service) newActivityGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <type> <id>",
-		Short: "Get one activity by type and id (type ∈ note|call|email|sms|meeting)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "get <type> <id>",
+		Short:       "Get one activity by type and id (type ∈ note|call|email|sms|meeting)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, activityPath(args[0], args[1]), nil, nil)
 			if err != nil {
@@ -72,9 +74,10 @@ func (s *Service) newActivityGetCmd(token string) *cobra.Command {
 
 func (s *Service) newActivityDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <type> <id>",
-		Short: "Delete one activity by type and id",
-		Args:  cobra.ExactArgs(2),
+		Use:         "delete <type> <id>",
+		Short:       "Delete one activity by type and id",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodDelete, activityPath(args[0], args[1]), nil, nil)
 			if err != nil {
@@ -91,9 +94,10 @@ func (s *Service) newActivityNoteAddCmd(token string) *cobra.Command {
 		note   string
 	)
 	cmd := &cobra.Command{
-		Use:   "note-add --lead-id <id> --note <text>",
-		Short: "Add a note activity to a lead",
-		Args:  cobra.NoArgs,
+		Use:         "note-add --lead-id <id> --note <text>",
+		Short:       "Add a note activity to a lead",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPost, "/activity/note/", nil, map[string]any{
 				"lead_id": leadID,
@@ -118,9 +122,10 @@ func (s *Service) newActivityNoteAddCmd(token string) *cobra.Command {
 func (s *Service) newActivityCreateCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "create <type> --data <json|@file>",
-		Short: "Create an activity of a given type from a JSON body (call, email, sms, meeting, …)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <type> --data <json|@file>",
+		Short:       "Create an activity of a given type from a JSON body (call, email, sms, meeting, …)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := readData("data", data)
 			if err != nil {
