@@ -33,6 +33,7 @@ func (s *Service) newBacklinksSummaryCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/backlinks/summary/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&target, "target", "", "domain, subdomain, or URL (required)")
 	_ = cmd.MarkFlagRequired("target")
 	return cmd
@@ -56,6 +57,7 @@ func (s *Service) newBacklinksListCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/backlinks/backlinks/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&target, "target", "", "domain, subdomain, or URL (required)")
 	_ = cmd.MarkFlagRequired("target")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max backlinks (default 100, max 1000)")
@@ -80,6 +82,7 @@ func (s *Service) newBacklinksReferringDomainsCmd(credential string) *cobra.Comm
 			return s.do(cmd.Context(), credential, http.MethodPost, "/backlinks/referring_domains/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&target, "target", "", "domain, subdomain, or URL (required)")
 	_ = cmd.MarkFlagRequired("target")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max referring domains (default 100, max 1000)")
@@ -104,6 +107,7 @@ func (s *Service) newBacklinksAnchorsCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/backlinks/anchors/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&target, "target", "", "domain, subdomain, or URL (required)")
 	_ = cmd.MarkFlagRequired("target")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max anchors (default 100, max 1000)")

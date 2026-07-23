@@ -34,9 +34,10 @@ func (s *Service) newEnvelopeSendCmd(c *apiClient) *cobra.Command {
 		draft       bool
 	)
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Create and send an envelope for signature (from a template or a document)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Create and send an envelope for signature (from a template or a document)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if (templateID == "") == (document == "") {
 				return &usageError{msg: "exactly one of --template-id or --document is required"}
@@ -164,9 +165,10 @@ func (s *Service) newEnvelopeListCmd(c *apiClient) *cobra.Command {
 		count    int
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List recent envelopes by date and status",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List recent envelopes by date and status",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if fromDate == "" {
 				fromDate = time.Now().Add(-defaultListWindow).UTC().Format("2006-01-02")
@@ -209,9 +211,10 @@ func (s *Service) newEnvelopeListCmd(c *apiClient) *cobra.Command {
 
 func (s *Service) newEnvelopeGetCmd(c *apiClient) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <envelope-id>",
-		Short: "Get one envelope's status",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <envelope-id>",
+		Short:       "Get one envelope's status",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := c.callJSON(cmd.Context(), http.MethodGet, "/envelopes/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -235,9 +238,10 @@ func (s *Service) newEnvelopeGetCmd(c *apiClient) *cobra.Command {
 
 func (s *Service) newEnvelopeRecipientsCmd(c *apiClient) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "recipients <envelope-id>",
-		Short: "List an envelope's recipients and per-recipient signing status",
-		Args:  cobra.ExactArgs(1),
+		Use:         "recipients <envelope-id>",
+		Short:       "List an envelope's recipients and per-recipient signing status",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := c.callJSON(cmd.Context(), http.MethodGet, "/envelopes/"+url.PathEscape(args[0])+"/recipients", nil, nil)
 			if err != nil {
@@ -264,9 +268,10 @@ func (s *Service) newEnvelopeRecipientsCmd(c *apiClient) *cobra.Command {
 func (s *Service) newEnvelopeVoidCmd(c *apiClient) *cobra.Command {
 	var reason string
 	cmd := &cobra.Command{
-		Use:   "void <envelope-id>",
-		Short: "Void an envelope that was sent in error",
-		Args:  cobra.ExactArgs(1),
+		Use:         "void <envelope-id>",
+		Short:       "Void an envelope that was sent in error",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(reason) == "" {
 				return &usageError{msg: "--reason is required to void an envelope"}
@@ -297,9 +302,10 @@ func (s *Service) newEnvelopeVoidCmd(c *apiClient) *cobra.Command {
 func (s *Service) newEnvelopeDownloadCmd(c *apiClient) *cobra.Command {
 	var outPath string
 	cmd := &cobra.Command{
-		Use:   "download <envelope-id>",
-		Short: "Download the combined completed PDF for an envelope",
-		Args:  cobra.ExactArgs(1),
+		Use:         "download <envelope-id>",
+		Short:       "Download the combined completed PDF for an envelope",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := c.callRaw(cmd.Context(), "/envelopes/"+url.PathEscape(args[0])+"/documents/combined")
 			if err != nil {

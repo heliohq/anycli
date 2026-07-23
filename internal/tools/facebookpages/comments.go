@@ -14,6 +14,7 @@ const defaultCommentFields = "id,message,from,created_time,like_count"
 func (s *Service) newCommentListCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{Use: "list <post-id>", Short: "List comments on a post", Args: cobra.ExactArgs(1)}
+	cmd.Annotations = readOnly
 	pageID := pageFlag(cmd)
 	cmd.Flags().StringVar(&fields, "fields", "", "comma-separated Graph fields (default: comment summary)")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -30,6 +31,7 @@ func (s *Service) newCommentListCmd(token string) *cobra.Command {
 func (s *Service) newCommentReplyCmd(token string) *cobra.Command {
 	var message string
 	cmd := &cobra.Command{Use: "reply <comment-id>", Short: "Reply to a comment", Args: cobra.ExactArgs(1)}
+	cmd.Annotations = writeAction
 	pageID := pageFlag(cmd)
 	cmd.Flags().StringVar(&message, "message", "", "reply text")
 	_ = cmd.MarkFlagRequired("message")
@@ -47,6 +49,7 @@ func (s *Service) newCommentReplyCmd(token string) *cobra.Command {
 func (s *Service) newCommentHideCmd(token string) *cobra.Command {
 	var hidden bool
 	cmd := &cobra.Command{Use: "hide <comment-id>", Short: "Hide or unhide a comment", Args: cobra.ExactArgs(1)}
+	cmd.Annotations = writeAction
 	pageID := pageFlag(cmd)
 	cmd.Flags().BoolVar(&hidden, "hidden", true, "true to hide, false to unhide")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -62,6 +65,7 @@ func (s *Service) newCommentHideCmd(token string) *cobra.Command {
 
 func (s *Service) newCommentDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{Use: "delete <comment-id>", Short: "Delete a comment", Args: cobra.ExactArgs(1)}
+	cmd.Annotations = writeAction
 	pageID := pageFlag(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.callAsPage(cmd.Context(), token, *pageID, http.MethodDelete, "/"+url.PathEscape(args[0]), nil, nil)

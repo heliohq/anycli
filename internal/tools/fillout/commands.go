@@ -13,9 +13,10 @@ import (
 // newFormListCmd: GET /v1/api/forms — all forms in the account.
 func (s *Service) newFormListCmd(token, apiBase string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List all forms in the account",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List all forms in the account",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, apiBase, http.MethodGet, "/forms", nil, nil)
 			if err != nil {
@@ -29,9 +30,10 @@ func (s *Service) newFormListCmd(token, apiBase string) *cobra.Command {
 // newFormGetCmd: GET /v1/api/forms/{formId} — form metadata + question schema.
 func (s *Service) newFormGetCmd(token, apiBase string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <formId>",
-		Short: "Get a form's metadata and question schema",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <formId>",
+		Short:       "Get a form's metadata and question schema",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, apiBase, http.MethodGet, "/forms/"+args[0], nil, nil)
 			if err != nil {
@@ -98,6 +100,7 @@ func (s *Service) newSubmissionListCmd(token, apiBase string) *cobra.Command {
 			return s.emit(body)
 		},
 	}
+	cmd.Annotations = readOnly
 	f := cmd.Flags()
 	f.IntVar(&limit, "limit", 0, "max submissions per request (1-150; Fillout default 50)")
 	f.IntVar(&offset, "offset", 0, "starting position (Fillout default 0)")
@@ -130,6 +133,7 @@ func (s *Service) newSubmissionGetCmd(token, apiBase string) *cobra.Command {
 			return s.emit(body)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().BoolVar(&includeEditLink, "include-edit-link", false, "include an editLink for the submission")
 	return cmd
 }
@@ -155,6 +159,7 @@ func (s *Service) newSubmissionCreateCmd(token, apiBase string) *cobra.Command {
 			return s.emit(body)
 		},
 	}
+	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&data, "data", "", "submissions JSON body (e.g. {\"submissions\":[...]})")
 	cmd.Flags().StringVar(&file, "file", "", "path to a file holding the submissions JSON body")
 	return cmd
@@ -163,9 +168,10 @@ func (s *Service) newSubmissionCreateCmd(token, apiBase string) *cobra.Command {
 // newSubmissionDeleteCmd: DELETE /v1/api/forms/{formId}/submissions/{submissionId}.
 func (s *Service) newSubmissionDeleteCmd(token, apiBase string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <formId> <submissionId>",
-		Short: "Delete a submission",
-		Args:  cobra.ExactArgs(2),
+		Use:         "delete <formId> <submissionId>",
+		Short:       "Delete a submission",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, apiBase, http.MethodDelete, "/forms/"+args[0]+"/submissions/"+args[1], nil, nil)
 			if err != nil {
@@ -195,6 +201,7 @@ func (s *Service) newWebhookCreateCmd(token, apiBase string) *cobra.Command {
 			return s.emit(body)
 		},
 	}
+	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&formID, "form-id", "", "public form identifier")
 	cmd.Flags().StringVar(&url, "url", "", "endpoint that receives submission events")
 	_ = cmd.MarkFlagRequired("form-id")
@@ -221,6 +228,7 @@ func (s *Service) newWebhookDeleteCmd(token, apiBase string) *cobra.Command {
 			return s.emit(body)
 		},
 	}
+	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&webhookID, "webhook-id", "", "the webhook ID returned at creation")
 	_ = cmd.MarkFlagRequired("webhook-id")
 	return cmd

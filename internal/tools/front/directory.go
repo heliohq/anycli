@@ -18,6 +18,7 @@ func (s *Service) newContactListCmd(token string) *cobra.Command {
 		Short: "List or search contacts",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&q, "q", "", "filter by name or handle")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max results per page (Front caps at 100)")
 	cmd.Flags().StringVar(&pageToken, "page-token", "", "cursor from a prior response's next_page_token")
@@ -45,6 +46,7 @@ func (s *Service) newContactGetCmd(token string) *cobra.Command {
 		Short: "Get a contact by id or handle alias",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&id, "id", "", "contact id or alt:source:handle (required)")
 	_ = cmd.MarkFlagRequired("id")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -69,6 +71,7 @@ func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 		Short: "Create a contact",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&name, "name", "", "contact display name")
 	cmd.Flags().StringArrayVar(&handles, "handle", nil, "source:value handle, e.g. email:jane@example.com (repeatable, at least one required)")
 	_ = cmd.MarkFlagRequired("handle")
@@ -131,6 +134,7 @@ func (s *Service) newSimpleListCmd(token, short, path string) *cobra.Command {
 		Short: short,
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().IntVar(&limit, "limit", 0, "max results per page (Front caps at 100)")
 	cmd.Flags().StringVar(&pageToken, "page-token", "", "cursor from a prior response's next_page_token")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -151,6 +155,7 @@ func (s *Service) newMeCmd(token string) *cobra.Command {
 		Short: "Show the Front company this token is scoped to",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/me", nil, nil)
 		if err != nil {

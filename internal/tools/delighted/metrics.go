@@ -15,9 +15,10 @@ func (s *Service) newMetricsCmd(key string) *cobra.Command {
 	var since, until string
 	var trend string
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Read aggregate metrics (GET /metrics.json)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Read aggregate metrics (GET /metrics.json)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfNonEmpty(q, "since", since)

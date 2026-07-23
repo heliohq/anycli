@@ -37,6 +37,7 @@ func (s *Service) newSERPGoogleCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/serp/google/organic/live/advanced", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&keyword, "keyword", "", "search query (required)")
 	_ = cmd.MarkFlagRequired("keyword")
 	registerLocationLang(cmd, &tp)

@@ -26,9 +26,10 @@ func (s *Service) newMetaCmd(credential string) *cobra.Command {
 func (s *Service) newMetaLocationsCmd(credential string) *cobra.Command {
 	var search string
 	cmd := &cobra.Command{
-		Use:   "locations",
-		Short: "List Google SERP locations (name + location_code)",
-		Args:  cobra.NoArgs,
+		Use:         "locations",
+		Short:       "List Google SERP locations (name + location_code)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.doFiltered(cmd.Context(), credential, "/serp/google/locations", search, "location_name")
 		},
@@ -41,9 +42,10 @@ func (s *Service) newMetaLocationsCmd(credential string) *cobra.Command {
 func (s *Service) newMetaLanguagesCmd(credential string) *cobra.Command {
 	var search string
 	cmd := &cobra.Command{
-		Use:   "languages",
-		Short: "List Google SERP languages (name + language_code)",
-		Args:  cobra.NoArgs,
+		Use:         "languages",
+		Short:       "List Google SERP languages (name + language_code)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.doFiltered(cmd.Context(), credential, "/serp/google/languages", search, "language_name")
 		},

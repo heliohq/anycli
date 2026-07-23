@@ -32,7 +32,8 @@ func (s *Service) newSubmissionListCmd(token string) *cobra.Command {
 			"(YYYY-MM-DD [HH:MM:SS], US/Eastern per the API). --search field=value " +
 			"is repeatable and maps to paired search_field_N/search_value_N params. " +
 			"Response values are inlined (data=true) unless --no-data is set.",
-		Args: cobra.ExactArgs(1),
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if noData {
@@ -92,9 +93,10 @@ func (s *Service) newSubmissionListCmd(token string) *cobra.Command {
 func (s *Service) newSubmissionGetCmd(token string) *cobra.Command {
 	var encryptionPassword string
 	cmd := &cobra.Command{
-		Use:   "get <submission-id>",
-		Short: "Get a submission (GET /submission/{id}.json)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <submission-id>",
+		Short:       "Get a submission (GET /submission/{id}.json)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var headers map[string]string
 			if encryptionPassword != "" {
@@ -119,7 +121,8 @@ func (s *Service) newSubmissionCreateCmd(token string) *cobra.Command {
 		Short: "Create a submission (POST /form/{id}/submission.json)",
 		Long: "Create a submission. --field id=value is repeatable and maps to the " +
 			"API's field_<id>=<value> body params.",
-		Args: cobra.ExactArgs(1),
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			for _, pair := range fields {
@@ -147,9 +150,10 @@ func (s *Service) newSubmissionCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newSubmissionDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <submission-id>",
-		Short: "Delete a submission (DELETE /submission/{id}.json)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <submission-id>",
+		Short:       "Delete a submission (DELETE /submission/{id}.json)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/submission/"+url.PathEscape(args[0])+".json", nil, nil, nil)
 			if err != nil {

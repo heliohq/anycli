@@ -17,9 +17,10 @@ const defaultPageFields = "name,about,category,fan_count,followers_count,link,us
 // surfaced in discovery output.
 func (s *Service) newPagesListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List the Pages this user manages (id, name, category, tasks)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the Pages this user manages (id, name, category, tasks)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{"fields": {"id,name,category,tasks"}}
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/me/accounts", query, nil)
@@ -37,6 +38,7 @@ func (s *Service) newPagesListCmd(token string) *cobra.Command {
 func (s *Service) newPageGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{Use: "get", Short: "Get a Page's profile", Args: cobra.NoArgs}
+	cmd.Annotations = readOnly
 	pageID := pageFlag(cmd)
 	cmd.Flags().StringVar(&fields, "fields", "", "comma-separated Graph fields (default: profile summary)")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {

@@ -14,9 +14,10 @@ func (s *Service) newFolderCmd(token string) *cobra.Command {
 
 func (s *Service) newFolderListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List folders (GET /folder.json)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List folders (GET /folder.json)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/folder.json", nil, nil, nil)
 			if err != nil {

@@ -18,9 +18,10 @@ func (s *Service) newFieldCmd(token string) *cobra.Command {
 
 func (s *Service) newFieldGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <field-id>",
-		Short: "Get a field (GET /field/{id}.json)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <field-id>",
+		Short:       "Get a field (GET /field/{id}.json)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/field/"+url.PathEscape(args[0])+".json", nil, nil, nil)
 			if err != nil {
@@ -42,7 +43,8 @@ func (s *Service) newFieldCreateCmd(token string) *cobra.Command {
 		Long: "Create a field on a form. Common --type values: text, textarea, " +
 			"email, number, select, radio, checkbox, datetime, phone, name. " +
 			"Advanced layout/logic stays in the Formstack builder.",
-		Args: cobra.ExactArgs(1),
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{
 				"field_type": fieldType,

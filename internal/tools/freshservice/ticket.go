@@ -51,9 +51,10 @@ func (s *Service) newTicketListCmd(c *client) *cobra.Command {
 	var updatedSince string
 	var perPage, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tickets (GET /tickets)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tickets (GET /tickets)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validatePerPage(perPage); err != nil {
 				return err
@@ -82,9 +83,10 @@ func (s *Service) newTicketSearchCmd(c *client) *cobra.Command {
 	var query string
 	var page int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Filter tickets by query (GET /tickets/filter — 30/page fixed, page 1-10)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Filter tickets by query (GET /tickets/filter — 30/page fixed, page 1-10)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if page < 1 || page > searchMaxPage {
 				return &usageError{msg: fmt.Sprintf("--page must be between 1 and %d for ticket search (GET /tickets/filter caps at 300 results)", searchMaxPage)}
@@ -108,9 +110,10 @@ func (s *Service) newTicketSearchCmd(c *client) *cobra.Command {
 func (s *Service) newTicketGetCmd(c *client) *cobra.Command {
 	var withConversations bool
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one ticket (GET /tickets/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one ticket (GET /tickets/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if withConversations {
@@ -133,9 +136,10 @@ func (s *Service) newTicketCreateCmd(c *client) *cobra.Command {
 	var subject, description, email, ticketType string
 	var status, priority, groupID, agentID int
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a ticket (POST /tickets)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a ticket (POST /tickets)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{
 				"subject":     subject,
@@ -180,9 +184,10 @@ func (s *Service) newTicketUpdateCmd(c *client) *cobra.Command {
 	var status, priority, groupID, agentID int
 	var tags []string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a ticket (PUT /tickets/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a ticket (PUT /tickets/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if cmd.Flags().Changed("status") {
@@ -222,9 +227,10 @@ func (s *Service) newTicketUpdateCmd(c *client) *cobra.Command {
 func (s *Service) newTicketReplyCmd(c *client) *cobra.Command {
 	var replyBody string
 	cmd := &cobra.Command{
-		Use:   "reply <id>",
-		Short: "Reply to the requester (POST /tickets/{id}/reply — public)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "reply <id>",
+		Short:       "Reply to the requester (POST /tickets/{id}/reply — public)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, _, err := c.call(cmd.Context(), http.MethodPost, "/tickets/"+url.PathEscape(args[0])+"/reply", nil, map[string]any{"body": replyBody})
 			if err != nil {
@@ -244,9 +250,10 @@ func (s *Service) newTicketNoteCmd(c *client) *cobra.Command {
 	var noteBody string
 	var private bool
 	cmd := &cobra.Command{
-		Use:   "note <id>",
-		Short: "Add a note (POST /tickets/{id}/notes — private by default)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "note <id>",
+		Short:       "Add a note (POST /tickets/{id}/notes — private by default)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, _, err := c.call(cmd.Context(), http.MethodPost, "/tickets/"+url.PathEscape(args[0])+"/notes", nil, map[string]any{
 				"body":    noteBody,

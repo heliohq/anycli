@@ -30,6 +30,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly / writeAction carry the design-318 side-effect annotation for runnable leaves.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+var writeAction = map[string]string{"anycli.side_effect": "true"}
+
 // DefaultBaseURL is the production Front Core API base.
 const DefaultBaseURL = "https://api2.frontapp.com"
 

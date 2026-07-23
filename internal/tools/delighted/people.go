@@ -27,6 +27,7 @@ func (s *Service) newPeopleListCmd(key string) *cobra.Command {
 		Short: "List people (GET /people.json, cursor pagination via page_info)",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	perPage, _ := registerPaging(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
@@ -48,9 +49,10 @@ func (s *Service) newPeopleSendCmd(key string) *cobra.Command {
 	var email, name, properties, delay, channel string
 	var send bool
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Create/update a person and optionally schedule a survey (POST /people.json)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Create/update a person and optionally schedule a survey (POST /people.json)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"email": email}
 			if name != "" {
@@ -92,9 +94,10 @@ func (s *Service) newPeopleSendCmd(key string) *cobra.Command {
 func (s *Service) newPeopleDeleteCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "GDPR-delete a person and their data (DELETE /people/{id}.json)",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "GDPR-delete a person and their data (DELETE /people/{id}.json)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodDelete, "/people/"+url.PathEscape(id)+".json", nil, nil)
 			if err != nil {
@@ -111,9 +114,10 @@ func (s *Service) newPeopleDeleteCmd(key string) *cobra.Command {
 func (s *Service) newPeopleCancelPendingCmd(key string) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   "cancel-pending",
-		Short: "Cancel a person's scheduled-but-unsent surveys (DELETE /people/{email}/survey_requests/pending.json)",
-		Args:  cobra.NoArgs,
+		Use:         "cancel-pending",
+		Short:       "Cancel a person's scheduled-but-unsent surveys (DELETE /people/{email}/survey_requests/pending.json)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path := "/people/" + url.PathEscape(email) + "/survey_requests/pending.json"
 			resp, err := s.call(cmd.Context(), key, http.MethodDelete, path, nil, nil)

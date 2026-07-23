@@ -20,6 +20,7 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 		Short: "List or search the conversation queue",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&inbox, "inbox", "", "restrict to one inbox id")
 	cmd.Flags().StringVar(&q, "q", "", "search query (routes to the search endpoint)")
 	cmd.Flags().StringVar(&sortOrder, "sort-order", "", "sort order: asc|desc")
@@ -58,6 +59,7 @@ func (s *Service) newConversationGetCmd(token string) *cobra.Command {
 		Short: "Get one conversation's metadata",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&id, "id", "", "conversation id (required)")
 	_ = cmd.MarkFlagRequired("id")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -80,6 +82,7 @@ func (s *Service) newConversationMessagesCmd(token string) *cobra.Command {
 		Short: "List the messages in a conversation",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&id, "id", "", "conversation id (required)")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max results per page (Front caps at 100)")
 	cmd.Flags().StringVar(&pageToken, "page-token", "", "cursor from a prior response's next_page_token")
@@ -105,6 +108,7 @@ func (s *Service) newConversationCommentsCmd(token string) *cobra.Command {
 		Short: "List the internal comments on a conversation",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&id, "id", "", "conversation id (required)")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max results per page (Front caps at 100)")
 	cmd.Flags().StringVar(&pageToken, "page-token", "", "cursor from a prior response's next_page_token")
@@ -134,6 +138,7 @@ func (s *Service) newConversationUpdateCmd(token string) *cobra.Command {
 		Short: "Change status, assignee, inbox, or tags on a conversation",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&id, "id", "", "conversation id (required)")
 	cmd.Flags().StringVar(&status, "status", "", "new status: open|archived|deleted|spam")
 	cmd.Flags().StringVar(&assignee, "assignee", "", "teammate id to assign; use 'null' to unassign")

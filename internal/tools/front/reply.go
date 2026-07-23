@@ -21,6 +21,7 @@ func (s *Service) newMessageSendCmd(token string) *cobra.Command {
 		Short: "Reply into an existing conversation",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&conversation, "conversation", "", "conversation id to reply into (required)")
 	cmd.Flags().StringVar(&body, "body", "", "message body (required)")
 	cmd.Flags().StringVar(&text, "text", "", "plain-text alternative body")
@@ -66,6 +67,7 @@ func (s *Service) newDraftCreateCmd(token string) *cobra.Command {
 		Short: "Create a draft reply for a human to review",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&conversation, "conversation", "", "conversation id to draft into (required)")
 	cmd.Flags().StringVar(&body, "body", "", "draft body (required)")
 	cmd.Flags().StringVar(&channel, "channel", "", "channel id the draft will be sent from (required)")
@@ -106,6 +108,7 @@ func (s *Service) newCommentAddCmd(token string) *cobra.Command {
 		Short: "Add an internal comment to a conversation",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&conversation, "conversation", "", "conversation id to comment on (required)")
 	cmd.Flags().StringVar(&body, "body", "", "comment body (required)")
 	cmd.Flags().StringVar(&author, "author", "", "teammate id creating the comment")

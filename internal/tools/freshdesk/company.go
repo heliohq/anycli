@@ -21,9 +21,10 @@ func (s *Service) newCompanyCmd(c *client) *cobra.Command {
 func (s *Service) newCompanyListCmd(c *client) *cobra.Command {
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List companies (GET /companies)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List companies (GET /companies)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			applyPaging(q, page, perPage)
@@ -41,9 +42,10 @@ func (s *Service) newCompanyListCmd(c *client) *cobra.Command {
 func (s *Service) newCompanyGetCmd(c *client) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a company (GET /companies/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a company (GET /companies/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := c.call(cmd.Context(), http.MethodGet, "/companies/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -61,9 +63,10 @@ func (s *Service) newCompanySearchCmd(c *client) *cobra.Command {
 	var query string
 	var page int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search companies (GET /search/companies). --query is Freshdesk query syntax.",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search companies (GET /search/companies). --query is Freshdesk query syntax.",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("query", quoteQuery(query))

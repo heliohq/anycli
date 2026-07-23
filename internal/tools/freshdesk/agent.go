@@ -21,9 +21,10 @@ func (s *Service) newAgentListCmd(c *client) *cobra.Command {
 	var email string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List agents (GET /agents)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List agents (GET /agents)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setNonEmpty(q, "email", email)
@@ -43,9 +44,10 @@ func (s *Service) newAgentListCmd(c *client) *cobra.Command {
 func (s *Service) newAgentGetCmd(c *client) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get an agent (GET /agents/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get an agent (GET /agents/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := c.call(cmd.Context(), http.MethodGet, "/agents/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -61,9 +63,10 @@ func (s *Service) newAgentGetCmd(c *client) *cobra.Command {
 
 func (s *Service) newAgentMeCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "me",
-		Short: "Get the currently authenticated agent (GET /agents/me) — the connectivity/identity check",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Get the currently authenticated agent (GET /agents/me) — the connectivity/identity check",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := c.call(cmd.Context(), http.MethodGet, "/agents/me", nil, nil)
 			if err != nil {

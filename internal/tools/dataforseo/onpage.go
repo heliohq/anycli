@@ -25,6 +25,7 @@ func (s *Service) newOnpageCheckCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/on_page/instant_pages", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&url, "url", "", "absolute URL of the target page (required)")
 	_ = cmd.MarkFlagRequired("url")
 	return cmd

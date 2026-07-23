@@ -28,9 +28,10 @@ func (s *Service) newSendCmd(token string) *cobra.Command {
 		testMode bool
 	)
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a document for signature (--file or --file-url)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a document for signature (--file or --file-url)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(files) == 0 && len(fileURLs) == 0 {
 				return &usageError{msg: "provide at least one --file or --file-url"}
@@ -84,9 +85,10 @@ func (s *Service) newSendWithTemplateCmd(token string) *cobra.Command {
 		testMode  bool
 	)
 	cmd := &cobra.Command{
-		Use:   "send-with-template",
-		Short: "Send a signature request from saved template(s)",
-		Args:  cobra.NoArgs,
+		Use:         "send-with-template",
+		Short:       "Send a signature request from saved template(s)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(templates) == 0 {
 				return &usageError{msg: "provide at least one --template <template_id>"}
@@ -214,9 +216,10 @@ func (s *Service) newListCmd(token string) *cobra.Command {
 		query    string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List signature requests",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List signature requests",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if page > 0 {
@@ -244,9 +247,10 @@ func (s *Service) newListCmd(token string) *cobra.Command {
 // newGetCmd fetches one signature request's status and per-signer state.
 func (s *Service) newGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <signature_request_id>",
-		Short: "Get one signature request's status",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <signature_request_id>",
+		Short:       "Get one signature request's status",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.callGET(cmd.Context(), token, "/signature_request/"+url.PathEscape(args[0]), nil)
 			if err != nil {
@@ -266,9 +270,10 @@ func (s *Service) newFilesCmd(token string) *cobra.Command {
 		out      string
 	)
 	cmd := &cobra.Command{
-		Use:   "files <signature_request_id>",
-		Short: "Download the signed document(s) as PDF or ZIP",
-		Args:  cobra.ExactArgs(1),
+		Use:         "files <signature_request_id>",
+		Short:       "Download the signed document(s) as PDF or ZIP",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if fileType != "" {
@@ -289,9 +294,10 @@ func (s *Service) newRemindCmd(token string) *cobra.Command {
 		name  string
 	)
 	cmd := &cobra.Command{
-		Use:   "remind <signature_request_id>",
-		Short: "Remind a signer (resend the signing email)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "remind <signature_request_id>",
+		Short:       "Remind a signer (resend the signing email)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if email == "" {
 				return &usageError{msg: "--email is required"}
@@ -315,9 +321,10 @@ func (s *Service) newRemindCmd(token string) *cobra.Command {
 // newCancelCmd cancels an incomplete signature request.
 func (s *Service) newCancelCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "cancel <signature_request_id>",
-		Short: "Cancel an incomplete signature request",
-		Args:  cobra.ExactArgs(1),
+		Use:         "cancel <signature_request_id>",
+		Short:       "Cancel an incomplete signature request",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.callPost(cmd.Context(), token, "/signature_request/cancel/"+url.PathEscape(args[0]))
 			if err != nil {
