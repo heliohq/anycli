@@ -52,6 +52,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/googleads"
 	"github.com/heliohq/anycli/internal/tools/googleanalytics"
 	"github.com/heliohq/anycli/internal/tools/gorgias"
+	"github.com/heliohq/anycli/internal/tools/gumroad"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
@@ -122,6 +123,7 @@ func init() {
 	RegisterService("chargebee", &chargebee.Service{})
 	RegisterService("expensify", &expensify.Service{})
 	RegisterService("freshbooks", &freshbooks.Service{})
+	RegisterService("gumroad", &gumroad.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility

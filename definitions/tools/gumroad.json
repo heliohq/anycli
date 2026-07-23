@@ -1,0 +1,13 @@
+{
+  "name": "gumroad",
+  "type": "service",
+  "description": "Gumroad creator commerce (products, sales, subscribers, offer codes, licenses) via API v2 (OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "GUMROAD_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
