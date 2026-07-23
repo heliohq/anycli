@@ -70,7 +70,9 @@ jobs:
       - name: Run e2e tests
         run: |
           PKG=$(echo "${{ matrix.tool }}" | tr -d '-')
-          go test -tags e2e -v -run 'TestE2E' "./internal/tools/${PKG}/..." 2>&1 | tee e2e.log
+          # -count=1: never replay cached results for tests that hit live
+          # provider APIs (setup-go restores the go build/test cache).
+          go test -tags e2e -count=1 -v -run 'TestE2E' "./internal/tools/${PKG}/..." 2>&1 | tee e2e.log
           exit "${PIPESTATUS[0]}"
       - name: Report pending (not-connected) tools
         if: always()
