@@ -16,6 +16,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/boldsign"
 	"github.com/heliohq/anycli/internal/tools/braintree"
 	"github.com/heliohq/anycli/internal/tools/braze"
+	"github.com/heliohq/anycli/internal/tools/brevo"
 	"github.com/heliohq/anycli/internal/tools/calendar"
 	"github.com/heliohq/anycli/internal/tools/contacts"
 	"github.com/heliohq/anycli/internal/tools/discord"
@@ -59,6 +60,7 @@ func init() {
 	RegisterService("boldsign", &boldsign.Service{})
 	RegisterService("braintree", &braintree.Service{})
 	RegisterService("braze", &braze.Service{})
+	RegisterService("brevo", &brevo.Service{})
 	RegisterService("slack", &slack.Service{})
 	RegisterService("notion", &notion.Service{})
 	RegisterService("sheets", &sheets.Service{})
