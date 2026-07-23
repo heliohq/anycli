@@ -124,6 +124,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/servicenow"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/shopify"
+	"github.com/heliohq/anycli/internal/tools/signnow"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
 	"github.com/heliohq/anycli/internal/tools/tasks"
@@ -172,6 +173,7 @@ func init() {
 	RegisterService("sage", &sage.Service{})
 	RegisterService("salesloft", &salesloft.Service{})
 	RegisterService("sheets", &sheets.Service{})
+	RegisterService("signnow", &signnow.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("google-ads", &googleads.Service{})
 	RegisterService("hootsuite", &hootsuite.Service{})
