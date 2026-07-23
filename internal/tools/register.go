@@ -109,6 +109,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/ramp"
 	"github.com/heliohq/anycli/internal/tools/razorpay"
 	"github.com/heliohq/anycli/internal/tools/recurly"
+	"github.com/heliohq/anycli/internal/tools/reddit"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -239,4 +240,5 @@ func init() {
 	RegisterService("onesignal", &onesignal.Service{})
 	RegisterService("phantombuster", &phantombuster.Service{})
 	RegisterService("postmark", &postmark.Service{})
+	RegisterService("reddit", &reddit.Service{})
 }
