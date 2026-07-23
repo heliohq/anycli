@@ -41,6 +41,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/figma"
 	"github.com/heliohq/anycli/internal/tools/fillout"
 	"github.com/heliohq/anycli/internal/tools/forms"
+	"github.com/heliohq/anycli/internal/tools/freshbooks"
 	"github.com/heliohq/anycli/internal/tools/gateprobe"
 	"github.com/heliohq/anycli/internal/tools/formstack"
 	"github.com/heliohq/anycli/internal/tools/gmail"
@@ -111,6 +112,7 @@ func init() {
 	RegisterService("mongodb", &mongodb.Service{})
 	RegisterService("chargebee", &chargebee.Service{})
 	RegisterService("expensify", &expensify.Service{})
+	RegisterService("freshbooks", &freshbooks.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility
