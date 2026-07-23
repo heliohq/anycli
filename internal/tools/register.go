@@ -138,6 +138,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/twitch"
 	"github.com/heliohq/anycli/internal/tools/typeform"
 	"github.com/heliohq/anycli/internal/tools/typefully"
+	"github.com/heliohq/anycli/internal/tools/wise"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
 
@@ -231,6 +232,7 @@ func init() {
 	RegisterService("shopify", &shopify.Service{})
 	RegisterService("square", &square.Service{})
 	RegisterService("stripe", &stripe.Service{})
+	RegisterService("wise", &wise.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility
