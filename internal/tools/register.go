@@ -108,6 +108,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/quickbooks"
 	"github.com/heliohq/anycli/internal/tools/ramp"
 	"github.com/heliohq/anycli/internal/tools/razorpay"
+	"github.com/heliohq/anycli/internal/tools/recurly"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -153,6 +154,7 @@ func init() {
 	RegisterService("pipedrive", &pipedrive.Service{})
 	RegisterService("posthog", &posthog.Service{})
 	RegisterService("razorpay", &razorpay.Service{})
+	RegisterService("recurly", &recurly.Service{})
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("google-ads", &googleads.Service{})
