@@ -27,9 +27,10 @@ func (s *Service) newGroupListCmd(token string) *cobra.Command {
 	var name string
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List groups (GET /groups)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List groups (GET /groups)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if name != "" {
@@ -52,9 +53,10 @@ func (s *Service) newGroupListCmd(token string) *cobra.Command {
 func (s *Service) newGroupCreateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a group (POST /groups)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a group (POST /groups)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/groups", nil, map[string]any{"name": name})
 			if err != nil {
@@ -71,9 +73,10 @@ func (s *Service) newGroupCreateCmd(token string) *cobra.Command {
 func (s *Service) newGroupUpdateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Rename a group (PUT /groups/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Rename a group (PUT /groups/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodPut, "/groups/"+url.PathEscape(args[0]), nil, map[string]any{"name": name})
 			if err != nil {
@@ -89,9 +92,10 @@ func (s *Service) newGroupUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newGroupDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a group (DELETE /groups/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a group (DELETE /groups/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/groups/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -106,9 +110,10 @@ func (s *Service) newGroupSubscribersCmd(token string) *cobra.Command {
 	var status, cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "subscribers <id>",
-		Short: "List a group's subscribers (GET /groups/{id}/subscribers)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "subscribers <id>",
+		Short:       "List a group's subscribers (GET /groups/{id}/subscribers)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if status != "" {
@@ -130,9 +135,10 @@ func (s *Service) newGroupSubscribersCmd(token string) *cobra.Command {
 
 func (s *Service) newGroupAssignCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "assign <subscriber-id> <group-id>",
-		Short: "Assign a subscriber to a group (POST /subscribers/{sub}/groups/{group})",
-		Args:  cobra.ExactArgs(2),
+		Use:         "assign <subscriber-id> <group-id>",
+		Short:       "Assign a subscriber to a group (POST /subscribers/{sub}/groups/{group})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := "/subscribers/" + url.PathEscape(args[0]) + "/groups/" + url.PathEscape(args[1])
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, path, nil, nil)
@@ -146,9 +152,10 @@ func (s *Service) newGroupAssignCmd(token string) *cobra.Command {
 
 func (s *Service) newGroupUnassignCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "unassign <subscriber-id> <group-id>",
-		Short: "Unassign a subscriber from a group (DELETE /subscribers/{sub}/groups/{group})",
-		Args:  cobra.ExactArgs(2),
+		Use:         "unassign <subscriber-id> <group-id>",
+		Short:       "Unassign a subscriber from a group (DELETE /subscribers/{sub}/groups/{group})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := "/subscribers/" + url.PathEscape(args[0]) + "/groups/" + url.PathEscape(args[1])
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, path, nil, nil)

@@ -18,9 +18,10 @@ func (s *Service) newEventSendCmd(key string) *cobra.Command {
 	var eventName, email, userID, propsJSON, idempotencyKey string
 	var property, mailingList []string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send an event to trigger workflows (POST /v1/events/send)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send an event to trigger workflows (POST /v1/events/send)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"eventName": eventName}
 			if email != "" {

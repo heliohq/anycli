@@ -20,9 +20,10 @@ func (s *Service) newTeamCmd(key string) *cobra.Command {
 
 func (s *Service) newTeamGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get the authenticated team (GET /team)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the authenticated team (GET /team)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodGet, "/team", nil, nil)
 			if err != nil {
@@ -35,9 +36,10 @@ func (s *Service) newTeamGetCmd(key string) *cobra.Command {
 
 func (s *Service) newTeamSendersCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "senders",
-		Short: "List team senders and their campaigns (GET /team/senders)",
-		Args:  cobra.NoArgs,
+		Use:         "senders",
+		Short:       "List team senders and their campaigns (GET /team/senders)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodGet, "/team/senders", nil, nil)
 			if err != nil {
@@ -50,9 +52,10 @@ func (s *Service) newTeamSendersCmd(key string) *cobra.Command {
 
 func (s *Service) newTeamCreditsCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "credits",
-		Short: "Get remaining enrichment/send credits (GET /team/credits)",
-		Args:  cobra.NoArgs,
+		Use:         "credits",
+		Short:       "Get remaining enrichment/send credits (GET /team/credits)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodGet, "/team/credits", nil, nil)
 			if err != nil {

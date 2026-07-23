@@ -23,9 +23,10 @@ func (s *Service) newAutomationCmd(token string) *cobra.Command {
 func (s *Service) newAutomationListCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List automations (GET /automations)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List automations (GET /automations)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setLimitPage(cmd, q, limit, page)
@@ -43,9 +44,10 @@ func (s *Service) newAutomationListCmd(token string) *cobra.Command {
 
 func (s *Service) newAutomationGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get an automation (GET /automations/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get an automation (GET /automations/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/automations/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -59,9 +61,10 @@ func (s *Service) newAutomationGetCmd(token string) *cobra.Command {
 func (s *Service) newAutomationActivityCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:   "activity <id>",
-		Short: "Automation subscriber activity (GET /automations/{id}/activity)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "activity <id>",
+		Short:       "Automation subscriber activity (GET /automations/{id}/activity)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			setLimitPage(cmd, q, limit, page)

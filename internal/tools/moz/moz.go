@@ -39,6 +39,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly marks a leaf command as having no provider side effect (design 318).
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+
 // DefaultBaseURL is the production Moz JSON-RPC endpoint. Every method POSTs to
 // this single URL; tests point it at an httptest server.
 const DefaultBaseURL = "https://api.moz.com/jsonrpc"

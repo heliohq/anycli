@@ -105,9 +105,10 @@ func setIfNotEmpty(body map[string]any, field, value string) {
 func (s *Service) newContactCreateCmd(key string) *cobra.Command {
 	f := &contactFlags{}
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact (POST /v1/contacts/create)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact (POST /v1/contacts/create)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := f.body(cmd)
 			if err != nil {
@@ -130,9 +131,10 @@ func (s *Service) newContactCreateCmd(key string) *cobra.Command {
 func (s *Service) newContactUpdateCmd(key string) *cobra.Command {
 	f := &contactFlags{}
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update or upsert a contact (PUT /v1/contacts/update)",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update or upsert a contact (PUT /v1/contacts/update)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := f.body(cmd)
 			if err != nil {
@@ -157,9 +159,10 @@ func (s *Service) newContactUpdateCmd(key string) *cobra.Command {
 func (s *Service) newContactFindCmd(key string) *cobra.Command {
 	var email, userID string
 	cmd := &cobra.Command{
-		Use:   "find",
-		Short: "Find a contact by email or userId (GET /v1/contacts/find)",
-		Args:  cobra.NoArgs,
+		Use:         "find",
+		Short:       "Find a contact by email or userId (GET /v1/contacts/find)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := singleIdentifierQuery(email, userID)
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/v1/contacts/find", q, nil)
@@ -176,9 +179,10 @@ func (s *Service) newContactFindCmd(key string) *cobra.Command {
 func (s *Service) newContactDeleteCmd(key string) *cobra.Command {
 	var email, userID string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a contact by email or userId (POST /v1/contacts/delete)",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a contact by email or userId (POST /v1/contacts/delete)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// The OpenAPI schema lists both email and userId as required, but the
 			// endpoint docs and live API reject the both-provided case (HTTP 400
@@ -213,9 +217,10 @@ func (s *Service) newContactSuppressionCmd(key string) *cobra.Command {
 func (s *Service) newContactSuppressionGetCmd(key string) *cobra.Command {
 	var email, userID string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get suppression status by email or userId (GET /v1/contacts/suppression)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get suppression status by email or userId (GET /v1/contacts/suppression)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := singleIdentifierQuery(email, userID)
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/v1/contacts/suppression", q, nil)
@@ -232,9 +237,10 @@ func (s *Service) newContactSuppressionGetCmd(key string) *cobra.Command {
 func (s *Service) newContactSuppressionRemoveCmd(key string) *cobra.Command {
 	var email, userID string
 	cmd := &cobra.Command{
-		Use:   "remove",
-		Short: "Un-suppress a contact by email or userId (DELETE /v1/contacts/suppression)",
-		Args:  cobra.NoArgs,
+		Use:         "remove",
+		Short:       "Un-suppress a contact by email or userId (DELETE /v1/contacts/suppression)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := singleIdentifierQuery(email, userID)
 			resp, err := s.call(cmd.Context(), key, http.MethodDelete, "/v1/contacts/suppression", q, nil)

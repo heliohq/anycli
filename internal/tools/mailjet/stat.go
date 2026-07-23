@@ -25,9 +25,10 @@ func (s *Service) newStatCountersCmd(basic string) *cobra.Command {
 	var sourceID int64
 	var counterSource, counterTiming, counterResolution string
 	cmd := &cobra.Command{
-		Use:   "counters",
-		Short: "Delivery/open/click counters (GET /v3/REST/statcounters)",
-		Args:  cobra.NoArgs,
+		Use:         "counters",
+		Short:       "Delivery/open/click counters (GET /v3/REST/statcounters)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {
@@ -59,9 +60,10 @@ func (s *Service) newStatCountersCmd(basic string) *cobra.Command {
 func (s *Service) newStatRecipientESPCmd(basic string) *cobra.Command {
 	var campaignID int64
 	cmd := &cobra.Command{
-		Use:   "recipient-esp",
-		Short: "Per-mailbox-provider deliverability for a campaign (GET /v3/REST/statistics/recipient-esp)",
-		Args:  cobra.NoArgs,
+		Use:         "recipient-esp",
+		Short:       "Per-mailbox-provider deliverability for a campaign (GET /v3/REST/statistics/recipient-esp)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {

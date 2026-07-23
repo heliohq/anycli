@@ -21,9 +21,10 @@ func (s *Service) newContactCmd(basic string) *cobra.Command {
 func (s *Service) newContactListCmd(basic string) *cobra.Command {
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List contacts (GET /v3/REST/contact)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contacts (GET /v3/REST/contact)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {
@@ -47,9 +48,10 @@ func (s *Service) newContactListCmd(basic string) *cobra.Command {
 func (s *Service) newContactGetCmd(basic string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one contact by ID or email (GET /v3/REST/contact/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one contact by ID or email (GET /v3/REST/contact/{id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {
@@ -71,9 +73,10 @@ func (s *Service) newContactCreateCmd(basic string) *cobra.Command {
 	var email, name string
 	var excluded bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact (POST /v3/REST/contact)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact (POST /v3/REST/contact)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {

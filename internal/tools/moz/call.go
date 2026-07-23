@@ -15,9 +15,10 @@ import (
 func (s *Service) newCallCmd(token string) *cobra.Command {
 	var method, dataJSON string
 	cmd := &cobra.Command{
-		Use:   "call",
-		Short: "Invoke any Moz JSON-RPC method with a raw --data JSON body",
-		Args:  cobra.NoArgs,
+		Use:         "call",
+		Short:       "Invoke any Moz JSON-RPC method with a raw --data JSON body",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if method == "" {
 				return &usageError{msg: "moz: --method is required (e.g. data.site.metrics.fetch)"}

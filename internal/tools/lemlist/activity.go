@@ -21,9 +21,10 @@ func (s *Service) newActivityListCmd(key string) *cobra.Command {
 	var offset, limit int
 	var isFirst bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List activities (GET /activities)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List activities (GET /activities)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("version", "v2") // required by the endpoint

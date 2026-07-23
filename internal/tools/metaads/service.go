@@ -29,6 +29,14 @@ const (
 	EnvAccessToken = "META_ACCESS_TOKEN"
 )
 
+// readOnly / writeAction tag each leaf command for the design-318 approval
+// gate. readOnly marks side-effect-free reads (GET list/get/insights);
+// writeAction marks Graph writes that mutate provider state (create/update).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Meta Ads tool. Empty fields select
 // production defaults; tests inject an HTTP server and output buffers.
 type Service struct {

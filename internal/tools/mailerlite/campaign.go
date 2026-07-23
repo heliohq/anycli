@@ -28,9 +28,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	var status, campaignType string
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns (GET /campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns (GET /campaigns)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if status != "" {
@@ -56,9 +57,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 
 func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get a campaign (GET /campaigns/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get a campaign (GET /campaigns/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/campaigns/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -81,9 +83,10 @@ func (s *Service) newCampaignDataCmd(token, use, short, method, suffix string) *
 		args = cobra.ExactArgs(1)
 	}
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  args,
+		Use:         use,
+		Short:       short,
+		Annotations: writeAction,
+		Args:        args,
 		RunE: func(cmd *cobra.Command, cmdArgs []string) error {
 			body, err := decodeJSONFlag("data", data)
 			if err != nil {
@@ -112,9 +115,10 @@ func (s *Service) newCampaignDataCmd(token, use, short, method, suffix string) *
 // campaign id.
 func (s *Service) newCampaignActionCmd(token, use, short, method, suffix string) *cobra.Command {
 	return &cobra.Command{
-		Use:   use + " <id>",
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:         use + " <id>",
+		Short:       short,
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, method, "/campaigns/"+url.PathEscape(args[0])+suffix, nil, nil)
 			if err != nil {
@@ -128,9 +132,10 @@ func (s *Service) newCampaignActionCmd(token, use, short, method, suffix string)
 func (s *Service) newCampaignReportCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:   "report <id>",
-		Short: "Campaign subscriber-activity report (GET /campaigns/{id}/reports/subscriber-activity)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "report <id>",
+		Short:       "Campaign subscriber-activity report (GET /campaigns/{id}/reports/subscriber-activity)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			setLimitPage(cmd, q, limit, page)

@@ -22,9 +22,10 @@ func (s *Service) newAccountsListCmd(token string) *cobra.Command {
 	var fields string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List ad accounts (GET /me/adaccounts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List ad accounts (GET /me/adaccounts)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireLimit(limit, 1, 500); err != nil {
 				return err

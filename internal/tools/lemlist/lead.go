@@ -25,9 +25,10 @@ func (s *Service) newLeadCmd(key string) *cobra.Command {
 func (s *Service) newLeadAddCmd(key string) *cobra.Command {
 	var email, firstName, lastName, companyName, jobTitle, linkedinURL, phone, fieldsJSON string
 	cmd := &cobra.Command{
-		Use:   "add <campaignId>",
-		Short: "Enroll a lead into a campaign (POST /campaigns/{campaignId}/leads/)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "add <campaignId>",
+		Short:       "Enroll a lead into a campaign (POST /campaigns/{campaignId}/leads/)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{}
 			if fieldsJSON != "" {
@@ -68,9 +69,10 @@ func (s *Service) newLeadAddCmd(key string) *cobra.Command {
 func (s *Service) newLeadGetCmd(key string) *cobra.Command {
 	var email, id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Look up a lead by email or id (GET /leads)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Look up a lead by email or id (GET /leads)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if email == "" && id == "" {
 				return &usageError{msg: "lemlist: lead get requires --email or --id"}
@@ -98,9 +100,10 @@ func (s *Service) newLeadGetCmd(key string) *cobra.Command {
 func (s *Service) newLeadUpdateCmd(key string) *cobra.Command {
 	var fieldsJSON string
 	cmd := &cobra.Command{
-		Use:   "update <campaignId> <leadId>",
-		Short: "Update a lead's fields in a campaign (PATCH /campaigns/{campaignId}/leads/{leadId})",
-		Args:  cobra.ExactArgs(2),
+		Use:         "update <campaignId> <leadId>",
+		Short:       "Update a lead's fields in a campaign (PATCH /campaigns/{campaignId}/leads/{leadId})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := decodeJSONFlag("fields", fieldsJSON)
 			if err != nil {
@@ -121,9 +124,10 @@ func (s *Service) newLeadUpdateCmd(key string) *cobra.Command {
 
 func (s *Service) newLeadUnsubscribeCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "unsubscribe <campaignId> <email>",
-		Short: "Unsubscribe a lead from a campaign (DELETE /campaigns/{campaignId}/leads/{email})",
-		Args:  cobra.ExactArgs(2),
+		Use:         "unsubscribe <campaignId> <email>",
+		Short:       "Unsubscribe a lead from a campaign (DELETE /campaigns/{campaignId}/leads/{email})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := "/campaigns/" + url.PathEscape(args[0]) + "/leads/" + url.PathEscape(args[1])
 			body, err := s.call(cmd.Context(), key, http.MethodDelete, path, nil, nil)
@@ -137,9 +141,10 @@ func (s *Service) newLeadUnsubscribeCmd(key string) *cobra.Command {
 
 func (s *Service) newLeadDeleteCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <campaignId> <leadId>",
-		Short: "Force-delete a lead by id from a campaign (DELETE /campaigns/{campaignId}/leads/{leadId}?action=remove)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "delete <campaignId> <leadId>",
+		Short:       "Force-delete a lead by id from a campaign (DELETE /campaigns/{campaignId}/leads/{leadId}?action=remove)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Lemlist only force-deletes when action=remove is sent; without it
 			// the endpoint silently falls back to unsubscribing (and then expects
@@ -161,9 +166,10 @@ func (s *Service) newLeadDeleteCmd(key string) *cobra.Command {
 // (POST /leads/{interested|notinterested}/{leadIdOrEmail}).
 func (s *Service) newLeadMarkCmd(key, use, verb string) *cobra.Command {
 	return &cobra.Command{
-		Use:   use + " <leadIdOrEmail>",
-		Short: "Set the lead pipeline disposition (POST /leads/" + verb + "/{leadIdOrEmail})",
-		Args:  cobra.ExactArgs(1),
+		Use:         use + " <leadIdOrEmail>",
+		Short:       "Set the lead pipeline disposition (POST /leads/" + verb + "/{leadIdOrEmail})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := "/leads/" + verb + "/" + url.PathEscape(args[0])
 			body, err := s.call(cmd.Context(), key, http.MethodPost, path, nil, nil)

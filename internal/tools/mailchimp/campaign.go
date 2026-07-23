@@ -28,9 +28,10 @@ func (s *Service) newCampaignCmd(r *requester) *cobra.Command {
 
 func (s *Service) newCampaignListCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns (GET /campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns (GET /campaigns)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := listQuery(cmd)
 			if status, _ := cmd.Flags().GetString("status"); status != "" {
@@ -50,9 +51,10 @@ func (s *Service) newCampaignListCmd(r *requester) *cobra.Command {
 
 func (s *Service) newCampaignGetCmd(r *requester) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <campaign_id>",
-		Short: "Get one campaign (GET /campaigns/{campaign_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <campaign_id>",
+		Short:       "Get one campaign (GET /campaigns/{campaign_id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := r.do(cmd.Context(), http.MethodGet, "/campaigns/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -65,9 +67,10 @@ func (s *Service) newCampaignGetCmd(r *requester) *cobra.Command {
 
 func (s *Service) newCampaignCreateCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a regular campaign (POST /campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a regular campaign (POST /campaigns)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			listID, _ := cmd.Flags().GetString("list")
 			subject, _ := cmd.Flags().GetString("subject")
@@ -111,9 +114,10 @@ func (s *Service) newCampaignCreateCmd(r *requester) *cobra.Command {
 
 func (s *Service) newCampaignSetContentCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "set-content <campaign_id>",
-		Short: "Set campaign content (PUT /campaigns/{campaign_id}/content)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "set-content <campaign_id>",
+		Short:       "Set campaign content (PUT /campaigns/{campaign_id}/content)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			html, _ := cmd.Flags().GetString("html")
 			htmlFile, _ := cmd.Flags().GetString("html-file")
@@ -163,9 +167,10 @@ func (s *Service) newCampaignSetContentCmd(r *requester) *cobra.Command {
 // that emits a 204 receipt. buildPayload is nil for bodyless actions.
 func (s *Service) newCampaignActionCmd(r *requester, action, short, subPath string, buildPayload func(cmd *cobra.Command) (any, error)) *cobra.Command {
 	return &cobra.Command{
-		Use:   action + " <campaign_id>",
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:         action + " <campaign_id>",
+		Short:       short,
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var payload any
 			if buildPayload != nil {
@@ -212,9 +217,10 @@ func (s *Service) newCampaignScheduleCmd(r *requester) *cobra.Command {
 
 func (s *Service) newCampaignDeleteCmd(r *requester) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <campaign_id>",
-		Short: "Delete a campaign (DELETE /campaigns/{campaign_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <campaign_id>",
+		Short:       "Delete a campaign (DELETE /campaigns/{campaign_id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := r.do(cmd.Context(), http.MethodDelete, "/campaigns/"+url.PathEscape(args[0]), nil, nil); err != nil {
 				return err

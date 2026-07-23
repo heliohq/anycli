@@ -19,9 +19,10 @@ func (s *Service) newSearchCmd(r *requester) *cobra.Command {
 
 func (s *Service) newSearchMembersCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "members",
-		Short: "Search members across audiences (GET /search-members)",
-		Args:  cobra.NoArgs,
+		Use:         "members",
+		Short:       "Search members across audiences (GET /search-members)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.runSearch(cmd, r, "/search-members")
 		},
@@ -32,9 +33,10 @@ func (s *Service) newSearchMembersCmd(r *requester) *cobra.Command {
 
 func (s *Service) newSearchCampaignsCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "campaigns",
-		Short: "Search campaigns (GET /search-campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "campaigns",
+		Short:       "Search campaigns (GET /search-campaigns)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.runSearch(cmd, r, "/search-campaigns")
 		},

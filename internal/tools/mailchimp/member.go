@@ -24,9 +24,10 @@ func (s *Service) newMemberCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberListCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list <list_id>",
-		Short: "List members (GET /lists/{list_id}/members)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <list_id>",
+		Short:       "List members (GET /lists/{list_id}/members)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := listQuery(cmd)
 			if status, _ := cmd.Flags().GetString("status"); status != "" {
@@ -46,9 +47,10 @@ func (s *Service) newMemberListCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberGetCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <list_id>",
-		Short: "Get one member (GET /lists/{list_id}/members/{subscriber_hash})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <list_id>",
+		Short:       "Get one member (GET /lists/{list_id}/members/{subscriber_hash})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			hash, err := memberSelector(cmd, "member get")
 			if err != nil {
@@ -67,9 +69,10 @@ func (s *Service) newMemberGetCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberUpsertCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "upsert <list_id>",
-		Short: "Add or update a member (PUT /lists/{list_id}/members/{subscriber_hash})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "upsert <list_id>",
+		Short:       "Add or update a member (PUT /lists/{list_id}/members/{subscriber_hash})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			email, _ := cmd.Flags().GetString("email")
 			if email == "" {
@@ -108,9 +111,10 @@ func (s *Service) newMemberUpsertCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberArchiveCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "archive <list_id>",
-		Short: "Archive a member (DELETE /lists/{list_id}/members/{subscriber_hash})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "archive <list_id>",
+		Short:       "Archive a member (DELETE /lists/{list_id}/members/{subscriber_hash})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			hash, err := memberSelector(cmd, "member archive")
 			if err != nil {
@@ -128,9 +132,10 @@ func (s *Service) newMemberArchiveCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberTagCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "tag <list_id>",
-		Short: "Add/remove member tags (POST /lists/{list_id}/members/{subscriber_hash}/tags)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "tag <list_id>",
+		Short:       "Add/remove member tags (POST /lists/{list_id}/members/{subscriber_hash}/tags)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			hash, err := memberSelector(cmd, "member tag")
 			if err != nil {

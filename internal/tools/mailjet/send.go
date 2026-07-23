@@ -16,9 +16,10 @@ func (s *Service) newSendCmd(basic string) *cobra.Command {
 	var to, cc, bcc []string
 	var templateID int64
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a transactional email (POST /v3.1/send)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a transactional email (POST /v3.1/send)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {

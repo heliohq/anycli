@@ -28,9 +28,10 @@ func (s *Service) newRankingKeywordsListCmd(token string) *cobra.Command {
 func (s *Service) newRankingKeywordsCountCmd(token string) *cobra.Command {
 	var site, scope string
 	cmd := &cobra.Command{
-		Use:   "count",
-		Short: "Count of keywords a site ranks top-50 for",
-		Args:  cobra.NoArgs,
+		Use:         "count",
+		Short:       "Count of keywords a site ranks top-50 for",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if site == "" {
 				return &usageError{msg: "moz: --site is required"}

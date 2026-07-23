@@ -18,9 +18,10 @@ func (s *Service) newAdSetListCmd(token string) *cobra.Command {
 	var flags edgeListFlags
 	var campaign string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List ad sets in an ad account (GET /act_<id>/adsets)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List ad sets in an ad account (GET /act_<id>/adsets)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireOptionalObjectID("--campaign", campaign); err != nil {
 				return err
@@ -40,9 +41,10 @@ func (s *Service) newAdSetListCmd(token string) *cobra.Command {
 func (s *Service) newAdSetGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "get <adset_id>",
-		Short: "Get one ad set",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <adset_id>",
+		Short:       "Get one ad set",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.getObject(cmd, token, "adset id", args[0], fields)
 		},
@@ -55,9 +57,10 @@ func (s *Service) newAdSetUpdateCmd(token string) *cobra.Command {
 	form := updateForm{}
 	var name string
 	cmd := &cobra.Command{
-		Use:   "update <adset_id>",
-		Short: "Update an ad set's status, budget, or name (POST /<adset_id>)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <adset_id>",
+		Short:       "Update an ad set's status, budget, or name (POST /<adset_id>)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return form.run(s, cmd, token, "adset id", args[0], name)
 		},

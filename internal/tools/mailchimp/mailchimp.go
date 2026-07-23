@@ -22,6 +22,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly / writeAction are the design-318 anycli.side_effect annotation maps
+// attached to runnable leaf commands: "false" for reads (GET), "true" for
+// provider-mutating actions.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // EnvAccessToken is the env var the credential binding injects
 // (definitions/tools/mailchimp.json). The value is a Mailchimp Marketing
 // access token (non-expiring OAuth token) or an API key.
@@ -157,9 +165,10 @@ func (s *Service) newRoot(token string) *cobra.Command {
 // newPingCmd is the health check: GET /ping.
 func (s *Service) newPingCmd(r *requester) *cobra.Command {
 	return &cobra.Command{
-		Use:   "ping",
-		Short: "Health check (GET /ping)",
-		Args:  cobra.NoArgs,
+		Use:         "ping",
+		Short:       "Health check (GET /ping)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := r.do(cmd.Context(), http.MethodGet, "/ping", nil, nil)
 			if err != nil {

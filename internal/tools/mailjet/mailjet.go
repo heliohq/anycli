@@ -44,6 +44,15 @@ const usBaseURL = "https://api.us.mailjet.com"
 // "<api_key>:<secret_key>"; this service base64-encodes it per request.
 const EnvBasicAuth = "MAILJET_BASIC_AUTH"
 
+// readOnly / writeAction tag each leaf command for the design-318 approval
+// gate. readOnly marks side-effect-free reads (GET); writeAction marks calls
+// that mutate provider state (send a message, create a contact/list, add list
+// membership).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Mailjet tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

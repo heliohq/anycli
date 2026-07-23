@@ -17,9 +17,10 @@ func (s *Service) newDraftsCmd(token string) *cobra.Command {
 func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 	var inline, file string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create (and optionally send) a draft (POST /drafts). Body: {\"drafts\":{...}}",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create (and optionally send) a draft (POST /drafts). Body: {\"drafts\":{...}}",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := s.decodeJSONBody(inline, file, cmd.InOrStdin())
 			if err != nil {

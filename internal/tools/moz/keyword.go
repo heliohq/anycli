@@ -29,9 +29,10 @@ func serpQuery(keyword, locale string) map[string]any {
 func (s *Service) newKeywordMetricsCmd(token string) *cobra.Command {
 	var keyword, locale string
 	cmd := &cobra.Command{
-		Use:   "metrics",
-		Short: "Search volume, difficulty, organic CTR, and priority for a keyword",
-		Args:  cobra.NoArgs,
+		Use:         "metrics",
+		Short:       "Search volume, difficulty, organic CTR, and priority for a keyword",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if keyword == "" {
 				return &usageError{msg: "moz: --keyword is required"}
@@ -55,9 +56,10 @@ func (s *Service) newKeywordSuggestionsCmd(token string) *cobra.Command {
 	var keyword, locale string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "suggestions",
-		Short: "Related keyword suggestions for a seed keyword",
-		Args:  cobra.NoArgs,
+		Use:         "suggestions",
+		Short:       "Related keyword suggestions for a seed keyword",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if keyword == "" {
 				return &usageError{msg: "moz: --keyword is required"}
@@ -81,9 +83,10 @@ func (s *Service) newKeywordSuggestionsCmd(token string) *cobra.Command {
 func (s *Service) newKeywordIntentCmd(token string) *cobra.Command {
 	var keyword, locale string
 	cmd := &cobra.Command{
-		Use:   "intent",
-		Short: "Search-intent classification for a keyword",
-		Args:  cobra.NoArgs,
+		Use:         "intent",
+		Short:       "Search-intent classification for a keyword",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if keyword == "" {
 				return &usageError{msg: "moz: --keyword is required"}

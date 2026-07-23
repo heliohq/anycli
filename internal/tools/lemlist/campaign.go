@@ -26,9 +26,10 @@ func (s *Service) newCampaignListCmd(key string) *cobra.Command {
 	var status, sortBy, sortOrder string
 	var offset, limit, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns (GET /campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns (GET /campaigns)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("version", "v2")
@@ -68,9 +69,10 @@ func (s *Service) newCampaignListCmd(key string) *cobra.Command {
 
 func (s *Service) newCampaignGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <campaignId>",
-		Short: "Get one campaign (GET /campaigns/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <campaignId>",
+		Short:       "Get one campaign (GET /campaigns/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodGet, "/campaigns/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -84,9 +86,10 @@ func (s *Service) newCampaignGetCmd(key string) *cobra.Command {
 func (s *Service) newCampaignStatsCmd(key string) *cobra.Command {
 	var startDate, endDate string
 	cmd := &cobra.Command{
-		Use:   "stats <campaignId>",
-		Short: "Get campaign open/click/reply/bounce stats (GET /v2/campaigns/{id}/stats)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "stats <campaignId>",
+		Short:       "Get campaign open/click/reply/bounce stats (GET /v2/campaigns/{id}/stats)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			q.Set("startDate", startDate)
@@ -109,9 +112,10 @@ func (s *Service) newCampaignStatsCmd(key string) *cobra.Command {
 
 func (s *Service) newCampaignStartCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "start <campaignId>",
-		Short: "Start (resume) a campaign (POST /campaigns/{id}/start)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "start <campaignId>",
+		Short:       "Start (resume) a campaign (POST /campaigns/{id}/start)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodPost, "/campaigns/"+url.PathEscape(args[0])+"/start", nil, nil)
 			if err != nil {
@@ -124,9 +128,10 @@ func (s *Service) newCampaignStartCmd(key string) *cobra.Command {
 
 func (s *Service) newCampaignPauseCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "pause <campaignId>",
-		Short: "Pause a campaign (POST /campaigns/{id}/pause)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "pause <campaignId>",
+		Short:       "Pause a campaign (POST /campaigns/{id}/pause)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodPost, "/campaigns/"+url.PathEscape(args[0])+"/pause", nil, nil)
 			if err != nil {

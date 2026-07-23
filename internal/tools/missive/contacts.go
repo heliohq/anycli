@@ -31,9 +31,10 @@ func (s *Service) newContactsListCmd(token string) *cobra.Command {
 		includeDeleted bool
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List/search contacts in a contact book",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List/search contacts in a contact book",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("contact_book", contactBook)
@@ -69,9 +70,10 @@ func (s *Service) newContactsListCmd(token string) *cobra.Command {
 
 func (s *Service) newContactsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <contact-id>",
-		Short: "Show one contact",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <contact-id>",
+		Short:       "Show one contact",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/contacts/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -85,9 +87,10 @@ func (s *Service) newContactsGetCmd(token string) *cobra.Command {
 func (s *Service) newContactsCreateCmd(token string) *cobra.Command {
 	var inline, file string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create contacts (POST /contacts). Body: {\"contacts\":[{...}]}",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create contacts (POST /contacts). Body: {\"contacts\":[{...}]}",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := s.decodeJSONBody(inline, file, cmd.InOrStdin())
 			if err != nil {
@@ -107,9 +110,10 @@ func (s *Service) newContactsCreateCmd(token string) *cobra.Command {
 func (s *Service) newContactsUpdateCmd(token string) *cobra.Command {
 	var inline, file string
 	cmd := &cobra.Command{
-		Use:   "update <contact-id[,contact-id...]>",
-		Short: "Update contacts (PATCH /contacts/:ids). Body: {\"contacts\":[{...}]}",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <contact-id[,contact-id...]>",
+		Short:       "Update contacts (PATCH /contacts/:ids). Body: {\"contacts\":[{...}]}",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := s.decodeJSONBody(inline, file, cmd.InOrStdin())
 			if err != nil {

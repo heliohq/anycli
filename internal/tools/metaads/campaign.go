@@ -23,9 +23,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	var flags edgeListFlags
 	var status string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns in an ad account (GET /act_<id>/campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns in an ad account (GET /act_<id>/campaigns)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			extra := map[string]string{}
 			if status != "" {
@@ -43,9 +44,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "get <campaign_id>",
-		Short: "Get one campaign",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <campaign_id>",
+		Short:       "Get one campaign",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.getObject(cmd, token, "campaign id", args[0], fields)
 		},
@@ -57,9 +59,10 @@ func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 func (s *Service) newCampaignCreateCmd(token string) *cobra.Command {
 	var account, name, objective, status, special string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a campaign (POST /act_<id>/campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a campaign (POST /act_<id>/campaigns)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireAccountID(account); err != nil {
 				return err
@@ -97,9 +100,10 @@ func (s *Service) newCampaignUpdateCmd(token string) *cobra.Command {
 	form := updateForm{}
 	var name string
 	cmd := &cobra.Command{
-		Use:   "update <campaign_id>",
-		Short: "Update a campaign's status, budget, or name (POST /<campaign_id>)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <campaign_id>",
+		Short:       "Update a campaign's status, budget, or name (POST /<campaign_id>)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return form.run(s, cmd, token, "campaign id", args[0], name)
 		},
