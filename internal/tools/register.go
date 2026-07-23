@@ -58,6 +58,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/hotjar"
 	"github.com/heliohq/anycli/internal/tools/hubspot"
 	"github.com/heliohq/anycli/internal/tools/hunter"
+	"github.com/heliohq/anycli/internal/tools/instagram"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
@@ -151,4 +152,5 @@ func init() {
 	RegisterService("hotjar", &hotjar.Service{})
 	RegisterService("hubspot", &hubspot.Service{})
 	RegisterService("hunter", &hunter.Service{})
+	RegisterService("instagram", &instagram.Service{})
 }

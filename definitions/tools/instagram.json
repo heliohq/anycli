@@ -1,0 +1,13 @@
+{
+  "name": "instagram",
+  "type": "service",
+  "description": "Instagram professional account as a tool (Instagram API with Instagram Login / OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "INSTAGRAM_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
