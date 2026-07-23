@@ -12,9 +12,10 @@ import (
 // assistant runs it first, then targets a specific account with --customer-id.
 func (s *Service) newAccountsListCmd(c creds) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List reachable customer accounts (GET customers:listAccessibleCustomers)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List reachable customer accounts (GET customers:listAccessibleCustomers)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// listAccessibleCustomers ignores login-customer-id and takes no
 			// customer id; send it without the manager header to avoid any

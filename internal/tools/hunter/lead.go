@@ -26,9 +26,10 @@ func (s *Service) newLeadListSubCmd(key string) *cobra.Command {
 	var leadsListID, email, firstName, lastName, company, query string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List leads (GET /leads)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List leads (GET /leads)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIf(q, "leads_list_id", leadsListID)
@@ -64,9 +65,10 @@ func (s *Service) newLeadListSubCmd(key string) *cobra.Command {
 func (s *Service) newLeadGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one lead (GET /leads/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one lead (GET /leads/{id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/leads/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -83,9 +85,10 @@ func (s *Service) newLeadGetCmd(key string) *cobra.Command {
 func (s *Service) newLeadCreateCmd(key string) *cobra.Command {
 	var email, firstName, lastName, position, company, website, countryCode, linkedinURL, phoneNumber, twitter, leadsListID, attributes string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a lead (POST /leads)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a lead (POST /leads)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := leadBody(email, firstName, lastName, position, company, website, countryCode, linkedinURL, phoneNumber, twitter, leadsListID, attributes)
 			if err != nil {
@@ -106,9 +109,10 @@ func (s *Service) newLeadCreateCmd(key string) *cobra.Command {
 func (s *Service) newLeadUpdateCmd(key string) *cobra.Command {
 	var id, email, firstName, lastName, position, company, website, countryCode, linkedinURL, phoneNumber, twitter, leadsListID, attributes string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a lead (PUT /leads/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a lead (PUT /leads/{id})",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := leadBody(email, firstName, lastName, position, company, website, countryCode, linkedinURL, phoneNumber, twitter, leadsListID, attributes)
 			if err != nil {
@@ -130,9 +134,10 @@ func (s *Service) newLeadUpdateCmd(key string) *cobra.Command {
 func (s *Service) newLeadDeleteCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a lead (DELETE /leads/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a lead (DELETE /leads/{id})",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodDelete, "/leads/"+url.PathEscape(id), nil, nil)
 			if err != nil {

@@ -22,9 +22,10 @@ func (s *Service) newThreadCmd(token string) *cobra.Command {
 func (s *Service) newThreadListCmd(token string) *cobra.Command {
 	var page int
 	cmd := &cobra.Command{
-		Use:   "list <conversation-id>",
-		Short: "List a conversation's threads (GET /conversations/{id}/threads)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <conversation-id>",
+		Short:       "List a conversation's threads (GET /conversations/{id}/threads)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			setPage(q, page)
@@ -47,9 +48,10 @@ func (s *Service) newThreadReplyCmd(token string) *cobra.Command {
 	var text, customerID, status, assignTo, cc, bcc string
 	var draft bool
 	cmd := &cobra.Command{
-		Use:   "reply <conversation-id> --text ...",
-		Short: "Reply to the customer (POST /conversations/{id}/reply)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "reply <conversation-id> --text ...",
+		Short:       "Reply to the customer (POST /conversations/{id}/reply)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := enumValidator("status", "active", "closed", "open", "pending", "spam")(status); err != nil {
 				return err
@@ -125,9 +127,10 @@ func (s *Service) resolveReplyCustomer(cmd *cobra.Command, token, convID, explic
 func (s *Service) newThreadNoteCmd(token string) *cobra.Command {
 	var text string
 	cmd := &cobra.Command{
-		Use:   "note <conversation-id> --text ...",
-		Short: "Add an internal note (POST /conversations/{id}/notes)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "note <conversation-id> --text ...",
+		Short:       "Add an internal note (POST /conversations/{id}/notes)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{"text": text}
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/conversations/"+url.PathEscape(args[0])+"/notes", nil, body)

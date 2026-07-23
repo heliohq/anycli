@@ -20,9 +20,10 @@ func (s *Service) newMediaListCmd(token string) *cobra.Command {
 		fields string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List the account's media (GET /me/media)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the account's media (GET /me/media)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("fields", firstNonEmpty(fields, mediaFields))
@@ -48,9 +49,10 @@ func (s *Service) newMediaListCmd(token string) *cobra.Command {
 func (s *Service) newMediaGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "get <media_id>",
-		Short: "Get one media object (GET /{media_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <media_id>",
+		Short:       "Get one media object (GET /{media_id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			q.Set("fields", firstNonEmpty(fields, mediaFields))
@@ -68,9 +70,10 @@ func (s *Service) newMediaGetCmd(token string) *cobra.Command {
 func (s *Service) newMediaInsightsCmd(token string) *cobra.Command {
 	var metrics string
 	cmd := &cobra.Command{
-		Use:   "insights <media_id>",
-		Short: "Per-media insights (GET /{media_id}/insights)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "insights <media_id>",
+		Short:       "Per-media insights (GET /{media_id}/insights)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			q.Set("metric", firstNonEmpty(metrics, mediaInsightMetrics))

@@ -31,6 +31,14 @@ const DefaultBaseURL = "https://platform.hootsuite.com/v1"
 // (~1h) OAuth 2.0 bearer tokens refreshed by the Helio token gateway.
 const EnvAccessToken = "HOOTSUITE_ACCESS_TOKEN"
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaf commands: "false" for state-free reads, "true" for provider
+// mutations. Group commands must not carry either.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Hootsuite tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

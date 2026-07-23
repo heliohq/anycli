@@ -39,6 +39,16 @@ const EnvAccessToken = "GOOGLE_ANALYTICS_ACCESS_TOKEN"
 // API not enabled on the OAuth client's Google Cloud project.
 const scopeHint = " (possibly missing scope — reconnect and grant access)"
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaf commands: "false" for state-free reads, "true" for provider
+// mutations. Group commands must not carry either. Google Analytics is
+// read-only, so every leaf here is readOnly (report run/realtime are reads even
+// though the Data API serves them over POST).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Google Analytics tool. It satisfies
 // tools.Service by duck typing (this package never imports the registry — no
 // import cycle). Two upstream hosts, so two base-URL overrides.

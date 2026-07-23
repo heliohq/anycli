@@ -19,9 +19,10 @@ func (s *Service) newMessageCmd(token, base string) *cobra.Command {
 func (s *Service) newMessageListCmd(token, base string) *cobra.Command {
 	var page pageFlags
 	cmd := &cobra.Command{
-		Use:   "list <ticket-id>",
-		Short: "List a ticket's messages (GET /tickets/{id}/messages)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <ticket-id>",
+		Short:       "List a ticket's messages (GET /tickets/{id}/messages)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			page.apply(q)
@@ -42,9 +43,10 @@ func (s *Service) newMessageCreateCmd(token, base string) *cobra.Command {
 	var sourceTo []string
 	var fromAgent bool
 	cmd := &cobra.Command{
-		Use:   "create <ticket-id>",
-		Short: "Post a reply to a ticket (POST /tickets/{id}/messages)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <ticket-id>",
+		Short:       "Post a reply to a ticket (POST /tickets/{id}/messages)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := buildMessage(messageParams{
 				channel:     channel,

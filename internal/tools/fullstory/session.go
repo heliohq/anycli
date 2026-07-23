@@ -21,9 +21,10 @@ func (s *Service) newSessionListCmd(key string) *cobra.Command {
 	var uid, email string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List a user's recent session replay URLs (GET /v2/sessions)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a user's recent session replay URLs (GET /v2/sessions)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if uid == "" && email == "" {
 				return &usageError{msg: "session list requires --uid or --email"}

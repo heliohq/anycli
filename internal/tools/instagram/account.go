@@ -14,9 +14,10 @@ const accountFields = "user_id,username,name,biography,followers_count,follows_c
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get the connected Instagram professional account (GET /me)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the connected Instagram professional account (GET /me)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("fields", firstNonEmpty(fields, accountFields))

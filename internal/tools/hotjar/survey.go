@@ -28,9 +28,10 @@ func (s *Service) newSurveyListCmd(creds clientCreds) *cobra.Command {
 	var site, cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List surveys for a site",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List surveys for a site",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), creds,
 				fmt.Sprintf("/v1/sites/%s/surveys", url.PathEscape(site)),
@@ -51,9 +52,10 @@ func (s *Service) newSurveyGetCmd(creds clientCreds) *cobra.Command {
 	var site, survey string
 	var withQuestions bool
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one survey's detail",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one survey's detail",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if withQuestions {
@@ -79,9 +81,10 @@ func (s *Service) newSurveyResponsesCmd(creds clientCreds) *cobra.Command {
 	var site, survey, cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "responses",
-		Short: "Export a survey's responses (newest first, cursor-paginated)",
-		Args:  cobra.NoArgs,
+		Use:         "responses",
+		Short:       "Export a survey's responses (newest first, cursor-paginated)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), creds,
 				fmt.Sprintf("/v1/sites/%s/surveys/%s/responses", url.PathEscape(site), url.PathEscape(survey)),

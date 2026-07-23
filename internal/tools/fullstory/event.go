@@ -23,9 +23,10 @@ func (s *Service) newEventCreateCmd(key string) *cobra.Command {
 	var useRecent bool
 	var props []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Record a custom event for a user or session (POST /v2/events)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Record a custom event for a user or session (POST /v2/events)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if name == "" {
 				return &usageError{msg: "event create requires --name"}

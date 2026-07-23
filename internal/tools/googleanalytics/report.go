@@ -36,9 +36,10 @@ func (s *Service) newReportRunCmd(token string) *cobra.Command {
 	var filters, orderBys []string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Run a GA4 report (dimensions × metrics over a date range)",
-		Args:  cobra.NoArgs,
+		Use:         "run",
+		Short:       "Run a GA4 report (dimensions × metrics over a date range)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			prop, err := normalizeProperty(property)
 			if err != nil {
@@ -115,9 +116,10 @@ func (s *Service) newReportRealtimeCmd(token string) *cobra.Command {
 	var property, metrics, dimensions string
 	var minutesAgo int
 	cmd := &cobra.Command{
-		Use:   "realtime",
-		Short: "Run a GA4 realtime report (last 30 minutes; 60 for GA 360)",
-		Args:  cobra.NoArgs,
+		Use:         "realtime",
+		Short:       "Run a GA4 realtime report (last 30 minutes; 60 for GA 360)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			prop, err := normalizeProperty(property)
 			if err != nil {
@@ -169,9 +171,10 @@ type metadataEntry struct {
 func (s *Service) newReportMetadataCmd(token string) *cobra.Command {
 	var property, kind, search string
 	cmd := &cobra.Command{
-		Use:   "metadata",
-		Short: "List valid dimension/metric API names for a property (incl. custom definitions)",
-		Args:  cobra.NoArgs,
+		Use:         "metadata",
+		Short:       "List valid dimension/metric API names for a property (incl. custom definitions)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if kind != "dimensions" && kind != "metrics" && kind != "all" {
 				return &usageError{msg: fmt.Sprintf("google-analytics: --kind must be dimensions, metrics, or all, got %q", kind)}

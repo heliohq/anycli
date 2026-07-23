@@ -20,9 +20,10 @@ func (s *Service) newPublishCreateCmd(token string) *cobra.Command {
 		mediaType string
 	)
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a media container (POST /me/media) -> container id",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a media container (POST /me/media) -> container id",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if (imageURL == "") == (videoURL == "") {
 				return &usageError{msg: "exactly one of --image-url or --video-url is required"}
@@ -65,9 +66,10 @@ type containerStatus struct {
 
 func (s *Service) newPublishStatusCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "status <container_id>",
-		Short: "Poll a container's processing status (GET /{container_id}?fields=status_code)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "status <container_id>",
+		Short:       "Poll a container's processing status (GET /{container_id}?fields=status_code)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			q.Set("fields", "status_code")
@@ -94,9 +96,10 @@ func (s *Service) newPublishStatusCmd(token string) *cobra.Command {
 
 func (s *Service) newPublishFinishCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "finish <container_id>",
-		Short: "Publish a FINISHED container (POST /me/media_publish)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "finish <container_id>",
+		Short:       "Publish a FINISHED container (POST /me/media_publish)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			form := url.Values{}
 			form.Set("creation_id", args[0])

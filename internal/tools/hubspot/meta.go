@@ -11,9 +11,10 @@ import (
 // details, including the portal id. Used as the L2 harness smoke check.
 func (s *Service) newAccountCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "account",
-		Short: "Show the connected HubSpot account (portal) details",
-		Args:  cobra.NoArgs,
+		Use:         "account",
+		Short:       "Show the connected HubSpot account (portal) details",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/account-info/v3/details", nil, nil)
 			if err != nil {
@@ -40,9 +41,10 @@ func (s *Service) newOwnerListCmd(token string) *cobra.Command {
 	var limit int
 	var after string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List CRM owners",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List CRM owners",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if email != "" {
@@ -64,9 +66,10 @@ func (s *Service) newOwnerListCmd(token string) *cobra.Command {
 
 func (s *Service) newOwnerGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Retrieve one owner by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Retrieve one owner by id",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/crm/v3/owners/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -87,9 +90,10 @@ func (s *Service) newPipelineGroup(token string) *cobra.Command {
 
 func (s *Service) newPipelineListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list <objectType>",
-		Short: "List pipelines and stages for an object type (deals|tickets)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <objectType>",
+		Short:       "List pipelines and stages for an object type (deals|tickets)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/crm/v3/pipelines/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -113,9 +117,10 @@ func (s *Service) newPropertyGroup(token string) *cobra.Command {
 
 func (s *Service) newPropertyListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list <objectType>",
-		Short: "List all properties of an object type",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <objectType>",
+		Short:       "List all properties of an object type",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/crm/v3/properties/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -128,9 +133,10 @@ func (s *Service) newPropertyListCmd(token string) *cobra.Command {
 
 func (s *Service) newPropertyGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <objectType> <name>",
-		Short: "Retrieve one property definition by name",
-		Args:  cobra.ExactArgs(2),
+		Use:         "get <objectType> <name>",
+		Short:       "Retrieve one property definition by name",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/crm/v3/properties/"+url.PathEscape(args[0])+"/"+url.PathEscape(args[1]), nil, nil)
 			if err != nil {

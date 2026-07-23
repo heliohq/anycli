@@ -13,9 +13,10 @@ const commentFields = "id,text,username,timestamp,like_count,replies{id,text,use
 func (s *Service) newCommentListCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "list <media_id>",
-		Short: "List a media object's comments (GET /{media_id}/comments)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <media_id>",
+		Short:       "List a media object's comments (GET /{media_id}/comments)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			q.Set("fields", firstNonEmpty(fields, commentFields))
@@ -33,9 +34,10 @@ func (s *Service) newCommentListCmd(token string) *cobra.Command {
 func (s *Service) newCommentReplyCmd(token string) *cobra.Command {
 	var message string
 	cmd := &cobra.Command{
-		Use:   "reply <comment_id>",
-		Short: "Reply to a comment (POST /{comment_id}/replies)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "reply <comment_id>",
+		Short:       "Reply to a comment (POST /{comment_id}/replies)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if message == "" {
 				return &usageError{msg: "--message is required"}
@@ -59,9 +61,10 @@ func (s *Service) newCommentHideCmd(token string) *cobra.Command {
 	// as a positional argument.
 	var hidden string
 	cmd := &cobra.Command{
-		Use:   "hide <comment_id>",
-		Short: "Hide or unhide a comment (POST /{comment_id} hide=true|false)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "hide <comment_id>",
+		Short:       "Hide or unhide a comment (POST /{comment_id} hide=true|false)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if hidden != "true" && hidden != "false" {
 				return &usageError{msg: "--hidden must be true or false"}
@@ -81,9 +84,10 @@ func (s *Service) newCommentHideCmd(token string) *cobra.Command {
 
 func (s *Service) newCommentDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <comment_id>",
-		Short: "Delete a comment (DELETE /{comment_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <comment_id>",
+		Short:       "Delete a comment (DELETE /{comment_id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.del(cmd.Context(), token, "/"+url.PathEscape(args[0]))
 			if err != nil {

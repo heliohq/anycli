@@ -15,9 +15,10 @@ func (s *Service) newMediaCreateCmd(token string) *cobra.Command {
 		mimeType  string
 	)
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Request a media upload URL (POST /v1/media)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Request a media upload URL (POST /v1/media)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if sizeBytes <= 0 {
 				return &usageError{msg: "--size-bytes must be a positive integer"}
@@ -41,9 +42,10 @@ func (s *Service) newMediaCreateCmd(token string) *cobra.Command {
 // newMediaGetCmd polls a media upload's processing status (READY before use).
 func (s *Service) newMediaGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get media upload status (GET /v1/media/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get media upload status (GET /v1/media/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/media/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
