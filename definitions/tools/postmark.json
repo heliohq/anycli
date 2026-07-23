@@ -1,0 +1,13 @@
+{
+  "name": "postmark",
+  "type": "service",
+  "description": "Postmark transactional email: send, message activity, templates, bounces (Server API token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "server_token"},
+        "inject": {"type": "env", "env_var": "POSTMARK_SERVER_TOKEN"}
+      }
+    ]
+  }
+}

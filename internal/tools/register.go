@@ -104,6 +104,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/pipedrive"
 	"github.com/heliohq/anycli/internal/tools/plaid"
 	"github.com/heliohq/anycli/internal/tools/posthog"
+	"github.com/heliohq/anycli/internal/tools/postmark"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -229,4 +230,5 @@ func init() {
 	RegisterService("moz", &moz.Service{})
 	RegisterService("onesignal", &onesignal.Service{})
 	RegisterService("phantombuster", &phantombuster.Service{})
+	RegisterService("postmark", &postmark.Service{})
 }
