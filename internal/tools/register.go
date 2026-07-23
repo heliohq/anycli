@@ -130,6 +130,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/snov"
 	"github.com/heliohq/anycli/internal/tools/sproutsocial"
 	"github.com/heliohq/anycli/internal/tools/square"
+	"github.com/heliohq/anycli/internal/tools/stripe"
 	"github.com/heliohq/anycli/internal/tools/tasks"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
@@ -221,6 +222,7 @@ func init() {
 	RegisterService("ramp", &ramp.Service{})
 	RegisterService("shopify", &shopify.Service{})
 	RegisterService("square", &square.Service{})
+	RegisterService("stripe", &stripe.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility

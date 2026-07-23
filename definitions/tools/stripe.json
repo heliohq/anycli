@@ -1,0 +1,13 @@
+{
+  "name": "stripe",
+  "type": "service",
+  "description": "Stripe payments, invoicing, and customer data (OAuth)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "STRIPE_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
