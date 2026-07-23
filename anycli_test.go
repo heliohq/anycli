@@ -126,6 +126,31 @@ func TestListToolsFigmaManifest(t *testing.T) {
 	t.Fatal("figma manifest not found")
 }
 
+// TestListToolsPostHogManifest guards the cross-repo credential-projection
+// invariant (helio-cli's TestGeneratedToolProvidersMatchPinnedAnyCLI): PostHog
+// must expose exactly the fields the Helio provider bundle projects. The region
+// host is resolved at runtime (POSTHOG_API_HOST is an environment override, not
+// a host-supplied credential), so `access_token` is the only credential field.
+func TestListToolsPostHogManifest(t *testing.T) {
+	manifests, err := ListTools()
+	if err != nil {
+		t.Fatalf("ListTools failed: %v", err)
+	}
+	for _, manifest := range manifests {
+		if manifest.Name != Tool("posthog") {
+			continue
+		}
+		if manifest.Kind != ToolKindService {
+			t.Errorf("posthog kind = %q, want %q", manifest.Kind, ToolKindService)
+		}
+		if !slices.Equal(manifest.CredentialFields, []string{"access_token"}) {
+			t.Errorf("posthog credential fields = %v, want [access_token]", manifest.CredentialFields)
+		}
+		return
+	}
+	t.Fatal("posthog manifest not found")
+}
+
 func TestManifestForRejectsIncompleteExecutionContracts(t *testing.T) {
 	cases := []struct {
 		name       string
