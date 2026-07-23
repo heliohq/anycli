@@ -49,20 +49,23 @@ func mustRun(t *testing.T, args ...string) string {
 // runPlanGated executes a bitly command that bitly may gate behind a paid
 // plan. CI against the connected account showed ALL metrics endpoints —
 // including clicks, clicks-summary, shorten-counts and qr scans, not just
-// breakdowns — return 402 UPGRADE_REQUIRED. e2e.RunTool captures stdout only and bitly prints API errors to
-// stderr, so the error text is never inspectable here; any nonzero exit is
-// logged and treated as plan-gated rather than hard-failing free-tier
-// accounts.
-//
-// TODO: have e2e.RunTool expose the engine error string (stderr) so
-// plan-gating can match UPGRADE_REQUIRED/FORBIDDEN specifically instead of
-// swallowing every nonzero exit.
+// breakdowns — return 402 UPGRADE_REQUIRED. The service prints API errors
+// to stderr as "bitly API error (HTTP <code>): <message>"; only a genuine
+// plan-gate (402, UPGRADE_REQUIRED, or FORBIDDEN) is tolerated — any other
+// failure is a real defect and fails the test.
 func runPlanGated(t *testing.T, args ...string) (out string, ok bool) {
 	t.Helper()
-	out, exit := e2e.RunTool(t, "bitly", "", args...)
+	out, errOut, exit := e2e.RunToolWithStderr(t, "bitly", "", args...)
 	if exit != 0 {
-		t.Logf("%s: nonzero exit %d — treating as plan-gated (free tier) and continuing", strings.Join(args, " "), exit)
-		return "", false
+		if strings.Contains(errOut, "UPGRADE_REQUIRED") ||
+			strings.Contains(errOut, "(HTTP 402)") ||
+			strings.Contains(errOut, "FORBIDDEN") {
+			t.Logf("%s: plan-gated on this account — continuing (stderr: %s)",
+				strings.Join(args, " "), strings.TrimSpace(errOut))
+			return "", false
+		}
+		t.Fatalf("%s: exit = %d with non-plan-gate error:\nstderr: %s\nstdout: %s",
+			strings.Join(args, " "), exit, errOut, out)
 	}
 	return out, true
 }

@@ -15,16 +15,22 @@ func TestPrefixIsStableAndTagged(t *testing.T) {
 	}
 }
 
-func TestCaptureStdout(t *testing.T) {
-	out, err := captureStdout(func() error {
-		_, werr := osStdoutWriteString("hello e2e")
+func TestCaptureOutputBothStreams(t *testing.T) {
+	out, errOut, err := captureOutput(func() error {
+		if _, werr := osStdoutWriteString("hello stdout"); werr != nil {
+			return werr
+		}
+		_, werr := osStderrWriteString("hello stderr")
 		return werr
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out != "hello e2e" {
-		t.Errorf("captured %q", out)
+	if out != "hello stdout" {
+		t.Errorf("stdout captured %q", out)
+	}
+	if errOut != "hello stderr" {
+		t.Errorf("stderr captured %q", errOut)
 	}
 }
 

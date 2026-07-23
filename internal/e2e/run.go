@@ -42,14 +42,27 @@ func Prefix() string {
 }
 
 // RunTool executes one tool invocation through the real engine with the e2e
-// resolver and returns its captured stdout and exit code.
+// resolver and returns its captured stdout and exit code. The short form of
+// RunToolWithStderr for tests that don't inspect error text.
+func RunTool(t *testing.T, tool, account string, args ...string) (string, int) {
+	t.Helper()
+	out, _, exit := RunToolWithStderr(t, tool, account, args...)
+	return out, exit
+}
+
+// RunToolWithStderr executes one tool invocation through the real engine
+// with the e2e resolver and returns its captured stdout, stderr, and exit
+// code. Services print API error details to stderr, so tests that need to
+// distinguish failure kinds (e.g. bitly's 402 UPGRADE_REQUIRED plan gating)
+// use this form and match on stderr instead of tolerating every nonzero
+// exit.
 //
 // Skip semantics (design 008): missing e2e configuration or a not-connected
 // tool skips the test (t.Skip) with an "E2E-PENDING" marker the workflow
 // greps into the job summary. Engine-level errors fail the test. A nonzero
 // exit code is returned, not fatal — closed-loop tests assert on it (e.g.
 // "get after delete must fail").
-func RunTool(t *testing.T, tool, account string, args ...string) (string, int) {
+func RunToolWithStderr(t *testing.T, tool, account string, args ...string) (stdout, stderr string, exitCode int) {
 	t.Helper()
 
 	resolver, err := NewResolver()
@@ -81,13 +94,13 @@ func RunTool(t *testing.T, tool, account string, args ...string) (string, int) {
 
 	var exit int
 	var execErr error
-	out, capErr := captureStdout(func() error {
+	out, errOut, capErr := captureOutput(func() error {
 		exit, execErr = engine.ExecuteWith(context.Background(), anycli.Tool(tool), args, resolver,
 			anycli.ExecOptions{Account: account})
 		return nil
 	})
 	if capErr != nil {
-		t.Fatalf("capture stdout: %v", capErr)
+		t.Fatalf("capture output: %v", capErr)
 	}
 	if execErr != nil {
 		if IsNotConnected(execErr) {
@@ -97,40 +110,58 @@ func RunTool(t *testing.T, tool, account string, args ...string) (string, int) {
 		// exit; log it and let the caller assert on the exit code.
 		t.Logf("tool %s exit=%d err: %v", tool, exit, execErr)
 	}
-	return out, exit
+	return out, errOut, exit
 }
 
-// captureStdout redirects os.Stdout around fn and returns what fn printed.
+// captureOutput redirects os.Stdout and os.Stderr around fn and returns
+// what fn printed to each.
 //
-// Restoring os.Stdout and closing w happen in a defer so they still run if
-// fn panics: otherwise os.Stdout would stay pointed at the orphaned pipe and
-// the drain goroutine below would block forever on io.ReadAll(r).
-func captureStdout(fn func() error) (out string, err error) {
-	old := os.Stdout
-	r, w, perr := os.Pipe()
+// Restoring the streams and closing the write ends happen in a defer so
+// they still run if fn panics: otherwise the globals would stay pointed at
+// orphaned pipes and the drain goroutines below would block forever on
+// io.ReadAll.
+func captureOutput(fn func() error) (out, errOut string, err error) {
+	oldOut, oldErr := os.Stdout, os.Stderr
+	rOut, wOut, perr := os.Pipe()
 	if perr != nil {
-		return "", perr
+		return "", "", perr
 	}
-	os.Stdout = w
+	rErr, wErr, perr := os.Pipe()
+	if perr != nil {
+		rOut.Close()
+		wOut.Close()
+		return "", "", perr
+	}
+	os.Stdout, os.Stderr = wOut, wErr
 
-	done := make(chan string, 1)
-	go func() {
-		b, _ := io.ReadAll(r)
-		r.Close()
-		done <- string(b)
-	}()
+	drain := func(r *os.File) chan string {
+		done := make(chan string, 1)
+		go func() {
+			b, _ := io.ReadAll(r)
+			r.Close()
+			done <- string(b)
+		}()
+		return done
+	}
+	doneOut, doneErr := drain(rOut), drain(rErr)
 
 	defer func() {
-		os.Stdout = old
-		w.Close()
-		out = <-done
+		os.Stdout, os.Stderr = oldOut, oldErr
+		wOut.Close()
+		wErr.Close()
+		out = <-doneOut
+		errOut = <-doneErr
 	}()
 
-	return "", fn()
+	return "", "", fn()
 }
 
-// osStdoutWriteString exists for the capture unit test: it writes through
-// the (possibly redirected) os.Stdout at call time.
+// osStdoutWriteString / osStderrWriteString exist for the capture unit
+// test: they write through the (possibly redirected) globals at call time.
 func osStdoutWriteString(s string) (int, error) {
 	return os.Stdout.WriteString(s)
+}
+
+func osStderrWriteString(s string) (int, error) {
+	return os.Stderr.WriteString(s)
 }
