@@ -2,6 +2,7 @@ package tools
 
 import (
 	"github.com/heliohq/anycli/internal/tools/activecampaign"
+	"github.com/heliohq/anycli/internal/tools/acuity"
 	"github.com/heliohq/anycli/internal/tools/bitly"
 	"github.com/heliohq/anycli/internal/tools/calendar"
 	"github.com/heliohq/anycli/internal/tools/contacts"
@@ -33,6 +34,7 @@ import (
 // create an import cycle.
 func init() {
 	RegisterService("activecampaign", &activecampaign.Service{})
+	RegisterService("acuity", &acuity.Service{})
 	RegisterService("bitly", &bitly.Service{})
 	RegisterService("slack", &slack.Service{})
 	RegisterService("notion", &notion.Service{})
