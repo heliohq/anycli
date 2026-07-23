@@ -36,9 +36,10 @@ func (s *Service) newDocumentListCmd(authz string) *cobra.Command {
 	var q, status, template, folder, order string
 	var count, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List documents (filter by query, status, template, folder)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List documents (filter by query, status, template, folder)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setIf(query, "q", q)
@@ -77,9 +78,10 @@ func (s *Service) newDocumentCreateCmd(authz string) *cobra.Command {
 	var recipients, tokens, fields, metadata []string
 	var noWait bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a document from a template",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a document from a template",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := s.buildCreatePayload(cmd, template, name, body, bodyFile, recipients, tokens, fields, metadata)
 			if err != nil {
@@ -222,9 +224,10 @@ func (s *Service) waitForDraft(ctx context.Context, authz string, created []byte
 
 func (s *Service) newDocumentStatusCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "status <id>",
-		Short: "Show a document's status",
-		Args:  cobra.ExactArgs(1),
+		Use:         "status <id>",
+		Short:       "Show a document's status",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), authz, http.MethodGet, "/documents/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -240,9 +243,10 @@ func (s *Service) newDocumentStatusCmd(authz string) *cobra.Command {
 
 func (s *Service) newDocumentDetailsCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "details <id>",
-		Short: "Show a document's full details (recipients, fields, tokens, dates)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "details <id>",
+		Short:       "Show a document's full details (recipients, fields, tokens, dates)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), authz, http.MethodGet, "/documents/"+url.PathEscape(args[0])+"/details", nil, nil)
 			if err != nil {
@@ -260,9 +264,10 @@ func (s *Service) newDocumentSendCmd(authz string) *cobra.Command {
 	var subject, message string
 	var silent bool
 	cmd := &cobra.Command{
-		Use:   "send <id>",
-		Short: "Send a document for signature",
-		Args:  cobra.ExactArgs(1),
+		Use:         "send <id>",
+		Short:       "Send a document for signature",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{}
 			if subject != "" {
@@ -294,9 +299,10 @@ func (s *Service) newDocumentLinkCmd(authz string) *cobra.Command {
 	var email string
 	var lifetime int
 	cmd := &cobra.Command{
-		Use:   "link <id>",
-		Short: "Create a shareable signing session link for a recipient",
-		Args:  cobra.ExactArgs(1),
+		Use:         "link <id>",
+		Short:       "Create a shareable signing session link for a recipient",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{"recipient": email}
 			if cmd.Flags().Changed("lifetime") {
@@ -330,9 +336,10 @@ func (s *Service) newDocumentDownloadCmd(authz string) *cobra.Command {
 	var out string
 	var protected bool
 	cmd := &cobra.Command{
-		Use:   "download <id>",
-		Short: "Download a document's PDF to a file",
-		Args:  cobra.ExactArgs(1),
+		Use:         "download <id>",
+		Short:       "Download a document's PDF to a file",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := "/documents/" + url.PathEscape(args[0]) + "/download"
 			if protected {
@@ -360,9 +367,10 @@ func (s *Service) newDocumentDownloadCmd(authz string) *cobra.Command {
 
 func (s *Service) newDocumentDeleteCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a document",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a document",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
 			_, err := s.call(cmd.Context(), authz, http.MethodDelete, "/documents/"+url.PathEscape(id), nil, nil)

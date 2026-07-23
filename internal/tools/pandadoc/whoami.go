@@ -12,9 +12,10 @@ import (
 // identity/whoami endpoint.
 func (s *Service) newWhoamiCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "whoami",
-		Short: "Show the authenticated PandaDoc member",
-		Args:  cobra.NoArgs,
+		Use:         "whoami",
+		Short:       "Show the authenticated PandaDoc member",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), authz, http.MethodGet, "/members/current", nil, nil)
 			if err != nil {

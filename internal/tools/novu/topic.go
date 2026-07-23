@@ -25,7 +25,7 @@ func (s *Service) newTopicCmd(c *client) *cobra.Command {
 func (s *Service) newTopicListCmd(c *client) *cobra.Command {
 	var key, name, after, before string
 	var limit int
-	cmd := leafCmd("list", "List topics", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("list", "List topics", readOnly, func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
 		addQueryString(q, "key", key)
 		addQueryString(q, "name", name)
@@ -49,7 +49,7 @@ func (s *Service) newTopicListCmd(c *client) *cobra.Command {
 
 func (s *Service) newTopicCreateCmd(c *client) *cobra.Command {
 	var key, name string
-	cmd := leafCmd("create", "Create a topic", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("create", "Create a topic", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("key", key); err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ func (s *Service) newTopicCreateCmd(c *client) *cobra.Command {
 
 func (s *Service) newTopicGetCmd(c *client) *cobra.Command {
 	var key string
-	cmd := leafCmd("get", "Get one topic by key", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("get", "Get one topic by key", readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("key", key); err != nil {
 			return err
 		}
@@ -85,7 +85,7 @@ func (s *Service) newTopicGetCmd(c *client) *cobra.Command {
 
 func (s *Service) newTopicAddSubscribersCmd(c *client) *cobra.Command {
 	var key, subscriberIDs string
-	cmd := leafCmd("add-subscribers", "Add subscribers to a topic", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("add-subscribers", "Add subscribers to a topic", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("key", key); err != nil {
 			return err
 		}
@@ -108,7 +108,7 @@ func (s *Service) newTopicAddSubscribersCmd(c *client) *cobra.Command {
 
 func (s *Service) newTopicRemoveSubscribersCmd(c *client) *cobra.Command {
 	var key, subscriberIDs string
-	cmd := leafCmd("remove-subscribers", "Remove subscribers from a topic", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("remove-subscribers", "Remove subscribers from a topic", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("key", key); err != nil {
 			return err
 		}

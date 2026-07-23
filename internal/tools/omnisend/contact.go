@@ -25,9 +25,10 @@ func (s *Service) newContactListCmd(token string) *cobra.Command {
 	var limit int
 	var after string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List contacts (GET /contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contacts (GET /contacts)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			applyListQuery(q, limit, after)
@@ -49,9 +50,10 @@ func (s *Service) newContactListCmd(token string) *cobra.Command {
 func (s *Service) newContactGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a contact by id (GET /contacts/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a contact by id (GET /contacts/{id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/contacts/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -68,9 +70,10 @@ func (s *Service) newContactGetCmd(token string) *cobra.Command {
 func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact (POST /contacts). --data is the raw Omnisend contact JSON body.",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact (POST /contacts). --data is the raw Omnisend contact JSON body.",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeJSONFlag("data", data)
 			if err != nil {
@@ -91,9 +94,10 @@ func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 func (s *Service) newContactUpdateCmd(token string) *cobra.Command {
 	var id, data string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a contact (PATCH /contacts/{id}). --data is the raw partial JSON body.",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a contact (PATCH /contacts/{id}). --data is the raw partial JSON body.",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeJSONFlag("data", data)
 			if err != nil {

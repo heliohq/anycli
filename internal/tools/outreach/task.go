@@ -24,9 +24,10 @@ func (s *Service) newTaskCmd(token string) *cobra.Command {
 func (s *Service) newTaskListCmd(token string) *cobra.Command {
 	var prospectID, ownerID, state string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tasks (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tasks (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setRelFilter(query, "prospect", prospectID)
@@ -49,9 +50,10 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 	var due, note, action, prospectID, ownerID string
 	var attr []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a task",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a task",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			attrs, err := parseAttrs(attr)
 			if err != nil {
@@ -81,9 +83,10 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 func (s *Service) newTaskCompleteCmd(token string) *cobra.Command {
 	var note string
 	cmd := &cobra.Command{
-		Use:   "complete <id>",
-		Short: "Mark a task complete (markComplete action)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "complete <id>",
+		Short:       "Mark a task complete (markComplete action)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var params url.Values
 			if note != "" {
@@ -102,9 +105,10 @@ func (s *Service) newTaskCompleteCmd(token string) *cobra.Command {
 func (s *Service) newTaskSnoozeCmd(token string) *cobra.Command {
 	var params []string
 	cmd := &cobra.Command{
-		Use:   "snooze <id>",
-		Short: "Snooze a task (snooze action)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "snooze <id>",
+		Short:       "Snooze a task (snooze action)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			actionParams, err := parseActionParams(params)
 			if err != nil {

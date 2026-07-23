@@ -213,9 +213,10 @@ func listFlagsFrom(cmd *cobra.Command) *listFlags {
 // newGetCmd is the generic "get <id>" command shared by every resource.
 func (s *Service) newGetCmd(token string, res resource) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one " + res.typ + " by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one " + res.typ + " by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.runGet(cmd.Context(), token, res, args[0])
 		},
@@ -227,9 +228,10 @@ func (s *Service) newGetCmd(token string, res resource) *cobra.Command {
 // flags.
 func (s *Service) newListCmd(token string, res resource) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List " + res.path + " (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List " + res.path + " (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			if err := listFlagsFrom(cmd).apply(query, res.typ); err != nil {

@@ -21,7 +21,7 @@ func (s *Service) newWorkflowCmd(c *client) *cobra.Command {
 func (s *Service) newWorkflowListCmd(c *client) *cobra.Command {
 	var query, status, tags, orderBy, orderDirection string
 	var limit, offset int
-	cmd := leafCmd("list", "List workflows", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("list", "List workflows", readOnly, func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
 		addQueryString(q, "query", query)
 		addQueryString(q, "status", status)
@@ -49,7 +49,7 @@ func (s *Service) newWorkflowListCmd(c *client) *cobra.Command {
 
 func (s *Service) newWorkflowGetCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("get", "Get one workflow by id", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("get", "Get one workflow by id", readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("workflow-id", id); err != nil {
 			return err
 		}

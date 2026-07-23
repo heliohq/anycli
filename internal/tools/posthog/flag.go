@@ -25,9 +25,10 @@ func (s *Service) newFlagCmd(token string) *cobra.Command {
 func (s *Service) newFlagCreateCmd(token string) *cobra.Command {
 	var project, data string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a feature flag (POST /api/projects/<id>/feature_flags/)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a feature flag (POST /api/projects/<id>/feature_flags/)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireProject(project); err != nil {
 				return err
@@ -51,9 +52,10 @@ func (s *Service) newFlagCreateCmd(token string) *cobra.Command {
 func (s *Service) newFlagUpdateCmd(token string) *cobra.Command {
 	var project, id, data string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a feature flag (PATCH /api/projects/<id>/feature_flags/<id>/)",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a feature flag (PATCH /api/projects/<id>/feature_flags/<id>/)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireProject(project); err != nil {
 				return err
@@ -85,9 +87,10 @@ func (s *Service) newFlagToggleCmd(token string) *cobra.Command {
 	var project, id string
 	var active bool
 	cmd := &cobra.Command{
-		Use:   "toggle",
-		Short: "Enable or disable a feature flag (PATCH active)",
-		Args:  cobra.NoArgs,
+		Use:         "toggle",
+		Short:       "Enable or disable a feature flag (PATCH active)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireProject(project); err != nil {
 				return err

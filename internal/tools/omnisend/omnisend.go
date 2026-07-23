@@ -35,6 +35,14 @@ const omnisendVersion = "2026-03-15"
 // effectively non-expiring.
 const EnvAccessToken = "OMNISEND_ACCESS_TOKEN"
 
+// readOnly / writeAction are the design-318 anycli.side_effect annotations for
+// runnable leaf commands: false = no provider state change (GET/list/get),
+// true = mutates provider state (create/update/send).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Omnisend tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

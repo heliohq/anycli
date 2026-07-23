@@ -35,9 +35,10 @@ func (s *Service) newMailingCmd(token string) *cobra.Command {
 func (s *Service) newMailingListCmd(token string) *cobra.Command {
 	var prospectID, state string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List mailings (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List mailings (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setRelFilter(query, "prospect", prospectID)
@@ -67,9 +68,10 @@ func (s *Service) newCallCmd(token string) *cobra.Command {
 func (s *Service) newCallListCmd(token string) *cobra.Command {
 	var prospectID string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List calls (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List calls (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setRelFilter(query, "prospect", prospectID)

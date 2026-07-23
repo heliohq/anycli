@@ -19,7 +19,7 @@ func (s *Service) newIntegrationCmd(c *client) *cobra.Command {
 }
 
 func (s *Service) newIntegrationListCmd(c *client) *cobra.Command {
-	return leafCmd("list", "List all integrations", func(cmd *cobra.Command, _ []string) error {
+	return leafCmd("list", "List all integrations", readOnly, func(cmd *cobra.Command, _ []string) error {
 		out, err := c.call(cmd.Context(), http.MethodGet, "/v1/integrations", nil, nil)
 		if err != nil {
 			return err
@@ -29,7 +29,7 @@ func (s *Service) newIntegrationListCmd(c *client) *cobra.Command {
 }
 
 func (s *Service) newIntegrationActiveCmd(c *client) *cobra.Command {
-	return leafCmd("active", "List active integrations", func(cmd *cobra.Command, _ []string) error {
+	return leafCmd("active", "List active integrations", readOnly, func(cmd *cobra.Command, _ []string) error {
 		out, err := c.call(cmd.Context(), http.MethodGet, "/v1/integrations/active", nil, nil)
 		if err != nil {
 			return err

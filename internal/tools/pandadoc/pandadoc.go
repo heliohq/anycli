@@ -26,6 +26,14 @@ import (
 // DefaultBaseURL is the production PandaDoc Public API base (v1 prefix included).
 const DefaultBaseURL = "https://api.pandadoc.com/public/v1"
 
+// readOnly / writeAction are the design-318 anycli.side_effect annotations for
+// runnable leaf commands: readOnly for retrieval (no provider state change),
+// writeAction for mutations (create/update/delete/send).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // EnvAccessToken is the env var the credential binding injects
 // (definitions/tools/pandadoc.json): the OAuth bearer access token.
 const EnvAccessToken = "PANDADOC_ACCESS_TOKEN"

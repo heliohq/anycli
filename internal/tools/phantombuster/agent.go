@@ -13,9 +13,10 @@ func (s *Service) newAgentListCmd(key string) *cobra.Command {
 	var inputTypes, outputTypes, ids string
 	var withArgument bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List all Phantoms in the workspace (GET /agents/fetch-all)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List all Phantoms in the workspace (GET /agents/fetch-all)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if inputTypes != "" {
@@ -49,9 +50,10 @@ func (s *Service) newAgentListCmd(key string) *cobra.Command {
 func (s *Service) newAgentGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one Phantom by id (GET /agents/fetch)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one Phantom by id (GET /agents/fetch)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("id", id)
@@ -73,9 +75,10 @@ func (s *Service) newAgentLaunchCmd(key string) *cobra.Command {
 	var id, argument string
 	var saveArgument bool
 	cmd := &cobra.Command{
-		Use:   "launch",
-		Short: "Queue a run of a Phantom (POST /agents/launch)",
-		Args:  cobra.NoArgs,
+		Use:         "launch",
+		Short:       "Queue a run of a Phantom (POST /agents/launch)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"id": id}
 			if argument != "" {
@@ -108,9 +111,10 @@ func (s *Service) newAgentOutputCmd(key string) *cobra.Command {
 	var id string
 	var fromPos int
 	cmd := &cobra.Command{
-		Use:   "output",
-		Short: "Poll a Phantom's most-recent run output (GET /agents/fetch-output)",
-		Args:  cobra.NoArgs,
+		Use:         "output",
+		Short:       "Poll a Phantom's most-recent run output (GET /agents/fetch-output)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("id", id)
@@ -135,9 +139,10 @@ func (s *Service) newAgentOutputCmd(key string) *cobra.Command {
 func (s *Service) newAgentAbortCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "abort",
-		Short: "Abort a Phantom's running container(s) (POST /agents/abort)",
-		Args:  cobra.NoArgs,
+		Use:         "abort",
+		Short:       "Abort a Phantom's running container(s) (POST /agents/abort)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			raw, err := s.call(cmd.Context(), key, http.MethodPost, "/agents/abort", nil, map[string]any{"id": id})
 			if err != nil {

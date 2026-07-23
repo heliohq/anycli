@@ -10,9 +10,10 @@ import (
 func (s *Service) newContactListCmd(authz string) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List contacts (optionally filter by exact email)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contacts (optionally filter by exact email)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setIf(query, "email", email)
@@ -33,9 +34,10 @@ func (s *Service) newContactListCmd(authz string) *cobra.Command {
 func (s *Service) newContactCreateCmd(authz string) *cobra.Command {
 	var email, first, last, company, phone string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"email": email}
 			if first != "" {

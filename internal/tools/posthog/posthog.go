@@ -38,6 +38,14 @@ const (
 	EnvAPIHost     = "POSTHOG_API_HOST"
 )
 
+// anycli.side_effect annotations (design 318): readOnly marks a leaf command
+// that only reads provider state; writeAction marks one that mutates it. Note
+// PostHog analytics query endpoints are reads even over HTTP POST.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in PostHog tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

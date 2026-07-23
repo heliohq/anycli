@@ -24,9 +24,10 @@ func (s *Service) newBoardCmd(token string) *cobra.Command {
 func (s *Service) newBoardListCmd(token string) *cobra.Command {
 	var page pageParams
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List boards (GET /boards)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List boards (GET /boards)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.apply(q)
@@ -43,9 +44,10 @@ func (s *Service) newBoardListCmd(token string) *cobra.Command {
 
 func (s *Service) newBoardGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <board_id>",
-		Short: "Get one board (GET /boards/{board_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <board_id>",
+		Short:       "Get one board (GET /boards/{board_id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/boards/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -59,9 +61,10 @@ func (s *Service) newBoardGetCmd(token string) *cobra.Command {
 func (s *Service) newBoardCreateCmd(token string) *cobra.Command {
 	var name, description, privacy string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a board (POST /boards)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a board (POST /boards)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if name == "" {
 				return &usageError{msg: "pinterest: --name is required"}
@@ -88,9 +91,10 @@ func (s *Service) newBoardCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newBoardDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <board_id>",
-		Short: "Delete a board (DELETE /boards/{board_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <board_id>",
+		Short:       "Delete a board (DELETE /boards/{board_id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/boards/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -109,9 +113,10 @@ func (s *Service) newBoardDeleteCmd(token string) *cobra.Command {
 func (s *Service) newBoardSectionsCmd(token string) *cobra.Command {
 	var page pageParams
 	cmd := &cobra.Command{
-		Use:   "sections <board_id>",
-		Short: "List a board's sections (GET /boards/{board_id}/sections)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "sections <board_id>",
+		Short:       "List a board's sections (GET /boards/{board_id}/sections)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			page.apply(q)
@@ -129,9 +134,10 @@ func (s *Service) newBoardSectionsCmd(token string) *cobra.Command {
 func (s *Service) newBoardAddSectionCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "add-section <board_id>",
-		Short: "Create a board section (POST /boards/{board_id}/sections)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "add-section <board_id>",
+		Short:       "Create a board section (POST /boards/{board_id}/sections)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if name == "" {
 				return &usageError{msg: "pinterest: --name is required"}
@@ -150,9 +156,10 @@ func (s *Service) newBoardAddSectionCmd(token string) *cobra.Command {
 func (s *Service) newBoardPinsCmd(token string) *cobra.Command {
 	var page pageParams
 	cmd := &cobra.Command{
-		Use:   "pins <board_id>",
-		Short: "List pins on a board (GET /boards/{board_id}/pins)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "pins <board_id>",
+		Short:       "List pins on a board (GET /boards/{board_id}/pins)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			page.apply(q)

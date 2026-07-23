@@ -61,9 +61,10 @@ func (s *Service) newFormCmd(key string) *cobra.Command {
 
 	var lp listParams
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List forms accessible by the API key",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List forms accessible by the API key",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.runGet(cmd, key, "/forms", lp.query())
 		},
@@ -72,9 +73,10 @@ func (s *Service) newFormCmd(key string) *cobra.Command {
 
 	var formID string
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Get a single form by slug or ID",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a single form by slug or ID",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if formID == "" {
 				return &usageError{msg: "form get: --form is required"}
@@ -94,9 +96,10 @@ func (s *Service) newFieldCmd(key string) *cobra.Command {
 
 	var formID string
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List a form's fields",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a form's fields",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if formID == "" {
 				return &usageError{msg: "field list: --form is required"}
@@ -108,9 +111,10 @@ func (s *Service) newFieldCmd(key string) *cobra.Command {
 
 	var getFormID, fieldKey string
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Get a single field by key",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a single field by key",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if getFormID == "" {
 				return &usageError{msg: "field get: --form is required"}

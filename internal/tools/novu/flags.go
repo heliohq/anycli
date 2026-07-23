@@ -80,12 +80,22 @@ func jsonUnmarshalStrict(raw string, v any) error {
 	return json.Unmarshal([]byte(raw), v)
 }
 
+// readOnly / writeAction are the design-318 anycli.side_effect annotations for
+// runnable leaf commands: false = no provider state change (GET/list/get),
+// true = mutates provider state (create/update/delete/trigger/etc.).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // leafCmd builds a resource-group leaf command with SilenceUsage/Errors so
 // RunE errors flow through Execute's classifier rather than cobra's own printer.
-func leafCmd(use, short string, run func(cmd *cobra.Command, args []string) error) *cobra.Command {
+// ann is the anycli.side_effect annotation (readOnly or writeAction).
+func leafCmd(use, short string, ann map[string]string, run func(cmd *cobra.Command, args []string) error) *cobra.Command {
 	return &cobra.Command{
 		Use:           use,
 		Short:         short,
+		Annotations:   ann,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE:          run,

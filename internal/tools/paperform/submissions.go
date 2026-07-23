@@ -29,9 +29,10 @@ func (s *Service) newSubmissionGroup(key, word, segment, short string) *cobra.Co
 	var lp listParams
 	var listFormID string
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List a form's " + segment,
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a form's " + segment,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if listFormID == "" {
 				return &usageError{msg: word + " list: --form is required"}
@@ -44,9 +45,10 @@ func (s *Service) newSubmissionGroup(key, word, segment, short string) *cobra.Co
 
 	var getID, getFormID string
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Get a single " + word + " by ID",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a single " + word + " by ID",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if getID == "" {
 				return &usageError{msg: word + " get: --id is required"}

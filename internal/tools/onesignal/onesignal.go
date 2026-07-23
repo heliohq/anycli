@@ -36,6 +36,14 @@ const (
 	EnvAppID     = "ONESIGNAL_APP_ID"
 )
 
+// readOnly and writeAction are the design-318 side-effect annotations applied to
+// every runnable leaf command: "false" for read-only reads, "true" for calls
+// that mutate provider state.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in OneSignal tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle). The
 // registered instance is shared across invocations, so per-invocation

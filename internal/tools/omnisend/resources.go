@@ -18,9 +18,10 @@ func (s *Service) newEventCmd(token string) *cobra.Command {
 func (s *Service) newEventSendCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a customer event (POST /events). --data is the raw event JSON body.",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a customer event (POST /events). --data is the raw event JSON body.",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeJSONFlag("data", data)
 			if err != nil {
@@ -53,9 +54,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	var limit int
 	var after string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns (GET /campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns (GET /campaigns)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			applyListQuery(q, limit, after)
@@ -73,9 +75,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a campaign by id (GET /campaigns/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a campaign by id (GET /campaigns/{id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/campaigns/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -104,9 +107,10 @@ func (s *Service) newSegmentListCmd(token string) *cobra.Command {
 	var limit int
 	var after string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List segments (GET /segments)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List segments (GET /segments)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			applyListQuery(q, limit, after)
@@ -124,9 +128,10 @@ func (s *Service) newSegmentListCmd(token string) *cobra.Command {
 func (s *Service) newSegmentGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a segment by id (GET /segments/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a segment by id (GET /segments/{id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/segments/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -143,9 +148,10 @@ func (s *Service) newSegmentGetCmd(token string) *cobra.Command {
 func (s *Service) newSegmentCreateCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a segment (POST /segments). --data is the raw segment JSON body.",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a segment (POST /segments). --data is the raw segment JSON body.",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeJSONFlag("data", data)
 			if err != nil {
@@ -178,9 +184,10 @@ func (s *Service) newProductListCmd(token string) *cobra.Command {
 	var limit int
 	var after string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List products (GET /products)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List products (GET /products)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			applyListQuery(q, limit, after)
@@ -198,9 +205,10 @@ func (s *Service) newProductListCmd(token string) *cobra.Command {
 func (s *Service) newProductGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a product by id (GET /products/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a product by id (GET /products/{id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/products/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -228,9 +236,10 @@ func (s *Service) newBatchCmd(token string) *cobra.Command {
 func (s *Service) newBatchGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a batch by id (GET /batches/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a batch by id (GET /batches/{id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/batches/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -247,9 +256,10 @@ func (s *Service) newBatchGetCmd(token string) *cobra.Command {
 func (s *Service) newBatchCreateCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a batch of bulk operations (POST /batches). --data is the raw batch JSON body.",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a batch of bulk operations (POST /batches). --data is the raw batch JSON body.",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeJSONFlag("data", data)
 			if err != nil {
@@ -277,9 +287,10 @@ func (s *Service) newBrandCmd(token string) *cobra.Command {
 
 func (s *Service) newBrandGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get the current brand/account (GET /brands/current)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the current brand/account (GET /brands/current)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/brands/current", nil, nil)
 			if err != nil {

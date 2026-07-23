@@ -27,9 +27,10 @@ func (s *Service) newSequenceCmd(token string) *cobra.Command {
 func (s *Service) newSequenceListCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List sequences (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List sequences (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setFilter(query, "name", name)
@@ -47,9 +48,10 @@ func (s *Service) newSequenceListCmd(token string) *cobra.Command {
 // newSequenceStepsCmd lists the sequenceSteps of one sequence (its cadence content).
 func (s *Service) newSequenceStepsCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "steps <sequence-id>",
-		Short: "List the steps of one sequence",
-		Args:  cobra.ExactArgs(1),
+		Use:         "steps <sequence-id>",
+		Short:       "List the steps of one sequence",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("sequence id", args[0]); err != nil {
 				return err
@@ -83,9 +85,10 @@ func (s *Service) newEnrollmentCmd(token string) *cobra.Command {
 func (s *Service) newEnrollmentListCmd(token string) *cobra.Command {
 	var prospectID, sequenceID, state string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List enrollments / sequence states (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List enrollments / sequence states (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setRelFilter(query, "prospect", prospectID)
@@ -109,9 +112,10 @@ func (s *Service) newEnrollmentListCmd(token string) *cobra.Command {
 func (s *Service) newEnrollmentAddCmd(token string) *cobra.Command {
 	var prospectID, sequenceID, mailboxID string
 	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Enroll a prospect in a sequence (via a mailbox)",
-		Args:  cobra.NoArgs,
+		Use:         "add",
+		Short:       "Enroll a prospect in a sequence (via a mailbox)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			for _, v := range []struct{ label, id string }{
 				{"prospect id", prospectID}, {"sequence id", sequenceID}, {"mailbox id", mailboxID},
@@ -137,9 +141,10 @@ func (s *Service) newEnrollmentAddCmd(token string) *cobra.Command {
 // (pause/resume/finish).
 func (s *Service) newEnrollmentActionCmd(token, action, short string) *cobra.Command {
 	return &cobra.Command{
-		Use:   action + " <id>",
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:         action + " <id>",
+		Short:       short,
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.runAction(cmd.Context(), token, enrollmentResource, args[0], action, nil)
 		},

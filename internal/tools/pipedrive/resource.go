@@ -73,9 +73,10 @@ func (r resource) group(ops ...*cobra.Command) *cobra.Command {
 // listCmd builds "<word> list": query filters + pagination, GET the collection.
 func (r resource) listCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List " + r.word + "s",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List " + r.word + "s",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			for _, f := range r.filters {
@@ -98,9 +99,10 @@ func (r resource) listCmd() *cobra.Command {
 // getCmd builds "<word> get <id>": GET a single record.
 func (r resource) getCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one " + r.word + " by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one " + r.word + " by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return r.c.run(cmd.Context(), http.MethodGet, r.path+"/"+url.PathEscape(args[0]), nil, nil)
 		},
@@ -114,9 +116,10 @@ func (r resource) createCmd() *cobra.Command {
 		verb = "create"
 	}
 	cmd := &cobra.Command{
-		Use:   verb,
-		Short: verb + " a " + r.word,
-		Args:  cobra.NoArgs,
+		Use:         verb,
+		Short:       verb + " a " + r.word,
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := buildBody(cmd, r.fields)
 			if err != nil {
@@ -137,9 +140,10 @@ func (r resource) updateCmd() *cobra.Command {
 		method = http.MethodPatch
 	}
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a " + r.word,
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a " + r.word,
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := buildBody(cmd, r.fields)
 			if err != nil {
@@ -155,9 +159,10 @@ func (r resource) updateCmd() *cobra.Command {
 // deleteCmd builds "<word> delete <id>".
 func (r resource) deleteCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a " + r.word,
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a " + r.word,
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return r.c.run(cmd.Context(), http.MethodDelete, r.path+"/"+url.PathEscape(args[0]), nil, nil)
 		},
@@ -167,9 +172,10 @@ func (r resource) deleteCmd() *cobra.Command {
 // searchCmd builds "<word> search --term": v2 entity search at /{path}/search.
 func (r resource) searchCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search " + r.word + "s by term",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search " + r.word + "s by term",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			term, _ := cmd.Flags().GetString("term")

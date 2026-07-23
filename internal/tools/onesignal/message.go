@@ -26,9 +26,10 @@ type messageSendFlags struct {
 func (s *Service) newMessageSendCmd(key, appID string) *cobra.Command {
 	f := &messageSendFlags{}
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a push / email / SMS message (POST /notifications)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a push / email / SMS message (POST /notifications)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := f.buildBody(appID)
 			if err != nil {
@@ -143,9 +144,10 @@ func (f *messageSendFlags) applyContent(body map[string]any) {
 func (s *Service) newMessageListCmd(key, appID string) *cobra.Command {
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List recent messages (GET /notifications)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List recent messages (GET /notifications)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := appQuery(appID)
 			if cmd.Flags().Changed("limit") {
@@ -169,9 +171,10 @@ func (s *Service) newMessageListCmd(key, appID string) *cobra.Command {
 func (s *Service) newMessageGetCmd(key, appID string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "View one message's delivery stats (GET /notifications/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "View one message's delivery stats (GET /notifications/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}
@@ -190,9 +193,10 @@ func (s *Service) newMessageGetCmd(key, appID string) *cobra.Command {
 func (s *Service) newMessageCancelCmd(key, appID string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "cancel",
-		Short: "Cancel a scheduled message (DELETE /notifications/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "cancel",
+		Short:       "Cancel a scheduled message (DELETE /notifications/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}

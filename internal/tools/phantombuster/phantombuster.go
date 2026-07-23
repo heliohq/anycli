@@ -43,6 +43,13 @@ const EnvAPIKey = "PHANTOMBUSTER_API_KEY"
 // "X-Phantombuster-Key-1" is intentionally not used.
 const authHeader = "X-Phantombuster-Key"
 
+// side_effect annotations (design 318): readOnly for reads (no provider state
+// change), writeAction for commands that mutate provider state.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in PhantomBuster tool. It satisfies tools.Service
 // by duck typing (this package never imports the registry — no import cycle).
 type Service struct {

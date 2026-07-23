@@ -16,9 +16,10 @@ func (s *Service) newProjectCmd(token string) *cobra.Command {
 func (s *Service) newProjectListSubcmd(token string) *cobra.Command {
 	var lp listParams
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List projects the token can access (GET /api/projects/)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List projects the token can access (GET /api/projects/)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, "GET", "/api/projects/", lp.values(false), nil)
 			if err != nil {

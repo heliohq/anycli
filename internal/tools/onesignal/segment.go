@@ -10,9 +10,10 @@ import (
 func (s *Service) newSegmentCreateCmd(key, appID string) *cobra.Command {
 	var name, filters string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an audience segment (POST /apps/{app_id}/segments)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an audience segment (POST /apps/{app_id}/segments)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if name == "" {
 				return &usageError{msg: "--name is required"}
@@ -39,9 +40,10 @@ func (s *Service) newSegmentCreateCmd(key, appID string) *cobra.Command {
 
 func (s *Service) newSegmentListCmd(key, appID string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List segments (GET /apps/{app_id}/segments)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List segments (GET /apps/{app_id}/segments)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, appPath(appID, "/segments"), nil, nil)
 			if err != nil {
@@ -55,9 +57,10 @@ func (s *Service) newSegmentListCmd(key, appID string) *cobra.Command {
 func (s *Service) newSegmentDeleteCmd(key, appID string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a segment (DELETE /apps/{app_id}/segments/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a segment (DELETE /apps/{app_id}/segments/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}

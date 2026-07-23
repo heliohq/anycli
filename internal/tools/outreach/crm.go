@@ -23,9 +23,10 @@ func (s *Service) newProspectCmd(token string) *cobra.Command {
 func (s *Service) newProspectListCmd(token string) *cobra.Command {
 	var q, email, accountID, stageID, ownerID string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List prospects (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List prospects (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setFilter(query, "q", q)                  // documented global/full-text filter (prospects only)
@@ -51,9 +52,10 @@ func (s *Service) newProspectListCmd(token string) *cobra.Command {
 func (s *Service) newProspectCreateCmd(token string) *cobra.Command {
 	f := &prospectFields{}
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a prospect",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a prospect",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			attrs, rels, err := f.build()
 			if err != nil {
@@ -69,9 +71,10 @@ func (s *Service) newProspectCreateCmd(token string) *cobra.Command {
 func (s *Service) newProspectUpdateCmd(token string) *cobra.Command {
 	f := &prospectFields{}
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a prospect",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a prospect",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			attrs, rels, err := f.build()
 			if err != nil {
@@ -143,9 +146,10 @@ func (s *Service) newAccountCmd(token string) *cobra.Command {
 func (s *Service) newAccountListCmd(token string) *cobra.Command {
 	var q, domain, name, ownerID string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List accounts (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List accounts (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setFilter(query, "q", q)              // documented global/full-text filter (accounts only)
@@ -169,9 +173,10 @@ func (s *Service) newAccountListCmd(token string) *cobra.Command {
 func (s *Service) newAccountCreateCmd(token string) *cobra.Command {
 	f := &accountFields{}
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an account",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an account",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			attrs, rels, err := f.build()
 			if err != nil {
@@ -187,9 +192,10 @@ func (s *Service) newAccountCreateCmd(token string) *cobra.Command {
 func (s *Service) newAccountUpdateCmd(token string) *cobra.Command {
 	f := &accountFields{}
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update an account",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update an account",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			attrs, rels, err := f.build()
 			if err != nil {
