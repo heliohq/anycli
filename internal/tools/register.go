@@ -93,6 +93,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/novu"
 	"github.com/heliohq/anycli/internal/tools/omnisend"
 	"github.com/heliohq/anycli/internal/tools/onesignal"
+	"github.com/heliohq/anycli/internal/tools/outreach"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -130,6 +131,7 @@ func init() {
 	RegisterService("close", &close.Service{})
 	RegisterService("novu", &novu.Service{})
 	RegisterService("omnisend", &omnisend.Service{})
+	RegisterService("outreach", &outreach.Service{})
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("google-ads", &googleads.Service{})
