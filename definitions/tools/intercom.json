@@ -1,0 +1,13 @@
+{
+  "name": "intercom",
+  "type": "service",
+  "description": "Intercom as a tool (workspace OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "INTERCOM_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
