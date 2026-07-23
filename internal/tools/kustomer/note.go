@@ -10,9 +10,10 @@ import (
 // newNoteListCmd: GET /conversations/{id}/notes (read internal notes).
 func (s *Service) newNoteListCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list <conversation-id>",
-		Short: "List a conversation's internal notes",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <conversation-id>",
+		Short:       "List a conversation's internal notes",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -32,9 +33,10 @@ func (s *Service) newNoteListCmd(base, token string) *cobra.Command {
 // newNoteCreateCmd: POST /conversations/{id}/notes (leave an internal note).
 func (s *Service) newNoteCreateCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create <conversation-id>",
-		Short: "Add an internal note to a conversation from a JSON body",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <conversation-id>",
+		Short:       "Add an internal note to a conversation from a JSON body",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 	}
 	data, file := registerBodyFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

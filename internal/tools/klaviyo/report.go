@@ -29,9 +29,10 @@ func (s *Service) newReportSubCmd(token, use, short, valuesPath, seriesPath stri
 	var series bool
 	var data string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if data == "" {
 				return &usageError{msg: "--data (JSON:API report body) is required"}

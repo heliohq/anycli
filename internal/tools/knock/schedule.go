@@ -32,9 +32,10 @@ func (s *Service) newScheduleCreateCmd(key string) *cobra.Command {
 		endingAt    string
 	)
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create schedules for one or more recipients",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create schedules for one or more recipients",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("workflow", workflow); err != nil {
 				return err
@@ -101,9 +102,10 @@ func (s *Service) newScheduleListCmd(key string) *cobra.Command {
 		before   string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List schedules",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List schedules",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("workflow", workflow); err != nil {
 				return err
@@ -136,9 +138,10 @@ func (s *Service) newScheduleUpdateCmd(key string) *cobra.Command {
 		endingAt    string
 	)
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update existing schedules by id",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update existing schedules by id",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(scheduleID) == 0 {
 				return &usageError{msg: "at least one --schedule-id is required"}
@@ -189,9 +192,10 @@ func (s *Service) newScheduleUpdateCmd(key string) *cobra.Command {
 func (s *Service) newScheduleDeleteCmd(key string) *cobra.Command {
 	var scheduleID []string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete schedules by id",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete schedules by id",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(scheduleID) == 0 {
 				return &usageError{msg: "at least one --schedule-id is required"}

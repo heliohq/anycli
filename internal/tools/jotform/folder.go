@@ -10,9 +10,10 @@ func (s *Service) newFolderCmd(key string) *cobra.Command {
 
 func (s *Service) newFolderListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List folders (GET /user/folders)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List folders (GET /user/folders)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), key, "/user/folders", nil)
 			if err != nil {

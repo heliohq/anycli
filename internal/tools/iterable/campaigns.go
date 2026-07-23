@@ -19,9 +19,10 @@ func (s *Service) newCampaignCmd(cred credential) *cobra.Command {
 
 func (s *Service) newCampaignListCmd(cred credential) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List all campaigns (GET /api/campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List all campaigns (GET /api/campaigns)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), cred, http.MethodGet, "/api/campaigns", nil, nil)
 			if err != nil {
@@ -35,9 +36,10 @@ func (s *Service) newCampaignListCmd(cred credential) *cobra.Command {
 func (s *Service) newCampaignMetricsCmd(cred credential) *cobra.Command {
 	var campaignID string
 	cmd := &cobra.Command{
-		Use:   "metrics",
-		Short: "Get metrics for a campaign (GET /api/campaigns/metrics?campaignId=…)",
-		Args:  cobra.NoArgs,
+		Use:         "metrics",
+		Short:       "Get metrics for a campaign (GET /api/campaigns/metrics?campaignId=…)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if campaignID == "" {
 				return &usageError{msg: "iterable: --campaign-id is required"}

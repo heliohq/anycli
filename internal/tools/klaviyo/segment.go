@@ -22,9 +22,10 @@ func (s *Service) newSegmentCmd(token string) *cobra.Command {
 func (s *Service) newSegmentProfilesCmd(token string) *cobra.Command {
 	f := &listFlags{}
 	cmd := &cobra.Command{
-		Use:   "profiles <id>",
-		Short: "List a segment's member profiles (GET /segments/{id}/profiles)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "profiles <id>",
+		Short:       "List a segment's member profiles (GET /segments/{id}/profiles)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q, err := f.query("profile")
 			if err != nil {

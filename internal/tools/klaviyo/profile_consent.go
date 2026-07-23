@@ -34,9 +34,10 @@ func (s *Service) newProfileConsentCmds(token string) []*cobra.Command {
 func (s *Service) newSubscriptionJobCmd(token, use, short, path, jobType string, withConsent bool) *cobra.Command {
 	var email, phone, listID, channel, data string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := subscriptionJobBody(jobType, email, phone, listID, channel, withConsent, data)
 			if err != nil {
@@ -64,9 +65,10 @@ func (s *Service) newSubscriptionJobCmd(token, use, short, path, jobType string,
 func (s *Service) newSuppressionJobCmd(token, use, short, path, jobType string) *cobra.Command {
 	var email, data string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := suppressionJobBody(jobType, email, data)
 			if err != nil {

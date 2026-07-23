@@ -21,9 +21,10 @@ func (s *Service) newVerifyCmd(token string) *cobra.Command {
 func (s *Service) newVerifyCreateCmd(token string) *cobra.Command {
 	var email, webhookURL string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Submit an email address for verification (POST /email-verification)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Annotations: writeAction,
+		Short:       "Submit an email address for verification (POST /email-verification)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"email": email}
 			if cmd.Flags().Changed("webhook-url") {
@@ -41,9 +42,10 @@ func (s *Service) newVerifyCreateCmd(token string) *cobra.Command {
 func (s *Service) newVerifyGetCmd(token string) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a verification result (GET /email-verification/{email}); poll while pending",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Annotations: readOnly,
+		Short:       "Get a verification result (GET /email-verification/{email}); poll while pending",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/email-verification/"+url.PathEscape(email), nil)
 		},

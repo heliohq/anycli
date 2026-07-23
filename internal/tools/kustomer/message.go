@@ -10,9 +10,10 @@ import (
 // newMessageListCmd: GET /conversations/{id}/messages (read the thread).
 func (s *Service) newMessageListCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list <conversation-id>",
-		Short: "List a conversation's messages",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <conversation-id>",
+		Short:       "List a conversation's messages",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -32,9 +33,10 @@ func (s *Service) newMessageListCmd(base, token string) *cobra.Command {
 // newMessageCreateCmd: POST /conversations/{id}/messages (reply to the customer).
 func (s *Service) newMessageCreateCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create <conversation-id>",
-		Short: "Post a message to a conversation from a JSON body",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <conversation-id>",
+		Short:       "Post a message to a conversation from a JSON body",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 	}
 	data, file := registerBodyFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

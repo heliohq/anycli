@@ -21,9 +21,10 @@ func (s *Service) newCompanyCmd(token string) *cobra.Command {
 func (s *Service) newCompanyListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List companies (GET /v2/companies)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List companies (GET /v2/companies)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/companies", lf.values(), nil)
 			if err != nil {
@@ -39,9 +40,10 @@ func (s *Service) newCompanyListCmd(token string) *cobra.Command {
 func (s *Service) newCompanyGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "get <company-id>",
-		Short: "Get a company (GET /v2/companies/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <company-id>",
+		Short:       "Get a company (GET /v2/companies/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/companies/"+url.PathEscape(args[0]), fieldsQuery(fields), nil)
 			if err != nil {
@@ -57,9 +59,10 @@ func (s *Service) newCompanyGetCmd(token string) *cobra.Command {
 func (s *Service) newCompanyCreateCmd(token string) *cobra.Command {
 	var name, website, jsonBody string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a company (POST /v2/companies)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a company (POST /v2/companies)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if name != "" {
@@ -90,9 +93,10 @@ func (s *Service) newCompanyCreateCmd(token string) *cobra.Command {
 func (s *Service) newCompanyUpdateCmd(token string) *cobra.Command {
 	var name, website, jsonBody string
 	cmd := &cobra.Command{
-		Use:   "update <company-id>",
-		Short: "Update a company (PATCH /v2/companies/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <company-id>",
+		Short:       "Update a company (PATCH /v2/companies/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if name != "" {

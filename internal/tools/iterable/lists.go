@@ -21,9 +21,10 @@ func (s *Service) newListCmd(cred credential) *cobra.Command {
 
 func (s *Service) newListListCmd(cred credential) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List all lists (GET /api/lists)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List all lists (GET /api/lists)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), cred, http.MethodGet, "/api/lists", nil, nil)
 			if err != nil {
@@ -37,9 +38,10 @@ func (s *Service) newListListCmd(cred credential) *cobra.Command {
 func (s *Service) newListSubscribeCmd(cred credential) *cobra.Command {
 	var body string
 	cmd := &cobra.Command{
-		Use:   "subscribe",
-		Short: "Add users to a list (POST /api/lists/subscribe)",
-		Args:  cobra.NoArgs,
+		Use:         "subscribe",
+		Short:       "Add users to a list (POST /api/lists/subscribe)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := decodeJSONFlag("body", body)
 			if err != nil {
@@ -60,9 +62,10 @@ func (s *Service) newListSubscribeCmd(cred credential) *cobra.Command {
 func (s *Service) newListUnsubscribeCmd(cred credential) *cobra.Command {
 	var body string
 	cmd := &cobra.Command{
-		Use:   "unsubscribe",
-		Short: "Remove users from a list (POST /api/lists/unsubscribe)",
-		Args:  cobra.NoArgs,
+		Use:         "unsubscribe",
+		Short:       "Remove users from a list (POST /api/lists/unsubscribe)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := decodeJSONFlag("body", body)
 			if err != nil {
@@ -83,9 +86,10 @@ func (s *Service) newListUnsubscribeCmd(cred credential) *cobra.Command {
 func (s *Service) newListUsersCmd(cred credential) *cobra.Command {
 	var listID string
 	cmd := &cobra.Command{
-		Use:   "users",
-		Short: "List the emails on a list (GET /api/lists/getUsers?listId=…)",
-		Args:  cobra.NoArgs,
+		Use:         "users",
+		Short:       "List the emails on a list (GET /api/lists/getUsers?listId=…)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if listID == "" {
 				return &usageError{msg: "iterable: --list-id is required"}

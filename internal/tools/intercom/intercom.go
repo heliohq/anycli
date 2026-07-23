@@ -22,6 +22,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// design-318 side_effect annotation maps shared by every runnable leaf.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+var writeAction = map[string]string{"anycli.side_effect": "true"}
+
 // DefaultBaseURL is the production Intercom API base. api.intercom.io
 // self-routes to the workspace region, so no per-region handling is needed.
 const DefaultBaseURL = "https://api.intercom.io"

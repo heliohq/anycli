@@ -19,9 +19,10 @@ func (s *Service) newEmailSendCmd(token string) *cobra.Command {
 	var contacts []string
 	var subject, userID, html, plain, jsonBody string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a one-off email to contacts (POST /v2/emails:send)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a one-off email to contacts (POST /v2/emails:send)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if len(contacts) > 0 {
@@ -66,9 +67,10 @@ func (s *Service) newEmailSendCmd(token string) *cobra.Command {
 func (s *Service) newEmailListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List sent/recorded emails (GET /v2/emails)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List sent/recorded emails (GET /v2/emails)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/emails", lf.values(), nil)
 			if err != nil {

@@ -34,6 +34,10 @@ const DefaultBaseURL = "https://reporting.api.later.com"
 // colon (a clientId never contains one, the secret may).
 const EnvCredentials = "LATER_CREDENTIALS"
 
+// design-318 side_effect annotation map shared by every runnable leaf. Every
+// later command is a reporting GET, so all leaves are read-only.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+
 // Service implements the built-in Later tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

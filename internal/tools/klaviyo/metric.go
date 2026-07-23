@@ -23,9 +23,10 @@ func (s *Service) newMetricCmd(token string) *cobra.Command {
 func (s *Service) newMetricAggregateCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "aggregate",
-		Short: "Run a metric aggregate query (POST /metric-aggregates) with a --data JSON:API body",
-		Args:  cobra.NoArgs,
+		Use:         "aggregate",
+		Short:       "Run a metric aggregate query (POST /metric-aggregates) with a --data JSON:API body",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if data == "" {
 				return &usageError{msg: "--data (JSON:API metric-aggregate body) is required"}

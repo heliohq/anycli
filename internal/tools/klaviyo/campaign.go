@@ -28,9 +28,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	f := &listFlags{}
 	var channel string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns (GET /campaigns), required channel via --channel email|sms|mobile_push",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns (GET /campaigns), required channel via --channel email|sms|mobile_push",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			channelFilter, err := campaignChannelFilter(channel)
 			if err != nil {
@@ -74,9 +75,10 @@ func campaignChannelFilter(channel string) (string, error) {
 func (s *Service) newCampaignMessagesCmd(token string) *cobra.Command {
 	f := &listFlags{}
 	cmd := &cobra.Command{
-		Use:   "messages <id>",
-		Short: "List a campaign's messages (GET /campaigns/{id}/campaign-messages)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "messages <id>",
+		Short:       "List a campaign's messages (GET /campaigns/{id}/campaign-messages)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q, err := f.query("campaign-message")
 			if err != nil {
@@ -98,9 +100,10 @@ func (s *Service) newCampaignMessagesCmd(token string) *cobra.Command {
 func (s *Service) newCampaignSendCmd(token string) *cobra.Command {
 	var id, data string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Trigger a campaign send (POST /campaign-send-jobs) via --id or --data",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Trigger a campaign send (POST /campaign-send-jobs) via --id or --data",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var payload any
 			if data != "" {

@@ -20,9 +20,10 @@ func (s *Service) newFormCmd(key string) *cobra.Command {
 func (s *Service) newFormListCmd(key string) *cobra.Command {
 	var params listParams
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List the account's forms (GET /user/forms)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the account's forms (GET /user/forms)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			params.apply(q)
@@ -39,9 +40,10 @@ func (s *Service) newFormListCmd(key string) *cobra.Command {
 
 func (s *Service) newFormGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <formID>",
-		Short: "Get one form's details (GET /form/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <formID>",
+		Short:       "Get one form's details (GET /form/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.get(cmd.Context(), key, "/form/"+url.PathEscape(args[0]), nil)
 			if err != nil {
@@ -54,9 +56,10 @@ func (s *Service) newFormGetCmd(key string) *cobra.Command {
 
 func (s *Service) newFormQuestionsCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "questions <formID>",
-		Short: "List a form's questions and their qids (GET /form/{id}/questions)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "questions <formID>",
+		Short:       "List a form's questions and their qids (GET /form/{id}/questions)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.get(cmd.Context(), key, "/form/"+url.PathEscape(args[0])+"/questions", nil)
 			if err != nil {
@@ -70,9 +73,10 @@ func (s *Service) newFormQuestionsCmd(key string) *cobra.Command {
 func (s *Service) newFormSubmissionsCmd(key string) *cobra.Command {
 	var params listParams
 	cmd := &cobra.Command{
-		Use:   "submissions <formID>",
-		Short: "List one form's submissions (GET /form/{id}/submissions)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "submissions <formID>",
+		Short:       "List one form's submissions (GET /form/{id}/submissions)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			params.apply(q)

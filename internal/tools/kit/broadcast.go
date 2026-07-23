@@ -23,9 +23,10 @@ func (s *Service) broadcastCmd(token string) *cobra.Command {
 
 func (s *Service) broadcastListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List broadcasts (one page; use --after to continue)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List broadcasts (one page; use --after to continue)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -42,9 +43,10 @@ func (s *Service) broadcastListCmd(token string) *cobra.Command {
 
 func (s *Service) broadcastGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Show one broadcast",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Show one broadcast",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/broadcasts/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -60,9 +62,10 @@ func (s *Service) broadcastCreateCmd(token string) *cobra.Command {
 	var public bool
 	var tagID, segmentID int
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a broadcast (draft unless --send-at is set)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a broadcast (draft unless --send-at is set)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if subject == "" || content == "" {
 				return &usageError{msg: "--subject and --content are required"}
@@ -91,9 +94,10 @@ func (s *Service) broadcastUpdateCmd(token string) *cobra.Command {
 	var subject, content, description, sendAt, publishedAt, previewText string
 	var public bool
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a broadcast's fields",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a broadcast's fields",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{}
 			setIfNonEmpty(payload, "subject", subject)
@@ -127,9 +131,10 @@ func (s *Service) broadcastUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) broadcastStatsCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "stats <id>",
-		Short: "Show open/click stats for a broadcast",
-		Args:  cobra.ExactArgs(1),
+		Use:         "stats <id>",
+		Short:       "Show open/click stats for a broadcast",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/broadcasts/"+url.PathEscape(args[0])+"/stats", nil, nil)
 			if err != nil {

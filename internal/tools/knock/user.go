@@ -32,9 +32,10 @@ func (s *Service) newUserIdentifyCmd(key string) *cobra.Command {
 		data string
 	)
 	cmd := &cobra.Command{
-		Use:   "identify",
-		Short: "Identify (create or update) a user",
-		Args:  cobra.NoArgs,
+		Use:         "identify",
+		Short:       "Identify (create or update) a user",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -62,9 +63,10 @@ func (s *Service) newUserIdentifyCmd(key string) *cobra.Command {
 func (s *Service) newUserGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a user",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a user",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -83,9 +85,10 @@ func (s *Service) newUserListCmd(key string) *cobra.Command {
 		before   string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List users",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List users",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			addPaging(q, pageSize, after, before)
@@ -101,9 +104,10 @@ func (s *Service) newUserListCmd(key string) *cobra.Command {
 func (s *Service) newUserDeleteCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a user",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a user",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -121,9 +125,10 @@ func (s *Service) newUserMergeCmd(key string) *cobra.Command {
 		fromID string
 	)
 	cmd := &cobra.Command{
-		Use:   "merge",
-		Short: "Merge one user into another (from-id merged into id)",
-		Args:  cobra.NoArgs,
+		Use:         "merge",
+		Short:       "Merge one user into another (from-id merged into id)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -146,9 +151,10 @@ func (s *Service) newUserGetPreferencesCmd(key string) *cobra.Command {
 		set string
 	)
 	cmd := &cobra.Command{
-		Use:   "get-preferences",
-		Short: "Get a user's preference sets (or one set with --set)",
-		Args:  cobra.NoArgs,
+		Use:         "get-preferences",
+		Short:       "Get a user's preference sets (or one set with --set)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -172,9 +178,10 @@ func (s *Service) newUserSetPreferencesCmd(key string) *cobra.Command {
 		data string
 	)
 	cmd := &cobra.Command{
-		Use:   "set-preferences",
-		Short: "Replace a user's preference set",
-		Args:  cobra.NoArgs,
+		Use:         "set-preferences",
+		Short:       "Replace a user's preference set",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -204,9 +211,10 @@ func (s *Service) newUserGetChannelDataCmd(key string) *cobra.Command {
 		channelID string
 	)
 	cmd := &cobra.Command{
-		Use:   "get-channel-data",
-		Short: "Get a user's channel data for a channel",
-		Args:  cobra.NoArgs,
+		Use:         "get-channel-data",
+		Short:       "Get a user's channel data for a channel",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -229,9 +237,10 @@ func (s *Service) newUserSetChannelDataCmd(key string) *cobra.Command {
 		data      string
 	)
 	cmd := &cobra.Command{
-		Use:   "set-channel-data",
-		Short: "Set a user's channel data for a channel",
-		Args:  cobra.NoArgs,
+		Use:         "set-channel-data",
+		Short:       "Set a user's channel data for a channel",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -262,9 +271,10 @@ func (s *Service) newUserDeleteChannelDataCmd(key string) *cobra.Command {
 		channelID string
 	)
 	cmd := &cobra.Command{
-		Use:   "delete-channel-data",
-		Short: "Delete a user's channel data for a channel",
-		Args:  cobra.NoArgs,
+		Use:         "delete-channel-data",
+		Short:       "Delete a user's channel data for a channel",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err

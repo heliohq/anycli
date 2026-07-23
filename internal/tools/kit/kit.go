@@ -21,6 +21,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// design-318 side_effect annotation maps shared by every runnable leaf.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // DefaultBaseURL is the production Kit V4 API base (all paths carry /v4).
 const DefaultBaseURL = "https://api.kit.com/v4"
 

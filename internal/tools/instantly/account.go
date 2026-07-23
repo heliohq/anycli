@@ -25,9 +25,10 @@ func (s *Service) newAccountListCmd(token string) *cobra.Command {
 	var page pageFlags
 	var search, status, providerCode, tagIDs string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List sending accounts (GET /accounts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Annotations: readOnly,
+		Short:       "List sending accounts (GET /accounts)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.applyQuery(q)
@@ -49,9 +50,10 @@ func (s *Service) newAccountListCmd(token string) *cobra.Command {
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a sending account (GET /accounts/{email})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Annotations: readOnly,
+		Short:       "Get a sending account (GET /accounts/{email})",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/accounts/"+url.PathEscape(email), nil)
 		},
@@ -73,9 +75,10 @@ func (s *Service) newAccountResumeCmd(token string) *cobra.Command {
 func (s *Service) accountAction(token, use, short, suffix string) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Annotations: writeAction,
+		Short:       short,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.send(cmd, token, http.MethodPost, "/accounts/"+url.PathEscape(email)+suffix, nil)
 		},
@@ -90,9 +93,10 @@ func (s *Service) accountAction(token, use, short, suffix string) *cobra.Command
 func (s *Service) newAccountWarmupAnalyticsCmd(token string) *cobra.Command {
 	var emails string
 	cmd := &cobra.Command{
-		Use:   "warmup-analytics",
-		Short: "Warmup analytics for accounts (POST /accounts/warmup-analytics)",
-		Args:  cobra.NoArgs,
+		Use:         "warmup-analytics",
+		Annotations: readOnly,
+		Short:       "Warmup analytics for accounts (POST /accounts/warmup-analytics)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"emails": splitCSV(emails)}
 			return s.send(cmd, token, http.MethodPost, "/accounts/warmup-analytics", payload)
@@ -106,9 +110,10 @@ func (s *Service) newAccountWarmupAnalyticsCmd(token string) *cobra.Command {
 func (s *Service) newAccountAnalyticsDailyCmd(token string) *cobra.Command {
 	var startDate, endDate, emails string
 	cmd := &cobra.Command{
-		Use:   "analytics-daily",
-		Short: "Daily sending analytics (GET /accounts/analytics/daily)",
-		Args:  cobra.NoArgs,
+		Use:         "analytics-daily",
+		Annotations: readOnly,
+		Short:       "Daily sending analytics (GET /accounts/analytics/daily)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd, q, "start-date", "start_date", startDate)

@@ -23,9 +23,10 @@ func (s *Service) tagCmd(token string) *cobra.Command {
 
 func (s *Service) tagListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tags (one page; use --after to continue)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tags (one page; use --after to continue)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -43,9 +44,10 @@ func (s *Service) tagListCmd(token string) *cobra.Command {
 func (s *Service) tagCreateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a tag",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a tag",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if name == "" {
 				return &usageError{msg: "--name is required"}
@@ -71,9 +73,10 @@ func (s *Service) tagMembershipCmd(token string, add bool) *cobra.Command {
 	var tagID, subscriberID int
 	var email string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requirePositive("tag-id", tagID); err != nil {
 				return err

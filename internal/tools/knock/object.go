@@ -40,9 +40,10 @@ func (s *Service) newObjectSetCmd(key string) *cobra.Command {
 		data       string
 	)
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set (create or update) an object",
-		Args:  cobra.NoArgs,
+		Use:         "set",
+		Short:       "Set (create or update) an object",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path, err := objectPath(collection, id)
 			if err != nil {
@@ -75,9 +76,10 @@ func (s *Service) newObjectGetCmd(key string) *cobra.Command {
 		id         string
 	)
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get an object",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get an object",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path, err := objectPath(collection, id)
 			if err != nil {
@@ -97,9 +99,10 @@ func (s *Service) newObjectDeleteCmd(key string) *cobra.Command {
 		id         string
 	)
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete an object",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete an object",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path, err := objectPath(collection, id)
 			if err != nil {
@@ -121,9 +124,10 @@ func (s *Service) newObjectListCmd(key string) *cobra.Command {
 		before     string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List objects in a collection",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List objects in a collection",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("collection", collection); err != nil {
 				return err
@@ -149,9 +153,10 @@ func (s *Service) newObjectSubscriptionsCmd(key string) *cobra.Command {
 		before     string
 	)
 	cmd := &cobra.Command{
-		Use:   "subscriptions",
-		Short: "List an object's subscriptions (who follows it)",
-		Args:  cobra.NoArgs,
+		Use:         "subscriptions",
+		Short:       "List an object's subscriptions (who follows it)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path, err := objectPath(collection, id)
 			if err != nil {

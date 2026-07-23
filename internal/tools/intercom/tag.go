@@ -20,9 +20,10 @@ func (s *Service) newTagCmd(token string) *cobra.Command {
 
 func (s *Service) newTagListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tags (GET /tags)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tags (GET /tags)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/tags", nil, nil)
 			if err != nil {
@@ -37,9 +38,10 @@ func (s *Service) newTagListCmd(token string) *cobra.Command {
 func (s *Service) newTagCreateCmd(token string) *cobra.Command {
 	var name, id string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create or update a tag (POST /tags)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create or update a tag (POST /tags)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"name": name}
 			if id != "" {

@@ -26,9 +26,10 @@ func (s *Service) newTenantSetCmd(key string) *cobra.Command {
 		data string
 	)
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set (create or update) a tenant",
-		Args:  cobra.NoArgs,
+		Use:         "set",
+		Short:       "Set (create or update) a tenant",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -56,9 +57,10 @@ func (s *Service) newTenantSetCmd(key string) *cobra.Command {
 func (s *Service) newTenantGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a tenant",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a tenant",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -77,9 +79,10 @@ func (s *Service) newTenantListCmd(key string) *cobra.Command {
 		before   string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tenants",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tenants",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			addPaging(q, pageSize, after, before)
@@ -95,9 +98,10 @@ func (s *Service) newTenantListCmd(key string) *cobra.Command {
 func (s *Service) newTenantDeleteCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a tenant",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a tenant",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err

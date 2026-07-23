@@ -26,9 +26,10 @@ func (s *Service) newEventCmd(token string) *cobra.Command {
 func (s *Service) newEventCreateCmd(token string) *cobra.Command {
 	var metric, email, value, properties, data string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a custom event (POST /events) via --metric/--email or --data",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a custom event (POST /events) via --metric/--email or --data",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := eventCreateBody(metric, email, value, properties, data)
 			if err != nil {

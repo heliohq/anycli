@@ -23,9 +23,10 @@ func (s *Service) newCampaignsCmd(client *reportingClient) *cobra.Command {
 		cursor                string
 	)
 	cmd := &cobra.Command{
-		Use:   "campaigns",
-		Short: "Read campaign performance (GET /v2/campaigns/performance)",
-		Args:  cobra.NoArgs,
+		Use:         "campaigns",
+		Short:       "Read campaign performance (GET /v2/campaigns/performance)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			query.Set("startDate", startDate)

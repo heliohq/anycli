@@ -20,9 +20,10 @@ func (s *Service) newAutomationCmd(token string) *cobra.Command {
 func (s *Service) newAutomationListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List automations (GET /v2/automations)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List automations (GET /v2/automations)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/automations", lf.values(), nil)
 			if err != nil {
@@ -37,9 +38,10 @@ func (s *Service) newAutomationListCmd(token string) *cobra.Command {
 
 func (s *Service) newAutomationGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <automation-id>",
-		Short: "Get an automation (GET /v2/automations/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <automation-id>",
+		Short:       "Get an automation (GET /v2/automations/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/automations/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -55,9 +57,10 @@ func (s *Service) newAutomationAddContactsCmd(token string) *cobra.Command {
 	var sequenceID string
 	var contactIDs []string
 	cmd := &cobra.Command{
-		Use:   "add-contacts <automation-id>",
-		Short: "Add contacts to an automation sequence (POST /v2/automations/{id}/sequences/{seq}:addContacts)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "add-contacts <automation-id>",
+		Short:       "Add contacts to an automation sequence (POST /v2/automations/{id}/sequences/{seq}:addContacts)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if sequenceID == "" {
 				return &usageError{msg: "--sequence-id is required"}

@@ -10,9 +10,10 @@ import (
 // newConversationGetCmd: GET /conversations/{id}.
 func (s *Service) newConversationGetCmd(base, token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get a conversation (ticket) by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get a conversation (ticket) by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), base, token, http.MethodGet, "/conversations/"+url.PathEscape(args[0]), nil)
 			if err != nil {
@@ -26,9 +27,10 @@ func (s *Service) newConversationGetCmd(base, token string) *cobra.Command {
 // newConversationListCmd: GET /conversations (paginated).
 func (s *Service) newConversationListCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List conversations (recent/open tickets)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List conversations (recent/open tickets)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -48,9 +50,10 @@ func (s *Service) newConversationListCmd(base, token string) *cobra.Command {
 // newConversationCreateCmd: POST /conversations with a raw JSON body.
 func (s *Service) newConversationCreateCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Open a conversation from a JSON body",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Open a conversation from a JSON body",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	data, file := registerBodyFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -74,9 +77,10 @@ func (s *Service) newConversationCreateCmd(base, token string) *cobra.Command {
 // purpose (conversation attributes).
 func (s *Service) newConversationUpdateCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a conversation from a JSON body",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a conversation from a JSON body",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 	}
 	data, file := registerBodyFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

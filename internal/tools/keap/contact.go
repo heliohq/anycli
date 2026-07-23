@@ -22,9 +22,10 @@ func (s *Service) newContactCmd(token string) *cobra.Command {
 func (s *Service) newContactListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List contacts (GET /v2/contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contacts (GET /v2/contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/contacts", lf.values(), nil)
 			if err != nil {
@@ -40,9 +41,10 @@ func (s *Service) newContactListCmd(token string) *cobra.Command {
 func (s *Service) newContactGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "get <contact-id>",
-		Short: "Get a contact (GET /v2/contacts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <contact-id>",
+		Short:       "Get a contact (GET /v2/contacts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/contacts/"+url.PathEscape(args[0]), fieldsQuery(fields), nil)
 			if err != nil {
@@ -109,9 +111,10 @@ func (f *contactBodyFlags) build() (map[string]any, error) {
 func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 	var f *contactBodyFlags
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact (POST /v2/contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact (POST /v2/contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := f.build()
 			if err != nil {
@@ -134,9 +137,10 @@ func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 func (s *Service) newContactUpdateCmd(token string) *cobra.Command {
 	var f *contactBodyFlags
 	cmd := &cobra.Command{
-		Use:   "update <contact-id>",
-		Short: "Update a contact (PATCH /v2/contacts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <contact-id>",
+		Short:       "Update a contact (PATCH /v2/contacts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := f.build()
 			if err != nil {
@@ -158,9 +162,10 @@ func (s *Service) newContactUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newContactDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <contact-id>",
-		Short: "Delete a contact (DELETE /v2/contacts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <contact-id>",
+		Short:       "Delete a contact (DELETE /v2/contacts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/v2/contacts/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

@@ -19,9 +19,10 @@ func (s *Service) newJobListCmd(token string) *cobra.Command {
 	var page pageFlags
 	var status, jobType string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List background jobs (GET /background-jobs)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Annotations: readOnly,
+		Short:       "List background jobs (GET /background-jobs)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.applyQuery(q)
@@ -39,9 +40,10 @@ func (s *Service) newJobListCmd(token string) *cobra.Command {
 func (s *Service) newJobGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a background job (GET /background-jobs/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Annotations: readOnly,
+		Short:       "Get a background job (GET /background-jobs/{id})",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/background-jobs/"+url.PathEscape(id), nil)
 		},

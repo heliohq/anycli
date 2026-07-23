@@ -29,9 +29,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	var page pageFlags
 	var search, status, tagIDs string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns (GET /campaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Annotations: readOnly,
+		Short:       "List campaigns (GET /campaigns)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.applyQuery(q)
@@ -51,9 +52,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a campaign (GET /campaigns/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Annotations: readOnly,
+		Short:       "Get a campaign (GET /campaigns/{id})",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/campaigns/"+url.PathEscape(id), nil)
 		},
@@ -66,9 +68,10 @@ func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 func (s *Service) newCampaignCreateCmd(token string) *cobra.Command {
 	var data, name string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a campaign (POST /campaigns). --data is the raw JSON body",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Annotations: writeAction,
+		Short:       "Create a campaign (POST /campaigns). --data is the raw JSON body",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -88,9 +91,10 @@ func (s *Service) newCampaignCreateCmd(token string) *cobra.Command {
 func (s *Service) newCampaignUpdateCmd(token string) *cobra.Command {
 	var id, data string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a campaign (PATCH /campaigns/{id}). --data is the raw JSON body",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Annotations: writeAction,
+		Short:       "Update a campaign (PATCH /campaigns/{id}). --data is the raw JSON body",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -117,9 +121,10 @@ func (s *Service) newCampaignPauseCmd(token string) *cobra.Command {
 func (s *Service) campaignAction(token, use, short, suffix string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Annotations: writeAction,
+		Short:       short,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.send(cmd, token, http.MethodPost, "/campaigns/"+url.PathEscape(id)+suffix, nil)
 		},
@@ -132,9 +137,10 @@ func (s *Service) campaignAction(token, use, short, suffix string) *cobra.Comman
 func (s *Service) newCampaignSendingStatusCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "sending-status",
-		Short: "Get a campaign's sending status (GET /campaigns/{id}/sending-status)",
-		Args:  cobra.NoArgs,
+		Use:         "sending-status",
+		Annotations: readOnly,
+		Short:       "Get a campaign's sending status (GET /campaigns/{id}/sending-status)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/campaigns/"+url.PathEscape(id)+"/sending-status", nil)
 		},
@@ -147,9 +153,10 @@ func (s *Service) newCampaignSendingStatusCmd(token string) *cobra.Command {
 func (s *Service) newCampaignAnalyticsCmd(token string) *cobra.Command {
 	var id, ids, startDate, endDate string
 	cmd := &cobra.Command{
-		Use:   "analytics",
-		Short: "Campaign analytics (GET /campaigns/analytics)",
-		Args:  cobra.NoArgs,
+		Use:         "analytics",
+		Annotations: readOnly,
+		Short:       "Campaign analytics (GET /campaigns/analytics)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd, q, "id", "id", id)
@@ -168,9 +175,10 @@ func (s *Service) newCampaignAnalyticsCmd(token string) *cobra.Command {
 func (s *Service) newCampaignAnalyticsOverviewCmd(token string) *cobra.Command {
 	var id, ids, startDate, endDate string
 	cmd := &cobra.Command{
-		Use:   "analytics-overview",
-		Short: "Aggregate campaign analytics (GET /campaigns/analytics/overview)",
-		Args:  cobra.NoArgs,
+		Use:         "analytics-overview",
+		Annotations: readOnly,
+		Short:       "Aggregate campaign analytics (GET /campaigns/analytics/overview)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd, q, "id", "id", id)
@@ -189,9 +197,10 @@ func (s *Service) newCampaignAnalyticsOverviewCmd(token string) *cobra.Command {
 func (s *Service) newCampaignAnalyticsDailyCmd(token string) *cobra.Command {
 	var campaignID, startDate, endDate string
 	cmd := &cobra.Command{
-		Use:   "analytics-daily",
-		Short: "Daily campaign analytics (GET /campaigns/analytics/daily)",
-		Args:  cobra.NoArgs,
+		Use:         "analytics-daily",
+		Annotations: readOnly,
+		Short:       "Daily campaign analytics (GET /campaigns/analytics/daily)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd, q, "campaign-id", "campaign_id", campaignID)
@@ -208,9 +217,10 @@ func (s *Service) newCampaignAnalyticsDailyCmd(token string) *cobra.Command {
 func (s *Service) newCampaignAnalyticsStepsCmd(token string) *cobra.Command {
 	var campaignID, startDate, endDate string
 	cmd := &cobra.Command{
-		Use:   "analytics-steps",
-		Short: "Per-step campaign analytics (GET /campaigns/analytics/steps)",
-		Args:  cobra.NoArgs,
+		Use:         "analytics-steps",
+		Annotations: readOnly,
+		Short:       "Per-step campaign analytics (GET /campaigns/analytics/steps)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd, q, "campaign-id", "campaign_id", campaignID)

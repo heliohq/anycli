@@ -32,6 +32,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// design-318 side_effect annotation maps shared by every runnable leaf.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+var writeAction = map[string]string{"anycli.side_effect": "true"}
+
 // EnvAPIKey is the env var the credential binding injects
 // (definitions/tools/iterable.json). Its value is "<region>[:<alias>]:<key>".
 const EnvAPIKey = "ITERABLE_API_KEY"
