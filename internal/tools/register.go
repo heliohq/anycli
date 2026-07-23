@@ -61,6 +61,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/instagram"
 	"github.com/heliohq/anycli/internal/tools/instantly"
 	"github.com/heliohq/anycli/internal/tools/intercom"
+	"github.com/heliohq/anycli/internal/tools/iterable"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
@@ -157,4 +158,5 @@ func init() {
 	RegisterService("instagram", &instagram.Service{})
 	RegisterService("instantly", &instantly.Service{})
 	RegisterService("intercom", &intercom.Service{})
+	RegisterService("iterable", &iterable.Service{})
 }
