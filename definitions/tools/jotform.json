@@ -1,0 +1,13 @@
+{
+  "name": "jotform",
+  "type": "service",
+  "description": "Jotform as a tool (API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "JOTFORM_API_KEY"}
+      }
+    ]
+  }
+}
