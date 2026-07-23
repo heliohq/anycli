@@ -42,10 +42,11 @@ const (
 	EnvEnv      = "BILLCOM_ENV"
 	// EnvCredentials carries the whole credential set as one JSON object
 	// {"dev_key","username","password","organization_id","auth_mode","env"}.
-	// This is how Helio's single-secret manual_credentials store projects the
-	// credential (one Vault secret → token.access_token → this env). Individual
-	// env vars above take precedence when set, so the dev harness can supply
-	// fields one at a time (ANYCLI_CRED_DEV_KEY=…) without a JSON blob.
+	// Helio projects the credential as discrete per-field env vars (the multi-
+	// field manual_credentials_verified store → the individual BILLCOM_* vars
+	// above), which the definition declares. This JSON blob is a convenience for
+	// the dev harness / direct invocation; the discrete env vars take precedence
+	// per field when set, so either shape works.
 	EnvCredentials = "BILLCOM_CREDENTIALS"
 )
 
