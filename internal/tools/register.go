@@ -65,6 +65,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/jotform"
 	"github.com/heliohq/anycli/internal/tools/keap"
 	"github.com/heliohq/anycli/internal/tools/kit"
+	"github.com/heliohq/anycli/internal/tools/klaviyo"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
@@ -112,6 +113,7 @@ func init() {
 	RegisterService("google-ads", &googleads.Service{})
 	RegisterService("hootsuite", &hootsuite.Service{})
 	RegisterService("kit", &kit.Service{})
+	RegisterService("klaviyo", &klaviyo.Service{})
 	RegisterService("slides", &slides.Service{})
 	RegisterService("calendar", &calendar.Service{})
 	RegisterService("calendly", &calendly.Service{})
