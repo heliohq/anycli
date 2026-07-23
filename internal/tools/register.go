@@ -145,6 +145,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/zohobooks"
 	"github.com/heliohq/anycli/internal/tools/zohocrm"
 	"github.com/heliohq/anycli/internal/tools/zoominfo"
+	"github.com/heliohq/anycli/internal/tools/zuora"
 )
 
 // Built-in service registration. internal/exec imports this package (for
@@ -240,6 +241,7 @@ func init() {
 	RegisterService("wise", &wise.Service{})
 	RegisterService("xero", &xero.Service{})
 	RegisterService("zoho-books", &zohobooks.Service{})
+	RegisterService("zuora", &zuora.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility

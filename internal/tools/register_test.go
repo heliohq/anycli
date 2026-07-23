@@ -29,6 +29,7 @@ func TestBuiltinServicesRegistered(t *testing.T) {
 		"meet", "docs", "tasks", "bitly", "mongodb", "sprout-social",
 		"meet", "docs", "tasks", "bitly", "mongodb", "stripe", "gate-probe",
 		"meet", "docs", "tasks", "bitly", "mongodb", "tiktok",
+		"meet", "docs", "tasks", "bitly", "mongodb", "zuora", "gate-probe",
 	} {
 		if _, err := GetService(name); err != nil {
 			t.Errorf("GetService(%q) = %v, want a registered service", name, err)
