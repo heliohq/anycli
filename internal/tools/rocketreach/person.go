@@ -16,9 +16,10 @@ import (
 func (s *Service) newPersonLookupCmd(key string) *cobra.Command {
 	var name, currentEmployer, linkedinURL, id string
 	cmd := &cobra.Command{
-		Use:   "lookup",
-		Short: "Enrich a person into emails/phones (GET /person/lookup)",
-		Args:  cobra.NoArgs,
+		Use:         "lookup",
+		Short:       "Enrich a person into emails/phones (GET /person/lookup)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			switch {
@@ -55,9 +56,10 @@ func (s *Service) newPersonLookupCmd(key string) *cobra.Command {
 func (s *Service) newPersonStatusCmd(key string) *cobra.Command {
 	var ids string
 	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "Poll async lookups by id (GET /person/checkStatus)",
-		Args:  cobra.NoArgs,
+		Use:         "status",
+		Short:       "Poll async lookups by id (GET /person/checkStatus)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("ids", ids)
@@ -83,9 +85,10 @@ func (s *Service) newPersonSearchCmd(key string) *cobra.Command {
 	var name, currentEmployer, title, jsonQuery string
 	var pageSize, start int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search people to build a prospect list (POST /person/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search people to build a prospect list (POST /person/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := map[string]any{}
 			if jsonQuery != "" {

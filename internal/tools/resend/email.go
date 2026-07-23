@@ -23,9 +23,10 @@ func (s *Service) newEmailSendCmd(key string) *cobra.Command {
 	var to []string
 	var attachmentsJSON, tagsJSON, headersJSON, idempotencyKey string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a single email (POST /emails)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a single email (POST /emails)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{
 				"from":    from,
@@ -110,8 +111,9 @@ func (s *Service) newEmailSendCmd(key string) *cobra.Command {
 func (s *Service) newEmailBatchCmd(key string) *cobra.Command {
 	var emailsJSON string
 	cmd := &cobra.Command{
-		Use:   "batch",
-		Short: "Send up to 100 emails in one call (POST /emails/batch)",
+		Use:         "batch",
+		Short:       "Send up to 100 emails in one call (POST /emails/batch)",
+		Annotations: writeAction,
 		Long: "Send up to 100 emails in one call (POST /emails/batch). NOTE: the batch " +
 			"endpoint does NOT support attachments (Resend rejects them); scheduled_at and " +
 			"tags are supported. Use `email send` for attachments.",
@@ -135,9 +137,10 @@ func (s *Service) newEmailBatchCmd(key string) *cobra.Command {
 
 func (s *Service) newEmailGetCmd(key string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Retrieve a sent email's delivery status (GET /emails/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Retrieve a sent email's delivery status (GET /emails/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/emails/"+args[0], nil, nil)
 			if err != nil {
@@ -152,9 +155,10 @@ func (s *Service) newEmailGetCmd(key string) *cobra.Command {
 func (s *Service) newEmailUpdateCmd(key string) *cobra.Command {
 	var scheduledAt string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Reschedule a not-yet-sent email (PATCH /emails/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Reschedule a not-yet-sent email (PATCH /emails/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if scheduledAt != "" {
@@ -174,9 +178,10 @@ func (s *Service) newEmailUpdateCmd(key string) *cobra.Command {
 
 func (s *Service) newEmailCancelCmd(key string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "cancel <id>",
-		Short: "Cancel a scheduled email (POST /emails/{id}/cancel)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "cancel <id>",
+		Short:       "Cancel a scheduled email (POST /emails/{id}/cancel)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodPost, "/emails/"+args[0]+"/cancel", nil, nil)
 			if err != nil {

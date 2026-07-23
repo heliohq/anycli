@@ -31,9 +31,10 @@ func (s *Service) sitemapPath(site, feed string) string {
 func (s *Service) newSitemapsListCmd(token string) *cobra.Command {
 	var site string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List sitemaps for a property (errors, warnings, last downloaded)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List sitemaps for a property (errors, warnings, last downloaded)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if site == "" {
 				return &usageError{msg: "--site is required"}
@@ -68,9 +69,10 @@ func (s *Service) newSitemapsListCmd(token string) *cobra.Command {
 func (s *Service) newSitemapsGetCmd(token string) *cobra.Command {
 	var site, sitemap string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one sitemap's status detail",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one sitemap's status detail",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireSiteSitemap(site, sitemap); err != nil {
 				return err
@@ -90,9 +92,10 @@ func (s *Service) newSitemapsGetCmd(token string) *cobra.Command {
 func (s *Service) newSitemapsSubmitCmd(token string) *cobra.Command {
 	var site, sitemap string
 	cmd := &cobra.Command{
-		Use:   "submit",
-		Short: "Submit (or resubmit) a sitemap for a property",
-		Args:  cobra.NoArgs,
+		Use:         "submit",
+		Short:       "Submit (or resubmit) a sitemap for a property",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireSiteSitemap(site, sitemap); err != nil {
 				return err
@@ -111,9 +114,10 @@ func (s *Service) newSitemapsSubmitCmd(token string) *cobra.Command {
 func (s *Service) newSitemapsDeleteCmd(token string) *cobra.Command {
 	var site, sitemap string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a sitemap from a property",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a sitemap from a property",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireSiteSitemap(site, sitemap); err != nil {
 				return err

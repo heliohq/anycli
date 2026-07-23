@@ -22,9 +22,10 @@ func (s *Service) newPersonListCmd(token string) *cobra.Command {
 	var lf listFlags
 	var emails []string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List people (GET /v2/people); filter by --email or --updated-since",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List people (GET /v2/people); filter by --email or --updated-since",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := lf.values()
 			if err != nil {
@@ -48,9 +49,10 @@ func (s *Service) newPersonListCmd(token string) *cobra.Command {
 func (s *Service) newPersonGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Fetch one person (GET /v2/people/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Fetch one person (GET /v2/people/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/people/"+id, nil, nil)
 			if err != nil {
@@ -68,9 +70,10 @@ func (s *Service) newPersonCreateCmd(token string) *cobra.Command {
 	var email, firstName, lastName, title, body string
 	var accountID, ownerID, personStageID int
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a person (POST /v2/people)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a person (POST /v2/people)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			named := map[string]any{}
 			if email != "" {
@@ -113,9 +116,10 @@ func (s *Service) newPersonUpdateCmd(token string) *cobra.Command {
 	var id, email, firstName, lastName, title, body string
 	var accountID, ownerID, personStageID int
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a person (PUT /v2/people/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a person (PUT /v2/people/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			named := map[string]any{}
 			if email != "" {

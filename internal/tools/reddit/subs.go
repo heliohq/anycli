@@ -17,9 +17,10 @@ func (s *Service) newSubsListCmd(token string) *cobra.Command {
 	var after string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List subscribed subreddits",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List subscribed subreddits",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireLimit(limit); err != nil {
 				return err

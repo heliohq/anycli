@@ -31,6 +31,14 @@ const DefaultBaseURL = "https://api.salesloft.com"
 // after 2 hours; the token gateway refreshes them out of band.
 const EnvAccessToken = "SALESLOFT_ACCESS_TOKEN"
 
+// readOnly / writeAction carry the design-318 side-effect annotation for a
+// runnable leaf command. readOnly marks side-effect-free reads (GET/list/get);
+// writeAction marks provider-state mutations (create/update/enroll).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Salesloft tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

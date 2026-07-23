@@ -16,9 +16,10 @@ func (s *Service) newMessageCmd(token string) *cobra.Command {
 func (s *Service) newMessageSendCmd(token string) *cobra.Command {
 	var to, subject, text string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a private message to a user",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a private message to a user",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if to == "" || subject == "" || text == "" {
 				return &usageError{msg: "--to, --subject, and --text are required"}

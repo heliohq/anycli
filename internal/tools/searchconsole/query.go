@@ -56,9 +56,10 @@ func (s *Service) newQueryCmd(token string) *cobra.Command {
 		aggregation string
 	)
 	cmd := &cobra.Command{
-		Use:   "query",
-		Short: "Search analytics: clicks/impressions/CTR/position by dimension",
-		Args:  cobra.NoArgs,
+		Use:         "query",
+		Short:       "Search analytics: clicks/impressions/CTR/position by dimension",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if site == "" {
 				return &usageError{msg: "--site is required"}

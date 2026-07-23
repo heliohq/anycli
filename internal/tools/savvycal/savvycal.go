@@ -30,6 +30,14 @@ const DefaultBaseURL = "https://api.savvycal.com/v1"
 // short-lived (2 hours) and refreshed server-side by the token gateway.
 const EnvAccessToken = "SAVVYCAL_ACCESS_TOKEN"
 
+// readOnly / writeAction carry the design-318 side-effect annotation for a
+// runnable leaf command. readOnly marks side-effect-free reads (GET/list/get);
+// writeAction marks provider-state mutations (create/update/cancel/delete).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in SavvyCal tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

@@ -16,9 +16,10 @@ const unitsPath = "/users/countapiunits.html"
 // debits the shared account balance.
 func (s *Service) newUnitsCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "units",
-		Short: "Remaining Semrush API-unit balance (free check)",
-		Args:  cobra.NoArgs,
+		Use:         "units",
+		Short:       "Remaining Semrush API-unit balance (free check)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			base := strings.TrimRight(s.unitsBaseURL(), "/") + unitsPath
 			body, err := s.getRaw(cmd.Context(), base, url.Values{}, key)

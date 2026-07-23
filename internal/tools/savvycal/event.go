@@ -27,9 +27,10 @@ func (s *Service) newEventListCmd(token string) *cobra.Command {
 	var state, period, after, before string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List events scheduled via SavvyCal (GET /v1/events)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List events scheduled via SavvyCal (GET /v1/events)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if state != "" {
@@ -64,9 +65,10 @@ func (s *Service) newEventListCmd(token string) *cobra.Command {
 
 func (s *Service) newEventGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <event_id>",
-		Short: "Fetch a single event (GET /v1/events/:event_id)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <event_id>",
+		Short:       "Fetch a single event (GET /v1/events/:event_id)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/events/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -85,7 +87,8 @@ func (s *Service) newEventCreateCmd(token string) *cobra.Command {
 		Short: "Create an event on a scheduling link (POST /v1/links/:link_id/events)",
 		Long: "Create an event on a scheduling link. start/end must match an " +
 			"available slot — call `link slots <link_id>` first to find valid times.",
-		Args: cobra.ExactArgs(1),
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{
 				"display_name": displayName,
@@ -133,9 +136,10 @@ func (s *Service) newEventCreateCmd(token string) *cobra.Command {
 func (s *Service) newEventCancelCmd(token string) *cobra.Command {
 	var reason string
 	cmd := &cobra.Command{
-		Use:   "cancel <event_id>",
-		Short: "Cancel an event (POST /v1/events/:event_id/cancel)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "cancel <event_id>",
+		Short:       "Cancel an event (POST /v1/events/:event_id/cancel)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if reason != "" {

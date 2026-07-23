@@ -31,9 +31,10 @@ func (s *Service) newLinkListCmd(token string) *cobra.Command {
 	var after, before string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List your scheduling links (GET /v1/links)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List your scheduling links (GET /v1/links)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if cmd.Flags().Changed("limit") {
@@ -60,9 +61,10 @@ func (s *Service) newLinkListCmd(token string) *cobra.Command {
 
 func (s *Service) newLinkGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <link_id>",
-		Short: "Get a scheduling link (GET /v1/links/:link_id)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <link_id>",
+		Short:       "Get a scheduling link (GET /v1/links/:link_id)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/links/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -76,9 +78,10 @@ func (s *Service) newLinkGetCmd(token string) *cobra.Command {
 func (s *Service) newLinkCreateCmd(token string) *cobra.Command {
 	var name, privateName, description, linkType, scope string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a scheduling link (POST /v1/links, or /v1/scopes/:scope/links with --scope)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a scheduling link (POST /v1/links, or /v1/scopes/:scope/links with --scope)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"name": name}
 			if privateName != "" {
@@ -113,9 +116,10 @@ func (s *Service) newLinkCreateCmd(token string) *cobra.Command {
 func (s *Service) newLinkUpdateCmd(token string) *cobra.Command {
 	var name, privateName, description, linkType string
 	cmd := &cobra.Command{
-		Use:   "update <link_id>",
-		Short: "Update a scheduling link (PATCH /v1/links/:link_id)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <link_id>",
+		Short:       "Update a scheduling link (PATCH /v1/links/:link_id)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if cmd.Flags().Changed("name") {
@@ -149,9 +153,10 @@ func (s *Service) newLinkUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newLinkToggleCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "toggle <link_id>",
-		Short: "Toggle a link between active and disabled (POST /v1/links/:link_id/toggle)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "toggle <link_id>",
+		Short:       "Toggle a link between active and disabled (POST /v1/links/:link_id/toggle)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/links/"+url.PathEscape(args[0])+"/toggle", nil, nil)
 			if err != nil {
@@ -164,9 +169,10 @@ func (s *Service) newLinkToggleCmd(token string) *cobra.Command {
 
 func (s *Service) newLinkDuplicateCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "duplicate <link_id>",
-		Short: "Duplicate a scheduling link (POST /v1/links/:link_id/duplicate)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "duplicate <link_id>",
+		Short:       "Duplicate a scheduling link (POST /v1/links/:link_id/duplicate)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/links/"+url.PathEscape(args[0])+"/duplicate", nil, nil)
 			if err != nil {
@@ -179,9 +185,10 @@ func (s *Service) newLinkDuplicateCmd(token string) *cobra.Command {
 
 func (s *Service) newLinkDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <link_id>",
-		Short: "Delete a scheduling link (DELETE /v1/links/:link_id)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <link_id>",
+		Short:       "Delete a scheduling link (DELETE /v1/links/:link_id)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/links/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -199,7 +206,8 @@ func (s *Service) newLinkSlotsCmd(token string) *cobra.Command {
 		Short: "Get available time slots for a link (GET /v1/links/:link_id/slots)",
 		Long: "Get available booking slots. Each slot carries a cumulative `rank`; " +
 			"to offer non-overlapping options filter to a single rank (rank === N), not rank <= N.",
-		Args: cobra.ExactArgs(1),
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if from != "" {

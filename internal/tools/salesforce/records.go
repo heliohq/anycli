@@ -46,9 +46,10 @@ func readData(value string) ([]byte, error) {
 func (s *Service) newRecordGetCmd(c *client) *cobra.Command {
 	var fields []string
 	cmd := &cobra.Command{
-		Use:   "get <sobject> <id>",
-		Short: "Retrieve one record by id",
-		Args:  cobra.ExactArgs(2),
+		Use:         "get <sobject> <id>",
+		Short:       "Retrieve one record by id",
+		Args:        cobra.ExactArgs(2),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := dataPath(apiVersion(cmd), "/sobjects/"+url.PathEscape(args[0])+"/"+url.PathEscape(args[1]))
 			if len(fields) > 0 {
@@ -68,9 +69,10 @@ func (s *Service) newRecordGetCmd(c *client) *cobra.Command {
 func (s *Service) newRecordCreateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "create <sobject>",
-		Short: "Create a record",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <sobject>",
+		Short:       "Create a record",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := readData(data)
 			if err != nil {
@@ -91,9 +93,10 @@ func (s *Service) newRecordCreateCmd(c *client) *cobra.Command {
 func (s *Service) newRecordUpdateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "update <sobject> <id>",
-		Short: "Update a record (PATCH; 204 No Content on success)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "update <sobject> <id>",
+		Short:       "Update a record (PATCH; 204 No Content on success)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := readData(data)
 			if err != nil {
@@ -113,9 +116,10 @@ func (s *Service) newRecordUpdateCmd(c *client) *cobra.Command {
 
 func (s *Service) newRecordDeleteCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <sobject> <id>",
-		Short: "Delete a record (204 No Content on success)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "delete <sobject> <id>",
+		Short:       "Delete a record (204 No Content on success)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := dataPath(apiVersion(cmd), "/sobjects/"+url.PathEscape(args[0])+"/"+url.PathEscape(args[1]))
 			body, status, err := c.call(cmd.Context(), http.MethodDelete, path, nil)
@@ -130,9 +134,10 @@ func (s *Service) newRecordDeleteCmd(c *client) *cobra.Command {
 func (s *Service) newRecordUpsertCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "upsert <sobject> <ext-id-field> <value>",
-		Short: "Upsert a record by external id field",
-		Args:  cobra.ExactArgs(3),
+		Use:         "upsert <sobject> <ext-id-field> <value>",
+		Short:       "Upsert a record by external id field",
+		Args:        cobra.ExactArgs(3),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := readData(data)
 			if err != nil {

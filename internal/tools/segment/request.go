@@ -17,9 +17,10 @@ func (s *Service) newRequestCmd(token string) *cobra.Command {
 	var method, path, body, bodyFile string
 	var params []string
 	cmd := &cobra.Command{
-		Use:   "request",
-		Short: "Make a raw Segment Public API request",
-		Args:  cobra.NoArgs,
+		Use:         "request",
+		Short:       "Make a raw Segment Public API request",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			m := strings.ToUpper(strings.TrimSpace(method))
 			if m == "" {

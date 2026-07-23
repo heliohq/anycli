@@ -21,9 +21,10 @@ func (s *Service) newAccountCmd(token string) *cobra.Command {
 func (s *Service) newAccountListCmd(token string) *cobra.Command {
 	var lf listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List accounts (GET /v2/accounts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List accounts (GET /v2/accounts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := lf.values()
 			if err != nil {
@@ -43,9 +44,10 @@ func (s *Service) newAccountListCmd(token string) *cobra.Command {
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Fetch one account (GET /v2/accounts/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Fetch one account (GET /v2/accounts/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/accounts/"+id, nil, nil)
 			if err != nil {
@@ -62,9 +64,10 @@ func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 func (s *Service) newAccountCreateCmd(token string) *cobra.Command {
 	var name, domain, website, industry, body string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an account (POST /v2/accounts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an account (POST /v2/accounts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := mergeBody(accountNamedBody(name, domain, website, industry), body)
 			if err != nil {
@@ -84,9 +87,10 @@ func (s *Service) newAccountCreateCmd(token string) *cobra.Command {
 func (s *Service) newAccountUpdateCmd(token string) *cobra.Command {
 	var id, name, domain, website, industry, body string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update an account (PUT /v2/accounts/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update an account (PUT /v2/accounts/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := mergeBody(accountNamedBody(name, domain, website, industry), body)
 			if err != nil {

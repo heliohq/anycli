@@ -16,9 +16,10 @@ func (s *Service) newSitesCmd(token string) *cobra.Command {
 
 func (s *Service) newSitesListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List the properties this account can access",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the properties this account can access",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, s.base()+"/sites", nil)
 			if err != nil {
@@ -47,9 +48,10 @@ func (s *Service) newSitesListCmd(token string) *cobra.Command {
 func (s *Service) newSitesGetCmd(token string) *cobra.Command {
 	var site string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one property's access level",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one property's access level",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if site == "" {
 				return &usageError{msg: "--site is required"}

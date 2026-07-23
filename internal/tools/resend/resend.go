@@ -36,6 +36,14 @@ const EnvAPIKey = "RESEND_API_KEY"
 // missing User-Agent with 403, so we never rely on Go's default.
 const userAgent = "helio-anycli/resend"
 
+// readOnly / writeAction annotate leaf commands for the design-318 approval
+// gate: "false" for side-effect-free reads (GET list/get), "true" for
+// provider-state mutations (send, create, update, verify, delete, cancel).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Resend tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {
