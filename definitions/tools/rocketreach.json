@@ -1,0 +1,13 @@
+{
+  "name": "rocketreach",
+  "type": "service",
+  "description": "RocketReach as a tool (contact enrichment + prospecting; API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "ROCKETREACH_API_KEY"}
+      }
+    ]
+  }
+}
