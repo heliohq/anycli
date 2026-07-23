@@ -1,0 +1,13 @@
+{
+  "name": "pandadoc",
+  "type": "service",
+  "description": "PandaDoc as a tool (documents, templates, eSignature)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "PANDADOC_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
