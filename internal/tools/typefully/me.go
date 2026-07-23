@@ -10,9 +10,10 @@ import (
 // from the key (connect-time verify + "who am I").
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Get the authenticated Typefully account (GET /v2/me)",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Get the authenticated Typefully account (GET /v2/me)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/me", nil, nil)
 			if err != nil {

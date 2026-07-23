@@ -23,6 +23,7 @@ func (s *Service) newBodyCmd(st *runState, use, short, path string) *cobra.Comma
 	cmd := &cobra.Command{
 		Use:           use,
 		Short:         short,
+		Annotations:   readOnly,
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -54,6 +55,7 @@ func (s *Service) newLookupCmd(st *runState) *cobra.Command {
 	return &cobra.Command{
 		Use:           "lookup <resource>",
 		Short:         "Discover valid input filters / output fields (no credit)",
+		Annotations:   readOnly,
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -81,6 +83,7 @@ func (s *Service) newUsageCmd(st *runState) *cobra.Command {
 	return &cobra.Command{
 		Use:           "usage",
 		Short:         "Report remaining API credits and request limits (no credit)",
+		Annotations:   readOnly,
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

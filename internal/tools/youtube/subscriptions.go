@@ -15,9 +15,10 @@ func (s *Service) newSubscriptionsListCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List the channels an account subscribes to",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the channels an account subscribes to",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("part", "snippet")

@@ -24,9 +24,10 @@ func (s *Service) newCommentsListCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List top-level comment threads on a video",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List top-level comment threads on a video",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if video == "" {
 				return &usageError{msg: "--video is required"}
@@ -67,9 +68,10 @@ func (s *Service) newCommentsRepliesCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:   "replies",
-		Short: "List replies under a top-level comment",
-		Args:  cobra.NoArgs,
+		Use:         "replies",
+		Short:       "List replies under a top-level comment",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if parent == "" {
 				return &usageError{msg: "--parent is required (the top-level comment id)"}
@@ -101,9 +103,10 @@ func (s *Service) newCommentsRepliesCmd(token string) *cobra.Command {
 func (s *Service) newCommentsReplyCmd(token string) *cobra.Command {
 	var parent, text string
 	cmd := &cobra.Command{
-		Use:   "reply",
-		Short: "Reply to a top-level comment",
-		Args:  cobra.NoArgs,
+		Use:         "reply",
+		Short:       "Reply to a top-level comment",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if parent == "" || text == "" {
 				return &usageError{msg: "--parent and --text are required"}
@@ -130,9 +133,10 @@ func (s *Service) newCommentsReplyCmd(token string) *cobra.Command {
 func (s *Service) newCommentsUpdateCmd(token string) *cobra.Command {
 	var id, text string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Edit the text of your own comment",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Edit the text of your own comment",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" || text == "" {
 				return &usageError{msg: "--id and --text are required"}
@@ -158,9 +162,10 @@ func (s *Service) newCommentsUpdateCmd(token string) *cobra.Command {
 func (s *Service) newCommentsDeleteCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a comment",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a comment",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}
@@ -188,9 +193,10 @@ func (s *Service) newCommentsModerateCmd(token string) *cobra.Command {
 	var id, status string
 	var banAuthor bool
 	cmd := &cobra.Command{
-		Use:   "moderate",
-		Short: "Set a comment's moderation status (heldForReview | published | rejected)",
-		Args:  cobra.NoArgs,
+		Use:         "moderate",
+		Short:       "Set a comment's moderation status (heldForReview | published | rejected)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}

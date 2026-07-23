@@ -33,6 +33,14 @@ const DefaultBaseURL = "https://api.typefully.com/v2"
 // user-scoped bearer tokens created in Settings -> API.
 const EnvAPIKey = "TYPEFULLY_API_KEY"
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaves: "false" for side-effect-free reads (GET), "true" for
+// provider-state mutations (POST/PATCH/PUT/DELETE).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Typefully tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

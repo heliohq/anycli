@@ -38,6 +38,15 @@ const EnvAccessToken = "YOUTUBE_ACCESS_TOKEN"
 // lacks a scope the user never granted on connect.
 const scopeHint = " (possibly missing scope — reconnect and grant access)"
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaves: "false" for side-effect-free reads (GET/list/get/search),
+// "true" for provider-state mutations (create/update/delete/rate/add/reply/
+// moderate).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in YouTube tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

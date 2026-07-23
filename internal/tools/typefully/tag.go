@@ -16,9 +16,10 @@ func (s *Service) newTagCmd(token string) *cobra.Command {
 func (s *Service) newTagListCmd(token string) *cobra.Command {
 	var socialSet string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tags (GET /v2/social-sets/{id}/tags)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tags (GET /v2/social-sets/{id}/tags)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, scopedPath(socialSet, "/tags"), nil, nil)
 			if err != nil {
@@ -34,9 +35,10 @@ func (s *Service) newTagListCmd(token string) *cobra.Command {
 func (s *Service) newTagCreateCmd(token string) *cobra.Command {
 	var socialSet, name string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a tag (POST /v2/social-sets/{id}/tags)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a tag (POST /v2/social-sets/{id}/tags)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, scopedPath(socialSet, "/tags"), nil, map[string]any{"name": name})
 			if err != nil {

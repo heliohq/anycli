@@ -12,9 +12,10 @@ import (
 // JSON.
 func (s *Service) newWebhookListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list <form_id>",
-		Short: "List a form's webhooks (GET /forms/{form_id}/webhooks)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <form_id>",
+		Short:       "List a form's webhooks (GET /forms/{form_id}/webhooks)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet,
 				"/forms/"+url.PathEscape(args[0])+"/webhooks", nil, nil)
@@ -31,9 +32,10 @@ func (s *Service) newWebhookListCmd(token string) *cobra.Command {
 // (GET /forms/{form_id}/webhooks/{tag}): one webhook by its tag. Output JSON.
 func (s *Service) newWebhookGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <form_id> <tag>",
-		Short: "Retrieve a single webhook (GET /forms/{form_id}/webhooks/{tag})",
-		Args:  cobra.ExactArgs(2),
+		Use:         "get <form_id> <tag>",
+		Short:       "Retrieve a single webhook (GET /forms/{form_id}/webhooks/{tag})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet,
 				"/forms/"+url.PathEscape(args[0])+"/webhooks/"+url.PathEscape(args[1]), nil, nil)
@@ -55,9 +57,10 @@ func (s *Service) newWebhookSetCmd(token string) *cobra.Command {
 	var webhookURL, secret, eventTypes string
 	var enabled, verifySSL bool
 	cmd := &cobra.Command{
-		Use:   "set <form_id> <tag>",
-		Short: "Create or update a webhook (PUT /forms/{form_id}/webhooks/{tag})",
-		Args:  cobra.ExactArgs(2),
+		Use:         "set <form_id> <tag>",
+		Short:       "Create or update a webhook (PUT /forms/{form_id}/webhooks/{tag})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{"url": webhookURL}
 			if cmd.Flags().Changed("enabled") {
@@ -98,9 +101,10 @@ func (s *Service) newWebhookSetCmd(token string) *cobra.Command {
 // client-side receipt is emitted. Output JSON.
 func (s *Service) newWebhookDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <form_id> <tag>",
-		Short: "Delete a webhook (DELETE /forms/{form_id}/webhooks/{tag})",
-		Args:  cobra.ExactArgs(2),
+		Use:         "delete <form_id> <tag>",
+		Short:       "Delete a webhook (DELETE /forms/{form_id}/webhooks/{tag})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := s.call(cmd.Context(), token, http.MethodDelete,
 				"/forms/"+url.PathEscape(args[0])+"/webhooks/"+url.PathEscape(args[1]), nil, nil); err != nil {

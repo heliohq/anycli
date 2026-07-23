@@ -21,9 +21,10 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search videos, channels and playlists (100-unit quota cost)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search videos, channels and playlists (100-unit quota cost)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if query == "" && channel == "" {
 				return &usageError{msg: "--query is required (or --channel to list a channel's content)"}

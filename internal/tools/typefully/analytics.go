@@ -19,9 +19,10 @@ func (s *Service) newAnalyticsPostsCmd(token string) *cobra.Command {
 	var includeReplies bool
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "posts",
-		Short: "Per-post metrics (GET /v2/social-sets/{id}/analytics/{platform}/posts)",
-		Args:  cobra.NoArgs,
+		Use:         "posts",
+		Short:       "Per-post metrics (GET /v2/social-sets/{id}/analytics/{platform}/posts)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if startDate != "" {
@@ -53,9 +54,10 @@ func (s *Service) newAnalyticsPostsCmd(token string) *cobra.Command {
 func (s *Service) newAnalyticsFollowersCmd(token string) *cobra.Command {
 	var socialSet, platform, startDate, endDate string
 	cmd := &cobra.Command{
-		Use:   "followers",
-		Short: "Follower metrics over time (GET /v2/social-sets/{id}/analytics/{platform}/followers)",
-		Args:  cobra.NoArgs,
+		Use:         "followers",
+		Short:       "Follower metrics over time (GET /v2/social-sets/{id}/analytics/{platform}/followers)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if startDate != "" {

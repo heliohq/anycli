@@ -19,9 +19,10 @@ func (s *Service) newPlaylistsListCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List playlists (your own with --mine, or a channel's with --channel)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List playlists (your own with --mine, or a channel's with --channel)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("part", resolvePart(part, playlistsListPart))
@@ -58,9 +59,10 @@ func (s *Service) newPlaylistsListCmd(token string) *cobra.Command {
 func (s *Service) newPlaylistsCreateCmd(token string) *cobra.Command {
 	var title, description, privacy string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a playlist",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a playlist",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if title == "" {
 				return &usageError{msg: "--title is required"}
@@ -100,9 +102,10 @@ func (s *Service) newPlaylistsCreateCmd(token string) *cobra.Command {
 func (s *Service) newPlaylistsUpdateCmd(token string) *cobra.Command {
 	var id, title, description, privacy string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a playlist's title / description / privacy",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a playlist's title / description / privacy",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}
@@ -152,9 +155,10 @@ func (s *Service) newPlaylistsUpdateCmd(token string) *cobra.Command {
 func (s *Service) newPlaylistsDeleteCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a playlist",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a playlist",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}

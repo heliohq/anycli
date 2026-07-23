@@ -24,9 +24,10 @@ func (s *Service) newMediaCmd(token string) *cobra.Command {
 func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 	var socialSet, file string
 	cmd := &cobra.Command{
-		Use:   "upload",
-		Short: "Upload a media file (POST /v2/social-sets/{id}/media/upload, then PUT bytes)",
-		Args:  cobra.NoArgs,
+		Use:         "upload",
+		Short:       "Upload a media file (POST /v2/social-sets/{id}/media/upload, then PUT bytes)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			data, err := os.ReadFile(file)
 			if err != nil {
@@ -65,9 +66,10 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 func (s *Service) newMediaStatusCmd(token string) *cobra.Command {
 	var socialSet, id string
 	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "Get media processing status (GET /v2/social-sets/{id}/media/{media_id})",
-		Args:  cobra.NoArgs,
+		Use:         "status",
+		Short:       "Get media processing status (GET /v2/social-sets/{id}/media/{media_id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, scopedPath(socialSet, "/media/"+id), nil, nil)
 			if err != nil {
