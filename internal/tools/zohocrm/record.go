@@ -20,9 +20,10 @@ func (s *Service) newRecordListCmd(token string) *cobra.Command {
 	var module, fields, pageToken, sortBy, sortOrder string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List records in a module (fields required)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List records in a module (fields required)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&module, "module", "", "module API name, e.g. Leads (required)")
 	cmd.Flags().StringVar(&fields, "fields", "", "comma-separated field API names, max 50 (required; run `field list` to discover them)")
@@ -82,9 +83,10 @@ func (s *Service) newRecordListCmd(token string) *cobra.Command {
 func (s *Service) newRecordGetCmd(token string) *cobra.Command {
 	var module, id, fields string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a single record by id",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a single record by id",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&module, "module", "", "module API name (required)")
 	cmd.Flags().StringVar(&id, "id", "", "record id (required)")
@@ -119,9 +121,10 @@ func (s *Service) newRecordCreateCmd(token string) *cobra.Command {
 	var module, data string
 	var noTriggers bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create one or more records",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create one or more records",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&module, "module", "", "module API name (required)")
 	cmd.Flags().StringVar(&data, "data", "", "JSON object or array of records (required)")
@@ -151,9 +154,10 @@ func (s *Service) newRecordUpdateCmd(token string) *cobra.Command {
 	var module, id, data string
 	var noTriggers bool
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a single record by id",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a single record by id",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&module, "module", "", "module API name (required)")
 	cmd.Flags().StringVar(&id, "id", "", "record id (required)")
@@ -188,9 +192,10 @@ func (s *Service) newRecordUpdateCmd(token string) *cobra.Command {
 func (s *Service) newRecordDeleteCmd(token string) *cobra.Command {
 	var module, id, ids string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete one record (--id) or several (--ids)",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete one record (--id) or several (--ids)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&module, "module", "", "module API name (required)")
 	cmd.Flags().StringVar(&id, "id", "", "single record id")
@@ -230,9 +235,10 @@ func (s *Service) newRecordSearchCmd(token string) *cobra.Command {
 	var module, criteria, email, phone, word, fields string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search records by criteria, email, phone, or word",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search records by criteria, email, phone, or word",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&module, "module", "", "module API name (required)")
 	cmd.Flags().StringVar(&criteria, "criteria", "", "criteria expression, e.g. (Last_Name:equals:Doe)")

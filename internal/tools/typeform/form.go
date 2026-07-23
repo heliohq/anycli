@@ -18,9 +18,10 @@ func (s *Service) newFormListCmd(token string) *cobra.Command {
 	var page, pageSize int
 	var isPublic bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List/search forms (GET /forms)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List/search forms (GET /forms)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if sortBy != "" {
 				if err := enumCheck("sort-by", sortBy, "created_at", "last_updated_at"); err != nil {
@@ -76,9 +77,10 @@ func (s *Service) newFormListCmd(token string) *cobra.Command {
 // needs to interpret a response's answers array. Output JSON.
 func (s *Service) newFormGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <form_id>",
-		Short: "Retrieve a form definition (GET /forms/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <form_id>",
+		Short:       "Retrieve a form definition (GET /forms/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/forms/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -96,9 +98,10 @@ func (s *Service) newFormGetCmd(token string) *cobra.Command {
 func (s *Service) newFormCreateCmd(token string) *cobra.Command {
 	var definition string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a form (POST /forms)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a form (POST /forms)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := readJSONArg("definition", definition)
 			if err != nil {
@@ -121,9 +124,10 @@ func (s *Service) newFormCreateCmd(token string) *cobra.Command {
 func (s *Service) newFormUpdateCmd(token string) *cobra.Command {
 	var definition string
 	cmd := &cobra.Command{
-		Use:   "update <form_id>",
-		Short: "Overwrite a form (PUT /forms/{id}); the only way to edit fields/questions",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <form_id>",
+		Short:       "Overwrite a form (PUT /forms/{id}); the only way to edit fields/questions",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := readJSONArg("definition", definition)
 			if err != nil {
@@ -149,9 +153,10 @@ func (s *Service) newFormUpdateCmd(token string) *cobra.Command {
 func (s *Service) newFormPatchCmd(token string) *cobra.Command {
 	var patch string
 	cmd := &cobra.Command{
-		Use:   "patch <form_id>",
-		Short: "Patch form metadata (PATCH /forms/{id}); metadata-only JSON-Patch, use 'form update' to change questions",
-		Args:  cobra.ExactArgs(1),
+		Use:         "patch <form_id>",
+		Short:       "Patch form metadata (PATCH /forms/{id}); metadata-only JSON-Patch, use 'form update' to change questions",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := readJSONArg("patch", patch)
 			if err != nil {
@@ -171,9 +176,10 @@ func (s *Service) newFormPatchCmd(token string) *cobra.Command {
 // 204 No Content; a client-side receipt is emitted. Output JSON.
 func (s *Service) newFormDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <form_id>",
-		Short: "Delete a form (DELETE /forms/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <form_id>",
+		Short:       "Delete a form (DELETE /forms/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := s.call(cmd.Context(), token, http.MethodDelete, "/forms/"+url.PathEscape(args[0]), nil, nil); err != nil {
 				return err

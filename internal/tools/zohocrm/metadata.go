@@ -13,9 +13,10 @@ import (
 // picking a --module value.
 func (s *Service) newModuleListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List available modules",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List available modules",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 	}
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/settings/modules", nil)
@@ -34,9 +35,10 @@ func (s *Service) newModuleListCmd(token string) *cobra.Command {
 func (s *Service) newFieldListCmd(token string) *cobra.Command {
 	var module string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List a module's field API names",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a module's field API names",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&module, "module", "", "module API name (required)")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -60,9 +62,10 @@ func (s *Service) newFieldListCmd(token string) *cobra.Command {
 func (s *Service) newUserListCmd(token string) *cobra.Command {
 	var userType string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List CRM users",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List CRM users",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&userType, "type", "", "user category, e.g. AllUsers|ActiveUsers|CurrentUser|AdminUsers")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -86,9 +89,10 @@ func (s *Service) newUserListCmd(token string) *cobra.Command {
 // provider bundle).
 func (s *Service) newUserMeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "me",
-		Short: "Show the currently authenticated CRM user",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Show the currently authenticated CRM user",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 	}
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/users?type=CurrentUser", nil)
@@ -109,9 +113,10 @@ func (s *Service) newOrgGetCmd(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Get the organization record",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the organization record",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/org", nil)
 			if err != nil {

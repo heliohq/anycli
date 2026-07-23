@@ -15,9 +15,10 @@ func (s *Service) newWorkspaceListCmd(token string) *cobra.Command {
 	var search string
 	var page, pageSize int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List workspaces (GET /workspaces)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List workspaces (GET /workspaces)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if search != "" {
@@ -46,9 +47,10 @@ func (s *Service) newWorkspaceListCmd(token string) *cobra.Command {
 // (GET /workspaces/{id}). Output JSON.
 func (s *Service) newWorkspaceGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <workspace_id>",
-		Short: "Retrieve a workspace (GET /workspaces/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <workspace_id>",
+		Short:       "Retrieve a workspace (GET /workspaces/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/workspaces/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -67,9 +69,10 @@ func (s *Service) newWorkspaceGetCmd(token string) *cobra.Command {
 func (s *Service) newWorkspaceCreateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a workspace (POST /workspaces)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a workspace (POST /workspaces)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPost, "/workspaces", nil, map[string]any{"name": name})
 			if err != nil {

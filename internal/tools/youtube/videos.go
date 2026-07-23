@@ -23,9 +23,10 @@ var validRatings = map[string]bool{"like": true, "dislike": true, "none": true}
 func (s *Service) newVideosGetCmd(token string) *cobra.Command {
 	var id, part string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one or more videos' metadata + statistics",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one or more videos' metadata + statistics",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required (comma-separated video ids)"}
@@ -60,9 +61,10 @@ func (s *Service) newVideosMineCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:   "mine",
-		Short: "List the connected channel's own uploads (via the uploads playlist, not search)",
-		Args:  cobra.NoArgs,
+		Use:         "mine",
+		Short:       "List the connected channel's own uploads (via the uploads playlist, not search)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			uploads, err := s.uploadsPlaylistID(cmd.Context(), token)
 			if err != nil {
@@ -124,9 +126,10 @@ func (s *Service) uploadsPlaylistID(ctx context.Context, token string) (string, 
 func (s *Service) newVideosUpdateCmd(token string) *cobra.Command {
 	var id, title, description, tags, categoryID, privacy string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a video's title / description / tags / category / privacy",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a video's title / description / tags / category / privacy",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}
@@ -225,9 +228,10 @@ func (s *Service) fetchVideoForUpdate(ctx context.Context, token, id, parts stri
 func (s *Service) newVideosRateCmd(token string) *cobra.Command {
 	var id, rating string
 	cmd := &cobra.Command{
-		Use:   "rate",
-		Short: "Like, dislike or clear your rating on a video",
-		Args:  cobra.NoArgs,
+		Use:         "rate",
+		Short:       "Like, dislike or clear your rating on a video",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required"}

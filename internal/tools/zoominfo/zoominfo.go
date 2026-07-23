@@ -36,6 +36,12 @@ import (
 // fields into one secret because the vault face stores a single secret.
 const EnvCredentials = "ZOOMINFO_CREDENTIALS"
 
+// readOnly carries the design-318 anycli.side_effect="false" annotation. Every
+// zoominfo leaf is a read: search and enrich are B2B data lookups (enrich
+// consumes credits but does not mutate provider state), and lookup/usage are
+// pure reads — so no writeAction counterpart is needed.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+
 // Service implements the built-in ZoomInfo tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

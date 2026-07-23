@@ -18,9 +18,10 @@ func (s *Service) newSocialSetCmd(token string) *cobra.Command {
 func (s *Service) newSocialSetListCmd(token string) *cobra.Command {
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List social sets (GET /v2/social-sets)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List social sets (GET /v2/social-sets)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			addPaging(q, limit, offset)
@@ -38,9 +39,10 @@ func (s *Service) newSocialSetListCmd(token string) *cobra.Command {
 func (s *Service) newSocialSetGetCmd(token string) *cobra.Command {
 	var socialSet string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one social set's connected platforms + quota (GET /v2/social-sets/{id}/)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one social set's connected platforms + quota (GET /v2/social-sets/{id}/)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, scopedPath(socialSet, "/"), nil, nil)
 			if err != nil {

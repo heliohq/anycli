@@ -17,9 +17,10 @@ func (s *Service) newPlaylistItemsListCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List the videos in a playlist",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the videos in a playlist",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if playlist == "" {
 				return &usageError{msg: "--playlist is required"}
@@ -52,9 +53,10 @@ func (s *Service) newPlaylistItemsAddCmd(token string) *cobra.Command {
 	var playlist, video string
 	var position int
 	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Add a video to a playlist",
-		Args:  cobra.NoArgs,
+		Use:         "add",
+		Short:       "Add a video to a playlist",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if playlist == "" || video == "" {
 				return &usageError{msg: "--playlist and --video are required"}
@@ -91,9 +93,10 @@ func (s *Service) newPlaylistItemsAddCmd(token string) *cobra.Command {
 func (s *Service) newPlaylistItemsRemoveCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "remove",
-		Short: "Remove an item from a playlist (by playlistItem id, not video id)",
-		Args:  cobra.NoArgs,
+		Use:         "remove",
+		Short:       "Remove an item from a playlist (by playlistItem id, not video id)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required (the playlistItem id from `playlist-items list`, not the video id)"}

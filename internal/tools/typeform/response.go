@@ -29,9 +29,10 @@ func (s *Service) newResponseListCmd(token string) *cobra.Command {
 	var responseType, fields, answeredFields, includedIDs, excludedIDs []string
 	var pageSize int
 	cmd := &cobra.Command{
-		Use:   "list <form_id>",
-		Short: "List a form's responses (GET /forms/{id}/responses)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <form_id>",
+		Short:       "List a form's responses (GET /forms/{id}/responses)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for _, rt := range responseType {
 				if err := enumCheck("response-type", rt, responseTypes...); err != nil {

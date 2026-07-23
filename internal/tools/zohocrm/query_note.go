@@ -16,9 +16,10 @@ import (
 func (s *Service) newQueryCmd(token string) *cobra.Command {
 	var coql string
 	cmd := &cobra.Command{
-		Use:   "query",
-		Short: "Run a COQL select query",
-		Args:  cobra.NoArgs,
+		Use:         "query",
+		Short:       "Run a COQL select query",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&coql, "coql", "", "COQL select query, e.g. select Last_Name from Leads where ... (required)")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -40,9 +41,10 @@ func (s *Service) newQueryCmd(token string) *cobra.Command {
 func (s *Service) newNoteListCmd(token string) *cobra.Command {
 	var module, id string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List notes on a record",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List notes on a record",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&module, "module", "", "module API name (required)")
 	cmd.Flags().StringVar(&id, "id", "", "record id (required)")
@@ -68,9 +70,10 @@ func (s *Service) newNoteListCmd(token string) *cobra.Command {
 func (s *Service) newNoteAddCmd(token string) *cobra.Command {
 	var module, id, title, content string
 	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Add a note to a record",
-		Args:  cobra.NoArgs,
+		Use:         "add",
+		Short:       "Add a note to a record",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 	}
 	cmd.Flags().StringVar(&module, "module", "", "module API name (required)")
 	cmd.Flags().StringVar(&id, "id", "", "record id (required)")

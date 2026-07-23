@@ -25,9 +25,10 @@ func (s *Service) newDraftListCmd(token string) *cobra.Command {
 	var socialSet, status, tag, orderBy string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List/filter drafts (GET /v2/social-sets/{id}/drafts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List/filter drafts (GET /v2/social-sets/{id}/drafts)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if status != "" {
@@ -59,9 +60,10 @@ func (s *Service) newDraftGetCmd(token string) *cobra.Command {
 	var socialSet, id string
 	var excludeMarkers bool
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Read one draft's full content + status/publish_state (GET /v2/social-sets/{id}/drafts/{draft_id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Read one draft's full content + status/publish_state (GET /v2/social-sets/{id}/drafts/{draft_id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if excludeMarkers {
@@ -85,8 +87,9 @@ func (s *Service) newDraftCreateCmd(token string) *cobra.Command {
 	var socialSet, data, publishAt string
 	var texts, platforms, mediaIDs []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create + optionally schedule/publish a draft (POST /v2/social-sets/{id}/drafts)",
+		Use:         "create",
+		Short:       "Create + optionally schedule/publish a draft (POST /v2/social-sets/{id}/drafts)",
+		Annotations: writeAction,
 		Long: "Create a draft. Provide EITHER --data '<raw json>' (full platforms body, " +
 			"the honest path for platform-specific/nested content) OR the thin " +
 			"convenience flags (--text repeatable builds a thread, --platform " +
@@ -158,9 +161,10 @@ func buildDraftBody(texts, platforms, mediaIDs []string, publishAt string) map[s
 func (s *Service) newDraftUpdateCmd(token string) *cobra.Command {
 	var socialSet, id, data string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Edit / reschedule / publish an existing draft (PATCH /v2/social-sets/{id}/drafts/{draft_id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Edit / reschedule / publish an existing draft (PATCH /v2/social-sets/{id}/drafts/{draft_id})",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			decoded, err := decodeJSONFlag("data", data)
 			if err != nil {
@@ -184,9 +188,10 @@ func (s *Service) newDraftUpdateCmd(token string) *cobra.Command {
 func (s *Service) newDraftDeleteCmd(token string) *cobra.Command {
 	var socialSet, id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a draft (DELETE /v2/social-sets/{id}/drafts/{draft_id})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a draft (DELETE /v2/social-sets/{id}/drafts/{draft_id})",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if _, err := s.call(cmd.Context(), token, http.MethodDelete, scopedPath(socialSet, "/drafts/"+id), nil, nil); err != nil {
 				return err

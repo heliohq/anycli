@@ -21,9 +21,10 @@ func (s *Service) newQueueCmd(token string) *cobra.Command {
 func (s *Service) newQueueViewCmd(token string) *cobra.Command {
 	var socialSet, startDate, endDate string
 	cmd := &cobra.Command{
-		Use:   "view",
-		Short: "Show slots + scheduled drafts in a window (GET /v2/social-sets/{id}/queue)",
-		Args:  cobra.NoArgs,
+		Use:         "view",
+		Short:       "Show slots + scheduled drafts in a window (GET /v2/social-sets/{id}/queue)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if startDate != "" {
@@ -48,9 +49,10 @@ func (s *Service) newQueueViewCmd(token string) *cobra.Command {
 func (s *Service) newQueueScheduleGetCmd(token string) *cobra.Command {
 	var socialSet string
 	cmd := &cobra.Command{
-		Use:   "schedule-get",
-		Short: "Get the recurring slot schedule (GET /v2/social-sets/{id}/queue/schedule)",
-		Args:  cobra.NoArgs,
+		Use:         "schedule-get",
+		Short:       "Get the recurring slot schedule (GET /v2/social-sets/{id}/queue/schedule)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, scopedPath(socialSet, "/queue/schedule"), nil, nil)
 			if err != nil {
@@ -66,9 +68,10 @@ func (s *Service) newQueueScheduleGetCmd(token string) *cobra.Command {
 func (s *Service) newQueueScheduleSetCmd(token string) *cobra.Command {
 	var socialSet, data string
 	cmd := &cobra.Command{
-		Use:   "schedule-set",
-		Short: "Replace the recurring slot schedule (PUT /v2/social-sets/{id}/queue/schedule; needs ADMIN)",
-		Args:  cobra.NoArgs,
+		Use:         "schedule-set",
+		Short:       "Replace the recurring slot schedule (PUT /v2/social-sets/{id}/queue/schedule; needs ADMIN)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			decoded, err := decodeJSONFlag("data", data)
 			if err != nil {

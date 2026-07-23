@@ -34,6 +34,15 @@ const apiPrefix = "/crm/v8"
 // (definitions/tools/zoho-crm.json).
 const EnvToken = "ZOHO_CRM_ACCESS_TOKEN"
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaves: "false" for side-effect-free reads (list/get/search and the
+// COQL select query), "true" for provider-state mutations (create/update/
+// delete/add).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Zoho CRM tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

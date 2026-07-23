@@ -17,9 +17,10 @@ func (s *Service) newLinkedInCmd(token string) *cobra.Command {
 func (s *Service) newLinkedInResolveOrgCmd(token string) *cobra.Command {
 	var socialSet, organizationURL string
 	cmd := &cobra.Command{
-		Use:   "resolve-org",
-		Short: "Resolve a LinkedIn org URL to a mention (GET /v2/social-sets/{id}/linkedin/organizations/resolve)",
-		Args:  cobra.NoArgs,
+		Use:         "resolve-org",
+		Short:       "Resolve a LinkedIn org URL to a mention (GET /v2/social-sets/{id}/linkedin/organizations/resolve)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("organization_url", organizationURL)
@@ -47,9 +48,10 @@ func (s *Service) newCommentThreadsCmd(token string) *cobra.Command {
 	var socialSet, id, platform, status string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "threads",
-		Short: "List comment threads on a draft (GET /v2/social-sets/{id}/drafts/{draft_id}/comment-threads)",
-		Args:  cobra.NoArgs,
+		Use:         "threads",
+		Short:       "List comment threads on a draft (GET /v2/social-sets/{id}/drafts/{draft_id}/comment-threads)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if platform != "" {

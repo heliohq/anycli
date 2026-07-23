@@ -12,9 +12,10 @@ import (
 // user_id field. Output JSON.
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "me",
-		Short: "Retrieve the authenticated Typeform account (GET /me)",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Retrieve the authenticated Typeform account (GET /me)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/me", nil, nil)
 			if err != nil {

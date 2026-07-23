@@ -16,9 +16,10 @@ func (s *Service) newChannelsGetCmd(token string) *cobra.Command {
 	var mine bool
 	var id, forHandle, forUsername, part string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get channel info + statistics (subscriber / view / video counts)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get channel info + statistics (subscriber / view / video counts)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("part", resolvePart(part, channelsGetPart))
