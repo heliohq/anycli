@@ -1,0 +1,13 @@
+{
+  "name": "mailchimp",
+  "type": "service",
+  "description": "Mailchimp Marketing (audiences, members, campaigns, reports)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "MAILCHIMP_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
