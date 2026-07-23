@@ -70,6 +70,12 @@ func RunTool(t *testing.T, tool, account string, args ...string) (string, int) {
 		t.Fatalf("anycli.New: %v", engineErr)
 	}
 
+	// stdoutMu is held for the whole capture. If t.Skipf/t.Fatalf below
+	// unwind via runtime.Goexit (not a normal return), this deferred
+	// Unlock still runs during the goroutine's exit — but only because
+	// RunTool executes on the test goroutine. Calling RunTool from any
+	// other goroutine would break that invariant and could deadlock or
+	// unlock out of turn.
 	stdoutMu.Lock()
 	defer stdoutMu.Unlock()
 
@@ -95,23 +101,32 @@ func RunTool(t *testing.T, tool, account string, args ...string) (string, int) {
 }
 
 // captureStdout redirects os.Stdout around fn and returns what fn printed.
-func captureStdout(fn func() error) (string, error) {
+//
+// Restoring os.Stdout and closing w happen in a defer so they still run if
+// fn panics: otherwise os.Stdout would stay pointed at the orphaned pipe and
+// the drain goroutine below would block forever on io.ReadAll(r).
+func captureStdout(fn func() error) (out string, err error) {
 	old := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		return "", err
+	r, w, perr := os.Pipe()
+	if perr != nil {
+		return "", perr
 	}
 	os.Stdout = w
+
 	done := make(chan string, 1)
 	go func() {
 		b, _ := io.ReadAll(r)
+		r.Close()
 		done <- string(b)
 	}()
-	fnErr := fn()
-	w.Close()
-	os.Stdout = old
-	out := <-done
-	return out, fnErr
+
+	defer func() {
+		os.Stdout = old
+		w.Close()
+		out = <-done
+	}()
+
+	return "", fn()
 }
 
 // osStdoutWriteString exists for the capture unit test: it writes through
