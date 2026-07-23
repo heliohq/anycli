@@ -1,0 +1,17 @@
+{
+  "name": "adobe-sign",
+  "type": "service",
+  "description": "Adobe Acrobat Sign as a tool (send / track / retrieve e-signature agreements via REST API v6)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "ADOBE_SIGN_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "base_uri"},
+        "inject": {"type": "env", "env_var": "ADOBE_SIGN_BASE_URI"}
+      }
+    ]
+  }
+}

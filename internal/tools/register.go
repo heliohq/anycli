@@ -3,6 +3,7 @@ package tools
 import (
 	"github.com/heliohq/anycli/internal/tools/activecampaign"
 	"github.com/heliohq/anycli/internal/tools/acuity"
+	"github.com/heliohq/anycli/internal/tools/adobesign"
 	"github.com/heliohq/anycli/internal/tools/bitly"
 	"github.com/heliohq/anycli/internal/tools/calendar"
 	"github.com/heliohq/anycli/internal/tools/contacts"
@@ -36,6 +37,7 @@ func init() {
 	RegisterService("activecampaign", &activecampaign.Service{})
 	RegisterService("acuity", &acuity.Service{})
 	RegisterService("bitly", &bitly.Service{})
+	RegisterService("adobe-sign", &adobesign.Service{})
 	RegisterService("slack", &slack.Service{})
 	RegisterService("notion", &notion.Service{})
 	RegisterService("sheets", &sheets.Service{})
