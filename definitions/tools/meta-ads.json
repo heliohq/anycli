@@ -1,0 +1,13 @@
+{
+  "name": "meta-ads",
+  "type": "service",
+  "description": "Meta Ads (Marketing API over Facebook Graph, OAuth 2.0 user token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "META_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
