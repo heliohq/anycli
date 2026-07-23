@@ -46,6 +46,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/formstack"
 	"github.com/heliohq/anycli/internal/tools/freshdesk"
 	"github.com/heliohq/anycli/internal/tools/freshservice"
+	"github.com/heliohq/anycli/internal/tools/front"
 	"github.com/heliohq/anycli/internal/tools/gmail"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
@@ -104,6 +105,7 @@ func init() {
 	RegisterService("fillout", &fillout.Service{})
 	RegisterService("formstack", &formstack.Service{})
 	RegisterService("forms", &forms.Service{})
+	RegisterService("front", &front.Service{})
 	RegisterService("linkedin", &linkedin.Service{})
 	RegisterService("meet", &meet.Service{})
 	RegisterService("tasks", &tasks.Service{})

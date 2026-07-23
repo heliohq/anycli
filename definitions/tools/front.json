@@ -1,0 +1,13 @@
+{
+  "name": "front",
+  "type": "service",
+  "description": "Front shared inbox (conversations, replies, drafts, comments, contacts)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "FRONT_TOKEN"}
+      }
+    ]
+  }
+}
