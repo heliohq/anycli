@@ -1,4 +1,4 @@
-.PHONY: build vet test lint all build-harness
+.PHONY: build vet test lint all build-harness e2e
 
 # AnyCLI is an embeddable library (design 002). The library itself produces no
 # binary; the only main package is the standalone dev harness under cmd/anycli
@@ -19,8 +19,6 @@ all: build vet test
 
 build-harness: ## Build the standalone dev harness binary
 	go build -o bin/anycli ./cmd/anycli
-
-.PHONY: e2e
 
 # Run one tool's e2e tests: make e2e TOOL=attio
 # Credentials come from HELIO_E2E_API_KEY + HELIO_E2E_API_BASE (gateway) or
