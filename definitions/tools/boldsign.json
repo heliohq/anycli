@@ -1,0 +1,13 @@
+{
+  "name": "boldsign",
+  "type": "service",
+  "description": "BoldSign e-signature as a tool (OAuth 2.0 access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "BOLDSIGN_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
