@@ -14,9 +14,10 @@ func (s *Service) newAccountCmd(token string) *cobra.Command {
 
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get the authenticated account (GET /user_account)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the authenticated account (GET /user_account)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/user_account", nil, nil)
 			if err != nil {

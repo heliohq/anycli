@@ -12,9 +12,10 @@ func (s *Service) newSpaceCmd(key string) *cobra.Command {
 	group := newGroupCmd("space", "Navigate the workspace (spaces)")
 
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List spaces",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List spaces",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.runGet(cmd, key, "/spaces", nil)
 		},
@@ -22,9 +23,10 @@ func (s *Service) newSpaceCmd(key string) *cobra.Command {
 
 	var getID string
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Get a single space by ID",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a single space by ID",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if getID == "" {
 				return &usageError{msg: "space get: --id is required"}
@@ -36,9 +38,10 @@ func (s *Service) newSpaceCmd(key string) *cobra.Command {
 
 	var formsID string
 	forms := &cobra.Command{
-		Use:   "forms",
-		Short: "List the forms in a space",
-		Args:  cobra.NoArgs,
+		Use:         "forms",
+		Short:       "List the forms in a space",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if formsID == "" {
 				return &usageError{msg: "space forms: --id is required"}
@@ -58,9 +61,10 @@ func (s *Service) newProductCmd(key string) *cobra.Command {
 
 	var formID string
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List a form's products",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a form's products",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if formID == "" {
 				return &usageError{msg: "product list: --form is required"}
@@ -81,9 +85,10 @@ func (s *Service) newCouponCmd(key string) *cobra.Command {
 
 	var listFormID string
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List a form's coupons",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a form's coupons",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if listFormID == "" {
 				return &usageError{msg: "coupon list: --form is required"}
@@ -95,9 +100,10 @@ func (s *Service) newCouponCmd(key string) *cobra.Command {
 
 	var getFormID, code string
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Get a single coupon by code",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a single coupon by code",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if getFormID == "" {
 				return &usageError{msg: "coupon get: --form is required"}

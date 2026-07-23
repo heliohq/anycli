@@ -21,9 +21,10 @@ func (s *Service) newPinCmd(token string) *cobra.Command {
 func (s *Service) newPinListCmd(token string) *cobra.Command {
 	var page pageParams
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List pins on the account (GET /pins)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List pins on the account (GET /pins)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.apply(q)
@@ -40,9 +41,10 @@ func (s *Service) newPinListCmd(token string) *cobra.Command {
 
 func (s *Service) newPinGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <pin_id>",
-		Short: "Get one pin (GET /pins/{pin_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <pin_id>",
+		Short:       "Get one pin (GET /pins/{pin_id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/pins/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -56,9 +58,10 @@ func (s *Service) newPinGetCmd(token string) *cobra.Command {
 func (s *Service) newPinCreateCmd(token string) *cobra.Command {
 	var boardID, imageURL, title, description, link, sectionID string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an image pin (POST /pins)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an image pin (POST /pins)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if boardID == "" {
 				return &usageError{msg: "pinterest: --board-id is required"}
@@ -103,9 +106,10 @@ func (s *Service) newPinCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newPinDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <pin_id>",
-		Short: "Delete a pin (DELETE /pins/{pin_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <pin_id>",
+		Short:       "Delete a pin (DELETE /pins/{pin_id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/pins/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

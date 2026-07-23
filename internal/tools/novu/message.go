@@ -21,7 +21,7 @@ func (s *Service) newMessageCmd(c *client) *cobra.Command {
 func (s *Service) newMessageListCmd(c *client) *cobra.Command {
 	var channel, subscriberID, transactionID string
 	var page, limit int
-	cmd := leafCmd("list", "List messages", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("list", "List messages", readOnly, func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
 		addQueryString(q, "channel", channel)
 		addQueryString(q, "subscriberId", subscriberID)
@@ -46,7 +46,7 @@ func (s *Service) newMessageListCmd(c *client) *cobra.Command {
 
 func (s *Service) newMessageDeleteCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("delete", "Delete a message by id", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("delete", "Delete a message by id", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("message-id", id); err != nil {
 			return err
 		}

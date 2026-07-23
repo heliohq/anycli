@@ -10,9 +10,10 @@ import (
 func (s *Service) newUserUpsertCmd(key, appID string) *cobra.Command {
 	var aliasLabel, aliasID, properties, tags string
 	cmd := &cobra.Command{
-		Use:   "upsert",
-		Short: "Create or update a user by alias (POST /apps/{app_id}/users)",
-		Args:  cobra.NoArgs,
+		Use:         "upsert",
+		Short:       "Create or update a user by alias (POST /apps/{app_id}/users)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if aliasLabel == "" || aliasID == "" {
 				return &usageError{msg: "--alias-label and --alias-id are both required"}
@@ -62,9 +63,10 @@ func (s *Service) newUserUpsertCmd(key, appID string) *cobra.Command {
 func (s *Service) newUserGetCmd(key, appID string) *cobra.Command {
 	var aliasLabel, aliasID string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Read a user by alias (GET /apps/{app_id}/users/by/{label}/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Read a user by alias (GET /apps/{app_id}/users/by/{label}/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if aliasLabel == "" || aliasID == "" {
 				return &usageError{msg: "--alias-label and --alias-id are both required"}

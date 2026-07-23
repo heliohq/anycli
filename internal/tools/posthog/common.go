@@ -77,9 +77,10 @@ func (s *Service) newProjectListCmd(token, use, short, suffix string, withSearch
 	var project string
 	var lp listParams
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireProject(project); err != nil {
 				return err
@@ -101,9 +102,10 @@ func (s *Service) newProjectListCmd(token, use, short, suffix string, withSearch
 func (s *Service) newProjectGetCmd(token, use, short, prefix string) *cobra.Command {
 	var project, id string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireProject(project); err != nil {
 				return err

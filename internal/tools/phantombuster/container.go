@@ -12,9 +12,10 @@ import (
 func (s *Service) newContainerListCmd(key string) *cobra.Command {
 	var agentID string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List a Phantom's runs (GET /containers/fetch-all)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a Phantom's runs (GET /containers/fetch-all)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("agentId", agentID)
@@ -35,9 +36,10 @@ func (s *Service) newContainerListCmd(key string) *cobra.Command {
 func (s *Service) newContainerGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one run by container id (GET /containers/fetch)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one run by container id (GET /containers/fetch)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("id", id)
@@ -59,9 +61,10 @@ func (s *Service) newContainerOutputCmd(key string) *cobra.Command {
 	var id string
 	var fromPos int
 	cmd := &cobra.Command{
-		Use:   "output",
-		Short: "Poll a specific run's output (GET /containers/fetch-output)",
-		Args:  cobra.NoArgs,
+		Use:         "output",
+		Short:       "Poll a specific run's output (GET /containers/fetch-output)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("id", id)
@@ -86,9 +89,10 @@ func (s *Service) newContainerOutputCmd(key string) *cobra.Command {
 func (s *Service) newContainerResultCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "result",
-		Short: "Fetch a run's structured result object (GET /containers/fetch-result-object)",
-		Args:  cobra.NoArgs,
+		Use:         "result",
+		Short:       "Fetch a run's structured result object (GET /containers/fetch-result-object)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("id", id)

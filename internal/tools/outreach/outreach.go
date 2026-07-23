@@ -26,6 +26,14 @@ const DefaultBaseURL = "https://api.outreach.io/api/v2"
 // EnvToken is the env var the credential binding injects (definitions/tools/outreach.json).
 const EnvToken = "OUTREACH_ACCESS_TOKEN"
 
+// readOnly and writeAction are the design-318 side-effect annotations applied to
+// every runnable leaf command: "false" for read-only reads, "true" for calls
+// that mutate provider state.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Outreach tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 // Empty fields select production defaults; tests inject an httptest server and

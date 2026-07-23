@@ -18,9 +18,10 @@ func (s *Service) newAnnotationCmd(token string) *cobra.Command {
 func (s *Service) newAnnotationCreateCmd(token string) *cobra.Command {
 	var project, content, dateMarker, scope string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an annotation (POST /api/projects/<id>/annotations/)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an annotation (POST /api/projects/<id>/annotations/)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireProject(project); err != nil {
 				return err

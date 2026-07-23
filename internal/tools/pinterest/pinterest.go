@@ -29,6 +29,13 @@ const DefaultBaseURL = "https://api.pinterest.com/v5"
 // OAuth 2.0 tokens with a 30-day lifetime refreshed through the token gateway.
 const EnvAccessToken = "PINTEREST_ACCESS_TOKEN"
 
+// side_effect annotations (design 318): readOnly for reads (no provider state
+// change), writeAction for commands that mutate provider state.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Pinterest tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

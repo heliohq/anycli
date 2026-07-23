@@ -26,7 +26,7 @@ func (s *Service) newEventCmd(c *client) *cobra.Command {
 
 func (s *Service) newEventTriggerCmd(c *client) *cobra.Command {
 	var workflow, to, toJSON, payload, overrides, transactionID, actor, tenant string
-	cmd := leafCmd("trigger", "Trigger a workflow to a subscriber or topic", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("trigger", "Trigger a workflow to a subscriber or topic", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("workflow", workflow); err != nil {
 			return err
 		}
@@ -76,7 +76,7 @@ func (s *Service) newEventTriggerCmd(c *client) *cobra.Command {
 
 func (s *Service) newEventBulkCmd(c *client) *cobra.Command {
 	var events string
-	cmd := leafCmd("bulk", "Trigger up to 100 events in one call", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("bulk", "Trigger up to 100 events in one call", writeAction, func(cmd *cobra.Command, _ []string) error {
 		decoded, err := decodeJSONFlag("events", events)
 		if err != nil {
 			return err
@@ -96,7 +96,7 @@ func (s *Service) newEventBulkCmd(c *client) *cobra.Command {
 
 func (s *Service) newEventBroadcastCmd(c *client) *cobra.Command {
 	var workflow, payload, overrides string
-	cmd := leafCmd("broadcast", "Trigger a workflow to every subscriber", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("broadcast", "Trigger a workflow to every subscriber", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("workflow", workflow); err != nil {
 			return err
 		}
@@ -122,7 +122,7 @@ func (s *Service) newEventBroadcastCmd(c *client) *cobra.Command {
 
 func (s *Service) newEventCancelCmd(c *client) *cobra.Command {
 	var transactionID string
-	cmd := leafCmd("cancel", "Cancel a triggered event by transaction id", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("cancel", "Cancel a triggered event by transaction id", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("transaction-id", transactionID); err != nil {
 			return err
 		}

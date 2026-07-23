@@ -16,9 +16,10 @@ func (s *Service) newAPICmd(authz string) *cobra.Command {
 	var body, bodyFile string
 	var queries []string
 	cmd := &cobra.Command{
-		Use:   "api <method> <path>",
-		Short: "Make a raw PandaDoc API request",
-		Args:  cobra.ExactArgs(2),
+		Use:         "api <method> <path>",
+		Short:       "Make a raw PandaDoc API request",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			method := strings.ToUpper(strings.TrimSpace(args[0]))
 			path, err := normalizeAPIPath(args[1])

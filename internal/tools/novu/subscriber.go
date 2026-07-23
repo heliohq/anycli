@@ -26,7 +26,7 @@ func (s *Service) newSubscriberCmd(c *client) *cobra.Command {
 func (s *Service) newSubscriberListCmd(c *client) *cobra.Command {
 	var email, name, phone, subscriberID, after, before, orderBy, orderDirection string
 	var limit int
-	cmd := leafCmd("list", "List / search subscribers", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("list", "List / search subscribers", readOnly, func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
 		addQueryString(q, "email", email)
 		addQueryString(q, "name", name)
@@ -58,7 +58,7 @@ func (s *Service) newSubscriberListCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberGetCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("get", "Get one subscriber by id", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("get", "Get one subscriber by id", readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -74,7 +74,7 @@ func (s *Service) newSubscriberGetCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberCreateCmd(c *client) *cobra.Command {
 	var id, email, firstName, lastName, phone, avatar, locale, timezone, data string
-	cmd := leafCmd("create", "Create a subscriber", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("create", "Create a subscriber", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -95,7 +95,7 @@ func (s *Service) newSubscriberCreateCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberUpdateCmd(c *client) *cobra.Command {
 	var id, email, firstName, lastName, phone, avatar, locale, timezone, data string
-	cmd := leafCmd("update", "Update a subscriber (PATCH)", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("update", "Update a subscriber (PATCH)", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -116,7 +116,7 @@ func (s *Service) newSubscriberUpdateCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberDeleteCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("delete", "Delete a subscriber", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("delete", "Delete a subscriber", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -132,7 +132,7 @@ func (s *Service) newSubscriberDeleteCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberPreferencesCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("preferences", "Get a subscriber's channel preferences", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("preferences", "Get a subscriber's channel preferences", readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -148,7 +148,7 @@ func (s *Service) newSubscriberPreferencesCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberSetPreferencesCmd(c *client) *cobra.Command {
 	var id, preferences string
-	cmd := leafCmd("set-preferences", "Update a subscriber's channel preferences (PATCH)", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("set-preferences", "Update a subscriber's channel preferences (PATCH)", writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}

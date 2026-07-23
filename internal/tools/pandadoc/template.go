@@ -12,9 +12,10 @@ func (s *Service) newTemplateListCmd(authz string) *cobra.Command {
 	var q string
 	var count, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List templates",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List templates",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			setIf(query, "q", q)
@@ -42,9 +43,10 @@ func (s *Service) newTemplateListCmd(authz string) *cobra.Command {
 
 func (s *Service) newTemplateDetailsCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "details <id>",
-		Short: "Show a template's roles, tokens, and fields",
-		Args:  cobra.ExactArgs(1),
+		Use:         "details <id>",
+		Short:       "Show a template's roles, tokens, and fields",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), authz, http.MethodGet, "/templates/"+url.PathEscape(args[0])+"/details", nil, nil)
 			if err != nil {

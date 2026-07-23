@@ -20,9 +20,10 @@ func (s *Service) newQueryCmd(token string) *cobra.Command {
 func (s *Service) newQueryRunCmd(token string) *cobra.Command {
 	var project, hogql, queryJSON string
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Run a HogQL or raw-node query (POST /api/projects/<id>/query/)",
-		Args:  cobra.NoArgs,
+		Use:         "run",
+		Short:       "Run a HogQL or raw-node query (POST /api/projects/<id>/query/)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireProject(project); err != nil {
 				return err

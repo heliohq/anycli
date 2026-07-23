@@ -21,7 +21,7 @@ func (s *Service) newActivityCmd(c *client) *cobra.Command {
 func (s *Service) newActivityListCmd(c *client) *cobra.Command {
 	var channels, templates, subscriberIDs, search, transactionID, topicKey string
 	var page, limit int
-	cmd := leafCmd("list", "List activity-feed notifications", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("list", "List activity-feed notifications", readOnly, func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
 		// channels / templates / subscriberIds / emails are repeatable array
 		// params; send one entry per comma-separated value.
@@ -53,7 +53,7 @@ func (s *Service) newActivityListCmd(c *client) *cobra.Command {
 
 func (s *Service) newActivityGetCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("get", "Get one activity-feed notification by id", func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("get", "Get one activity-feed notification by id", readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("notification-id", id); err != nil {
 			return err
 		}

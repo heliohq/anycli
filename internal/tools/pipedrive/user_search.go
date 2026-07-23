@@ -13,17 +13,19 @@ func (s *Service) newUserGroup(c *caller) *cobra.Command {
 	g := newGroupCmd("user", "Look up users (v1)")
 	g.AddCommand(
 		&cobra.Command{
-			Use:   "me",
-			Short: "Get the authenticated user",
-			Args:  cobra.NoArgs,
+			Use:         "me",
+			Short:       "Get the authenticated user",
+			Args:        cobra.NoArgs,
+			Annotations: readOnly,
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				return c.run(cmd.Context(), http.MethodGet, "/api/v1/users/me", nil, nil)
 			},
 		},
 		&cobra.Command{
-			Use:   "list",
-			Short: "List all users in the company",
-			Args:  cobra.NoArgs,
+			Use:         "list",
+			Short:       "List all users in the company",
+			Args:        cobra.NoArgs,
+			Annotations: readOnly,
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				return c.run(cmd.Context(), http.MethodGet, "/api/v1/users", nil, nil)
 			},
@@ -36,9 +38,10 @@ func (s *Service) newUserGroup(c *caller) *cobra.Command {
 // endpoint ("find the Acme deal"). --types maps to item_types.
 func (s *Service) newSearchCmd(c *caller) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search across deals, persons, organizations, and leads",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search across deals, persons, organizations, and leads",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			term, _ := cmd.Flags().GetString("term")
