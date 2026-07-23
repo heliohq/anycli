@@ -115,6 +115,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/sage"
 	"github.com/heliohq/anycli/internal/tools/salesforce"
 	"github.com/heliohq/anycli/internal/tools/salesloft"
+	"github.com/heliohq/anycli/internal/tools/savvycal"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -251,4 +252,5 @@ func init() {
 	RegisterService("resend", &resend.Service{})
 	RegisterService("rocketreach", &rocketreach.Service{})
 	RegisterService("salesforce", &salesforce.Service{})
+	RegisterService("savvycal", &savvycal.Service{})
 }
