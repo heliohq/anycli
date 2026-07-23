@@ -1,0 +1,13 @@
+{
+  "name": "segment",
+  "type": "service",
+  "description": "Twilio Segment Public API — manage and observe workspace sources, destinations, warehouses, tracking plans, and delivery",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SEGMENT_TOKEN"}
+      }
+    ]
+  }
+}
