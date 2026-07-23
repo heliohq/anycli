@@ -119,6 +119,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/searchconsole"
 	"github.com/heliohq/anycli/internal/tools/segment"
 	"github.com/heliohq/anycli/internal/tools/semrush"
+	"github.com/heliohq/anycli/internal/tools/sendgrid"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -259,4 +260,5 @@ func init() {
 	RegisterService("search-console", &searchconsole.Service{})
 	RegisterService("segment", &segment.Service{})
 	RegisterService("semrush", &semrush.Service{})
+	RegisterService("sendgrid", &sendgrid.Service{})
 }
