@@ -26,7 +26,7 @@ The anycli repository stores exactly one secret: `HELIO_E2E_API_KEY` — the e2e
 
 Consequences accepted:
 
-- E2E depends on Helio API availability; acceptable because e2e is non-blocking (D8).
+- E2E depends on Helio API availability. Acceptable: most tools sit at the non-blocking warn level (D8), and for the few promoted to required, a Helio outage blocking merges is the same accepted cost class as CI itself being down — with per-tool demotion to skip as the escape hatch.
 - The key's blast radius is every connection granted to the e2e assistant; its org must contain only dedicated test accounts, never production data. The 48h TTL is kept — no long-lived key is minted, so the production security model is not weakened.
 - Tools with no connection granted are **skipped, not failed** — services onboard by connecting an account, not by editing a secret.
 - Providers whose connect flow Helio does not support yet are out of e2e scope until Helio supports them (no side-channel credentials).
@@ -68,7 +68,7 @@ Definition filenames and package names disagree (`adobe-sign.json` vs `internal/
 tool name ↔ definitions/tools/<file>.json ↔ internal/tools/<pkg>/
 ```
 
-A CI script diffs `git diff --name-only $BASE...HEAD` against the manifest and emits the affected tool list as the job matrix:
+A CI script diffs `git diff --name-only $BASE...HEAD` against the manifest and emits the affected tool list — each entry tagged with its blocking level, skip-level tools already filtered out (D8) — as the job matrix:
 
 - change under `definitions/tools/<x>.json` or `internal/tools/<x>/**` → run tool *x*'s e2e;
 - change to shared code (`anycli.go`, `internal/exec`, `internal/credential`, `internal/middleware`, `internal/registry`, `definitions/embed.go`) → run a fixed **smoke subset** (5–10 representative tools covering both tool types and both single- and multi-field credential shapes), not all 148;
@@ -77,7 +77,7 @@ A CI script diffs `git diff --name-only $BASE...HEAD` against the manifest and e
 ### D6 — Triggers
 
 - **Same-repo pull requests** and **pushes to `main`**: selective run per D5. Fork PRs get no secrets by GitHub's rules and are explicitly excluded (`if: github.event.pull_request.head.repo.full_name == github.repository`).
-- **Nightly schedule**: full smoke sweep across every tool connected to the e2e assistant. Serves four jobs: connection health monitoring (know a connection died or a provider drifted before a code change trips over it), sweep-cleanup of `anycli-e2e-*` leftovers older than a day, **pending-tool reporting** (the "has e2e tests but no gateway connection" list from D9, so the debt stays visible), and **API-key rotation** — exchange the current `HELIO_E2E_API_KEY` for a fresh 48h key and `gh secret set` it back (D1). The rotation step runs even when tests fail, and its own failure pages loudly: a missed rotation is 24h from a dead key.
+- **Nightly schedule**: full smoke sweep across every tool connected to the e2e assistant. Serves four jobs: connection health monitoring (know a connection died or a provider drifted before a code change trips over it), sweep-cleanup of `anycli-e2e-*` leftovers older than a day, **pending-tool reporting** (the "has e2e tests but no gateway connection" list from D9 plus the explicitly policy-skipped list from D8, so both kinds of silence stay visible), and **API-key rotation** — exchange the current `HELIO_E2E_API_KEY` for a fresh 48h key and `gh secret set` it back (D1). The rotation step runs even when tests fail, and its own failure pages loudly: a missed rotation is 24h from a dead key.
 
 ### D7 — Concurrency control
 
@@ -87,9 +87,15 @@ Real accounts are shared mutable state; concurrent runs must not stomp each othe
 - **Token level**: refresh is server-side in the gateway (single point, provider-aware), so concurrent e2e runs cannot race a refresh_token from the client side at all; the helper additionally caches tokens in-process until `expires_at`.
 - **Data level**: tools sharing one credential family (e.g. Google family on the same Workspace users) may run concurrently — the `anycli-e2e-<run_id>-` prefix plus closed-loop ownership keeps them from colliding, since each test only touches artifacts it created. If a family proves collision-prone in practice, its tools share one concurrency group name instead of per-tool groups.
 
-### D8 — E2E does not block merge
+### D8 — Per-tool blocking policy: skip / warn / required
 
-The e2e workflow is not a required status check. Third-party APIs flake, rate-limit, and go down; one provider outage must not freeze the team. Failures are visible on the PR and in nightly reports; tightening to required-check status is a future decision once stability is proven.
+Blocking is a per-tool decision, not a global switch. A checked-in policy table (living beside the change-detection program; unlisted tools default to **warn**) assigns each tool one of three levels — a graduation path per tool:
+
+- **skip** — explicitly silenced even when connected: provider under maintenance, quota exhausted, known breakage being repaired, tests still incubating. The detect step filters it out of the matrix; the run summary lists it. Distinct from the automatic not-connected skip (D1), which needs no marker.
+- **warn** (default) — runs; a failure is loudly visible (red matrix job, summary) but does not fail the workflow (job-level `continue-on-error: true`). Home of newly onboarded tools and flaky providers.
+- **required** — a failure blocks merge. Matrix job names are dynamic, so branch protection cannot reference them directly; a static aggregator job **`e2e-gate`** `needs` the whole matrix and fails exactly when a required-level tool failed (warn failures are absorbed by `continue-on-error`, so any propagated matrix failure is by construction a required one). `e2e-gate` is the only e2e entry in required status checks.
+
+Rationale: "third-party APIs flake" argues against blocking on *every* tool, not on *any* tool. Per-tool levels let stable core tools graduate to real gating power while one flaky provider can never hold the whole suite hostage. The table starts with everything at warn; tools are promoted to required after a proven stable streak, demoted to skip when a provider is known-broken.
 
 ### D9 — The anycli-first sequencing gap
 
