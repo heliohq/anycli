@@ -25,6 +25,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/chargebee"
 	"github.com/heliohq/anycli/internal/tools/close"
 	"github.com/heliohq/anycli/internal/tools/contacts"
+	"github.com/heliohq/anycli/internal/tools/copper"
 	"github.com/heliohq/anycli/internal/tools/discord"
 	"github.com/heliohq/anycli/internal/tools/docs"
 	"github.com/heliohq/anycli/internal/tools/drive"
@@ -99,4 +100,5 @@ func init() {
 	// is gated by the consumer, not here.
 	RegisterService("gate-probe", &gateprobe.Service{})
 	RegisterService("attio", &attio.Service{})
+	RegisterService("copper", &copper.Service{})
 }
