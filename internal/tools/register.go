@@ -63,6 +63,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/intercom"
 	"github.com/heliohq/anycli/internal/tools/iterable"
 	"github.com/heliohq/anycli/internal/tools/jotform"
+	"github.com/heliohq/anycli/internal/tools/keap"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
@@ -161,4 +162,5 @@ func init() {
 	RegisterService("intercom", &intercom.Service{})
 	RegisterService("iterable", &iterable.Service{})
 	RegisterService("jotform", &jotform.Service{})
+	RegisterService("keap", &keap.Service{})
 }
