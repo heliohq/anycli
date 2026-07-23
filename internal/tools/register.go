@@ -30,6 +30,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/crisp"
 	"github.com/heliohq/anycli/internal/tools/customerio"
 	"github.com/heliohq/anycli/internal/tools/dataforseo"
+	"github.com/heliohq/anycli/internal/tools/delighted"
 	"github.com/heliohq/anycli/internal/tools/discord"
 	"github.com/heliohq/anycli/internal/tools/docs"
 	"github.com/heliohq/anycli/internal/tools/drive"
@@ -75,6 +76,7 @@ func init() {
 	RegisterService("brex", &brex.Service{})
 	RegisterService("buffer", &buffer.Service{})
 	RegisterService("calcom", &calcom.Service{})
+	RegisterService("delighted", &delighted.Service{})
 	RegisterService("slack", &slack.Service{})
 	RegisterService("notion", &notion.Service{})
 	RegisterService("close", &close.Service{})
