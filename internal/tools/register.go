@@ -136,6 +136,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/tasks"
 	"github.com/heliohq/anycli/internal/tools/tiktok"
 	"github.com/heliohq/anycli/internal/tools/twitch"
+	"github.com/heliohq/anycli/internal/tools/typeform"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
 
@@ -205,6 +206,7 @@ func init() {
 	RegisterService("meet", &meet.Service{})
 	RegisterService("meta-ads", &metaads.Service{})
 	RegisterService("tasks", &tasks.Service{})
+	RegisterService("typeform", &typeform.Service{})
 	RegisterService("x", &x.Service{})
 	RegisterService("tiktok", &tiktok.Service{})
 	RegisterService("microsoft-outlook", &microsoftoutlook.Service{})

@@ -1,0 +1,13 @@
+{
+  "name": "typeform",
+  "type": "service",
+  "description": "Typeform forms and survey responses (OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "TYPEFORM_TOKEN"}
+      }
+    ]
+  }
+}
