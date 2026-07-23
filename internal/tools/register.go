@@ -120,6 +120,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/segment"
 	"github.com/heliohq/anycli/internal/tools/semrush"
 	"github.com/heliohq/anycli/internal/tools/sendgrid"
+	"github.com/heliohq/anycli/internal/tools/serpapi"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -261,4 +262,5 @@ func init() {
 	RegisterService("segment", &segment.Service{})
 	RegisterService("semrush", &semrush.Service{})
 	RegisterService("sendgrid", &sendgrid.Service{})
+	RegisterService("serpapi", &serpapi.Service{})
 }

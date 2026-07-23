@@ -1,0 +1,13 @@
+{
+  "name": "serpapi",
+  "type": "service",
+  "description": "SerpApi as a tool (search engine results API, private API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "SERPAPI_API_KEY"}
+      }
+    ]
+  }
+}
