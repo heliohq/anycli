@@ -35,9 +35,10 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 		before    string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List messages, filtered by recipient/channel/status/tenant/workflow",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List messages, filtered by recipient/channel/status/tenant/workflow",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if recipient != "" {
@@ -73,9 +74,10 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 func (s *Service) newMessageGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a message",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a message",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -96,9 +98,10 @@ func (s *Service) newMessageSubCmd(key, use, short string) *cobra.Command {
 		segment = "delivery_logs"
 	}
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err
@@ -120,9 +123,10 @@ func (s *Service) newMessageMarkCmd(key string) *cobra.Command {
 		undo  bool
 	)
 	cmd := &cobra.Command{
-		Use:   "mark",
-		Short: "Mark a message seen|read|interacted|archived (--undo to clear)",
-		Args:  cobra.NoArgs,
+		Use:         "mark",
+		Short:       "Mark a message seen|read|interacted|archived (--undo to clear)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("id", id); err != nil {
 				return err

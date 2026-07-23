@@ -27,9 +27,10 @@ func (s *Service) newListCmd(token string) *cobra.Command {
 func (s *Service) newListCreateCmd(token string) *cobra.Command {
 	var name, data string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a list (POST /lists) from --name or --data",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a list (POST /lists) from --name or --data",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var payload any
 			if data != "" {
@@ -57,9 +58,10 @@ func (s *Service) newListCreateCmd(token string) *cobra.Command {
 func (s *Service) newListProfilesCmd(token string) *cobra.Command {
 	f := &listFlags{}
 	cmd := &cobra.Command{
-		Use:   "profiles <id>",
-		Short: "List a list's member profiles (GET /lists/{id}/profiles)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "profiles <id>",
+		Short:       "List a list's member profiles (GET /lists/{id}/profiles)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q, err := f.query("profile")
 			if err != nil {
@@ -83,9 +85,10 @@ func (s *Service) newListRelationshipCmd(token, use, short, method string) *cobr
 	var profileIDs []string
 	var data string
 	cmd := &cobra.Command{
-		Use:   use + " <id>",
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:         use + " <id>",
+		Short:       short,
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var payload any
 			if data != "" {

@@ -12,9 +12,10 @@ import (
 func (s *Service) newAccountCmd(token string) *cobra.Command {
 	group := newGroupCmd("account", "Read the connected Klaviyo account")
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Get the connected account (GET /accounts)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the connected account (GET /accounts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/accounts", nil, nil)
 			if err != nil {

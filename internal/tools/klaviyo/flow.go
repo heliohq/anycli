@@ -23,9 +23,10 @@ func (s *Service) newFlowCmd(token string) *cobra.Command {
 func (s *Service) newFlowStatusCmd(token string) *cobra.Command {
 	var status, data string
 	cmd := &cobra.Command{
-		Use:   "status <id>",
-		Short: "Set a flow's status (PATCH /flows/{id}) via --status draft|manual|live or --data",
-		Args:  cobra.ExactArgs(1),
+		Use:         "status <id>",
+		Short:       "Set a flow's status (PATCH /flows/{id}) via --status draft|manual|live or --data",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var payload any
 			if data != "" {

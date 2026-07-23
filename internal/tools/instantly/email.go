@@ -25,9 +25,10 @@ func (s *Service) newEmailListCmd(token string) *cobra.Command {
 	var page pageFlags
 	var search, campaignID, eaccount, isUnread string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List Unibox emails (GET /emails; 20 req/min cap)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Annotations: readOnly,
+		Short:       "List Unibox emails (GET /emails; 20 req/min cap)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.applyQuery(q)
@@ -49,9 +50,10 @@ func (s *Service) newEmailListCmd(token string) *cobra.Command {
 func (s *Service) newEmailGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a single email (GET /emails/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Annotations: readOnly,
+		Short:       "Get a single email (GET /emails/{id})",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/emails/"+url.PathEscape(id), nil)
 		},
@@ -66,9 +68,10 @@ func (s *Service) newEmailGetCmd(token string) *cobra.Command {
 func (s *Service) newEmailReplyCmd(token string) *cobra.Command {
 	var eaccount, replyToUUID, subject, body, cc, bcc string
 	cmd := &cobra.Command{
-		Use:   "reply",
-		Short: "Reply to an email in the Unibox (POST /emails/reply)",
-		Args:  cobra.NoArgs,
+		Use:         "reply",
+		Annotations: writeAction,
+		Short:       "Reply to an email in the Unibox (POST /emails/reply)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{
 				"eaccount":      eaccount,
@@ -100,9 +103,10 @@ func (s *Service) newEmailReplyCmd(token string) *cobra.Command {
 
 func (s *Service) newEmailUnreadCountCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "unread-count",
-		Short: "Count unread Unibox emails (GET /emails/unread/count)",
-		Args:  cobra.NoArgs,
+		Use:         "unread-count",
+		Annotations: readOnly,
+		Short:       "Count unread Unibox emails (GET /emails/unread/count)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/emails/unread/count", nil)
 		},
@@ -113,9 +117,10 @@ func (s *Service) newEmailUnreadCountCmd(token string) *cobra.Command {
 func (s *Service) newEmailMarkReadCmd(token string) *cobra.Command {
 	var threadID string
 	cmd := &cobra.Command{
-		Use:   "mark-read",
-		Short: "Mark a thread as read (POST /emails/threads/{thread_id}/mark-as-read)",
-		Args:  cobra.NoArgs,
+		Use:         "mark-read",
+		Annotations: writeAction,
+		Short:       "Mark a thread as read (POST /emails/threads/{thread_id}/mark-as-read)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.send(cmd, token, http.MethodPost, "/emails/threads/"+url.PathEscape(threadID)+"/mark-as-read", nil)
 		},

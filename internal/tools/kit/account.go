@@ -11,9 +11,10 @@ func (s *Service) accountCmd(token string) *cobra.Command {
 	group := newGroupCmd("account", "Account identity and stats")
 
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Show the authenticated account (whoami + plan)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Show the authenticated account (whoami + plan)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/account", nil, nil)
 			if err != nil {
@@ -25,9 +26,10 @@ func (s *Service) accountCmd(token string) *cobra.Command {
 
 	var growth, email bool
 	stats := &cobra.Command{
-		Use:   "stats",
-		Short: "Show growth or email stats",
-		Args:  cobra.NoArgs,
+		Use:         "stats",
+		Short:       "Show growth or email stats",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if growth == email {
 				return &usageError{msg: "exactly one of --growth or --email is required"}

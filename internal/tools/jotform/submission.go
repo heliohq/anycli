@@ -25,9 +25,10 @@ func (s *Service) newSubmissionCmd(key string) *cobra.Command {
 func (s *Service) newSubmissionListCmd(key string) *cobra.Command {
 	var params listParams
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List submissions across all the account's forms (GET /user/submissions)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List submissions across all the account's forms (GET /user/submissions)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			params.apply(q)
@@ -44,9 +45,10 @@ func (s *Service) newSubmissionListCmd(key string) *cobra.Command {
 
 func (s *Service) newSubmissionGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <submissionID>",
-		Short: "Get one submission (GET /submission/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <submissionID>",
+		Short:       "Get one submission (GET /submission/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.get(cmd.Context(), key, "/submission/"+url.PathEscape(args[0]), nil)
 			if err != nil {
@@ -60,9 +62,10 @@ func (s *Service) newSubmissionGetCmd(key string) *cobra.Command {
 func (s *Service) newSubmissionCreateCmd(key string) *cobra.Command {
 	var fields []string
 	cmd := &cobra.Command{
-		Use:   "create <formID> --field <qid>=<value> [--field <qid:subfield>=<value> ...]",
-		Short: "Create a submission on a form (POST /form/{id}/submissions; Full Access key)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <formID> --field <qid>=<value> [--field <qid:subfield>=<value> ...]",
+		Short:       "Create a submission on a form (POST /form/{id}/submissions; Full Access key)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			form, err := encodeFields(fields)
 			if err != nil {
@@ -82,9 +85,10 @@ func (s *Service) newSubmissionCreateCmd(key string) *cobra.Command {
 func (s *Service) newSubmissionEditCmd(key string) *cobra.Command {
 	var fields []string
 	cmd := &cobra.Command{
-		Use:   "edit <submissionID> --field <qid>=<value> [...]",
-		Short: "Edit an existing submission's answers (POST /submission/{id}; Full Access key)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "edit <submissionID> --field <qid>=<value> [...]",
+		Short:       "Edit an existing submission's answers (POST /submission/{id}; Full Access key)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			form, err := encodeFields(fields)
 			if err != nil {
@@ -103,9 +107,10 @@ func (s *Service) newSubmissionEditCmd(key string) *cobra.Command {
 
 func (s *Service) newSubmissionDeleteCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <submissionID>",
-		Short: "Delete a submission (DELETE /submission/{id}; Full Access key)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <submissionID>",
+		Short:       "Delete a submission (DELETE /submission/{id}; Full Access key)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodDelete, "/submission/"+url.PathEscape(args[0]), nil, nil, "")
 			if err != nil {

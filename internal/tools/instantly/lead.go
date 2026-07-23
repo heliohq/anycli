@@ -29,9 +29,10 @@ func (s *Service) newLeadListSubCmd(token string) *cobra.Command {
 	var page pageFlags
 	var campaign, listID, search, data string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List/search leads (POST /leads/list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Annotations: readOnly,
+		Short:       "List/search leads (POST /leads/list)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -61,9 +62,10 @@ func (s *Service) newLeadListSubCmd(token string) *cobra.Command {
 func (s *Service) newLeadGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a lead (GET /leads/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Annotations: readOnly,
+		Short:       "Get a lead (GET /leads/{id})",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/leads/"+url.PathEscape(id), nil)
 		},
@@ -76,9 +78,10 @@ func (s *Service) newLeadGetCmd(token string) *cobra.Command {
 func (s *Service) newLeadCreateCmd(token string) *cobra.Command {
 	var data, email, campaign, listID, firstName, lastName, companyName string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a single lead (POST /leads)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Annotations: writeAction,
+		Short:       "Create a single lead (POST /leads)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -106,9 +109,10 @@ func (s *Service) newLeadCreateCmd(token string) *cobra.Command {
 func (s *Service) newLeadUpdateCmd(token string) *cobra.Command {
 	var id, data string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a lead (PATCH /leads/{id}). --data is the raw JSON body",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Annotations: writeAction,
+		Short:       "Update a lead (PATCH /leads/{id}). --data is the raw JSON body",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -126,9 +130,10 @@ func (s *Service) newLeadUpdateCmd(token string) *cobra.Command {
 func (s *Service) newLeadDeleteCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a lead (DELETE /leads/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Annotations: writeAction,
+		Short:       "Delete a lead (DELETE /leads/{id})",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.send(cmd, token, http.MethodDelete, "/leads/"+url.PathEscape(id), nil)
 		},
@@ -144,9 +149,10 @@ func (s *Service) newLeadDeleteCmd(token string) *cobra.Command {
 func (s *Service) newLeadAddCmd(token string) *cobra.Command {
 	var data, campaignID, listID string
 	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Bulk-add leads to a campaign or list (POST /leads/add)",
-		Args:  cobra.NoArgs,
+		Use:         "add",
+		Annotations: writeAction,
+		Short:       "Bulk-add leads to a campaign or list (POST /leads/add)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -167,9 +173,10 @@ func (s *Service) newLeadAddCmd(token string) *cobra.Command {
 func (s *Service) newLeadMoveCmd(token string) *cobra.Command {
 	var data, toCampaignID, toListID string
 	cmd := &cobra.Command{
-		Use:   "move",
-		Short: "Move leads between campaigns/lists (POST /leads/move; returns a background job)",
-		Args:  cobra.NoArgs,
+		Use:         "move",
+		Annotations: writeAction,
+		Short:       "Move leads between campaigns/lists (POST /leads/move; returns a background job)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -190,9 +197,10 @@ func (s *Service) newLeadInterestCmd(token string) *cobra.Command {
 	var leadEmail, campaignID string
 	var interestValue int
 	cmd := &cobra.Command{
-		Use:   "update-interest",
-		Short: "Set a lead's interest status (POST /leads/update-interest-status)",
-		Args:  cobra.NoArgs,
+		Use:         "update-interest",
+		Annotations: writeAction,
+		Short:       "Set a lead's interest status (POST /leads/update-interest-status)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{
 				"lead_email":     leadEmail,

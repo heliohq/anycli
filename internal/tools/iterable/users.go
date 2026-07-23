@@ -22,9 +22,10 @@ func (s *Service) newUserCmd(cred credential) *cobra.Command {
 func (s *Service) newUserGetCmd(cred credential) *cobra.Command {
 	var email, userID string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a user by email or userId (GET /api/users/{email} | /api/users/byUserId/{userId})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a user by email or userId (GET /api/users/{email} | /api/users/byUserId/{userId})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path, err := userLookupPath(email, userID)
 			if err != nil {
@@ -45,9 +46,10 @@ func (s *Service) newUserGetCmd(cred credential) *cobra.Command {
 func (s *Service) newUserUpdateCmd(cred credential) *cobra.Command {
 	var body string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Create or update a user profile (POST /api/users/update)",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Create or update a user profile (POST /api/users/update)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := decodeJSONFlag("body", body)
 			if err != nil {
@@ -68,9 +70,10 @@ func (s *Service) newUserUpdateCmd(cred credential) *cobra.Command {
 func (s *Service) newUserDeleteCmd(cred credential) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a user by email (DELETE /api/users/{email})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a user by email (DELETE /api/users/{email})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if email == "" {
 				return &usageError{msg: "iterable: --email is required"}
@@ -89,9 +92,10 @@ func (s *Service) newUserDeleteCmd(cred credential) *cobra.Command {
 
 func (s *Service) newUserFieldsCmd(cred credential) *cobra.Command {
 	return &cobra.Command{
-		Use:   "fields",
-		Short: "List the project's user data fields (GET /api/users/getFields)",
-		Args:  cobra.NoArgs,
+		Use:         "fields",
+		Short:       "List the project's user data fields (GET /api/users/getFields)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), cred, http.MethodGet, "/api/users/getFields", nil, nil)
 			if err != nil {

@@ -24,9 +24,10 @@ func (s *Service) newCompanyListCmd(token string) *cobra.Command {
 	var perPage int
 	var page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List companies (GET /companies)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List companies (GET /companies)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if perPage > 0 {
@@ -50,9 +51,10 @@ func (s *Service) newCompanyListCmd(token string) *cobra.Command {
 func (s *Service) newCompanyGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one company by Intercom id (GET /companies/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one company by Intercom id (GET /companies/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/companies/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -69,9 +71,10 @@ func (s *Service) newCompanyGetCmd(token string) *cobra.Command {
 func (s *Service) newCompanyUpsertCmd(token string) *cobra.Command {
 	var companyID, name, bodyJSON string
 	cmd := &cobra.Command{
-		Use:   "upsert",
-		Short: "Create or update a company by company_id (POST /companies)",
-		Args:  cobra.NoArgs,
+		Use:         "upsert",
+		Short:       "Create or update a company by company_id (POST /companies)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{}
 			if companyID != "" {

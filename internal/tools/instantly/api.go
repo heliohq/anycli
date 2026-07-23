@@ -17,9 +17,10 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 	var data string
 	var queries []string
 	cmd := &cobra.Command{
-		Use:   "api <method> <path>",
-		Short: "Make a raw Instantly API request",
-		Args:  cobra.ExactArgs(2),
+		Use:         "api <method> <path>",
+		Annotations: writeAction,
+		Short:       "Make a raw Instantly API request",
+		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			method := strings.ToUpper(strings.TrimSpace(args[0]))
 			path, err := normalizeAPIPath(args[1])

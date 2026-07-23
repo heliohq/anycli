@@ -24,9 +24,10 @@ func (s *Service) newLeadListListCmd(token string) *cobra.Command {
 	var page pageFlags
 	var search string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List lead lists (GET /lead-lists)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Annotations: readOnly,
+		Short:       "List lead lists (GET /lead-lists)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.applyQuery(q)
@@ -42,9 +43,10 @@ func (s *Service) newLeadListListCmd(token string) *cobra.Command {
 func (s *Service) newLeadListGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a lead list (GET /lead-lists/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Annotations: readOnly,
+		Short:       "Get a lead list (GET /lead-lists/{id})",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/lead-lists/"+url.PathEscape(id), nil)
 		},
@@ -57,9 +59,10 @@ func (s *Service) newLeadListGetCmd(token string) *cobra.Command {
 func (s *Service) newLeadListCreateCmd(token string) *cobra.Command {
 	var data, name string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a lead list (POST /lead-lists)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Annotations: writeAction,
+		Short:       "Create a lead list (POST /lead-lists)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -77,9 +80,10 @@ func (s *Service) newLeadListCreateCmd(token string) *cobra.Command {
 func (s *Service) newLeadListUpdateCmd(token string) *cobra.Command {
 	var id, data string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a lead list (PATCH /lead-lists/{id}). --data is the raw JSON body",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Annotations: writeAction,
+		Short:       "Update a lead list (PATCH /lead-lists/{id}). --data is the raw JSON body",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -97,9 +101,10 @@ func (s *Service) newLeadListUpdateCmd(token string) *cobra.Command {
 func (s *Service) newLeadListDeleteCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a lead list (DELETE /lead-lists/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Annotations: writeAction,
+		Short:       "Delete a lead list (DELETE /lead-lists/{id})",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.send(cmd, token, http.MethodDelete, "/lead-lists/"+url.PathEscape(id), nil)
 		},
@@ -112,9 +117,10 @@ func (s *Service) newLeadListDeleteCmd(token string) *cobra.Command {
 func (s *Service) newLeadListVerificationStatsCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "verification-stats",
-		Short: "Email-verification stats for a lead list (GET /lead-lists/{id}/verification-stats)",
-		Args:  cobra.NoArgs,
+		Use:         "verification-stats",
+		Annotations: readOnly,
+		Short:       "Email-verification stats for a lead list (GET /lead-lists/{id}/verification-stats)",
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/lead-lists/"+url.PathEscape(id)+"/verification-stats", nil)
 		},

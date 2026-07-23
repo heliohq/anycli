@@ -26,9 +26,10 @@ func (s *Service) newTicketCreateCmd(token string) *cobra.Command {
 	var ticketTypeID, attributesJSON, bodyJSON string
 	var contactIDs []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a ticket (POST /tickets)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a ticket (POST /tickets)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"ticket_type_id": ticketTypeID}
 			if len(contactIDs) > 0 {
@@ -67,9 +68,10 @@ func (s *Service) newTicketSearchCmd(token string) *cobra.Command {
 	var sf searchFlags
 	var updatedSince string
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search tickets (POST /tickets/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search tickets (POST /tickets/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var filters []map[string]any
 			if updatedSince != "" {
@@ -94,9 +96,10 @@ func (s *Service) newTicketSearchCmd(token string) *cobra.Command {
 func (s *Service) newTicketGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one ticket (GET /tickets/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one ticket (GET /tickets/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/tickets/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -114,9 +117,10 @@ func (s *Service) newTicketUpdateCmd(token string) *cobra.Command {
 	var id, state, assigneeID, adminID, attributesJSON, bodyJSON string
 	var open bool
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a ticket state/assignment/attributes (PUT /tickets/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a ticket state/assignment/attributes (PUT /tickets/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{}
 			if state != "" {
@@ -166,9 +170,10 @@ func (s *Service) newTicketUpdateCmd(token string) *cobra.Command {
 func (s *Service) newTicketReplyCmd(token string) *cobra.Command {
 	var id, body, adminID, messageType string
 	cmd := &cobra.Command{
-		Use:   "reply",
-		Short: "Reply to a ticket as an admin (POST /tickets/{id}/reply)",
-		Args:  cobra.NoArgs,
+		Use:         "reply",
+		Short:       "Reply to a ticket as an admin (POST /tickets/{id}/reply)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			admin, err := s.resolveAdminID(cmd.Context(), token, adminID)
 			if err != nil {
@@ -198,9 +203,10 @@ func (s *Service) newTicketReplyCmd(token string) *cobra.Command {
 
 func (s *Service) newTicketTypeListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "type-list",
-		Short: "List ticket types (GET /ticket_types)",
-		Args:  cobra.NoArgs,
+		Use:         "type-list",
+		Short:       "List ticket types (GET /ticket_types)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/ticket_types", nil, nil)
 			if err != nil {

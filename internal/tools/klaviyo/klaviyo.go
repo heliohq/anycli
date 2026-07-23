@@ -30,6 +30,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// design-318 side_effect annotation maps shared by every runnable leaf.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // DefaultBaseURL is the production Klaviyo API base (token/data host, not www).
 const DefaultBaseURL = "https://a.klaviyo.com/api"
 

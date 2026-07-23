@@ -22,9 +22,10 @@ func (s *Service) newOpportunityCmd(token string) *cobra.Command {
 func (s *Service) newOpportunityListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List opportunities (GET /v2/opportunities)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List opportunities (GET /v2/opportunities)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/opportunities", lf.values(), nil)
 			if err != nil {
@@ -40,9 +41,10 @@ func (s *Service) newOpportunityListCmd(token string) *cobra.Command {
 func (s *Service) newOpportunityGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "get <opportunity-id>",
-		Short: "Get an opportunity (GET /v2/opportunities/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <opportunity-id>",
+		Short:       "Get an opportunity (GET /v2/opportunities/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/opportunities/"+url.PathEscape(args[0]), fieldsQuery(fields), nil)
 			if err != nil {
@@ -94,9 +96,10 @@ func (f *opportunityBodyFlags) build() (map[string]any, error) {
 func (s *Service) newOpportunityCreateCmd(token string) *cobra.Command {
 	var f *opportunityBodyFlags
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an opportunity (POST /v2/opportunities)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an opportunity (POST /v2/opportunities)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := f.build()
 			if err != nil {
@@ -119,9 +122,10 @@ func (s *Service) newOpportunityCreateCmd(token string) *cobra.Command {
 func (s *Service) newOpportunityUpdateCmd(token string) *cobra.Command {
 	var f *opportunityBodyFlags
 	cmd := &cobra.Command{
-		Use:   "update <opportunity-id>",
-		Short: "Update an opportunity (PATCH /v2/opportunities/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <opportunity-id>",
+		Short:       "Update an opportunity (PATCH /v2/opportunities/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := f.build()
 			if err != nil {
@@ -143,9 +147,10 @@ func (s *Service) newOpportunityUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newOpportunityStagesCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "stages",
-		Short: "List opportunity stages (GET /v2/opportunities/stages)",
-		Args:  cobra.NoArgs,
+		Use:         "stages",
+		Short:       "List opportunity stages (GET /v2/opportunities/stages)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/opportunities/stages", nil, nil)
 			if err != nil {

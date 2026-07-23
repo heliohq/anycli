@@ -21,9 +21,10 @@ func (s *Service) newEventCmd(cred credential) *cobra.Command {
 func (s *Service) newEventTrackCmd(cred credential) *cobra.Command {
 	var body string
 	cmd := &cobra.Command{
-		Use:   "track",
-		Short: "Track a custom event (POST /api/events/track)",
-		Args:  cobra.NoArgs,
+		Use:         "track",
+		Short:       "Track a custom event (POST /api/events/track)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := decodeJSONFlag("body", body)
 			if err != nil {
@@ -45,9 +46,10 @@ func (s *Service) newEventListCmd(cred credential) *cobra.Command {
 	var email string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List a user's events by email (GET /api/events/{email})",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a user's events by email (GET /api/events/{email})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if email == "" {
 				return &usageError{msg: "iterable: --email is required"}

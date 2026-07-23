@@ -20,9 +20,10 @@ func (s *Service) newTeamCmd(token string) *cobra.Command {
 
 func (s *Service) newTeamListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List teams (GET /teams)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List teams (GET /teams)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/teams", nil, nil)
 			if err != nil {
@@ -37,9 +38,10 @@ func (s *Service) newTeamListCmd(token string) *cobra.Command {
 func (s *Service) newTeamGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one team (GET /teams/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one team (GET /teams/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/teams/"+url.PathEscape(id), nil, nil)
 			if err != nil {

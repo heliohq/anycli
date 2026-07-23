@@ -15,9 +15,10 @@ func (s *Service) newReportCmd(key string) *cobra.Command {
 func (s *Service) newReportListCmd(key string) *cobra.Command {
 	var form string
 	cmd := &cobra.Command{
-		Use:   "list [--form <formID>]",
-		Short: "List reports account-wide (GET /user/reports) or for one form (GET /form/{id}/reports)",
-		Args:  cobra.NoArgs,
+		Use:         "list [--form <formID>]",
+		Short:       "List reports account-wide (GET /user/reports) or for one form (GET /form/{id}/reports)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path := "/user/reports"
 			if form != "" {

@@ -32,9 +32,10 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 	var perPage int
 	var startingAfter string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List conversations (GET /conversations)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List conversations (GET /conversations)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if perPage > 0 {
@@ -59,9 +60,10 @@ func (s *Service) newConversationSearchCmd(token string) *cobra.Command {
 	var sf searchFlags
 	var state, updatedSince string
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search conversations (POST /conversations/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search conversations (POST /conversations/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var filters []map[string]any
 			if state != "" {
@@ -90,9 +92,10 @@ func (s *Service) newConversationSearchCmd(token string) *cobra.Command {
 func (s *Service) newConversationGetCmd(token string) *cobra.Command {
 	var id, displayAs string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one conversation (GET /conversations/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one conversation (GET /conversations/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if displayAs != "" {
@@ -129,9 +132,10 @@ func (s *Service) newConversationNoteCmd(token string) *cobra.Command {
 func (s *Service) newConversationReplyLike(token, use, messageType, short string) *cobra.Command {
 	var id, body, adminID string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			admin, err := s.resolveAdminID(cmd.Context(), token, adminID)
 			if err != nil {
@@ -161,9 +165,10 @@ func (s *Service) newConversationReplyLike(token, use, messageType, short string
 func (s *Service) newConversationCloseCmd(token string) *cobra.Command {
 	var id, body, adminID string
 	cmd := &cobra.Command{
-		Use:   "close",
-		Short: "Close a conversation (POST /conversations/{id}/parts)",
-		Args:  cobra.NoArgs,
+		Use:         "close",
+		Short:       "Close a conversation (POST /conversations/{id}/parts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			admin, err := s.resolveAdminID(cmd.Context(), token, adminID)
 			if err != nil {
@@ -186,9 +191,10 @@ func (s *Service) newConversationCloseCmd(token string) *cobra.Command {
 func (s *Service) newConversationOpenCmd(token string) *cobra.Command {
 	var id, adminID string
 	cmd := &cobra.Command{
-		Use:   "open",
-		Short: "Reopen a snoozed or closed conversation (POST /conversations/{id}/parts)",
-		Args:  cobra.NoArgs,
+		Use:         "open",
+		Short:       "Reopen a snoozed or closed conversation (POST /conversations/{id}/parts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			admin, err := s.resolveAdminID(cmd.Context(), token, adminID)
 			if err != nil {
@@ -207,9 +213,10 @@ func (s *Service) newConversationOpenCmd(token string) *cobra.Command {
 func (s *Service) newConversationSnoozeCmd(token string) *cobra.Command {
 	var id, adminID, snoozedUntil string
 	cmd := &cobra.Command{
-		Use:   "snooze",
-		Short: "Snooze a conversation until a future time (POST /conversations/{id}/parts)",
-		Args:  cobra.NoArgs,
+		Use:         "snooze",
+		Short:       "Snooze a conversation until a future time (POST /conversations/{id}/parts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			admin, err := s.resolveAdminID(cmd.Context(), token, adminID)
 			if err != nil {
@@ -230,9 +237,10 @@ func (s *Service) newConversationSnoozeCmd(token string) *cobra.Command {
 func (s *Service) newConversationAssignCmd(token string) *cobra.Command {
 	var id, adminID, assigneeID, body string
 	cmd := &cobra.Command{
-		Use:   "assign",
-		Short: "Assign a conversation to an admin or team (POST /conversations/{id}/parts)",
-		Args:  cobra.NoArgs,
+		Use:         "assign",
+		Short:       "Assign a conversation to an admin or team (POST /conversations/{id}/parts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			admin, err := s.resolveAdminID(cmd.Context(), token, adminID)
 			if err != nil {
@@ -271,9 +279,10 @@ func (s *Service) postPart(cmd *cobra.Command, token, id string, payload map[str
 func (s *Service) newConversationTagCmd(token string) *cobra.Command {
 	var id, tagID, adminID string
 	cmd := &cobra.Command{
-		Use:   "tag",
-		Short: "Add a tag to a conversation (POST /conversations/{id}/tags)",
-		Args:  cobra.NoArgs,
+		Use:         "tag",
+		Short:       "Add a tag to a conversation (POST /conversations/{id}/tags)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			admin, err := s.resolveAdminID(cmd.Context(), token, adminID)
 			if err != nil {
@@ -298,9 +307,10 @@ func (s *Service) newConversationTagCmd(token string) *cobra.Command {
 func (s *Service) newConversationUntagCmd(token string) *cobra.Command {
 	var id, tagID, adminID string
 	cmd := &cobra.Command{
-		Use:   "untag",
-		Short: "Remove a tag from a conversation (DELETE /conversations/{id}/tags/{tag_id})",
-		Args:  cobra.NoArgs,
+		Use:         "untag",
+		Short:       "Remove a tag from a conversation (DELETE /conversations/{id}/tags/{tag_id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			admin, err := s.resolveAdminID(cmd.Context(), token, adminID)
 			if err != nil {

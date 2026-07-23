@@ -21,9 +21,10 @@ func (s *Service) newAdminCmd(token string) *cobra.Command {
 
 func (s *Service) newAdminMeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "me",
-		Short: "Identify the authenticating admin and workspace (GET /me)",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Identify the authenticating admin and workspace (GET /me)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/me", nil, nil)
 			if err != nil {
@@ -37,9 +38,10 @@ func (s *Service) newAdminMeCmd(token string) *cobra.Command {
 
 func (s *Service) newAdminListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List admins (GET /admins)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List admins (GET /admins)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/admins", nil, nil)
 			if err != nil {
@@ -54,9 +56,10 @@ func (s *Service) newAdminListCmd(token string) *cobra.Command {
 func (s *Service) newAdminGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one admin (GET /admins/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one admin (GET /admins/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/admins/"+url.PathEscape(id), nil, nil)
 			if err != nil {

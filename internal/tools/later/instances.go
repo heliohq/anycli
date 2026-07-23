@@ -13,9 +13,10 @@ import (
 func (s *Service) newInstancesCmd(client *reportingClient) *cobra.Command {
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "instances",
-		Short: "List reporting instances the credential can access (GET /v2/instances)",
-		Args:  cobra.NoArgs,
+		Use:         "instances",
+		Short:       "List reporting instances the credential can access (GET /v2/instances)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{}
 			if limit > 0 {

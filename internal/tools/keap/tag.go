@@ -23,9 +23,10 @@ func (s *Service) newTagCmd(token string) *cobra.Command {
 func (s *Service) newTagListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tags (GET /v2/tags)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tags (GET /v2/tags)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/tags", lf.values(), nil)
 			if err != nil {
@@ -40,9 +41,10 @@ func (s *Service) newTagListCmd(token string) *cobra.Command {
 
 func (s *Service) newTagGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <tag-id>",
-		Short: "Get a tag (GET /v2/tags/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <tag-id>",
+		Short:       "Get a tag (GET /v2/tags/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/tags/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -57,9 +59,10 @@ func (s *Service) newTagGetCmd(token string) *cobra.Command {
 func (s *Service) newTagCreateCmd(token string) *cobra.Command {
 	var name, description, jsonBody string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a tag (POST /v2/tags)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a tag (POST /v2/tags)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if name != "" {
@@ -90,9 +93,10 @@ func (s *Service) newTagCreateCmd(token string) *cobra.Command {
 func (s *Service) newTagContactsCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:   "contacts <tag-id>",
-		Short: "List contacts with a tag (GET /v2/tags/{id}/contacts)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "contacts <tag-id>",
+		Short:       "List contacts with a tag (GET /v2/tags/{id}/contacts)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/tags/"+url.PathEscape(args[0])+"/contacts", lf.values(), nil)
 			if err != nil {
@@ -110,9 +114,10 @@ func (s *Service) newTagContactsCmd(token string) *cobra.Command {
 func (s *Service) newTagApplyCmd(token, use, verb, short string) *cobra.Command {
 	var contactIDs []string
 	cmd := &cobra.Command{
-		Use:   use + " <tag-id>",
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:         use + " <tag-id>",
+		Short:       short,
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(contactIDs) == 0 {
 				return &usageError{msg: "at least one --contact-id is required"}

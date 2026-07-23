@@ -32,9 +32,10 @@ func (s *Service) newNoteListCmd(token string) *cobra.Command {
 	var contactID string
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List a contact's notes (GET /v2/contacts/{id}/notes)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a contact's notes (GET /v2/contacts/{id}/notes)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if contactID == "" {
 				return &usageError{msg: "--contact-id is required"}
@@ -54,9 +55,10 @@ func (s *Service) newNoteListCmd(token string) *cobra.Command {
 func (s *Service) newNoteGetCmd(token string) *cobra.Command {
 	var contactID, noteID string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a contact note (GET /v2/contacts/{id}/notes/{note_id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a contact note (GET /v2/contacts/{id}/notes/{note_id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if contactID == "" || noteID == "" {
 				return &usageError{msg: "--contact-id and --note-id are required"}
@@ -76,9 +78,10 @@ func (s *Service) newNoteGetCmd(token string) *cobra.Command {
 func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 	var contactID, userID, text, title, noteType, jsonBody string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact note (POST /v2/contacts/{id}/notes)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact note (POST /v2/contacts/{id}/notes)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if contactID == "" {
 				return &usageError{msg: "--contact-id is required"}
@@ -121,9 +124,10 @@ func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 func (s *Service) newNoteUpdateCmd(token string) *cobra.Command {
 	var contactID, noteID, text, title, noteType, jsonBody string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a contact note (PATCH /v2/contacts/{id}/notes/{note_id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a contact note (PATCH /v2/contacts/{id}/notes/{note_id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if contactID == "" || noteID == "" {
 				return &usageError{msg: "--contact-id and --note-id are required"}
@@ -163,9 +167,10 @@ func (s *Service) newNoteUpdateCmd(token string) *cobra.Command {
 func (s *Service) newNoteDeleteCmd(token string) *cobra.Command {
 	var contactID, noteID string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a contact note (DELETE /v2/contacts/{id}/notes/{note_id})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a contact note (DELETE /v2/contacts/{id}/notes/{note_id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if contactID == "" || noteID == "" {
 				return &usageError{msg: "--contact-id and --note-id are required"}

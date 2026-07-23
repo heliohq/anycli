@@ -25,9 +25,10 @@ func (s *Service) newProfileCmd(token string) *cobra.Command {
 func (s *Service) newProfileListCmd(token string) *cobra.Command {
 	f := &listFlags{}
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List profiles (GET /profiles), e.g. --filter 'equals(email,\"x@y.com\")'",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List profiles (GET /profiles), e.g. --filter 'equals(email,\"x@y.com\")'",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := f.query("profile")
 			if err != nil {
@@ -47,9 +48,10 @@ func (s *Service) newProfileListCmd(token string) *cobra.Command {
 func (s *Service) newProfileGetCmd(token string) *cobra.Command {
 	f := &listFlags{}
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one profile (GET /profiles/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one profile (GET /profiles/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q, err := f.query("profile")
 			if err != nil {
@@ -69,9 +71,10 @@ func (s *Service) newProfileGetCmd(token string) *cobra.Command {
 func (s *Service) newProfileCreateCmd(token string) *cobra.Command {
 	var email, phone, externalID, data string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a profile (POST /profiles) from --email/--phone/--external-id or --data",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a profile (POST /profiles) from --email/--phone/--external-id or --data",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := profileWriteBody("profile", "", email, phone, externalID, data)
 			if err != nil {
@@ -91,9 +94,10 @@ func (s *Service) newProfileCreateCmd(token string) *cobra.Command {
 func (s *Service) newProfileUpdateCmd(token string) *cobra.Command {
 	var email, phone, externalID, data string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a profile (PATCH /profiles/{id}) from --email/--phone/--external-id or --data",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a profile (PATCH /profiles/{id}) from --email/--phone/--external-id or --data",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := profileWriteBody("profile", args[0], email, phone, externalID, data)
 			if err != nil {

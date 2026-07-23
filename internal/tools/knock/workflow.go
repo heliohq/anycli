@@ -29,9 +29,10 @@ func (s *Service) newWorkflowTriggerCmd(key string) *cobra.Command {
 		idempotencyKey  string
 	)
 	cmd := &cobra.Command{
-		Use:   "trigger",
-		Short: "Trigger a workflow to notify one or more recipients",
-		Args:  cobra.NoArgs,
+		Use:         "trigger",
+		Short:       "Trigger a workflow to notify one or more recipients",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("key", workflowKey); err != nil {
 				return err
@@ -99,9 +100,10 @@ func (s *Service) newWorkflowCancelCmd(key string) *cobra.Command {
 		recipient       []string
 	)
 	cmd := &cobra.Command{
-		Use:   "cancel",
-		Short: "Cancel queued workflow runs by cancellation key",
-		Args:  cobra.NoArgs,
+		Use:         "cancel",
+		Short:       "Cancel queued workflow runs by cancellation key",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireID("key", workflowKey); err != nil {
 				return err

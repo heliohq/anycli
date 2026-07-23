@@ -24,9 +24,10 @@ func (s *Service) subscriberCmd(token string) *cobra.Command {
 func (s *Service) subscriberListCmd(token string) *cobra.Command {
 	var status, emailAddress, createdAfter, createdBefore string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List subscribers (one page; use --after to continue)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List subscribers (one page; use --after to continue)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(cmd)
 	cmd.Flags().StringVar(&status, "status", "", "active|inactive|bounced|complained|cancelled|all")
@@ -59,9 +60,10 @@ func (s *Service) subscriberListCmd(token string) *cobra.Command {
 
 func (s *Service) subscriberGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Show one subscriber",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Show one subscriber",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/subscribers/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -76,9 +78,10 @@ func (s *Service) subscriberCreateCmd(token string) *cobra.Command {
 	var email, firstName, state string
 	var fields map[string]string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create or upsert a subscriber",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create or upsert a subscriber",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if email == "" {
 				return &usageError{msg: "--email is required"}
@@ -115,9 +118,10 @@ func (s *Service) subscriberUpdateCmd(token string) *cobra.Command {
 	var email, firstName string
 	var fields map[string]string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a subscriber's attributes",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a subscriber's attributes",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{}
 			if email != "" {
@@ -151,9 +155,10 @@ func (s *Service) subscriberUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) subscriberUnsubscribeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "unsubscribe <id>",
-		Short: "Unsubscribe a subscriber",
-		Args:  cobra.ExactArgs(1),
+		Use:         "unsubscribe <id>",
+		Short:       "Unsubscribe a subscriber",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := strconv.Atoi(args[0])
 			if err != nil || id <= 0 {

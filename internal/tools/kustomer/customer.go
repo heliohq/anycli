@@ -10,9 +10,10 @@ import (
 // newCustomerGetCmd: GET /customers/{id}.
 func (s *Service) newCustomerGetCmd(base, token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get a customer by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get a customer by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), base, token, http.MethodGet, "/customers/"+url.PathEscape(args[0]), nil)
 			if err != nil {
@@ -28,9 +29,10 @@ func (s *Service) newCustomerGetCmd(base, token string) *cobra.Command {
 // exact form).
 func (s *Service) newCustomerGetByEmailCmd(base, token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-by-email <email>",
-		Short: "Get a customer by email address",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get-by-email <email>",
+		Short:       "Get a customer by email address",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), base, token, http.MethodGet, "/customers/email="+url.PathEscape(args[0]), nil)
 			if err != nil {
@@ -44,9 +46,10 @@ func (s *Service) newCustomerGetByEmailCmd(base, token string) *cobra.Command {
 // newCustomerConversationsCmd: GET /customers/{id}/conversations.
 func (s *Service) newCustomerConversationsCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "conversations <id>",
-		Short: "List a customer's conversations",
-		Args:  cobra.ExactArgs(1),
+		Use:         "conversations <id>",
+		Short:       "List a customer's conversations",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -66,9 +69,10 @@ func (s *Service) newCustomerConversationsCmd(base, token string) *cobra.Command
 // newCustomerCreateCmd: POST /customers with a raw JSON body.
 func (s *Service) newCustomerCreateCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a customer from a JSON body",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a customer from a JSON body",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	data, file := registerBodyFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {

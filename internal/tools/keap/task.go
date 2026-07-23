@@ -22,9 +22,10 @@ func (s *Service) newTaskCmd(token string) *cobra.Command {
 func (s *Service) newTaskListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tasks (GET /v2/tasks)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tasks (GET /v2/tasks)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/tasks", lf.values(), nil)
 			if err != nil {
@@ -39,9 +40,10 @@ func (s *Service) newTaskListCmd(token string) *cobra.Command {
 
 func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <task-id>",
-		Short: "Get a task (GET /v2/tasks/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <task-id>",
+		Short:       "Get a task (GET /v2/tasks/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/tasks/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -105,9 +107,10 @@ func (f *taskBodyFlags) build() (map[string]any, error) {
 func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 	var f *taskBodyFlags
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a task (POST /v2/tasks)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a task (POST /v2/tasks)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := f.build()
 			if err != nil {
@@ -130,9 +133,10 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 	var f *taskBodyFlags
 	cmd := &cobra.Command{
-		Use:   "update <task-id>",
-		Short: "Update a task (PATCH /v2/tasks/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <task-id>",
+		Short:       "Update a task (PATCH /v2/tasks/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := f.build()
 			if err != nil {
@@ -154,9 +158,10 @@ func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newTaskDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <task-id>",
-		Short: "Delete a task (DELETE /v2/tasks/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <task-id>",
+		Short:       "Delete a task (DELETE /v2/tasks/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/v2/tasks/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

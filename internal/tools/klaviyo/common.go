@@ -12,9 +12,10 @@ import (
 func (s *Service) newCollectionListCmd(token, use, short, path, resourceType string) *cobra.Command {
 	f := &listFlags{}
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := f.query(resourceType)
 			if err != nil {
@@ -36,9 +37,10 @@ func (s *Service) newCollectionListCmd(token, use, short, path, resourceType str
 func (s *Service) newResourceGetCmd(token, use, short, pathPrefix, resourceType string) *cobra.Command {
 	f := &listFlags{}
 	cmd := &cobra.Command{
-		Use:   use + " <id>",
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:         use + " <id>",
+		Short:       short,
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q, err := f.query(resourceType)
 			if err != nil {

@@ -10,9 +10,10 @@ import (
 // (free-form "find customers where…").
 func (s *Service) newSearchCustomersCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "customers",
-		Short: "Search customers with a JSON query body",
-		Args:  cobra.NoArgs,
+		Use:         "customers",
+		Short:       "Search customers with a JSON query body",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	data, file := registerBodyFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {

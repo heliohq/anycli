@@ -14,9 +14,10 @@ func (s *Service) sequenceCmd(token string) *cobra.Command {
 	group := newGroupCmd("sequence", "Manage sequences (automations)")
 
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List sequences (one page; use --after to continue)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List sequences (one page; use --after to continue)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(list)
 	list.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -32,9 +33,10 @@ func (s *Service) sequenceCmd(token string) *cobra.Command {
 	var sequenceID, subscriberID int
 	var email string
 	add := &cobra.Command{
-		Use:   "add",
-		Short: "Enroll a subscriber into a sequence",
-		Args:  cobra.NoArgs,
+		Use:         "add",
+		Short:       "Enroll a subscriber into a sequence",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requirePositive("sequence-id", sequenceID); err != nil {
 				return err
@@ -65,9 +67,10 @@ func (s *Service) formCmd(token string) *cobra.Command {
 	group := newGroupCmd("form", "Manage forms and form subscriptions")
 
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List forms (one page; use --after to continue)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List forms (one page; use --after to continue)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(list)
 	list.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -83,9 +86,10 @@ func (s *Service) formCmd(token string) *cobra.Command {
 	var formID, subscriberID int
 	var email string
 	add := &cobra.Command{
-		Use:   "add",
-		Short: "Subscribe a contact to a form",
-		Args:  cobra.NoArgs,
+		Use:         "add",
+		Short:       "Subscribe a contact to a form",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requirePositive("form-id", formID); err != nil {
 				return err
@@ -116,9 +120,10 @@ func (s *Service) customFieldCmd(token string) *cobra.Command {
 	group := newGroupCmd("custom-field", "Manage custom fields")
 
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List custom fields (one page; use --after to continue)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List custom fields (one page; use --after to continue)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(list)
 	list.RunE = func(cmd *cobra.Command, _ []string) error {
@@ -133,9 +138,10 @@ func (s *Service) customFieldCmd(token string) *cobra.Command {
 
 	var label string
 	create := &cobra.Command{
-		Use:   "create",
-		Short: "Create a custom field",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a custom field",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if label == "" {
 				return &usageError{msg: "--label is required"}
@@ -159,9 +165,10 @@ func (s *Service) segmentCmd(token string) *cobra.Command {
 	group := newGroupCmd("segment", "Enumerate saved segments")
 
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List segments (one page; use --after to continue)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List segments (one page; use --after to continue)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	lf := registerListFlags(list)
 	list.RunE = func(cmd *cobra.Command, _ []string) error {

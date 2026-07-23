@@ -27,9 +27,10 @@ func (s *Service) newContactListCmd(token string) *cobra.Command {
 	var perPage int
 	var startingAfter string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List contacts (GET /contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contacts (GET /contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if perPage > 0 {
@@ -54,9 +55,10 @@ func (s *Service) newContactSearchCmd(token string) *cobra.Command {
 	var sf searchFlags
 	var email, updatedSince string
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search contacts (POST /contacts/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search contacts (POST /contacts/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var filters []map[string]any
 			if email != "" {
@@ -85,9 +87,10 @@ func (s *Service) newContactSearchCmd(token string) *cobra.Command {
 func (s *Service) newContactGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one contact (GET /contacts/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one contact (GET /contacts/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/contacts/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -104,9 +107,10 @@ func (s *Service) newContactGetCmd(token string) *cobra.Command {
 func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 	var role, email, externalID, name, phone, bodyJSON string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact (POST /contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact (POST /contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := contactBody(role, email, externalID, name, phone, bodyJSON)
 			if err != nil {
@@ -131,9 +135,10 @@ func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 func (s *Service) newContactUpdateCmd(token string) *cobra.Command {
 	var id, role, email, externalID, name, phone, bodyJSON string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a contact (PUT /contacts/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a contact (PUT /contacts/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := contactBody(role, email, externalID, name, phone, bodyJSON)
 			if err != nil {
@@ -190,9 +195,10 @@ func contactBody(role, email, externalID, name, phone, bodyJSON string) (map[str
 func (s *Service) newContactNoteCmd(token string) *cobra.Command {
 	var id, body, adminID string
 	cmd := &cobra.Command{
-		Use:   "note",
-		Short: "Attach a note to a contact (POST /contacts/{id}/notes)",
-		Args:  cobra.NoArgs,
+		Use:         "note",
+		Short:       "Attach a note to a contact (POST /contacts/{id}/notes)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"body": body}
 			if adminID != "" {
@@ -216,9 +222,10 @@ func (s *Service) newContactNoteCmd(token string) *cobra.Command {
 func (s *Service) newContactTagCmd(token string) *cobra.Command {
 	var id, tagID string
 	cmd := &cobra.Command{
-		Use:   "tag",
-		Short: "Add a tag to a contact (POST /contacts/{id}/tags)",
-		Args:  cobra.NoArgs,
+		Use:         "tag",
+		Short:       "Add a tag to a contact (POST /contacts/{id}/tags)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"id": tagID}
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/contacts/"+url.PathEscape(id)+"/tags", nil, payload)

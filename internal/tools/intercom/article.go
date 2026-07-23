@@ -28,9 +28,10 @@ func (s *Service) newArticleListCmd(token string) *cobra.Command {
 	var perPage int
 	var page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List articles (GET /articles)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List articles (GET /articles)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if perPage > 0 {
@@ -54,9 +55,10 @@ func (s *Service) newArticleListCmd(token string) *cobra.Command {
 func (s *Service) newArticleGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one article (GET /articles/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one article (GET /articles/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/articles/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -73,9 +75,10 @@ func (s *Service) newArticleGetCmd(token string) *cobra.Command {
 func (s *Service) newArticleSearchCmd(token string) *cobra.Command {
 	var phrase, state string
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search articles by phrase (GET /articles/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search articles by phrase (GET /articles/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("phrase", phrase)
@@ -98,9 +101,10 @@ func (s *Service) newArticleSearchCmd(token string) *cobra.Command {
 func (s *Service) newArticleCreateCmd(token string) *cobra.Command {
 	var title, authorID, body, state, parentID, bodyJSON string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an article (POST /articles)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an article (POST /articles)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := articleBody(title, authorID, body, state, parentID)
 			if err := mergeBodyJSON(payload, bodyJSON); err != nil {
@@ -122,9 +126,10 @@ func (s *Service) newArticleCreateCmd(token string) *cobra.Command {
 func (s *Service) newArticleUpdateCmd(token string) *cobra.Command {
 	var id, title, authorID, body, state, parentID, bodyJSON string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update an article (PUT /articles/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update an article (PUT /articles/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := articleBody(title, authorID, body, state, parentID)
 			if err := mergeBodyJSON(payload, bodyJSON); err != nil {
@@ -147,9 +152,10 @@ func (s *Service) newArticleCollectionListCmd(token string) *cobra.Command {
 	var perPage int
 	var page int
 	cmd := &cobra.Command{
-		Use:   "collection-list",
-		Short: "List Help Center collections (GET /help_center/collections)",
-		Args:  cobra.NoArgs,
+		Use:         "collection-list",
+		Short:       "List Help Center collections (GET /help_center/collections)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if perPage > 0 {

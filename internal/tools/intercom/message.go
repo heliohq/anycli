@@ -18,9 +18,10 @@ func (s *Service) newMessageCmd(token string) *cobra.Command {
 func (s *Service) newMessageSendCmd(token string) *cobra.Command {
 	var messageType, subject, body, template, fromAdminID, toContactID, toEmail, bodyJSON string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send an admin-initiated message to a contact (POST /messages)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send an admin-initiated message to a contact (POST /messages)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			admin, err := s.resolveAdminID(cmd.Context(), token, fromAdminID)
 			if err != nil {
