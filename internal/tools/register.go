@@ -99,6 +99,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/paperform"
 	"github.com/heliohq/anycli/internal/tools/paypal"
 	"github.com/heliohq/anycli/internal/tools/pennylane"
+	"github.com/heliohq/anycli/internal/tools/phantombuster"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -219,4 +220,5 @@ func init() {
 	RegisterService("mixpanel", &mixpanel.Service{})
 	RegisterService("moz", &moz.Service{})
 	RegisterService("onesignal", &onesignal.Service{})
+	RegisterService("phantombuster", &phantombuster.Service{})
 }
