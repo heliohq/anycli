@@ -135,6 +135,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/tally"
 	"github.com/heliohq/anycli/internal/tools/tasks"
 	"github.com/heliohq/anycli/internal/tools/tiktok"
+	"github.com/heliohq/anycli/internal/tools/twitch"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
 
@@ -283,4 +284,5 @@ func init() {
 	RegisterService("sprout-social", &sproutsocial.Service{})
 	RegisterService("surveymonkey", &surveymonkey.Service{})
 	RegisterService("tally", &tally.Service{})
+	RegisterService("twitch", &twitch.Service{})
 }
