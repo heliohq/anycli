@@ -1,0 +1,13 @@
+{
+  "name": "freshservice",
+  "type": "service",
+  "description": "Freshservice ITSM (tickets, requesters, agents, groups, assets) via the v2 REST API — per-account domain + API key",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "freshservice_url"},
+        "inject": {"type": "env", "env_var": "FRESHSERVICE_URL"}
+      }
+    ]
+  }
+}

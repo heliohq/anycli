@@ -45,6 +45,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/gateprobe"
 	"github.com/heliohq/anycli/internal/tools/formstack"
 	"github.com/heliohq/anycli/internal/tools/freshdesk"
+	"github.com/heliohq/anycli/internal/tools/freshservice"
 	"github.com/heliohq/anycli/internal/tools/gmail"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
@@ -127,4 +128,5 @@ func init() {
 	RegisterService("dataforseo", &dataforseo.Service{})
 	RegisterService("dropbox-sign", &dropboxsign.Service{})
 	RegisterService("freshdesk", &freshdesk.Service{})
+	RegisterService("freshservice", &freshservice.Service{})
 }
