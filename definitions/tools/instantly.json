@@ -1,0 +1,13 @@
+{
+  "name": "instantly",
+  "type": "service",
+  "description": "Instantly cold-email platform (campaigns, leads, Unibox, warmup analytics)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "INSTANTLY_API_KEY"}
+      }
+    ]
+  }
+}
