@@ -25,9 +25,10 @@ func (s *Service) newMailSendCmd(token string, region *string) *cobra.Command {
 	var to, cc, bcc []string
 	var from, fromName, subject, text, html, templateID, dataJSON, replyTo, fullJSON string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send an email (POST /v3/mail/send)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send an email (POST /v3/mail/send)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := buildMailPayload(mailInput{
 				to: to, cc: cc, bcc: bcc,

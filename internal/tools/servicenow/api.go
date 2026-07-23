@@ -18,9 +18,10 @@ func (s *Service) newAPICmd(c *client) *cobra.Command {
 	var body string
 	var queries, headers []string
 	cmd := &cobra.Command{
-		Use:   "api <method> <path>",
-		Short: "Make a raw ServiceNow REST request",
-		Args:  cobra.ExactArgs(2),
+		Use:         "api <method> <path>",
+		Short:       "Make a raw ServiceNow REST request",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			method := strings.ToUpper(strings.TrimSpace(args[0]))
 			path, err := normalizeAPIPath(args[1])

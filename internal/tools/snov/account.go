@@ -16,9 +16,10 @@ func (s *Service) newAccountCmd(creds clientCreds) *cobra.Command {
 		Short: "Account credits and status",
 	}
 	cmd.AddCommand(&cobra.Command{
-		Use:   "balance",
-		Short: "Report remaining Snov.io credits (free; also the connectivity check)",
-		Args:  cobra.NoArgs,
+		Use:         "balance",
+		Short:       "Report remaining Snov.io credits (free; also the connectivity check)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.callV1(cmd.Context(), creds, http.MethodGet, "/v1/get-balance", url.Values{})
 			if err != nil {

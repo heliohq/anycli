@@ -90,6 +90,12 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	return execution.Result{}, nil
 }
 
+// readOnly carries the design-318 anycli.side_effect annotation for runnable
+// leaf commands. Every Snov command is a lookup/search/enrich read (balance,
+// email finder/verifier, profile enrichment) — no provider-state mutation — so
+// all leaves carry it.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+
 func (s *Service) newRoot(clientID, clientSecret string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "snov",

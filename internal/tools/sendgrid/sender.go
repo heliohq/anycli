@@ -16,9 +16,10 @@ func (s *Service) newSenderCmd(token string, region *string) *cobra.Command {
 // identities that are valid `from` addresses for `mail send`.
 func (s *Service) newSenderListCmd(token string, region *string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List verified sender identities (GET /v3/verified_senders)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List verified sender identities (GET /v3/verified_senders)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, *region, http.MethodGet, "/verified_senders", nil, nil)
 			if err != nil {

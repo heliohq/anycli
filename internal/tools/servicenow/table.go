@@ -61,9 +61,10 @@ func (o *queryOptions) toValues() (url.Values, error) {
 func (s *Service) newTableQueryCmd(c *client) *cobra.Command {
 	var o queryOptions
 	cmd := &cobra.Command{
-		Use:   "query <table>",
-		Short: "List/query records in a table (GET)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "query <table>",
+		Short:       "List/query records in a table (GET)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			v, err := o.toValues()
 			if err != nil {
@@ -83,9 +84,10 @@ func (s *Service) newTableQueryCmd(c *client) *cobra.Command {
 func (s *Service) newTableGetCmd(c *client) *cobra.Command {
 	var o queryOptions
 	cmd := &cobra.Command{
-		Use:   "get <table> <sys_id>",
-		Short: "Get one record by sys_id (GET)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "get <table> <sys_id>",
+		Short:       "Get one record by sys_id (GET)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			v, err := o.toValues()
 			if err != nil {
@@ -105,9 +107,10 @@ func (s *Service) newTableGetCmd(c *client) *cobra.Command {
 func (s *Service) newTableCreateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "create <table>",
-		Short: "Create a record (POST)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <table>",
+		Short:       "Create a record (POST)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := parseDataObject(data)
 			if err != nil {
@@ -128,9 +131,10 @@ func (s *Service) newTableCreateCmd(c *client) *cobra.Command {
 func (s *Service) newTableUpdateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "update <table> <sys_id>",
-		Short: "Update a record by sys_id (PATCH)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "update <table> <sys_id>",
+		Short:       "Update a record by sys_id (PATCH)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := parseDataObject(data)
 			if err != nil {
@@ -150,9 +154,10 @@ func (s *Service) newTableUpdateCmd(c *client) *cobra.Command {
 
 func (s *Service) newTableDeleteCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <table> <sys_id>",
-		Short: "Delete a record by sys_id (DELETE)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "delete <table> <sys_id>",
+		Short:       "Delete a record by sys_id (DELETE)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := c.callTable(cmd.Context(), http.MethodDelete, args[0], args[1], nil, nil); err != nil {
 				return err

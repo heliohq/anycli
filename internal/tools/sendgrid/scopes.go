@@ -11,9 +11,10 @@ import (
 // scope-readable); a Full Access key returns {"scopes":[...]}.
 func (s *Service) newScopesCmd(token string, region *string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "scopes",
-		Short: "List the API key's granted scopes (GET /v3/scopes)",
-		Args:  cobra.NoArgs,
+		Use:         "scopes",
+		Short:       "List the API key's granted scopes (GET /v3/scopes)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, *region, http.MethodGet, "/scopes", nil, nil)
 			if err != nil {

@@ -33,9 +33,10 @@ func (s *Service) newMetadataCmd(token string) *cobra.Command {
 // only endpoint with no customer-id path segment.
 func (s *Service) newMetadataClientCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "client",
-		Short: "List the customers this token can access (GET /v1/metadata/client)",
-		Args:  cobra.NoArgs,
+		Use:         "client",
+		Short:       "List the customers this token can access (GET /v1/metadata/client)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/v1/metadata/client", nil)
 			if err != nil {
@@ -49,9 +50,10 @@ func (s *Service) newMetadataClientCmd(token string) *cobra.Command {
 // newMetadataProfilesCmd lists the customer's social profiles.
 func (s *Service) newMetadataProfilesCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "profiles",
-		Short: "List the customer's social profiles (GET /v1/{cid}/metadata/customer)",
-		Args:  cobra.NoArgs,
+		Use:         "profiles",
+		Short:       "List the customer's social profiles (GET /v1/{cid}/metadata/customer)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cid, err := resolveCID(cmd)
 			if err != nil {
@@ -70,9 +72,10 @@ func (s *Service) newMetadataProfilesCmd(token string) *cobra.Command {
 // command.
 func (s *Service) newMetadataResourceCmd(token, use, resource, short string) *cobra.Command {
 	return &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cid, err := resolveCID(cmd)
 			if err != nil {

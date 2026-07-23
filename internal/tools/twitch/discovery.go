@@ -16,9 +16,10 @@ func (s *Service) newStreamListCmd(rc *reqCtx) *cobra.Command {
 		page                                    paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List live streams (optionally filtered)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List live streams (optionally filtered)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			addRepeated(q, "user_id", userIDs)
@@ -51,9 +52,10 @@ func (s *Service) newStreamFollowedCmd(rc *reqCtx) *cobra.Command {
 	var userID string
 	var page paginationFlags
 	cmd := &cobra.Command{
-		Use:   "followed",
-		Short: "List live streams from channels you follow",
-		Args:  cobra.NoArgs,
+		Use:         "followed",
+		Short:       "List live streams from channels you follow",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := s.broadcasterOrSelf(cmd.Context(), rc, userID)
 			if err != nil {
@@ -83,9 +85,10 @@ func (s *Service) newSearchChannelsCmd(rc *reqCtx) *cobra.Command {
 		page     paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:   "channels",
-		Short: "Search channels by query",
-		Args:  cobra.NoArgs,
+		Use:         "channels",
+		Short:       "Search channels by query",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if query == "" {
 				return &usageError{msg: "twitch: search channels requires --query"}

@@ -52,6 +52,14 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	return execution.Result{}, nil
 }
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaf commands: "false" for reads (creator info, user info, video
+// list/query, post status), "true" for publishing a video (mutates state).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 func (s *Service) newRoot(token, openID string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "tiktok",

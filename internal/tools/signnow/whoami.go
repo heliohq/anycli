@@ -21,9 +21,10 @@ type rawUser struct {
 
 func (s *Service) newWhoamiCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "whoami",
-		Short: "Show the authenticated SignNow account",
-		Args:  cobra.NoArgs,
+		Use:         "whoami",
+		Short:       "Show the authenticated SignNow account",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			u, err := s.fetchUser(cmd.Context(), token)
 			if err != nil {

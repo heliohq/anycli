@@ -20,9 +20,10 @@ func (s *Service) newClipListCmd(rc *reqCtx) *cobra.Command {
 		page          paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List clips by broadcaster, game, or clip id",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List clips by broadcaster, game, or clip id",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			selectors := 0
 			if broadcasterID != "" {
@@ -76,9 +77,10 @@ func (s *Service) newClipCreateCmd(rc *reqCtx) *cobra.Command {
 		hasDelay      bool
 	)
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a clip from a live stream (self by default)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a clip from a live stream (self by default)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := s.broadcasterOrSelf(cmd.Context(), rc, broadcasterID)
 			if err != nil {
@@ -113,9 +115,10 @@ func (s *Service) newVideoListCmd(rc *reqCtx) *cobra.Command {
 		page      paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List videos (VODs) by id, user, or game",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List videos (VODs) by id, user, or game",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			selectors := 0
 			if len(ids) > 0 {

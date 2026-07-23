@@ -20,6 +20,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaf commands: "false" for reads (GET / search lookups), "true" for
+// provider-state mutations (send / upsert).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // DefaultBaseURL is the production SendGrid v3 API base (global host).
 const DefaultBaseURL = "https://api.sendgrid.com/v3"
 

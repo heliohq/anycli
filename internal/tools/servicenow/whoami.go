@@ -14,9 +14,10 @@ import (
 // the credential works and reveals which user the key acts as.
 func (s *Service) newWhoamiCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "whoami",
-		Short: "Verify the API key and echo the integration user's identity",
-		Args:  cobra.NoArgs,
+		Use:         "whoami",
+		Short:       "Verify the API key and echo the integration user's identity",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			v := url.Values{}
 			v.Set("sysparm_query", "sys_id=javascript:gs.getUserID()")

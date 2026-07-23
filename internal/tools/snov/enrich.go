@@ -21,9 +21,10 @@ func (s *Service) newEnrichCmd(creds clientCreds) *cobra.Command {
 func (s *Service) newEnrichByEmailCmd(creds clientCreds) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   "by-email",
-		Short: "Enrich a person profile from a known email (consumes credits)",
-		Args:  cobra.NoArgs,
+		Use:         "by-email",
+		Short:       "Enrich a person profile from a known email (consumes credits)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			params := url.Values{}
 			params.Set("email", email)

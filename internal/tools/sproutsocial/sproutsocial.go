@@ -142,6 +142,14 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaf commands: "false" for reads (analytics/inbox/cases queries and
+// metadata GETs), "true" for the draft-post creation that mutates provider state.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // newRoot builds the resource-grouped cobra tree. The global --customer-id flag
 // defaults to the env-injected customer id and overrides it per invocation.
 func (s *Service) newRoot(token, defaultCustomerID string) *cobra.Command {

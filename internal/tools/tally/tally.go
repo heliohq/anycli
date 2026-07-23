@@ -108,6 +108,14 @@ func (s *Service) renderError(jsonMode bool, err error) {
 	fmt.Fprintln(s.stderr(), string(b))
 }
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaf commands: "false" for reads (list/get/questions/analytics/me),
+// "true" for provider-state mutations (form + webhook create/update/delete).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "tally",

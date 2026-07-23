@@ -17,9 +17,10 @@ func (s *Service) newFollowerListCmd(rc *reqCtx) *cobra.Command {
 		page          paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List a channel's followers (self by default)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List a channel's followers (self by default)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := s.broadcasterOrSelf(cmd.Context(), rc, broadcasterID)
 			if err != nil {
@@ -50,9 +51,10 @@ func (s *Service) newFollowerListCmd(rc *reqCtx) *cobra.Command {
 func (s *Service) newSubscriberListCmd(rc *reqCtx) *cobra.Command {
 	var page paginationFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List your channel's subscribers",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List your channel's subscribers",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := s.resolveSelfID(cmd.Context(), rc)
 			if err != nil {
@@ -89,9 +91,10 @@ func (s *Service) newChatSendCmd(rc *reqCtx) *cobra.Command {
 		replyParentMsg string
 	)
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a chat message to a channel (self by default)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a chat message to a channel (self by default)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if message == "" {
 				return &usageError{msg: "twitch: chat send requires --message"}
@@ -132,9 +135,10 @@ func (s *Service) newChattersCmd(rc *reqCtx) *cobra.Command {
 		page          paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:   "chatters",
-		Short: "List users connected to a channel's chat (self by default)",
-		Args:  cobra.NoArgs,
+		Use:         "chatters",
+		Short:       "List users connected to a channel's chat (self by default)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			moderatorID, err := s.resolveSelfID(cmd.Context(), rc)
 			if err != nil {

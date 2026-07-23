@@ -16,9 +16,10 @@ func (s *Service) newUserCmd(token string) *cobra.Command {
 func (s *Service) newUserInfoCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "info",
-		Short: "Show the connected TikTok creator",
-		Args:  cobra.NoArgs,
+		Use:         "info",
+		Short:       "Show the connected TikTok creator",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := url.Values{"fields": {fields}}
 			data, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/user/info/", query, nil)

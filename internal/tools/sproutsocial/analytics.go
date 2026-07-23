@@ -91,9 +91,10 @@ func (s *Service) newAnalyticsCmd(token string) *cobra.Command {
 func (s *Service) newAnalyticsPostCmd(token, use, resource, short string) *cobra.Command {
 	var q queryFlags
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cid, err := resolveCID(cmd)
 			if err != nil {
@@ -128,9 +129,10 @@ func (s *Service) newMessagesCmd(token string) *cobra.Command {
 func (s *Service) newMessagesListCmd(token string) *cobra.Command {
 	var q queryFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List inbox messages (POST /v1/{cid}/messages)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List inbox messages (POST /v1/{cid}/messages)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cid, err := resolveCID(cmd)
 			if err != nil {
@@ -164,9 +166,10 @@ func (s *Service) newCasesCmd(token string) *cobra.Command {
 func (s *Service) newCasesFilterCmd(token string) *cobra.Command {
 	var q queryFlags
 	cmd := &cobra.Command{
-		Use:   "filter",
-		Short: "Filter support cases (POST /v1/{cid}/cases/filter)",
-		Args:  cobra.NoArgs,
+		Use:         "filter",
+		Short:       "Filter support cases (POST /v1/{cid}/cases/filter)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cid, err := resolveCID(cmd)
 			if err != nil {

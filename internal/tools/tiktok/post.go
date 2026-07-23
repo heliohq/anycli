@@ -12,9 +12,10 @@ import (
 func (s *Service) newCreatorCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{Use: "creator", Short: "Content-posting prerequisites"}
 	cmd.AddCommand(&cobra.Command{
-		Use:   "info",
-		Short: "Query posting options and limits for the creator",
-		Args:  cobra.NoArgs,
+		Use:         "info",
+		Short:       "Query posting options and limits for the creator",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			data, err := s.call(cmd.Context(), token, http.MethodPost, "/v2/post/publish/creator_info/query/", nil, map[string]any{})
 			if err != nil {
@@ -39,9 +40,10 @@ func (s *Service) newPostVideoCmd(token string) *cobra.Command {
 	var title, file, videoURL, privacy string
 	var draft bool
 	cmd := &cobra.Command{
-		Use:   "video",
-		Short: "Post a video (direct post) or upload it as a draft",
-		Args:  cobra.NoArgs,
+		Use:         "video",
+		Short:       "Post a video (direct post) or upload it as a draft",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireExactlyOne("--file", file, "--url", videoURL); err != nil {
 				return err
@@ -92,9 +94,10 @@ func (s *Service) newPostVideoCmd(token string) *cobra.Command {
 func (s *Service) newPostStatusCmd(token string) *cobra.Command {
 	var publishID string
 	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "Fetch the processing status of a post",
-		Args:  cobra.NoArgs,
+		Use:         "status",
+		Short:       "Fetch the processing status of a post",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if publishID == "" {
 				return errRequired("--publish-id")

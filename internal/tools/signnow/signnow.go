@@ -152,6 +152,15 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaf commands: "false" for reads (GET list/get/download), "true" for
+// provider-state mutations (upload / add-fields / delete / invite / template /
+// link create).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // newRoot builds the grouped-by-resource cobra tree: whoami is top-level;
 // document / invite / template / link each hang under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {

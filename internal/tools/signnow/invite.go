@@ -15,9 +15,10 @@ func (s *Service) newInviteSendCmd(token string) *cobra.Command {
 	var to, email, subject, message, from string
 	var noEmail bool
 	cmd := &cobra.Command{
-		Use:   "send <document-id>",
-		Short: "Send a document for signature (role-based field invite or free-form invite)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "send <document-id>",
+		Short:       "Send a document for signature (role-based field invite or free-form invite)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			docID := args[0]
 			hasTo := strings.TrimSpace(to) != ""
@@ -87,9 +88,10 @@ func (s *Service) resolveSender(ctx context.Context, token, explicit string) (st
 
 func (s *Service) newInviteResendCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "resend <field-invite-id>",
-		Short: "Resend / remind a pending field invite",
-		Args:  cobra.ExactArgs(1),
+		Use:         "resend <field-invite-id>",
+		Short:       "Resend / remind a pending field invite",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
 			if _, err := s.call(cmd.Context(), token, http.MethodPut, "/fieldinvite/"+url.PathEscape(id)+"/resend", nil, map[string]any{}); err != nil {
@@ -103,9 +105,10 @@ func (s *Service) newInviteResendCmd(token string) *cobra.Command {
 
 func (s *Service) newInviteCancelCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "cancel <document-id>",
-		Short: "Cancel a document's field invite (recall a sent document)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "cancel <document-id>",
+		Short:       "Cancel a document's field invite (recall a sent document)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			docID := args[0]
 			if _, err := s.call(cmd.Context(), token, http.MethodPut, "/document/"+url.PathEscape(docID)+"/fieldinvitecancel", nil, map[string]any{}); err != nil {
