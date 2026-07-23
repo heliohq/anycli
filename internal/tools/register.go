@@ -36,6 +36,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/docusign"
 	"github.com/heliohq/anycli/internal/tools/drive"
 	"github.com/heliohq/anycli/internal/tools/dropboxsign"
+	"github.com/heliohq/anycli/internal/tools/expensify"
 	"github.com/heliohq/anycli/internal/tools/figma"
 	"github.com/heliohq/anycli/internal/tools/forms"
 	"github.com/heliohq/anycli/internal/tools/gateprobe"
@@ -103,6 +104,7 @@ func init() {
 	RegisterService("microsoft-onedrive", &microsoftonedrive.Service{})
 	RegisterService("mongodb", &mongodb.Service{})
 	RegisterService("chargebee", &chargebee.Service{})
+	RegisterService("expensify", &expensify.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility
