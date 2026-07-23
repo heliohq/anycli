@@ -380,8 +380,8 @@ func TestNewCommandTreeTraversable(t *testing.T) {
 	if root == nil {
 		t.Fatal("NewCommandTree returned nil")
 	}
-	if root.Use != "bill-com" {
-		t.Errorf("root.Use = %q, want bill-com", root.Use)
+	if root.Use != "billcom" {
+		t.Errorf("root.Use = %q, want billcom", root.Use)
 	}
 	// Ensure the resource groups exist.
 	want := map[string]bool{"bill": false, "vendor": false, "invoice": false, "customer": false, "payment": false, "org": false, "whoami": false}

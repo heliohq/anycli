@@ -33,7 +33,7 @@ const (
 )
 
 // EnvAPIKey is the env var the credential binding injects
-// (definitions/tools/customer-io.json). The value is a workspace-scoped App
+// (definitions/tools/customerio.json). The value is a workspace-scoped App
 // API key; it is composed into "Authorization: Bearer <key>" by the service.
 const EnvAPIKey = "CUSTOMERIO_APP_API_KEY"
 
@@ -138,7 +138,7 @@ func (s *Service) stderr() io.Writer {
 // validation on non-runnable commands, a false success for an agent).
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "customer-io",
+		Use:           "customerio",
 		Short:         "Customer.io built-in service (App API)",
 		SilenceUsage:  true,
 		SilenceErrors: true,

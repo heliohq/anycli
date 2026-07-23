@@ -154,7 +154,7 @@ func (s *Service) stderr() io.Writer {
 // login->call dance.
 func (s *Service) newRoot(c *client) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "bill-com",
+		Use:           "billcom",
 		Short:         "BILL (Bill.com) AP/AR built-in service",
 		SilenceUsage:  true,
 		SilenceErrors: true,
