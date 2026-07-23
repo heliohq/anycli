@@ -112,6 +112,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/reddit"
 	"github.com/heliohq/anycli/internal/tools/resend"
 	"github.com/heliohq/anycli/internal/tools/rocketreach"
+	"github.com/heliohq/anycli/internal/tools/sage"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -158,6 +159,7 @@ func init() {
 	RegisterService("posthog", &posthog.Service{})
 	RegisterService("razorpay", &razorpay.Service{})
 	RegisterService("recurly", &recurly.Service{})
+	RegisterService("sage", &sage.Service{})
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("google-ads", &googleads.Service{})
