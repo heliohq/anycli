@@ -27,6 +27,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/contacts"
 	"github.com/heliohq/anycli/internal/tools/copper"
 	"github.com/heliohq/anycli/internal/tools/courier"
+	"github.com/heliohq/anycli/internal/tools/crisp"
 	"github.com/heliohq/anycli/internal/tools/discord"
 	"github.com/heliohq/anycli/internal/tools/docs"
 	"github.com/heliohq/anycli/internal/tools/drive"
@@ -103,4 +104,5 @@ func init() {
 	RegisterService("attio", &attio.Service{})
 	RegisterService("copper", &copper.Service{})
 	RegisterService("courier", &courier.Service{})
+	RegisterService("crisp", &crisp.Service{})
 }
