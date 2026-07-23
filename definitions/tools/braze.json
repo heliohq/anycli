@@ -1,0 +1,13 @@
+{
+  "name": "braze",
+  "type": "service",
+  "description": "Braze customer engagement — read campaign/Canvas/segment/KPI analytics, discover content, trigger and schedule messages, look up users (REST API key, Bearer auth)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "connection_string"},
+        "inject": {"type": "env", "env_var": "BRAZE_CREDENTIALS"}
+      }
+    ]
+  }
+}
