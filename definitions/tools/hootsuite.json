@@ -1,0 +1,13 @@
+{
+  "name": "hootsuite",
+  "type": "service",
+  "description": "Hootsuite as a tool (schedule and manage social posts; OAuth 2.0 user token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "HOOTSUITE_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

@@ -54,6 +54,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/gorgias"
 	"github.com/heliohq/anycli/internal/tools/gumroad"
 	"github.com/heliohq/anycli/internal/tools/helpscout"
+	"github.com/heliohq/anycli/internal/tools/hootsuite"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
@@ -99,6 +100,7 @@ func init() {
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("google-ads", &googleads.Service{})
+	RegisterService("hootsuite", &hootsuite.Service{})
 	RegisterService("slides", &slides.Service{})
 	RegisterService("calendar", &calendar.Service{})
 	RegisterService("calendly", &calendly.Service{})
