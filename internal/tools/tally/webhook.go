@@ -22,9 +22,10 @@ func (s *Service) newWebhookCmd(token string) *cobra.Command {
 func (s *Service) newWebhookListCmd(token string) *cobra.Command {
 	var page, limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List webhooks (GET /webhooks)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List webhooks (GET /webhooks)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if cmd.Flags().Changed("page") {
@@ -49,9 +50,10 @@ func (s *Service) newWebhookCreateCmd(token string) *cobra.Command {
 	var file string
 	var stdin bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a webhook (POST /webhooks)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a webhook (POST /webhooks)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.readBody(file, stdin)
 			if err != nil {
@@ -72,9 +74,10 @@ func (s *Service) newWebhookUpdateCmd(token string) *cobra.Command {
 	var webhook, file string
 	var stdin bool
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a webhook (PATCH /webhooks/{webhookId})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a webhook (PATCH /webhooks/{webhookId})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.readBody(file, stdin)
 			if err != nil {
@@ -96,9 +99,10 @@ func (s *Service) newWebhookUpdateCmd(token string) *cobra.Command {
 func (s *Service) newWebhookDeleteCmd(token string) *cobra.Command {
 	var webhook string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a webhook (DELETE /webhooks/{webhookId})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a webhook (DELETE /webhooks/{webhookId})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/webhooks/"+url.PathEscape(webhook), nil, nil)
 			if err != nil {

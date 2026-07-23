@@ -26,9 +26,10 @@ func (s *Service) newAnalyticsCmd(token string) *cobra.Command {
 func (s *Service) newAnalyticsMetricCmd(token, metric string) *cobra.Command {
 	var form, period string
 	cmd := &cobra.Command{
-		Use:   metric,
-		Short: "GET /forms/{formId}/analytics/" + metric,
-		Args:  cobra.NoArgs,
+		Use:         metric,
+		Short:       "GET /forms/{formId}/analytics/" + metric,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := oneOfFlag("period", period, analyticsPeriods); err != nil {
 				return err

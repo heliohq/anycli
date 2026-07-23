@@ -22,9 +22,10 @@ func (s *Service) newSuppressionCmd(token string, region *string) *cobra.Command
 func (s *Service) newSuppressionListCmd(token string, region *string, use, path, short string) *cobra.Command {
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("limit", intToString(limit))

@@ -10,6 +10,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly marks a leaf command as side-effect-free for the design-318 approval
+// gate. Every SerpApi command is a search/read GET, so all leaves carry it.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+
 // newSearchCmd builds `serpapi search`: one generic command over every SerpApi
 // engine. The cross-engine common params are first-class flags; engine-specific
 // params ride the repeatable `--param key=value` escape hatch. `--engine`
@@ -23,9 +27,10 @@ func (s *Service) newSearchCmd(apiKey string) *cobra.Command {
 		params                                                []string
 	)
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Run a live search (GET /search); --engine selects the vertical",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Run a live search (GET /search); --engine selects the vertical",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			// engine always ships (has a default); the rest ship only when set.
@@ -86,9 +91,10 @@ func (s *Service) newArchiveCmd(apiKey string) *cobra.Command {
 		Short: "Search Archive API (free re-read of a prior search)",
 	}
 	get := &cobra.Command{
-		Use:   "get <search_id>",
-		Short: "Fetch an archived search by id (GET /searches/<id>.json)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <search_id>",
+		Short:       "Fetch an archived search by id (GET /searches/<id>.json)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireKey(apiKey); err != nil {
 				return err
@@ -111,9 +117,10 @@ func (s *Service) newLocationsCmd() *cobra.Command {
 	var query string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "locations",
-		Short: "Resolve a place name to a canonical location (free, no credential)",
-		Args:  cobra.NoArgs,
+		Use:         "locations",
+		Short:       "Resolve a place name to a canonical location (free, no credential)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd.Flags(), q, "q", query, "q")
@@ -139,9 +146,10 @@ func (s *Service) newLocationsCmd() *cobra.Command {
 // before emit so the secret never reaches the agent transcript.
 func (s *Service) newAccountCmd(apiKey string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "account",
-		Short: "Account API: plan, searches left, rate limit (api_key redacted)",
-		Args:  cobra.NoArgs,
+		Use:         "account",
+		Short:       "Account API: plan, searches left, rate limit (api_key redacted)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireKey(apiKey); err != nil {
 				return err

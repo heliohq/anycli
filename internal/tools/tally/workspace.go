@@ -17,9 +17,10 @@ func (s *Service) newWorkspaceCmd(token string) *cobra.Command {
 func (s *Service) newWorkspaceListCmd(token string) *cobra.Command {
 	var page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List workspaces (GET /workspaces)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List workspaces (GET /workspaces)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if cmd.Flags().Changed("page") {
@@ -38,9 +39,10 @@ func (s *Service) newWorkspaceListCmd(token string) *cobra.Command {
 
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "me",
-		Short: "Get the authenticated user (GET /users/me)",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Get the authenticated user (GET /users/me)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/users/me", nil, nil)
 			if err != nil {

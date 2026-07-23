@@ -19,9 +19,10 @@ func (s *Service) newTemplateCmd(token string, region *string) *cobra.Command {
 func (s *Service) newTemplateListCmd(token string, region *string) *cobra.Command {
 	var pageSize int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List dynamic templates (GET /v3/templates?generations=dynamic)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List dynamic templates (GET /v3/templates?generations=dynamic)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("generations", "dynamic")
@@ -40,9 +41,10 @@ func (s *Service) newTemplateListCmd(token string, region *string) *cobra.Comman
 func (s *Service) newTemplateGetCmd(token string, region *string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a template with its versions (GET /v3/templates/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a template with its versions (GET /v3/templates/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, *region, http.MethodGet, "/templates/"+url.PathEscape(id), nil, nil)
 			if err != nil {

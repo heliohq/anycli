@@ -45,9 +45,10 @@ func (s *Service) newResponseListCmd(token string) *cobra.Command {
 	var page, perPage int
 	var filters responseFilterFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List response metadata for a survey (ids/hrefs; no answers; free-plan usable)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List response metadata for a survey (ids/hrefs; no answers; free-plan usable)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireFlag("survey", survey); err != nil {
 				return err
@@ -77,9 +78,10 @@ func (s *Service) newResponseBulkCmd(token string) *cobra.Command {
 	var page, perPage int
 	var filters responseFilterFlags
 	cmd := &cobra.Command{
-		Use:   "bulk",
-		Short: "Read full responses with answers for a survey (needs paid responses_read_detail)",
-		Args:  cobra.NoArgs,
+		Use:         "bulk",
+		Short:       "Read full responses with answers for a survey (needs paid responses_read_detail)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireFlag("survey", survey); err != nil {
 				return err
@@ -104,9 +106,10 @@ func (s *Service) newResponseBulkCmd(token string) *cobra.Command {
 func (s *Service) newResponseGetCmd(token string) *cobra.Command {
 	var survey, id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Read one full response with answers (needs paid responses_read_detail)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Read one full response with answers (needs paid responses_read_detail)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireFlag("survey", survey); err != nil {
 				return err

@@ -42,9 +42,10 @@ func (s *Service) newEmailFindDomainCmd(creds clientCreds) *cobra.Command {
 	var domain string
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:   "domain",
-		Short: "Find all business emails for a company domain (consumes credits)",
-		Args:  cobra.NoArgs,
+		Use:         "domain",
+		Short:       "Find all business emails for a company domain (consumes credits)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.startAndPoll(cmd.Context(), creds,
 				"/v2/domain-search/domain-emails/start",
@@ -67,9 +68,10 @@ func (s *Service) newEmailFindByNameCmd(creds clientCreds) *cobra.Command {
 	var first, last, domain string
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:   "by-name",
-		Short: "Find a specific person's email from their name and company domain (consumes credits)",
-		Args:  cobra.NoArgs,
+		Use:         "by-name",
+		Short:       "Find a specific person's email from their name and company domain (consumes credits)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"rows": []map[string]string{{
 				"first_name": first,
@@ -101,9 +103,10 @@ func (s *Service) newEmailVerifyCmd(creds clientCreds) *cobra.Command {
 	var emails []string
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:   "verify",
-		Short: "Verify email deliverability before sending (consumes credits)",
-		Args:  cobra.NoArgs,
+		Use:         "verify",
+		Short:       "Verify email deliverability before sending (consumes credits)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.startAndPoll(cmd.Context(), creds,
 				"/v2/email-verification/start",
@@ -125,9 +128,10 @@ func (s *Service) newEmailVerifyCmd(creds clientCreds) *cobra.Command {
 func (s *Service) newEmailCountCmd(creds clientCreds) *cobra.Command {
 	var domain string
 	cmd := &cobra.Command{
-		Use:   "count",
-		Short: "Count how many emails Snov has for a domain (free)",
-		Args:  cobra.NoArgs,
+		Use:         "count",
+		Short:       "Count how many emails Snov has for a domain (free)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			params := url.Values{}
 			params.Set("domain", domain)

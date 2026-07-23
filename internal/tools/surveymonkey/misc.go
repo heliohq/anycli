@@ -11,9 +11,10 @@ func (s *Service) newCollectorListCmd(token string) *cobra.Command {
 	var survey string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List the collectors that gathered a survey's responses",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the collectors that gathered a survey's responses",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireFlag("survey", survey); err != nil {
 				return err
@@ -32,9 +33,10 @@ func (s *Service) newCollectorListCmd(token string) *cobra.Command {
 
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Show the connected SurveyMonkey user (identity, team, plan)",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Show the connected SurveyMonkey user (identity, team, plan)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), token, "/users/me", nil)
 			if err != nil {
@@ -51,9 +53,10 @@ func (s *Service) newMeCmd(token string) *cobra.Command {
 func (s *Service) newFetchCmd(token string) *cobra.Command {
 	var path string
 	cmd := &cobra.Command{
-		Use:   "fetch",
-		Short: "GET any v3 endpoint by path (read-only escape hatch)",
-		Args:  cobra.NoArgs,
+		Use:         "fetch",
+		Short:       "GET any v3 endpoint by path (read-only escape hatch)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireFlag("path", path); err != nil {
 				return err

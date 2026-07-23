@@ -25,9 +25,10 @@ var sysIDRe = regexp.MustCompile(`^[0-9a-fA-F]{32}$`)
 func (s *Service) newIncidentListCmd(c *client) *cobra.Command {
 	var o queryOptions
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List incidents (query sugar over the incident table)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List incidents (query sugar over the incident table)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			v, err := o.toValues()
 			if err != nil {
@@ -47,9 +48,10 @@ func (s *Service) newIncidentListCmd(c *client) *cobra.Command {
 func (s *Service) newIncidentGetCmd(c *client) *cobra.Command {
 	var o queryOptions
 	cmd := &cobra.Command{
-		Use:   "get <number|sys_id>",
-		Short: "Get one incident by INC number or sys_id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <number|sys_id>",
+		Short:       "Get one incident by INC number or sys_id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sysID, err := c.resolveIncidentSysID(cmd.Context(), args[0])
 			if err != nil {
@@ -73,9 +75,10 @@ func (s *Service) newIncidentGetCmd(c *client) *cobra.Command {
 func (s *Service) newIncidentCreateCmd(c *client) *cobra.Command {
 	var shortDescription, data string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an incident",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an incident",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{}
 			if strings.TrimSpace(data) != "" {
@@ -106,9 +109,10 @@ func (s *Service) newIncidentCreateCmd(c *client) *cobra.Command {
 func (s *Service) newIncidentUpdateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "update <number|sys_id>",
-		Short: "Update an incident by INC number or sys_id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <number|sys_id>",
+		Short:       "Update an incident by INC number or sys_id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := parseDataObject(data)
 			if err != nil {
@@ -133,9 +137,10 @@ func (s *Service) newIncidentUpdateCmd(c *client) *cobra.Command {
 func (s *Service) newIncidentResolveCmd(c *client) *cobra.Command {
 	var closeNotes, code string
 	cmd := &cobra.Command{
-		Use:   "resolve <number|sys_id>",
-		Short: "Resolve an incident (sets state=Resolved with close notes)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "resolve <number|sys_id>",
+		Short:       "Resolve an incident (sets state=Resolved with close notes)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(closeNotes) == "" {
 				return &usageError{msg: "--close-notes is required to resolve an incident"}

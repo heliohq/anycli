@@ -92,9 +92,10 @@ func rawTimestamp(raw json.RawMessage) string {
 func (s *Service) newDocumentListCmd(token string) *cobra.Command {
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List documents (both modified/in-flight and freshly-uploaded)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List documents (both modified/in-flight and freshly-uploaded)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			docs, err := s.listDocuments(cmd.Context(), token)
 			if err != nil {
@@ -161,9 +162,10 @@ func (s *Service) fetchDocs(ctx context.Context, token, path string) ([]rawDoc, 
 
 func (s *Service) newDocumentGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <document-id>",
-		Short: "Show a document: roles, field invites, statuses, signatures",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <document-id>",
+		Short:       "Show a document: roles, field invites, statuses, signatures",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/document/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -183,9 +185,10 @@ func (s *Service) newDocumentUploadCmd(token string) *cobra.Command {
 	var file, name string
 	var extractFields bool
 	cmd := &cobra.Command{
-		Use:   "upload",
-		Short: "Upload a PDF/DOCX to start a signature flow",
-		Args:  cobra.NoArgs,
+		Use:         "upload",
+		Short:       "Upload a PDF/DOCX to start a signature flow",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if strings.TrimSpace(file) == "" {
 				return &usageError{msg: "document upload requires --file"}
@@ -218,9 +221,10 @@ func (s *Service) newDocumentUploadCmd(token string) *cobra.Command {
 func (s *Service) newDocumentAddFieldsCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:   "add-fields <document-id>",
-		Short: "Add fillable fields (signature/text/date) to a document",
-		Args:  cobra.ExactArgs(1),
+		Use:         "add-fields <document-id>",
+		Short:       "Add fillable fields (signature/text/date) to a document",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(fields) == "" {
 				return &usageError{msg: "document add-fields requires --fields (a JSON array)"}
@@ -244,9 +248,10 @@ func (s *Service) newDocumentDownloadCmd(token string) *cobra.Command {
 	var out string
 	var withHistory bool
 	cmd := &cobra.Command{
-		Use:   "download <document-id>",
-		Short: "Download the executed PDF (collapsed)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "download <document-id>",
+		Short:       "Download the executed PDF (collapsed)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(out) == "" {
 				return &usageError{msg: "document download requires --out"}
@@ -272,9 +277,10 @@ func (s *Service) newDocumentDownloadCmd(token string) *cobra.Command {
 
 func (s *Service) newDocumentDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <document-id>",
-		Short: "Delete a document",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <document-id>",
+		Short:       "Delete a document",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
 			if _, err := s.call(cmd.Context(), token, http.MethodDelete, "/document/"+url.PathEscape(id), nil, nil); err != nil {

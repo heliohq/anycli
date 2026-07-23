@@ -22,9 +22,10 @@ func (s *Service) newVideoListCmd(token string) *cobra.Command {
 	var cursor int64
 	var maxCount int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List the creator's videos (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the creator's videos (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireRange("--max-count", maxCount, 1, 20); err != nil {
 				return err
@@ -50,9 +51,10 @@ func (s *Service) newVideoListCmd(token string) *cobra.Command {
 func (s *Service) newVideoQueryCmd(token string) *cobra.Command {
 	var fields, ids string
 	cmd := &cobra.Command{
-		Use:   "query",
-		Short: "Query specific videos by id",
-		Args:  cobra.NoArgs,
+		Use:         "query",
+		Short:       "Query specific videos by id",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			videoIDs := splitCSV(ids)
 			if len(videoIDs) == 0 {

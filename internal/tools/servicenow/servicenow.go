@@ -148,6 +148,14 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaf commands: "false" for reads (GET / query), "true" for
+// provider-state mutations (create / update / delete / resolve / raw api).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // newRoot builds the cobra tree: table (generic CRUD), incident (sugar), whoami
 // (verify + identity), and api (raw escape hatch).
 func (s *Service) newRoot(base, apiKey string) *cobra.Command {

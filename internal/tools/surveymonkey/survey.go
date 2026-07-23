@@ -30,9 +30,10 @@ func pagingValues(page, perPage int) url.Values {
 func (s *Service) newSurveyListCmd(token string) *cobra.Command {
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List surveys in the connected account (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List surveys in the connected account (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), token, "/surveys", pagingValues(page, perPage))
 			if err != nil {
@@ -48,9 +49,10 @@ func (s *Service) newSurveyListCmd(token string) *cobra.Command {
 func (s *Service) newSurveyGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a survey's metadata (title, response_count, dates)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a survey's metadata (title, response_count, dates)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireFlag("id", id); err != nil {
 				return err
@@ -69,9 +71,10 @@ func (s *Service) newSurveyGetCmd(token string) *cobra.Command {
 func (s *Service) newSurveyDetailsCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "details",
-		Short: "Get a survey's full structure (pages, questions, answer-option ids)",
-		Args:  cobra.NoArgs,
+		Use:         "details",
+		Short:       "Get a survey's full structure (pages, questions, answer-option ids)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireFlag("id", id); err != nil {
 				return err

@@ -16,9 +16,10 @@ func (s *Service) newListCmd(token string, region *string) *cobra.Command {
 func (s *Service) newListLsCmd(token string, region *string) *cobra.Command {
 	var pageSize int
 	cmd := &cobra.Command{
-		Use:   "ls",
-		Short: "List marketing lists (GET /v3/marketing/lists)",
-		Args:  cobra.NoArgs,
+		Use:         "ls",
+		Short:       "List marketing lists (GET /v3/marketing/lists)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("page_size", intToString(pageSize))

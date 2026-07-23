@@ -25,9 +25,10 @@ func (s *Service) newContactUpsertCmd(token string, region *string) *cobra.Comma
 	var email, firstName, lastName, fullJSON string
 	var customFields []string
 	cmd := &cobra.Command{
-		Use:   "upsert",
-		Short: "Add/update marketing contacts, async (PUT /v3/marketing/contacts). Returns job_id; confirm with `contact search`.",
-		Args:  cobra.NoArgs,
+		Use:         "upsert",
+		Short:       "Add/update marketing contacts, async (PUT /v3/marketing/contacts). Returns job_id; confirm with `contact search`.",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := buildContactPayload(email, firstName, lastName, customFields, fullJSON)
 			if err != nil {
@@ -92,9 +93,10 @@ func parseCustomFields(pairs []string) (map[string]any, error) {
 func (s *Service) newContactSearchCmd(token string, region *string) *cobra.Command {
 	var emails []string
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Look up contacts by email (POST /v3/marketing/contacts/search/emails)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Look up contacts by email (POST /v3/marketing/contacts/search/emails)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(emails) == 0 {
 				return fmt.Errorf("sendgrid: contact search requires at least one --email")

@@ -13,9 +13,10 @@ func (s *Service) newStatsCmd(token string, region *string) *cobra.Command {
 	var startDate, endDate, aggregatedBy string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "stats",
-		Short: "Aggregated email stats (GET /v3/stats)",
-		Args:  cobra.NoArgs,
+		Use:         "stats",
+		Short:       "Aggregated email stats (GET /v3/stats)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("start_date", startDate)

@@ -14,9 +14,10 @@ import (
 func (s *Service) newUserGetCmd(rc *reqCtx) *cobra.Command {
 	var ids, logins []string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get users (self when no --id/--login is given)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get users (self when no --id/--login is given)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			addRepeated(q, "id", ids)
@@ -44,9 +45,10 @@ func (s *Service) newUserGetCmd(rc *reqCtx) *cobra.Command {
 func (s *Service) newChannelGetCmd(rc *reqCtx) *cobra.Command {
 	var broadcasterID string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get channel information (self by default)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get channel information (self by default)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := s.broadcasterOrSelf(cmd.Context(), rc, broadcasterID)
 			if err != nil {
@@ -87,9 +89,10 @@ func (s *Service) newChannelUpdateCmd(rc *reqCtx) *cobra.Command {
 		delay         int
 	)
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update channel information (title, category, language, tags)",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update channel information (title, category, language, tags)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := channelUpdatePayload{}
 			touched := false

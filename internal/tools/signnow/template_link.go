@@ -11,9 +11,10 @@ import (
 func (s *Service) newTemplateCreateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "create <document-id>",
-		Short: "Turn a document into a reusable template",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <document-id>",
+		Short:       "Turn a document into a reusable template",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(name) == "" {
 				return &usageError{msg: "template create requires --name"}
@@ -33,9 +34,10 @@ func (s *Service) newTemplateCreateCmd(token string) *cobra.Command {
 func (s *Service) newTemplateCopyCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "copy <template-id>",
-		Short: "Instantiate a fresh document from a template",
-		Args:  cobra.ExactArgs(1),
+		Use:         "copy <template-id>",
+		Short:       "Instantiate a fresh document from a template",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(name) == "" {
 				return &usageError{msg: "template copy requires --name"}
@@ -54,9 +56,10 @@ func (s *Service) newTemplateCopyCmd(token string) *cobra.Command {
 
 func (s *Service) newLinkCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create <document-id>",
-		Short: "Create a signing link for a document (no known signer email)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <document-id>",
+		Short:       "Create a signing link for a document (no known signer email)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{"document_id": args[0]}
 			body, err := s.call(cmd.Context(), token, http.MethodPost, "/link", nil, payload)

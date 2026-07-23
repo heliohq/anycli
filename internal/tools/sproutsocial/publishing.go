@@ -29,9 +29,10 @@ func (s *Service) newPublishingCreateCmd(token string) *cobra.Command {
 	var groupID, text, body string
 	var profileIDs []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a draft post (POST /v1/{cid}/publishing/posts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a draft post (POST /v1/{cid}/publishing/posts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cid, err := resolveCID(cmd)
 			if err != nil {
@@ -101,9 +102,10 @@ func coerceID(v string) any {
 // newPublishingGetCmd retrieves one draft post by its publishing_post_id.
 func (s *Service) newPublishingGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <publishing_post_id>",
-		Short: "Get a draft post (GET /v1/{cid}/publishing/posts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <publishing_post_id>",
+		Short:       "Get a draft post (GET /v1/{cid}/publishing/posts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cid, err := resolveCID(cmd)
 			if err != nil {
