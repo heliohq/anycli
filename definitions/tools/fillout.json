@@ -1,0 +1,17 @@
+{
+  "name": "fillout",
+  "type": "service",
+  "description": "Fillout forms and submissions (OAuth)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "FILLOUT_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "api_base"},
+        "inject": {"type": "env", "env_var": "FILLOUT_API_BASE"}
+      }
+    ]
+  }
+}

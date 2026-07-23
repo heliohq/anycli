@@ -39,6 +39,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/expensify"
 	"github.com/heliohq/anycli/internal/tools/facebookpages"
 	"github.com/heliohq/anycli/internal/tools/figma"
+	"github.com/heliohq/anycli/internal/tools/fillout"
 	"github.com/heliohq/anycli/internal/tools/forms"
 	"github.com/heliohq/anycli/internal/tools/gateprobe"
 	"github.com/heliohq/anycli/internal/tools/gmail"
@@ -96,6 +97,7 @@ func init() {
 	RegisterService("docusign", &docusign.Service{})
 	RegisterService("facebook-pages", &facebookpages.Service{})
 	RegisterService("figma", &figma.Service{})
+	RegisterService("fillout", &fillout.Service{})
 	RegisterService("forms", &forms.Service{})
 	RegisterService("linkedin", &linkedin.Service{})
 	RegisterService("meet", &meet.Service{})
