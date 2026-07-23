@@ -1,0 +1,116 @@
+name: E2E
+
+# Real-API e2e per design 008. Non-blocking by design (D8): this workflow
+# must NOT be added to required status checks.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    # Fork PRs get no secrets (design 008 D6) — skip the whole workflow.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    outputs:
+      tools: ${{ steps.detect.outputs.tools }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - id: detect
+        run: |
+          case "${{ github.event_name }}" in
+            schedule|workflow_dispatch)
+              TOOLS=$(go run ./internal/e2e/affected -all) ;;
+            pull_request)
+              TOOLS=$(go run ./internal/e2e/affected -base "${{ github.event.pull_request.base.sha }}") ;;
+            *)
+              TOOLS=$(go run ./internal/e2e/affected -base "${{ github.event.before }}") ;;
+          esac
+          echo "tools=$TOOLS" >> "$GITHUB_OUTPUT"
+          echo "affected tools: $TOOLS"
+
+  e2e:
+    needs: detect
+    if: needs.detect.outputs.tools != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.detect.outputs.tools) }}
+    # warn-level failures stay visible (red matrix job) but do not fail the
+    # workflow; only required-level failures propagate to e2e-gate (D8).
+    continue-on-error: ${{ matrix.level == 'warn' }}
+    # Per-tool serialization across PR / main / nightly runs (design 008 D7).
+    # Never cancel a running job: closed-loop tests must finish their cleanup.
+    concurrency:
+      group: e2e-${{ matrix.tool }}
+      cancel-in-progress: false
+    env:
+      HELIO_E2E_API_KEY: ${{ secrets.HELIO_E2E_API_KEY }}
+      HELIO_E2E_API_BASE: ${{ vars.HELIO_E2E_API_BASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run e2e tests
+        run: |
+          PKG=$(echo "${{ matrix.tool }}" | tr -d '-')
+          go test -tags e2e -v -run 'TestE2E' "./internal/tools/${PKG}/..." 2>&1 | tee e2e.log
+          exit "${PIPESTATUS[0]}"
+      - name: Report pending (not-connected) tools
+        if: always()
+        run: |
+          if grep -h "E2E-PENDING" e2e.log > pending.txt 2>/dev/null && [ -s pending.txt ]; then
+            {
+              echo "### E2E pending — has tests but no gateway connection"
+              sed 's/^/- /' pending.txt
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # The ONLY e2e check allowed in branch protection (design 008 D8). warn
+  # failures are absorbed by continue-on-error above, so any propagated
+  # matrix failure is by construction a required-level one.
+  e2e-gate:
+    needs: [detect, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate on required-level failures
+        run: |
+          if [ "${{ needs.e2e.result }}" = "failure" ]; then
+            echo "a required-level tool's e2e failed"
+            exit 1
+          fi
+          echo "no required-level failures (e2e result: ${{ needs.e2e.result }})"
+
+  rotate-key:
+    # Nightly only. Runs even when e2e failed: a missed rotation is 24h
+    # from a dead key (design 008 D6).
+    needs: [e2e]
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: e2e-rotate-key
+      cancel-in-progress: false
+    env:
+      HELIO_E2E_API_KEY: ${{ secrets.HELIO_E2E_API_KEY }}
+      HELIO_E2E_API_BASE: ${{ vars.HELIO_E2E_API_BASE }}
+      GH_TOKEN: ${{ secrets.E2E_SECRETS_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rotate HELIO_E2E_API_KEY
+        run: ./.github/scripts/rotate-key.sh
