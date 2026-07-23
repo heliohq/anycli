@@ -1,0 +1,25 @@
+{
+  "name": "braintree",
+  "type": "service",
+  "description": "Braintree payments operations via the GraphQL API (transactions, refunds, customers, disputes)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "merchant_id"},
+        "inject": {"type": "env", "env_var": "BRAINTREE_MERCHANT_ID"}
+      },
+      {
+        "source": {"field": "public_key"},
+        "inject": {"type": "env", "env_var": "BRAINTREE_PUBLIC_KEY"}
+      },
+      {
+        "source": {"field": "private_key"},
+        "inject": {"type": "env", "env_var": "BRAINTREE_PRIVATE_KEY"}
+      },
+      {
+        "source": {"field": "environment"},
+        "inject": {"type": "env", "env_var": "BRAINTREE_ENVIRONMENT"}
+      }
+    ]
+  }
+}
