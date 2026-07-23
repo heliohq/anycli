@@ -107,6 +107,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/postmark"
 	"github.com/heliohq/anycli/internal/tools/quickbooks"
 	"github.com/heliohq/anycli/internal/tools/ramp"
+	"github.com/heliohq/anycli/internal/tools/razorpay"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -151,6 +152,7 @@ func init() {
 	RegisterService("pinterest", &pinterest.Service{})
 	RegisterService("pipedrive", &pipedrive.Service{})
 	RegisterService("posthog", &posthog.Service{})
+	RegisterService("razorpay", &razorpay.Service{})
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("google-ads", &googleads.Service{})
