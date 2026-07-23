@@ -132,6 +132,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/square"
 	"github.com/heliohq/anycli/internal/tools/stripe"
 	"github.com/heliohq/anycli/internal/tools/surveymonkey"
+	"github.com/heliohq/anycli/internal/tools/tally"
 	"github.com/heliohq/anycli/internal/tools/tasks"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
@@ -279,4 +280,5 @@ func init() {
 	RegisterService("snov", &snov.Service{})
 	RegisterService("sprout-social", &sproutsocial.Service{})
 	RegisterService("surveymonkey", &surveymonkey.Service{})
+	RegisterService("tally", &tally.Service{})
 }
