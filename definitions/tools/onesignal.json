@@ -1,0 +1,17 @@
+{
+  "name": "onesignal",
+  "type": "service",
+  "description": "OneSignal as a tool (App API Key + App ID)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "app_api_key"},
+        "inject": {"type": "env", "env_var": "ONESIGNAL_APP_API_KEY"}
+      },
+      {
+        "source": {"field": "app_id"},
+        "inject": {"type": "env", "env_var": "ONESIGNAL_APP_ID"}
+      }
+    ]
+  }
+}

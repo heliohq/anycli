@@ -92,6 +92,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/notion"
 	"github.com/heliohq/anycli/internal/tools/novu"
 	"github.com/heliohq/anycli/internal/tools/omnisend"
+	"github.com/heliohq/anycli/internal/tools/onesignal"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -205,4 +206,5 @@ func init() {
 	RegisterService("mailjet", &mailjet.Service{})
 	RegisterService("mixpanel", &mixpanel.Service{})
 	RegisterService("moz", &moz.Service{})
+	RegisterService("onesignal", &onesignal.Service{})
 }
