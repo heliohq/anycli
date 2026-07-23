@@ -114,6 +114,30 @@ func TestMatrixEntriesFilterSkipAndCarryLevel(t *testing.T) {
 	}
 }
 
+// TestHasE2ETests pins the invariant that broke the CI matrix: attio has a
+// committed e2e_test.go, github (a cli-type tool with no internal/tools/github
+// package at all) does not, so filterHasE2ETests must drop it before it ever
+// reaches `go test ./internal/tools/github/...`. hasE2ETests uses paths
+// relative to the repo root (matching how `go run ./internal/e2e/affected`
+// is invoked in CI), so chdir there for the duration of the check.
+func TestHasE2ETests(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir("../../.."); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+
+	if !hasE2ETests("attio") {
+		t.Error(`hasE2ETests("attio") = false, want true`)
+	}
+	if hasE2ETests("github") {
+		t.Error(`hasE2ETests("github") = true, want false`)
+	}
+}
+
 func TestSmokeToolsAreBundled(t *testing.T) {
 	defs, err := definitions.ListBundled()
 	if err != nil {

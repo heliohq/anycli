@@ -44,7 +44,7 @@ func main() {
 		changed, err := gitDiff(*base)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "affected: git diff failed (%v); falling back to smoke subset\n", err)
-			result = SmokeTools
+			result = filterHasE2ETests(SmokeTools)
 			break
 		}
 		var smoke bool
@@ -52,6 +52,7 @@ func main() {
 		if smoke {
 			result = mergeSorted(result, SmokeTools)
 		}
+		result = filterHasE2ETests(result)
 	default:
 		fatal(fmt.Errorf("one of -base or -all is required"))
 	}
@@ -81,16 +82,43 @@ func gitDiff(base string) ([]string, error) {
 	return strings.Fields(string(out)), nil
 }
 
+// hasE2ETests reports whether a tool has a committed e2e_test.go under its
+// internal/tools package dir. This is the single existence check both
+// -all (toolsWithE2ETests) and -base (filterHasE2ETests) rely on, so a
+// tool with no test package never reaches the CI matrix.
+func hasE2ETests(tool string) bool {
+	_, err := os.Stat("internal/tools/" + PkgDir(tool) + "/e2e_test.go")
+	return err == nil
+}
+
 func toolsWithE2ETests(tools []string) []string {
 	var out []string
 	for _, tool := range tools {
-		if _, err := os.Stat("internal/tools/" + PkgDir(tool) + "/e2e_test.go"); err == nil {
+		if hasE2ETests(tool) {
 			out = append(out, tool)
 		}
 	}
 	sort.Strings(out)
 	if out == nil {
 		out = []string{}
+	}
+	return out
+}
+
+// filterHasE2ETests drops tools without a committed e2e_test.go from a
+// -base result, announcing each drop on stderr — never silently (design
+// 008: no silent caps). Without this, a cli-type tool like github (no
+// internal/tools/github package) reaches the workflow matrix and
+// `go test ./internal/tools/github/...` fails with "no such file or
+// directory".
+func filterHasE2ETests(tools []string) []string {
+	out := make([]string, 0, len(tools))
+	for _, tool := range tools {
+		if hasE2ETests(tool) {
+			out = append(out, tool)
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "affected: %s has no e2e tests yet, dropped from matrix\n", tool)
 	}
 	return out
 }
