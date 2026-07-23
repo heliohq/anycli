@@ -50,6 +50,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/fullstory"
 	"github.com/heliohq/anycli/internal/tools/gmail"
 	"github.com/heliohq/anycli/internal/tools/googleads"
+	"github.com/heliohq/anycli/internal/tools/googleanalytics"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
@@ -135,4 +136,5 @@ func init() {
 	RegisterService("freshdesk", &freshdesk.Service{})
 	RegisterService("freshservice", &freshservice.Service{})
 	RegisterService("fullstory", &fullstory.Service{})
+	RegisterService("google-analytics", &googleanalytics.Service{})
 }
