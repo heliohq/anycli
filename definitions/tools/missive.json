@@ -1,0 +1,13 @@
+{
+  "name": "missive",
+  "type": "service",
+  "description": "Missive collaborative shared inbox as a tool (personal API token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "MISSIVE_TOKEN"}
+      }
+    ]
+  }
+}
