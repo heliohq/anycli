@@ -94,6 +94,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/omnisend"
 	"github.com/heliohq/anycli/internal/tools/onesignal"
 	"github.com/heliohq/anycli/internal/tools/outreach"
+	"github.com/heliohq/anycli/internal/tools/paddle"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -170,6 +171,7 @@ func init() {
 	RegisterService("mastodon", &mastodon.Service{})
 	RegisterService("mercury", &mercury.Service{})
 	RegisterService("netsuite", &netsuite.Service{})
+	RegisterService("paddle", &paddle.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility
