@@ -47,6 +47,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/freshdesk"
 	"github.com/heliohq/anycli/internal/tools/freshservice"
 	"github.com/heliohq/anycli/internal/tools/front"
+	"github.com/heliohq/anycli/internal/tools/fullstory"
 	"github.com/heliohq/anycli/internal/tools/gmail"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
@@ -131,4 +132,5 @@ func init() {
 	RegisterService("dropbox-sign", &dropboxsign.Service{})
 	RegisterService("freshdesk", &freshdesk.Service{})
 	RegisterService("freshservice", &freshservice.Service{})
+	RegisterService("fullstory", &fullstory.Service{})
 }
