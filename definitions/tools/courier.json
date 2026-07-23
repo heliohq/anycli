@@ -1,0 +1,13 @@
+{
+  "name": "courier",
+  "type": "service",
+  "description": "Courier as a tool (notification infrastructure API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "COURIER_API_KEY"}
+      }
+    ]
+  }
+}
