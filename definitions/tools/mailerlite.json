@@ -1,0 +1,13 @@
+{
+  "name": "mailerlite",
+  "type": "service",
+  "description": "MailerLite email marketing as a tool (Connect API, Bearer token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_token"},
+        "inject": {"type": "env", "env_var": "MAILERLITE_API_TOKEN"}
+      }
+    ]
+  }
+}

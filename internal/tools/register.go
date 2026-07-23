@@ -75,6 +75,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/loops"
 	"github.com/heliohq/anycli/internal/tools/lusha"
 	"github.com/heliohq/anycli/internal/tools/mailchimp"
+	"github.com/heliohq/anycli/internal/tools/mailerlite"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
 	"github.com/heliohq/anycli/internal/tools/microsoftonedrive"
@@ -183,4 +184,5 @@ func init() {
 	RegisterService("loops", &loops.Service{})
 	RegisterService("lusha", &lusha.Service{})
 	RegisterService("mailchimp", &mailchimp.Service{})
+	RegisterService("mailerlite", &mailerlite.Service{})
 }
