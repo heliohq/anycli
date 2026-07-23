@@ -16,9 +16,10 @@ func (s *Service) newInsightsCmd(token string) *cobra.Command {
 	var account, object, level, datePreset, timeRange, fields string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "insights",
-		Short: "Ad performance insights (GET /<account|object>/insights)",
-		Args:  cobra.NoArgs,
+		Use:         "insights",
+		Short:       "Ad performance insights (GET /<account|object>/insights)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireExactlyOne("--account", account, "--object", object); err != nil {
 				return err

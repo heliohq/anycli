@@ -23,9 +23,10 @@ func (s *Service) newEmailSendCmd(key string) *cobra.Command {
 	var dataVariable []string
 	var addToAudience bool
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a templated transactional email (POST /v1/transactional)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a templated transactional email (POST /v1/transactional)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"email": email, "transactionalId": transactionalID}
 			dataVars := map[string]any{}
@@ -80,9 +81,10 @@ func (s *Service) newEmailSendCmd(key string) *cobra.Command {
 func (s *Service) newEmailListCmd(key string) *cobra.Command {
 	var perPage, cursor string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List transactional email templates (GET /v1/transactional; deprecated by Loops)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List transactional email templates (GET /v1/transactional; deprecated by Loops)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if perPage != "" {

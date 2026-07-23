@@ -23,9 +23,10 @@ func (s *Service) newWebhookCmd(token string) *cobra.Command {
 
 func (s *Service) newWebhookListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List webhooks (GET /webhooks)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List webhooks (GET /webhooks)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/webhooks", nil, nil)
 			if err != nil {
@@ -38,9 +39,10 @@ func (s *Service) newWebhookListCmd(token string) *cobra.Command {
 
 func (s *Service) newWebhookGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get a webhook (GET /webhooks/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get a webhook (GET /webhooks/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/webhooks/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -54,9 +56,10 @@ func (s *Service) newWebhookGetCmd(token string) *cobra.Command {
 func (s *Service) newWebhookCreateCmd(token string) *cobra.Command {
 	var callbackURL, name, events string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a webhook (POST /webhooks)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a webhook (POST /webhooks)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{
 				"url":    callbackURL,
@@ -84,9 +87,10 @@ func (s *Service) newWebhookUpdateCmd(token string) *cobra.Command {
 	var callbackURL, name, events string
 	var enabled bool
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a webhook (PUT /webhooks/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a webhook (PUT /webhooks/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pairs := []bodyField{
 				{key: "url", value: callbackURL, set: cmd.Flags().Changed("url")},
@@ -112,9 +116,10 @@ func (s *Service) newWebhookUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newWebhookDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a webhook (DELETE /webhooks/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a webhook (DELETE /webhooks/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/webhooks/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

@@ -21,9 +21,10 @@ func (s *Service) newSegmentCmd(token string) *cobra.Command {
 func (s *Service) newSegmentListCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List segments (GET /segments)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List segments (GET /segments)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setLimitPage(cmd, q, limit, page)
@@ -43,9 +44,10 @@ func (s *Service) newSegmentSubscribersCmd(token string) *cobra.Command {
 	var status, cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "subscribers <id>",
-		Short: "List a segment's subscribers (GET /segments/{id}/subscribers)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "subscribers <id>",
+		Short:       "List a segment's subscribers (GET /segments/{id}/subscribers)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if status != "" {

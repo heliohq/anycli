@@ -24,6 +24,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly marks a leaf command as having no provider side effect (design 318).
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+
 // EnvCredentials is the single env var the credential binding injects
 // (definitions/tools/mixpanel.json). It carries a JSON object packing the four
 // Service Account values, because Helio's manual_credentials storage is a

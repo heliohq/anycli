@@ -36,9 +36,10 @@ func (s *Service) newConversationsListCmd(token string) *cobra.Command {
 		email, domain, contactOrgName string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List conversations in a mailbox (one mailbox filter required)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List conversations in a mailbox (one mailbox filter required)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// email / domain / contact_organization are mutually exclusive; the
 			// API 400s if combined, so reject locally to save a round trip.
@@ -102,9 +103,10 @@ func (s *Service) newConversationsListCmd(token string) *cobra.Command {
 
 func (s *Service) newConversationsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <conversation-id>",
-		Short: "Show one conversation",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <conversation-id>",
+		Short:       "Show one conversation",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/conversations/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -124,9 +126,10 @@ func (s *Service) newConversationsSubListCmd(token, subPath, short, cursorField 
 		until string
 	)
 	cmd := &cobra.Command{
-		Use:   subPath + " <conversation-id>",
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:         subPath + " <conversation-id>",
+		Short:       short,
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if limit > 0 {
@@ -151,9 +154,10 @@ func (s *Service) newConversationsSubListCmd(token, subPath, short, cursorField 
 func (s *Service) newConversationsUpdateCmd(token string) *cobra.Command {
 	var inline, file string
 	cmd := &cobra.Command{
-		Use:   "update <conversation-id>",
-		Short: "Change conversation state (close/assign/label) via PATCH. Body: {\"conversations\":{...}}",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <conversation-id>",
+		Short:       "Change conversation state (close/assign/label) via PATCH. Body: {\"conversations\":{...}}",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := s.decodeJSONBody(inline, file, cmd.InOrStdin())
 			if err != nil {

@@ -11,9 +11,10 @@ import (
 // the Helio connect flow verifies against.
 func (s *Service) newWhoamiCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "whoami",
-		Short: "Verify the API key and show team context (GET /v1/api-key)",
-		Args:  cobra.NoArgs,
+		Use:         "whoami",
+		Short:       "Verify the API key and show team context (GET /v1/api-key)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodGet, "/v1/api-key", nil, nil)
 			if err != nil {

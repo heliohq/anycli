@@ -19,9 +19,10 @@ func (s *Service) newContactBooksCmd(token string) *cobra.Command {
 func (s *Service) newContactBooksListCmd(token string) *cobra.Command {
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List contact books",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contact books",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if limit > 0 {

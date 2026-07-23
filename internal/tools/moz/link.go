@@ -57,9 +57,10 @@ func (s *Service) newTargetListCmd(token string, spec targetListSpec) *cobra.Com
 	var site, scope string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   spec.use,
-		Short: spec.short,
-		Args:  cobra.NoArgs,
+		Use:         spec.use,
+		Short:       spec.short,
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if site == "" {
 				return &usageError{msg: "moz: --site is required"}

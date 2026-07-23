@@ -53,9 +53,10 @@ func (s *Service) newSiteMetricsCmd(token string) *cobra.Command {
 	var sites []string
 	var scope string
 	cmd := &cobra.Command{
-		Use:   "metrics",
-		Short: "Domain/Page Authority, spam score, and link counts for a URL (repeat --site for a batch)",
-		Args:  cobra.NoArgs,
+		Use:         "metrics",
+		Short:       "Domain/Page Authority, spam score, and link counts for a URL (repeat --site for a batch)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(sites) == 0 {
 				return &usageError{msg: "moz: at least one --site is required"}
@@ -94,9 +95,10 @@ func (s *Service) newSiteMetricsCmd(token string) *cobra.Command {
 func (s *Service) newSiteBrandAuthorityCmd(token string) *cobra.Command {
 	var site string
 	cmd := &cobra.Command{
-		Use:   "brand-authority",
-		Short: "Brand Authority score for a domain",
-		Args:  cobra.NoArgs,
+		Use:         "brand-authority",
+		Short:       "Brand Authority score for a domain",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if site == "" {
 				return &usageError{msg: "moz: --site is required"}
@@ -119,9 +121,10 @@ func (s *Service) newSiteTopPagesCmd(token string) *cobra.Command {
 	var site, scope string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "top-pages",
-		Short: "Top pages for a site, ranked by authority",
-		Args:  cobra.NoArgs,
+		Use:         "top-pages",
+		Short:       "Top pages for a site, ranked by authority",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if site == "" {
 				return &usageError{msg: "moz: --site is required"}

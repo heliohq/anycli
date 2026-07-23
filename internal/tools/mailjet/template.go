@@ -21,9 +21,10 @@ func (s *Service) newTemplateCmd(basic string) *cobra.Command {
 func (s *Service) newTemplateListCmd(basic string) *cobra.Command {
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List templates (GET /v3/REST/template)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List templates (GET /v3/REST/template)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {
@@ -49,9 +50,10 @@ func (s *Service) newTemplateListCmd(basic string) *cobra.Command {
 func (s *Service) newTemplateGetCmd(basic string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a template's content (GET /v3/REST/template/{id}/detailcontent)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a template's content (GET /v3/REST/template/{id}/detailcontent)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {

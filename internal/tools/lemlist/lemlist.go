@@ -31,6 +31,13 @@ const DefaultBaseURL = "https://api.lemlist.com/api"
 // service uses it as the Basic-auth password with an empty username.
 const EnvAPIKey = "LEMLIST_API_KEY"
 
+// readOnly / writeAction mark a leaf command's side-effect class for the
+// design-318 approval gate (anycli.side_effect).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Lemlist tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

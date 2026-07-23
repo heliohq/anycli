@@ -30,9 +30,10 @@ func (s *Service) newContactCmd(key string) *cobra.Command {
 func (s *Service) newContactEnrichCmd(key string) *cobra.Command {
 	var email, linkedinURL, firstName, lastName, companyName, companyDomain, reveal string
 	cmd := &cobra.Command{
-		Use:   "enrich",
-		Short: "Enrich a known contact by identifier (POST /contacts/search-and-enrich)",
-		Args:  cobra.NoArgs,
+		Use:         "enrich",
+		Short:       "Enrich a known contact by identifier (POST /contacts/search-and-enrich)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			item := map[string]any{}
 			addIfSet(item, "email", email)
@@ -79,9 +80,10 @@ func (s *Service) newContactSearchCmd(key string) *cobra.Command {
 	var page, size int
 	var includePartial bool
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Prospect net-new contacts by filter (POST /contacts/prospecting)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Prospect net-new contacts by filter (POST /contacts/prospecting)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			filters, err := decodeFiltersFlag(filtersJSON)
 			if err != nil {
@@ -113,9 +115,10 @@ func (s *Service) newContactRevealCmd(key string) *cobra.Command {
 	var ids []string
 	var reveal string
 	cmd := &cobra.Command{
-		Use:   "reveal",
-		Short: "Reveal contacts by Lusha id (POST /contacts/enrich)",
-		Args:  cobra.NoArgs,
+		Use:         "reveal",
+		Short:       "Reveal contacts by Lusha id (POST /contacts/enrich)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validateIDs(ids); err != nil {
 				return err

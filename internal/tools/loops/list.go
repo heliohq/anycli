@@ -16,9 +16,10 @@ func (s *Service) newListCmd(key string) *cobra.Command {
 
 func (s *Service) newListLsCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "ls",
-		Short: "List mailing lists (GET /v1/lists)",
-		Args:  cobra.NoArgs,
+		Use:         "ls",
+		Short:       "List mailing lists (GET /v1/lists)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodGet, "/v1/lists", nil, nil)
 			if err != nil {

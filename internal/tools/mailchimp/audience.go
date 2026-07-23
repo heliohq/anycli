@@ -19,9 +19,10 @@ func (s *Service) newAudienceCmd(r *requester) *cobra.Command {
 
 func (s *Service) newAudienceListCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List audiences (GET /lists)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List audiences (GET /lists)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := r.do(cmd.Context(), http.MethodGet, "/lists", listQuery(cmd), nil)
 			if err != nil {
@@ -36,9 +37,10 @@ func (s *Service) newAudienceListCmd(r *requester) *cobra.Command {
 
 func (s *Service) newAudienceGetCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <list_id>",
-		Short: "Get one audience (GET /lists/{list_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <list_id>",
+		Short:       "Get one audience (GET /lists/{list_id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if f, _ := cmd.Flags().GetString("fields"); f != "" {

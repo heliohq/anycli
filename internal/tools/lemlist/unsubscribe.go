@@ -22,9 +22,10 @@ func (s *Service) newUnsubscribeCmd(key string) *cobra.Command {
 func (s *Service) newUnsubscribeListCmd(key string) *cobra.Command {
 	var offset, limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List the suppression entries (GET /unsubscribes)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the suppression entries (GET /unsubscribes)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if offset > 0 {
@@ -47,9 +48,10 @@ func (s *Service) newUnsubscribeListCmd(key string) *cobra.Command {
 
 func (s *Service) newUnsubscribeAddCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "add <emailOrDomain>",
-		Short: "Add an email or domain to the suppression list (POST /unsubscribes/{email})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "add <emailOrDomain>",
+		Short:       "Add an email or domain to the suppression list (POST /unsubscribes/{email})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodPost, "/unsubscribes/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -62,9 +64,10 @@ func (s *Service) newUnsubscribeAddCmd(key string) *cobra.Command {
 
 func (s *Service) newUnsubscribeDeleteCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <emailOrDomain>",
-		Short: "Remove an email or domain from the suppression list (DELETE /unsubscribes/{email})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <emailOrDomain>",
+		Short:       "Remove an email or domain from the suppression list (DELETE /unsubscribes/{email})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), key, http.MethodDelete, "/unsubscribes/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

@@ -23,9 +23,10 @@ func (s *Service) newFieldCmd(token string) *cobra.Command {
 func (s *Service) newFieldListCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List custom fields (GET /fields)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List custom fields (GET /fields)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setLimitPage(cmd, q, limit, page)
@@ -44,9 +45,10 @@ func (s *Service) newFieldListCmd(token string) *cobra.Command {
 func (s *Service) newFieldCreateCmd(token string) *cobra.Command {
 	var name, fieldType string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a custom field (POST /fields)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a custom field (POST /fields)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/fields", nil, map[string]any{"name": name, "type": fieldType})
 			if err != nil {
@@ -65,9 +67,10 @@ func (s *Service) newFieldCreateCmd(token string) *cobra.Command {
 func (s *Service) newFieldUpdateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Rename a custom field (PUT /fields/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Rename a custom field (PUT /fields/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodPut, "/fields/"+url.PathEscape(args[0]), nil, map[string]any{"name": name})
 			if err != nil {
@@ -83,9 +86,10 @@ func (s *Service) newFieldUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newFieldDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a custom field (DELETE /fields/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a custom field (DELETE /fields/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/fields/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

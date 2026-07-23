@@ -24,9 +24,10 @@ func (s *Service) newFormCmd(token string) *cobra.Command {
 func (s *Service) newFormListCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:   "list <type>",
-		Short: "List forms of a type (GET /forms/{type}); type is popup|embedded|promotion",
-		Args:  cobra.ExactArgs(1),
+		Use:         "list <type>",
+		Short:       "List forms of a type (GET /forms/{type}); type is popup|embedded|promotion",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateFormType(args[0]); err != nil {
 				return err
@@ -58,9 +59,10 @@ func validateFormType(t string) error {
 
 func (s *Service) newFormGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get a form (GET /forms/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get a form (GET /forms/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/forms/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -74,9 +76,10 @@ func (s *Service) newFormGetCmd(token string) *cobra.Command {
 func (s *Service) newFormUpdateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Rename a form (PUT /forms/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Rename a form (PUT /forms/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodPut, "/forms/"+url.PathEscape(args[0]), nil, map[string]any{"name": name})
 			if err != nil {
@@ -92,9 +95,10 @@ func (s *Service) newFormUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newFormDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a form (DELETE /forms/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a form (DELETE /forms/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/forms/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -109,9 +113,10 @@ func (s *Service) newFormSubscribersCmd(token string) *cobra.Command {
 	var cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "subscribers <id>",
-		Short: "List subscribers who signed up through a form (GET /forms/{id}/subscribers)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "subscribers <id>",
+		Short:       "List subscribers who signed up through a form (GET /forms/{id}/subscribers)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			setLimitCursor(cmd, q, limit, cursor)

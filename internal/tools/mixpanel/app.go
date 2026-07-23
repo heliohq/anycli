@@ -17,9 +17,10 @@ import (
 // events"; use `events-names` for discovery (design §1).
 func (s *Service) newLexiconListCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List authored Lexicon schemas (GET /projects/{id}/schemas)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List authored Lexicon schemas (GET /projects/{id}/schemas)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path := "/projects/" + url.PathEscape(c.projectID) + "/schemas"
 			body, err := c.getJSON(cmd.Context(), c.appBase, path, nil)
@@ -36,9 +37,10 @@ func (s *Service) newLexiconListCmd(c *client) *cobra.Command {
 // surfaces here as a distinct 401 (credential error kind).
 func (s *Service) newMeCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Runtime identity/auth probe (GET /me)",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Runtime identity/auth probe (GET /me)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := c.getJSON(cmd.Context(), c.appBase, "/me", nil)
 			if err != nil {
@@ -56,8 +58,9 @@ func (s *Service) newExportCmd(c *client) *cobra.Command {
 	var from, to, where, limit string
 	var events []string
 	cmd := &cobra.Command{
-		Use:   "export",
-		Short: "Bounded raw event export as JSONL (GET /export on the export host)",
+		Use:         "export",
+		Short:       "Bounded raw event export as JSONL (GET /export on the export host)",
+		Annotations: readOnly,
 		Long: "Streams raw events line-delimited (JSONL) for a date window. " +
 			"The window is required because the export is unbounded by default and can be very large.",
 		Args: cobra.NoArgs,

@@ -29,9 +29,10 @@ func (s *Service) newSubscriberListCmd(token string) *cobra.Command {
 	var status, cursor, include string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List subscribers (GET /subscribers)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List subscribers (GET /subscribers)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if status != "" {
@@ -57,9 +58,10 @@ func (s *Service) newSubscriberListCmd(token string) *cobra.Command {
 
 func (s *Service) newSubscriberGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id-or-email>",
-		Short: "Get a subscriber by id or email (GET /subscribers/{id|email})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id-or-email>",
+		Short:       "Get a subscriber by id or email (GET /subscribers/{id|email})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/subscribers/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -74,9 +76,10 @@ func (s *Service) newSubscriberCreateCmd(token string) *cobra.Command {
 	var email, fields, groups, status string
 	var resubscribe bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create or upsert a subscriber (POST /subscribers)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create or upsert a subscriber (POST /subscribers)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := subscriberWriteBody(cmd, email, fields, groups, status, resubscribe)
 			if err != nil {
@@ -101,9 +104,10 @@ func (s *Service) newSubscriberCreateCmd(token string) *cobra.Command {
 func (s *Service) newSubscriberUpdateCmd(token string) *cobra.Command {
 	var fields, groups, status string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a subscriber (PUT /subscribers/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a subscriber (PUT /subscribers/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := subscriberWriteBody(cmd, "", fields, groups, status, false)
 			if err != nil {
@@ -146,9 +150,10 @@ func subscriberWriteBody(cmd *cobra.Command, email, fields, groups, status strin
 
 func (s *Service) newSubscriberDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a subscriber (DELETE /subscribers/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a subscriber (DELETE /subscribers/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/subscribers/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -161,9 +166,10 @@ func (s *Service) newSubscriberDeleteCmd(token string) *cobra.Command {
 
 func (s *Service) newSubscriberCountCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "count",
-		Short: "Count subscribers (GET /subscribers?limit=0)",
-		Args:  cobra.NoArgs,
+		Use:         "count",
+		Short:       "Count subscribers (GET /subscribers?limit=0)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{"limit": {"0"}}
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/subscribers", q, nil)
@@ -179,9 +185,10 @@ func (s *Service) newSubscriberActivityCmd(token string) *cobra.Command {
 	var logName string
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:   "activity <id>",
-		Short: "Subscriber activity log (GET /subscribers/{id}/activity-log)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "activity <id>",
+		Short:       "Subscriber activity log (GET /subscribers/{id}/activity-log)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if logName != "" {
@@ -203,9 +210,10 @@ func (s *Service) newSubscriberActivityCmd(token string) *cobra.Command {
 
 func (s *Service) newSubscriberForgetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "forget <id>",
-		Short: "GDPR-forget a subscriber (POST /subscribers/{id}/forget)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "forget <id>",
+		Short:       "GDPR-forget a subscriber (POST /subscribers/{id}/forget)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodPost, "/subscribers/"+url.PathEscape(args[0])+"/forget", nil, nil)
 			if err != nil {

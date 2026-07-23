@@ -22,9 +22,10 @@ func (s *Service) newMessageListCmd(basic string) *cobra.Command {
 	var limit, offset int
 	var contactID, campaignID int64
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List sent messages (GET /v3/REST/message)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List sent messages (GET /v3/REST/message)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {
@@ -56,9 +57,10 @@ func (s *Service) newMessageListCmd(basic string) *cobra.Command {
 func (s *Service) newMessageGetCmd(basic string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one message by ID (GET /v3/REST/message/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one message by ID (GET /v3/REST/message/{id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseURL, err := s.resolveBaseURL(cmd)
 			if err != nil {

@@ -20,9 +20,10 @@ func (s *Service) newAccountCmd(key string) *cobra.Command {
 // The response object is passed through under "data".
 func (s *Service) newAccountUsageCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "usage",
-		Short: "Get account credit usage, plan, and pricing (GET /account/usage)",
-		Args:  cobra.NoArgs,
+		Use:         "usage",
+		Short:       "Get account credit usage, plan, and pricing (GET /account/usage)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/account/usage", nil)
 			if err != nil {

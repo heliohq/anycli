@@ -21,9 +21,10 @@ func (s *Service) newContactPropertyCmd(key string) *cobra.Command {
 func (s *Service) newContactPropertyListCmd(key string) *cobra.Command {
 	var list string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List contact properties (GET /v1/contacts/properties)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contact properties (GET /v1/contacts/properties)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("list", list)
@@ -41,9 +42,10 @@ func (s *Service) newContactPropertyListCmd(key string) *cobra.Command {
 func (s *Service) newContactPropertyCreateCmd(key string) *cobra.Command {
 	var name, propType string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a custom contact property (POST /v1/contacts/properties)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a custom contact property (POST /v1/contacts/properties)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"name": name, "type": propType}
 			resp, err := s.call(cmd.Context(), key, http.MethodPost, "/v1/contacts/properties", nil, body)

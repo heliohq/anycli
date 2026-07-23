@@ -42,9 +42,10 @@ func jsonArray(items []string) (string, error) {
 func (s *Service) newSegmentationCmd(c *client) *cobra.Command {
 	var event, from, to, on, where, typ, unit string
 	cmd := &cobra.Command{
-		Use:   "segmentation",
-		Short: "Segment an event over time (GET /segmentation)",
-		Args:  cobra.NoArgs,
+		Use:         "segmentation",
+		Short:       "Segment an event over time (GET /segmentation)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			v := c.projectValues()
 			v.Set("event", event)
@@ -80,9 +81,10 @@ func (s *Service) newEventsCmd(c *client) *cobra.Command {
 	var events []string
 	var typ, unit, interval, from, to string
 	cmd := &cobra.Command{
-		Use:   "events",
-		Short: "Event totals over time (GET /events)",
-		Args:  cobra.NoArgs,
+		Use:         "events",
+		Short:       "Event totals over time (GET /events)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			arr, err := jsonArray(events)
 			if err != nil {
@@ -118,9 +120,10 @@ func (s *Service) newEventsCmd(c *client) *cobra.Command {
 func (s *Service) newEventsNamesCmd(c *client) *cobra.Command {
 	var typ, limit string
 	cmd := &cobra.Command{
-		Use:   "events-names",
-		Short: "List actively-firing event names — primary discovery (GET /events/names)",
-		Args:  cobra.NoArgs,
+		Use:         "events-names",
+		Short:       "List actively-firing event names — primary discovery (GET /events/names)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			v := c.projectValues()
 			setIf(v, "type", typ)
@@ -141,9 +144,10 @@ func (s *Service) newEventsNamesCmd(c *client) *cobra.Command {
 // newFunnelsListCmd — GET /api/query/funnels/list (saved funnels: id + name).
 func (s *Service) newFunnelsListCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List saved funnels (GET /funnels/list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List saved funnels (GET /funnels/list)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := c.getJSON(cmd.Context(), c.queryBase, "/funnels/list", c.projectValues())
 			if err != nil {
@@ -158,9 +162,10 @@ func (s *Service) newFunnelsListCmd(c *client) *cobra.Command {
 func (s *Service) newFunnelsRunCmd(c *client) *cobra.Command {
 	var funnelID, from, to, on, where string
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Run a saved funnel by id (GET /funnels)",
-		Args:  cobra.NoArgs,
+		Use:         "run",
+		Short:       "Run a saved funnel by id (GET /funnels)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			v := c.projectValues()
 			v.Set("funnel_id", funnelID)
@@ -189,9 +194,10 @@ func (s *Service) newFunnelsRunCmd(c *client) *cobra.Command {
 func (s *Service) newRetentionCmd(c *client) *cobra.Command {
 	var from, to, bornEvent, event, retentionType, interval, unit string
 	cmd := &cobra.Command{
-		Use:   "retention",
-		Short: "Cohort retention over time (GET /retention)",
-		Args:  cobra.NoArgs,
+		Use:         "retention",
+		Short:       "Cohort retention over time (GET /retention)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			v := c.projectValues()
 			setIf(v, "from_date", from)
@@ -223,9 +229,10 @@ func (s *Service) newRetentionCmd(c *client) *cobra.Command {
 func (s *Service) newRetentionFrequencyCmd(c *client) *cobra.Command {
 	var from, to, event, unit, bornEvent string
 	cmd := &cobra.Command{
-		Use:   "retention-frequency",
-		Short: "Retention frequency / 'addiction' view (GET /retention/addiction)",
-		Args:  cobra.NoArgs,
+		Use:         "retention-frequency",
+		Short:       "Retention frequency / 'addiction' view (GET /retention/addiction)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			v := c.projectValues()
 			setIf(v, "from_date", from)
@@ -253,9 +260,10 @@ func (s *Service) newRetentionFrequencyCmd(c *client) *cobra.Command {
 func (s *Service) newInsightsCmd(c *client) *cobra.Command {
 	var bookmarkID string
 	cmd := &cobra.Command{
-		Use:   "insights",
-		Short: "Fetch a saved Insights report by bookmark id (GET /insights)",
-		Args:  cobra.NoArgs,
+		Use:         "insights",
+		Short:       "Fetch a saved Insights report by bookmark id (GET /insights)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			v := c.projectValues()
 			v.Set("bookmark_id", bookmarkID)
@@ -276,9 +284,10 @@ func (s *Service) newInsightsCmd(c *client) *cobra.Command {
 // the query string.
 func (s *Service) newCohortsListCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List saved cohorts (POST /cohorts/list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List saved cohorts (POST /cohorts/list)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := c.postForm(cmd.Context(), c.queryBase, "/cohorts/list", c.projectValues(), nil)
 			if err != nil {
@@ -297,9 +306,10 @@ func (s *Service) newEngageCmd(c *client) *cobra.Command {
 	var outputProps []string
 	var page string
 	cmd := &cobra.Command{
-		Use:   "engage",
-		Short: "Query People / user profiles (POST /engage)",
-		Args:  cobra.NoArgs,
+		Use:         "engage",
+		Short:       "Query People / user profiles (POST /engage)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			form := url.Values{}
 			setIf(form, "where", where)
