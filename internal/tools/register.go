@@ -88,6 +88,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/mixpanel"
 	"github.com/heliohq/anycli/internal/tools/mongodb"
 	"github.com/heliohq/anycli/internal/tools/moz"
+	"github.com/heliohq/anycli/internal/tools/netsuite"
 	"github.com/heliohq/anycli/internal/tools/notion"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
@@ -161,6 +162,7 @@ func init() {
 	RegisterService("lemon-squeezy", &lemonsqueezy.Service{})
 	RegisterService("mastodon", &mastodon.Service{})
 	RegisterService("mercury", &mercury.Service{})
+	RegisterService("netsuite", &netsuite.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility

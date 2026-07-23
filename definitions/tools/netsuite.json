@@ -1,0 +1,13 @@
+{
+  "name": "netsuite",
+  "type": "service",
+  "description": "NetSuite ERP as a tool — SuiteTalk REST records + SuiteQL (Token-Based Auth)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "credentials"},
+        "inject": {"type": "env", "env_var": "NETSUITE_CREDENTIALS"}
+      }
+    ]
+  }
+}
