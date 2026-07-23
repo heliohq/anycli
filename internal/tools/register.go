@@ -137,6 +137,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/tiktok"
 	"github.com/heliohq/anycli/internal/tools/twitch"
 	"github.com/heliohq/anycli/internal/tools/typeform"
+	"github.com/heliohq/anycli/internal/tools/typefully"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
 
@@ -287,4 +288,5 @@ func init() {
 	RegisterService("surveymonkey", &surveymonkey.Service{})
 	RegisterService("tally", &tally.Service{})
 	RegisterService("twitch", &twitch.Service{})
+	RegisterService("typefully", &typefully.Service{})
 }
