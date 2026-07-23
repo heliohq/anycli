@@ -127,6 +127,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/signnow"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
+	"github.com/heliohq/anycli/internal/tools/snov"
 	"github.com/heliohq/anycli/internal/tools/tasks"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
@@ -269,4 +270,5 @@ func init() {
 	RegisterService("sendgrid", &sendgrid.Service{})
 	RegisterService("serpapi", &serpapi.Service{})
 	RegisterService("servicenow", &servicenow.Service{})
+	RegisterService("snov", &snov.Service{})
 }
