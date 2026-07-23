@@ -69,6 +69,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/knock"
 	"github.com/heliohq/anycli/internal/tools/kustomer"
 	"github.com/heliohq/anycli/internal/tools/later"
+	"github.com/heliohq/anycli/internal/tools/lemlist"
 	"github.com/heliohq/anycli/internal/tools/linkedin"
 	"github.com/heliohq/anycli/internal/tools/meet"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
@@ -173,4 +174,5 @@ func init() {
 	RegisterService("knock", &knock.Service{})
 	RegisterService("kustomer", &kustomer.Service{})
 	RegisterService("later", &later.Service{})
+	RegisterService("lemlist", &lemlist.Service{})
 }
