@@ -1,0 +1,13 @@
+{
+  "name": "zoominfo",
+  "type": "service",
+  "description": "ZoomInfo B2B sales intelligence: contact/company search and enrich via the Enterprise API",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "credentials"},
+        "inject": {"type": "env", "env_var": "ZOOMINFO_CREDENTIALS"}
+      }
+    ]
+  }
+}
