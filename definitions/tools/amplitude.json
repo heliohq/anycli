@@ -1,0 +1,13 @@
+{
+  "name": "amplitude",
+  "type": "service",
+  "description": "Amplitude product analytics (read/query: segmentation, funnels, retention, cohorts, user activity, chart/export)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_credentials"},
+        "inject": {"type": "env", "env_var": "AMPLITUDE_API_CREDENTIALS"}
+      }
+    ]
+  }
+}
