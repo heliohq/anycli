@@ -96,6 +96,13 @@ func (s *Service) resolveBaseURL(override, subdomain string) string {
 	if subdomain == "" {
 		return ""
 	}
+	// Helio injects the captured instance host (acme.gorgias.com), while the
+	// dev/harness path may pass the bare subdomain (acme). A value that already
+	// contains a dot is a fully-qualified host and is used as-is; a bare label
+	// is suffixed with the Gorgias domain.
+	if strings.Contains(subdomain, ".") {
+		return "https://" + subdomain + "/api"
+	}
 	return "https://" + subdomain + ".gorgias.com/api"
 }
 

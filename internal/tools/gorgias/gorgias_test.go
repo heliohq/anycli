@@ -44,6 +44,13 @@ func TestBaseURLBuiltFromSubdomain(t *testing.T) {
 	if got := svc.resolveBaseURL("http://127.0.0.1:9/", "ignored"); got != "http://127.0.0.1:9" {
 		t.Errorf("resolveBaseURL override = %q, want trimmed base", got)
 	}
+	// A fully-qualified host (already contains a dot) is used as-is rather than
+	// re-suffixed — Helio injects the captured instance host acme.gorgias.com,
+	// not the bare subdomain. Both a bare label and a full host must resolve to
+	// the same per-account base.
+	if got := svc.resolveBaseURL("", "green-garden.gorgias.com"); got != "https://green-garden.gorgias.com/api" {
+		t.Errorf("resolveBaseURL full host = %q, want https://green-garden.gorgias.com/api", got)
+	}
 }
 
 func TestMissingTokenIsRuntimeFailure(t *testing.T) {
