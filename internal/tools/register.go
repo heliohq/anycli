@@ -134,6 +134,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/surveymonkey"
 	"github.com/heliohq/anycli/internal/tools/tally"
 	"github.com/heliohq/anycli/internal/tools/tasks"
+	"github.com/heliohq/anycli/internal/tools/tiktok"
 	"github.com/heliohq/anycli/internal/tools/x"
 )
 
@@ -204,6 +205,7 @@ func init() {
 	RegisterService("meta-ads", &metaads.Service{})
 	RegisterService("tasks", &tasks.Service{})
 	RegisterService("x", &x.Service{})
+	RegisterService("tiktok", &tiktok.Service{})
 	RegisterService("microsoft-outlook", &microsoftoutlook.Service{})
 	RegisterService("microsoft-calendar", &microsoftcalendar.Service{})
 	RegisterService("microsoft-onedrive", &microsoftonedrive.Service{})
