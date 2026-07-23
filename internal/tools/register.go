@@ -79,6 +79,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/mailjet"
 	"github.com/heliohq/anycli/internal/tools/mastodon"
 	"github.com/heliohq/anycli/internal/tools/meet"
+	"github.com/heliohq/anycli/internal/tools/mercury"
 	"github.com/heliohq/anycli/internal/tools/microsoftcalendar"
 	"github.com/heliohq/anycli/internal/tools/microsoftonedrive"
 	"github.com/heliohq/anycli/internal/tools/microsoftoutlook"
@@ -153,6 +154,7 @@ func init() {
 	RegisterService("gumroad", &gumroad.Service{})
 	RegisterService("lemon-squeezy", &lemonsqueezy.Service{})
 	RegisterService("mastodon", &mastodon.Service{})
+	RegisterService("mercury", &mercury.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility
