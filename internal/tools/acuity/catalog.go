@@ -12,9 +12,10 @@ import (
 func (s *Service) newListOnlyCmd(token, use, short, path string) *cobra.Command {
 	group := newGroupCmd(use, short)
 	group.AddCommand(&cobra.Command{
-		Use:   "list",
-		Short: "List " + use + "s (GET " + path + ")",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List " + use + "s (GET " + path + ")",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, path, nil, nil)
 			if err != nil {
@@ -44,9 +45,10 @@ func (s *Service) newLabelCmd(token string) *cobra.Command {
 
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Account identity and settings (GET /me)",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Account identity and settings (GET /me)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/me", nil, nil)
 			if err != nil {

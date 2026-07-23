@@ -23,9 +23,10 @@ func (s *Service) newPostListCmd(token string) *cobra.Command {
 		limit                                                string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List posts with stats (GET /publications/{pub}/posts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List posts with stats (GET /publications/{pub}/posts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			pubID, err := cmd.Flags().GetString("publication-id")
 			if err != nil {
@@ -66,9 +67,10 @@ func (s *Service) newPostListCmd(token string) *cobra.Command {
 func (s *Service) newPostGetCmd(token string) *cobra.Command {
 	var expand []string
 	cmd := &cobra.Command{
-		Use:   "get <postId>",
-		Short: "Get one post (GET /publications/{pub}/posts/{postId})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <postId>",
+		Short:       "Get one post (GET /publications/{pub}/posts/{postId})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pubID, err := cmd.Flags().GetString("publication-id")
 			if err != nil {

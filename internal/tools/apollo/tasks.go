@@ -24,9 +24,10 @@ func (s *Service) newTasksCreateCmd(token string) *cobra.Command {
 	var body, taskType, dueAt, priority, note string
 	var contactIDs []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create follow-up tasks against contacts (POST /tasks/bulk_create)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create follow-up tasks against contacts (POST /tasks/bulk_create)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -59,9 +60,10 @@ func (s *Service) newTasksSearchCmd(token string) *cobra.Command {
 	var body string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "List tasks (POST /tasks/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "List tasks (POST /tasks/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {

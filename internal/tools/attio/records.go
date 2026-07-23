@@ -28,9 +28,10 @@ func (s *Service) newRecordSearchCmd(token string) *cobra.Command {
 	var query, objectsFlag, requestAsMember string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Fuzzy-search records across objects",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Fuzzy-search records across objects",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&query, "query", "", "search query (required, max 256 chars)")
 	cmd.Flags().StringVar(&objectsFlag, "objects", "", "comma-separated object slugs/ids (default: people,companies)")
@@ -114,9 +115,10 @@ func splitCSV(raw string) []string {
 func (s *Service) newRecordQueryCmd(token string) *cobra.Command {
 	var filterFlag, sortsFlag string
 	cmd := &cobra.Command{
-		Use:   "query <object>",
-		Short: "Query one object's records with filter/sorts",
-		Args:  cobra.ExactArgs(1),
+		Use:         "query <object>",
+		Short:       "Query one object's records with filter/sorts",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&filterFlag, "filter", "", "JSON filter object (Attio wire)")
 	cmd.Flags().StringVar(&sortsFlag, "sorts", "", "JSON sorts array (Attio wire)")
@@ -153,9 +155,10 @@ func (s *Service) newRecordQueryCmd(token string) *cobra.Command {
 // (GET /v2/objects/{object}/records/{record_id}).
 func (s *Service) newRecordGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <object> <record_id>",
-		Short: "Get one record by id",
-		Args:  cobra.ExactArgs(2),
+		Use:         "get <object> <record_id>",
+		Short:       "Get one record by id",
+		Args:        cobra.ExactArgs(2),
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, recordPath(args[0], args[1]), nil)
@@ -172,9 +175,10 @@ func (s *Service) newRecordGetCmd(token string) *cobra.Command {
 // (DELETE /v2/objects/{object}/records/{record_id}).
 func (s *Service) newRecordDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <object> <record_id>",
-		Short: "Delete one record by id",
-		Args:  cobra.ExactArgs(2),
+		Use:         "delete <object> <record_id>",
+		Short:       "Delete one record by id",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodDelete, recordPath(args[0], args[1]), nil)
@@ -192,9 +196,10 @@ func (s *Service) newRecordDeleteCmd(token string) *cobra.Command {
 func (s *Service) newRecordCreateCmd(token string) *cobra.Command {
 	var valuesFlag string
 	cmd := &cobra.Command{
-		Use:   "create <object> --values <json>",
-		Short: "Create a record",
-		Args:  cobra.ExactArgs(1),
+		Use:         "create <object> --values <json>",
+		Short:       "Create a record",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&valuesFlag, "values", "", "JSON object of attribute slug/id → value (required)")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -222,9 +227,10 @@ func (s *Service) newRecordUpdateCmd(token string) *cobra.Command {
 	var valuesFlag string
 	var appendMode bool
 	cmd := &cobra.Command{
-		Use:   "update <object> <record_id> --values <json>",
-		Short: "Update a record (default overwrite; --append to append multiselect)",
-		Args:  cobra.ExactArgs(2),
+		Use:         "update <object> <record_id> --values <json>",
+		Short:       "Update a record (default overwrite; --append to append multiselect)",
+		Args:        cobra.ExactArgs(2),
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&valuesFlag, "values", "", "JSON object of attribute slug/id → value (required)")
 	cmd.Flags().BoolVar(&appendMode, "append", false, "append multiselect values (PATCH) instead of overwriting (PUT)")
@@ -254,9 +260,10 @@ func (s *Service) newRecordUpdateCmd(token string) *cobra.Command {
 func (s *Service) newRecordUpsertCmd(token string) *cobra.Command {
 	var valuesFlag, match string
 	cmd := &cobra.Command{
-		Use:   "upsert <object> --values <json> --match <attribute>",
-		Short: "Assert (upsert) a record by a unique matching attribute",
-		Args:  cobra.ExactArgs(1),
+		Use:         "upsert <object> --values <json> --match <attribute>",
+		Short:       "Assert (upsert) a record by a unique matching attribute",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&valuesFlag, "values", "", "JSON object of attribute slug/id → value (required)")
 	cmd.Flags().StringVar(&match, "match", "", "slug/id of the unique attribute to match on (required)")

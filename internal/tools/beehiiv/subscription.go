@@ -21,9 +21,10 @@ func (s *Service) newSubscriptionCmd(token string) *cobra.Command {
 func (s *Service) newSubscriptionGetByEmailCmd(token string) *cobra.Command {
 	var expand []string
 	cmd := &cobra.Command{
-		Use:   "get-by-email <email>",
-		Short: "Look up a subscriber by email (GET /publications/{pub}/subscriptions/by_email/{email})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get-by-email <email>",
+		Short:       "Look up a subscriber by email (GET /publications/{pub}/subscriptions/by_email/{email})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pubID, err := cmd.Flags().GetString("publication-id")
 			if err != nil {
@@ -59,9 +60,10 @@ func (s *Service) newSubscriptionListCmd(token string) *cobra.Command {
 		status, tier, email, orderBy, direction, cursor, page, limit string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List subscribers (GET /publications/{pub}/subscriptions)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List subscribers (GET /publications/{pub}/subscriptions)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			pubID, err := cmd.Flags().GetString("publication-id")
 			if err != nil {
@@ -104,9 +106,10 @@ func (s *Service) newSubscriptionListCmd(token string) *cobra.Command {
 func (s *Service) newSubscriptionCreateCmd(token string) *cobra.Command {
 	var email, data string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Add a subscriber (POST /publications/{pub}/subscriptions)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Add a subscriber (POST /publications/{pub}/subscriptions)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			pubID, err := cmd.Flags().GetString("publication-id")
 			if err != nil {
@@ -142,9 +145,10 @@ func (s *Service) newSubscriptionCreateCmd(token string) *cobra.Command {
 func (s *Service) newSubscriptionUpdateCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "update <subscriptionId>",
-		Short: "Update a subscriber (PUT /publications/{pub}/subscriptions/{subscriptionId})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <subscriptionId>",
+		Short:       "Update a subscriber (PUT /publications/{pub}/subscriptions/{subscriptionId})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pubID, err := cmd.Flags().GetString("publication-id")
 			if err != nil {

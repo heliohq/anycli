@@ -32,9 +32,10 @@ type batchRequest struct {
 func (s *Service) newBatchCmd(token string) *cobra.Command {
 	var targets, selectFields, country, mode, protocol string
 	cmd := &cobra.Command{
-		Use:   "batch",
-		Short: "Compare up to 100 targets in one request (POST /batch-analysis)",
-		Args:  cobra.NoArgs,
+		Use:         "batch",
+		Short:       "Compare up to 100 targets in one request (POST /batch-analysis)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			urls := splitCSV(targets)
 			if len(urls) == 0 {

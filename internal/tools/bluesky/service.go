@@ -19,6 +19,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly and writeAction carry the design-318 side-effect annotation for
+// runnable leaf commands: reads (XRPC *.get*/*.search*/*.list* queries) are
+// side-effect-free; writes create/delete records or mutate state.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 const (
 	// DefaultHost is the Bluesky entryway/PDS. The PDS proxies app.bsky.*
 	// AppView reads, so one host and one bearer token serves both the repo

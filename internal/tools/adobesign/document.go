@@ -17,9 +17,10 @@ const singlePartLimit = 100 * 1024 * 1024
 func (s *Service) newDocumentUploadCmd(token, baseURI string) *cobra.Command {
 	var name, contentType string
 	cmd := &cobra.Command{
-		Use:   "upload <path>",
-		Short: "Upload a local file to transient storage (returns a transient document id)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "upload <path>",
+		Short:       "Upload a local file to transient storage (returns a transient document id)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := s.uploadTransient(cmd.Context(), token, baseURI, args[0], name, contentType)
 			if err != nil {

@@ -22,9 +22,10 @@ func (s *Service) newAccountsCmd(token string) *cobra.Command {
 func (s *Service) newAccountsCreateCmd(token string) *cobra.Command {
 	var body, name, domain string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an account (POST /accounts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an account (POST /accounts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -49,9 +50,10 @@ func (s *Service) newAccountsCreateCmd(token string) *cobra.Command {
 func (s *Service) newAccountsUpdateCmd(token string) *cobra.Command {
 	var body, name, domain string
 	cmd := &cobra.Command{
-		Use:   "update <account_id>",
-		Short: "Update an account (PATCH /accounts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <account_id>",
+		Short:       "Update an account (PATCH /accounts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -77,9 +79,10 @@ func (s *Service) newAccountsSearchCmd(token string) *cobra.Command {
 	var body, q string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search saved accounts (POST /accounts/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search saved accounts (POST /accounts/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {

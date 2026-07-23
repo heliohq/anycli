@@ -22,9 +22,10 @@ func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 	var search string
 	var page, pageSize int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List reusable templates (GET /v1/template/list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List reusable templates (GET /v1/template/list)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("page", strconv.Itoa(page))
@@ -50,9 +51,10 @@ func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 func (s *Service) newTemplateGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a template's properties and roles (GET /v1/template/properties)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a template's properties and roles (GET /v1/template/properties)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("templateId", id)
@@ -73,9 +75,10 @@ func (s *Service) newTemplateSendCmd(token string) *cobra.Command {
 	var roles, fields []string
 	var signingOrder bool
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a document from a template (POST /v1/template/send)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a document from a template (POST /v1/template/send)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(roles) == 0 {
 				return &usageError{msg: "boldsign: at least one --role is required"}

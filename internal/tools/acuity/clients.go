@@ -21,9 +21,10 @@ func (s *Service) newClientCmd(token string) *cobra.Command {
 func (s *Service) newClientListCmd(token string) *cobra.Command {
 	var search string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List / search clients (GET /clients)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List / search clients (GET /clients)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setStringQuery(q, "search", search)
@@ -41,9 +42,10 @@ func (s *Service) newClientListCmd(token string) *cobra.Command {
 func (s *Service) newClientCreateCmd(token string) *cobra.Command {
 	var firstName, lastName, email, phone, notes string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a client (POST /clients)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a client (POST /clients)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"firstName": firstName, "lastName": lastName}
 			setStringIfSet(body, "email", email)
@@ -69,8 +71,9 @@ func (s *Service) newClientCreateCmd(token string) *cobra.Command {
 func (s *Service) newClientUpdateCmd(token string) *cobra.Command {
 	var firstName, lastName, email, phone, notes string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a client, identified by name (PUT /clients)",
+		Use:         "update",
+		Short:       "Update a client, identified by name (PUT /clients)",
+		Annotations: writeAction,
 		Long: "Update a client. Acuity keys the update on the client's name: --first-name and " +
 			"--last-name identify the client (sent as query params) and the updated values are " +
 			"sent in the body. --phone/--email/--notes set the new values.",
@@ -105,9 +108,10 @@ func (s *Service) newClientUpdateCmd(token string) *cobra.Command {
 func (s *Service) newClientDeleteCmd(token string) *cobra.Command {
 	var firstName, lastName, phone string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a client, identified by name (DELETE /clients)",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a client, identified by name (DELETE /clients)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("firstName", firstName)

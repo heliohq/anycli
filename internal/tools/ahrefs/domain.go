@@ -25,9 +25,10 @@ func (s *Service) newDomainOverviewCmd(token string) *cobra.Command {
 	var target, date, country, mode, protocol string
 	var cheap bool
 	cmd := &cobra.Command{
-		Use:   "overview",
-		Short: "Domain Rating + backlink + traffic/keyword metrics for a target",
-		Args:  cobra.NoArgs,
+		Use:         "overview",
+		Short:       "Domain Rating + backlink + traffic/keyword metrics for a target",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if target == "" {
 				return &usageError{msg: "ahrefs: --target is required"}

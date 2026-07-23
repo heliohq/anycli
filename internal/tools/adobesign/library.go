@@ -11,9 +11,10 @@ import (
 
 func (s *Service) newLibraryListCmd(token, baseURI string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List reusable library documents (templates)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List reusable library documents (templates)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, baseURI, http.MethodGet, "/libraryDocuments", nil)
 			if err != nil {
@@ -46,9 +47,10 @@ func (s *Service) newLibraryListCmd(token, baseURI string) *cobra.Command {
 
 func (s *Service) newLibraryGetCmd(token, baseURI string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <library-document-id>",
-		Short: "Get one library document",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <library-document-id>",
+		Short:       "Get one library document",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, baseURI, http.MethodGet, "/libraryDocuments/"+url.PathEscape(args[0]), nil)
 			if err != nil {

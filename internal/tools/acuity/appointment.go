@@ -26,9 +26,10 @@ func (s *Service) newAppointmentListCmd(token string) *cobra.Command {
 	var calendarID, typeID, max int
 	var canceled, excludeForms bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List scheduled appointments (GET /appointments)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List scheduled appointments (GET /appointments)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setStringQuery(q, "minDate", minDate)
@@ -69,9 +70,10 @@ func (s *Service) newAppointmentListCmd(token string) *cobra.Command {
 
 func (s *Service) newAppointmentGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one appointment (GET /appointments/:id)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one appointment (GET /appointments/:id)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/appointments/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -88,8 +90,9 @@ func (s *Service) newAppointmentCreateCmd(token string) *cobra.Command {
 	var fieldArgs []string
 	var admin, noEmail bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Book an appointment (POST /appointments)",
+		Use:         "create",
+		Short:       "Book an appointment (POST /appointments)",
+		Annotations: writeAction,
 		Long: "Book an appointment. --datetime is passed through verbatim (Acuity parses it " +
 			"via strtotime in the business/calendar timezone); ISO-8601 (2026-07-15T09:00:00-0400) " +
 			"is the safe form. --admin bypasses availability checks and requires --calendar-id.",
@@ -144,9 +147,10 @@ func (s *Service) newAppointmentUpdateCmd(token string) *cobra.Command {
 	var fieldArgs []string
 	var admin, noEmail bool
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Edit an appointment's client details / intake fields (PUT /appointments/:id)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Edit an appointment's client details / intake fields (PUT /appointments/:id)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fields, err := parseFields(fieldArgs)
 			if err != nil {
@@ -184,9 +188,10 @@ func (s *Service) newAppointmentRescheduleCmd(token string) *cobra.Command {
 	var calendarID int
 	var admin, noEmail bool
 	cmd := &cobra.Command{
-		Use:   "reschedule <id>",
-		Short: "Move an appointment to a new time (PUT /appointments/:id/reschedule)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "reschedule <id>",
+		Short:       "Move an appointment to a new time (PUT /appointments/:id/reschedule)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{"datetime": datetime}
 			setStringIfSet(body, "timezone", timezone)
@@ -211,9 +216,10 @@ func (s *Service) newAppointmentCancelCmd(token string) *cobra.Command {
 	var note string
 	var admin, noEmail bool
 	cmd := &cobra.Command{
-		Use:   "cancel <id>",
-		Short: "Cancel an appointment (PUT /appointments/:id/cancel)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "cancel <id>",
+		Short:       "Cancel an appointment (PUT /appointments/:id/cancel)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			setStringIfSet(body, "cancelNote", note)

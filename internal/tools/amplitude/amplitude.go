@@ -27,6 +27,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly marks a leaf command as side-effect-free for the design-318 approval
+// gate. The Amplitude tool is analysis-only (every leaf is a GET query/export
+// that never mutates provider state), so all leaves carry it.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+
 // Host bases for the two Amplitude data-residency silos. analytics.amplitude.com
 // is the web UI, not a REST host, so it is intentionally absent.
 const (

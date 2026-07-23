@@ -21,9 +21,10 @@ func (s *Service) newAvailabilityDatesCmd(token string) *cobra.Command {
 	var month, timezone string
 	var typeID, calendarID int
 	cmd := &cobra.Command{
-		Use:   "dates",
-		Short: "Days with open slots in a month (GET /availability/dates)",
-		Args:  cobra.NoArgs,
+		Use:         "dates",
+		Short:       "Days with open slots in a month (GET /availability/dates)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("appointmentTypeID", strconv.Itoa(typeID))
@@ -50,9 +51,10 @@ func (s *Service) newAvailabilityTimesCmd(token string) *cobra.Command {
 	var date, timezone string
 	var typeID, calendarID int
 	cmd := &cobra.Command{
-		Use:   "times",
-		Short: "Open time slots on a date (GET /availability/times)",
-		Args:  cobra.NoArgs,
+		Use:         "times",
+		Short:       "Open time slots on a date (GET /availability/times)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("appointmentTypeID", strconv.Itoa(typeID))

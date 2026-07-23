@@ -32,9 +32,10 @@ func (s *Service) newTimelineCmd(sess *session) *cobra.Command {
 	var limit int
 	var cursor string
 	cmd := &cobra.Command{
-		Use:   "timeline",
-		Short: "Read the home timeline (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "timeline",
+		Short:       "Read the home timeline (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query, err := feedQuery(limit, cursor)
 			if err != nil {
@@ -52,9 +53,10 @@ func (s *Service) newFeedCmd(sess *session) *cobra.Command {
 	var actor, cursor string
 	var limit int
 	author := &cobra.Command{
-		Use:   "author",
-		Short: "Read an actor's posts (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "author",
+		Short:       "Read an actor's posts (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if actor == "" {
 				return fmt.Errorf("--actor is required")

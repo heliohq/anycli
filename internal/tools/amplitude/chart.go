@@ -20,9 +20,10 @@ type chartEnvelope struct {
 func (s *Service) newChartCmd(authHeader string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "chart",
-		Short: "Results behind a saved chart as CSV (GET /api/3/chart/:id/csv)",
-		Args:  cobra.NoArgs,
+		Use:         "chart",
+		Short:       "Results behind a saved chart as CSV (GET /api/3/chart/:id/csv)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "--id is required (a saved chart id)"}

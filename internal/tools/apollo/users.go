@@ -22,9 +22,10 @@ func (s *Service) newUsersCmd(token string) *cobra.Command {
 func (s *Service) newUsersListCmd(token string) *cobra.Command {
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List team members (GET /users/search)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List team members (GET /users/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			applyPageQuery(q, page, perPage)
@@ -43,9 +44,10 @@ func (s *Service) newUsersListCmd(token string) *cobra.Command {
 // the same endpoint Helio's OAuth identity resolver reads.
 func (s *Service) newUsersProfileCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "profile",
-		Short: "Get the current token owner's profile (GET /users/api_profile)",
-		Args:  cobra.NoArgs,
+		Use:         "profile",
+		Short:       "Get the current token owner's profile (GET /users/api_profile)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/users/api_profile", nil, nil)
 			if err != nil {
@@ -67,9 +69,10 @@ func (s *Service) newEmailAccountsCmd(token string) *cobra.Command {
 // newEmailAccountsListCmd wraps GET /email_accounts.
 func (s *Service) newEmailAccountsListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List connected email accounts (GET /email_accounts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List connected email accounts (GET /email_accounts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/email_accounts", nil, nil)
 			if err != nil {

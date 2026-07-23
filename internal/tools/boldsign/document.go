@@ -53,9 +53,10 @@ func (s *Service) newDocumentSendCmd(token string) *cobra.Command {
 	var expiryDays int
 	var signingOrder, autoDetectFields, textTags, disableEmails bool
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send files for signature (POST /v1/document/send)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send files for signature (POST /v1/document/send)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(files) == 0 && len(fileURLs) == 0 {
 				return &usageError{msg: "boldsign: at least one --file or --file-url is required"}
@@ -152,9 +153,10 @@ func (s *Service) newDocumentListCmd(token string) *cobra.Command {
 	var search, transmitType string
 	var page, pageSize int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List / monitor documents (GET /v1/document/list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List / monitor documents (GET /v1/document/list)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("page", strconv.Itoa(page))
@@ -188,9 +190,10 @@ func (s *Service) newDocumentListCmd(token string) *cobra.Command {
 func (s *Service) newDocumentGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get document properties and per-signer status (GET /v1/document/properties)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get document properties and per-signer status (GET /v1/document/properties)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("documentId", id)
@@ -223,9 +226,10 @@ func (s *Service) newDocumentAuditLogCmd(token string) *cobra.Command {
 func (s *Service) newBinaryDownloadCmd(token, use, short, path string) *cobra.Command {
 	var id, out string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("documentId", id)
@@ -250,9 +254,10 @@ func (s *Service) newDocumentRemindCmd(token string) *cobra.Command {
 	var id, message string
 	var emails []string
 	cmd := &cobra.Command{
-		Use:   "remind",
-		Short: "Send a reminder to pending signers (POST /v1/document/remind)",
-		Args:  cobra.NoArgs,
+		Use:         "remind",
+		Short:       "Send a reminder to pending signers (POST /v1/document/remind)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("documentId", id)
@@ -279,9 +284,10 @@ func (s *Service) newDocumentRemindCmd(token string) *cobra.Command {
 func (s *Service) newDocumentRevokeCmd(token string) *cobra.Command {
 	var id, message string
 	cmd := &cobra.Command{
-		Use:   "revoke",
-		Short: "Revoke / cancel a document with a reason (POST /v1/document/revoke)",
-		Args:  cobra.NoArgs,
+		Use:         "revoke",
+		Short:       "Revoke / cancel a document with a reason (POST /v1/document/revoke)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("documentId", id)

@@ -29,6 +29,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly / writeAction carry the design-318 side-effect annotation for leaf
+// commands. Apollo mixes reads (search/enrich/list/get — including POST search
+// and enrichment endpoints that only return data) with writes (create/update
+// CRM records, sequence enroll/stop). Enrichment consumes credits but does not
+// mutate a stored record, so it is a read.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // DefaultBaseURL is the production Apollo REST API base.
 const DefaultBaseURL = "https://api.apollo.io/api/v1"
 

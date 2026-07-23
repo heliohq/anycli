@@ -20,9 +20,10 @@ func shapeProfile(p rawProfile) profileView {
 
 func (s *Service) newWhoamiCmd(sess *session) *cobra.Command {
 	return &cobra.Command{
-		Use:   "whoami",
-		Short: "Show the connected account (opens a session and reads the self profile)",
-		Args:  cobra.NoArgs,
+		Use:         "whoami",
+		Short:       "Show the connected account (opens a session and reads the self profile)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			if err := sess.ensure(ctx); err != nil {
@@ -41,9 +42,10 @@ func (s *Service) newProfileCmd(sess *session) *cobra.Command {
 	cmd := &cobra.Command{Use: "profile", Short: "Profiles"}
 	var actor string
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Get an actor's profile",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get an actor's profile",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if actor == "" {
 				return fmt.Errorf("--actor is required")

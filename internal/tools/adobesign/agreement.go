@@ -21,9 +21,10 @@ type agreementSummary struct {
 func (s *Service) newAgreementSendCmd(token, baseURI string) *cobra.Command {
 	var document, libraryID, recipientEmail, recipientName, name string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Create and send an agreement for signature (from a file or a library document)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Create and send an agreement for signature (from a file or a library document)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			hasDoc := strings.TrimSpace(document) != ""
 			hasLib := strings.TrimSpace(libraryID) != ""
@@ -94,9 +95,10 @@ func (s *Service) newAgreementListCmd(token, baseURI string) *cobra.Command {
 	var cursor string
 	var pageSize int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List agreements (what is out for signature / completed)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List agreements (what is out for signature / completed)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if strings.TrimSpace(cursor) != "" {
@@ -144,9 +146,10 @@ func (s *Service) newAgreementListCmd(token, baseURI string) *cobra.Command {
 
 func (s *Service) newAgreementGetCmd(token, baseURI string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <agreement-id>",
-		Short: "Get one agreement's status",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <agreement-id>",
+		Short:       "Get one agreement's status",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, baseURI, http.MethodGet, "/agreements/"+url.PathEscape(args[0]), nil)
 			if err != nil {
@@ -171,9 +174,10 @@ func (s *Service) newAgreementGetCmd(token, baseURI string) *cobra.Command {
 
 func (s *Service) newAgreementMembersCmd(token, baseURI string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "members <agreement-id>",
-		Short: "List per-participant signing status",
-		Args:  cobra.ExactArgs(1),
+		Use:         "members <agreement-id>",
+		Short:       "List per-participant signing status",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, baseURI, http.MethodGet, "/agreements/"+url.PathEscape(args[0])+"/members", nil)
 			if err != nil {
@@ -220,9 +224,10 @@ func (s *Service) newAgreementMembersCmd(token, baseURI string) *cobra.Command {
 func (s *Service) newAgreementCancelCmd(token, baseURI string) *cobra.Command {
 	var comment string
 	cmd := &cobra.Command{
-		Use:   "cancel <agreement-id>",
-		Short: "Cancel a sent agreement (sender-initiated)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "cancel <agreement-id>",
+		Short:       "Cancel a sent agreement (sender-initiated)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cancelInfo := map[string]any{"notifyOthers": false}
 			if strings.TrimSpace(comment) != "" {
@@ -247,9 +252,10 @@ func (s *Service) newAgreementCancelCmd(token, baseURI string) *cobra.Command {
 func (s *Service) newAgreementDownloadCmd(token, baseURI string) *cobra.Command {
 	var out string
 	cmd := &cobra.Command{
-		Use:   "download <agreement-id>",
-		Short: "Download the combined signed PDF",
-		Args:  cobra.ExactArgs(1),
+		Use:         "download <agreement-id>",
+		Short:       "Download the combined signed PDF",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := s.download(cmd.Context(), token, baseURI, "/agreements/"+url.PathEscape(args[0])+"/combinedDocument", out); err != nil {
 				return err

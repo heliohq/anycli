@@ -40,9 +40,10 @@ func (s *Service) newKeywordOverviewCmd(token string) *cobra.Command {
 	var keywords, country string
 	var rf rowFlags
 	cmd := &cobra.Command{
-		Use:   "overview",
-		Short: "Volume/KD/CPC for explicit keywords (GET /keywords-explorer/overview)",
-		Args:  cobra.NoArgs,
+		Use:         "overview",
+		Short:       "Volume/KD/CPC for explicit keywords (GET /keywords-explorer/overview)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if keywords == "" {
 				return &usageError{msg: "ahrefs: --keywords is required"}
@@ -73,9 +74,10 @@ func (s *Service) newKeywordIdeasCmd(token string) *cobra.Command {
 	var keywords, country, kind string
 	var rf rowFlags
 	cmd := &cobra.Command{
-		Use:   "ideas",
-		Short: "Keyword ideas: matching|related|suggestions (Keywords Explorer)",
-		Args:  cobra.NoArgs,
+		Use:         "ideas",
+		Short:       "Keyword ideas: matching|related|suggestions (Keywords Explorer)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path, ok := ideaKinds[kind]
 			if !ok {
@@ -110,9 +112,10 @@ func (s *Service) newKeywordIdeasCmd(token string) *cobra.Command {
 func (s *Service) newKeywordVolumeHistoryCmd(token string) *cobra.Command {
 	var keyword, country, from, to string
 	cmd := &cobra.Command{
-		Use:   "volume-history",
-		Short: "Search-volume trend for one keyword (GET /keywords-explorer/volume-history)",
-		Args:  cobra.NoArgs,
+		Use:         "volume-history",
+		Short:       "Search-volume trend for one keyword (GET /keywords-explorer/volume-history)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if keyword == "" {
 				return &usageError{msg: "ahrefs: --keyword is required"}

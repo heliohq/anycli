@@ -26,9 +26,10 @@ func (s *Service) newContactsCreateCmd(token string) *cobra.Command {
 	var body string
 	var firstName, lastName, email, title, org, orgDomain string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact (POST /contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact (POST /contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -63,9 +64,10 @@ func (s *Service) newContactsBulkCreateCmd(token string) *cobra.Command {
 	var body, contactsJSON string
 	var runDedupe bool
 	cmd := &cobra.Command{
-		Use:   "bulk-create",
-		Short: "Create up to 100 contacts in one call (POST /contacts/bulk_create)",
-		Args:  cobra.NoArgs,
+		Use:         "bulk-create",
+		Short:       "Create up to 100 contacts in one call (POST /contacts/bulk_create)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -98,9 +100,10 @@ func (s *Service) newContactsBulkCreateCmd(token string) *cobra.Command {
 func (s *Service) newContactsUpdateCmd(token string) *cobra.Command {
 	var body, title, email, stageID string
 	cmd := &cobra.Command{
-		Use:   "update <contact_id>",
-		Short: "Update a contact (PATCH /contacts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <contact_id>",
+		Short:       "Update a contact (PATCH /contacts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -128,9 +131,10 @@ func (s *Service) newContactsSearchCmd(token string) *cobra.Command {
 	var body, q string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search existing contacts (POST /contacts/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search existing contacts (POST /contacts/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -154,9 +158,10 @@ func (s *Service) newContactsSearchCmd(token string) *cobra.Command {
 // newContactsStagesCmd wraps GET /contact_stages.
 func (s *Service) newContactsStagesCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "stages",
-		Short: "List contact stages (GET /contact_stages)",
-		Args:  cobra.NoArgs,
+		Use:         "stages",
+		Short:       "List contact stages (GET /contact_stages)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/contact_stages", nil, nil)
 			if err != nil {

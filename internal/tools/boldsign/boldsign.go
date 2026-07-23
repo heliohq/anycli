@@ -21,6 +21,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly and writeAction carry the design-318 side-effect annotation for
+// runnable leaf commands: GET reads are side-effect-free; POST/PUT/DELETE
+// mutations (send, remind, revoke) create/change state.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // DefaultBaseURL is the production BoldSign API base (US region). A EU-region
 // account would need a different base and is out of scope for this build.
 const DefaultBaseURL = "https://api.boldsign.com"

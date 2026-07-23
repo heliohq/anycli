@@ -12,9 +12,10 @@ import (
 func (s *Service) newListGroupCmd(token, group, short, resourcePath, listShort string) *cobra.Command {
 	cmd := newGroupCmd(group, short)
 	list := &cobra.Command{
-		Use:   "list",
-		Short: listShort,
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       listShort,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			pubID, err := cmd.Flags().GetString("publication-id")
 			if err != nil {
