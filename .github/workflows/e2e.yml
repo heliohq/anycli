@@ -24,10 +24,10 @@ jobs:
     outputs:
       tools: ${{ steps.detect.outputs.tools }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - id: detect
@@ -63,8 +63,8 @@ jobs:
       HELIO_E2E_API_KEY: ${{ secrets.HELIO_E2E_API_KEY }}
       HELIO_E2E_API_BASE: ${{ vars.HELIO_E2E_API_BASE }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Run e2e tests
@@ -122,6 +122,6 @@ jobs:
       HELIO_E2E_API_BASE: ${{ vars.HELIO_E2E_API_BASE }}
       GH_TOKEN: ${{ secrets.E2E_SECRETS_PAT }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Rotate HELIO_E2E_API_KEY
         run: ./.github/scripts/rotate-key.sh
