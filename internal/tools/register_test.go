@@ -8,7 +8,7 @@ import "testing"
 // GetService lookup failed at runtime.
 func TestBuiltinServicesRegistered(t *testing.T) {
 	for _, name := range []string{
-		"slack", "notion", "gmail", "calendar", "contacts",
+		"slack", "notion", "novu", "gmail", "calendar", "contacts",
 		"drive", "discord", "figma", "linkedin", "x", "sheets",
 		"meet", "docs", "tasks", "bitly", "mongodb", "gate-probe",
 		"meet", "docs", "tasks", "bitly", "mongodb", "attio",
