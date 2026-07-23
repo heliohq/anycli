@@ -35,6 +35,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/docs"
 	"github.com/heliohq/anycli/internal/tools/docusign"
 	"github.com/heliohq/anycli/internal/tools/drive"
+	"github.com/heliohq/anycli/internal/tools/dropboxsign"
 	"github.com/heliohq/anycli/internal/tools/figma"
 	"github.com/heliohq/anycli/internal/tools/forms"
 	"github.com/heliohq/anycli/internal/tools/gateprobe"
@@ -113,4 +114,5 @@ func init() {
 	RegisterService("crisp", &crisp.Service{})
 	RegisterService("customer-io", &customerio.Service{})
 	RegisterService("dataforseo", &dataforseo.Service{})
+	RegisterService("dropbox-sign", &dropboxsign.Service{})
 }

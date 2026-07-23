@@ -1,0 +1,13 @@
+{
+  "name": "dropbox-sign",
+  "type": "service",
+  "description": "Dropbox Sign (HelloSign) e-signature: send, track, and download signature requests (OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "DROPBOX_SIGN_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
