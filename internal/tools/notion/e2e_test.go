@@ -64,13 +64,21 @@ func TestE2EPageClosedLoop(t *testing.T) {
 	}
 	pageID := createdPageID(t, out)
 
-	// Read back: the title must be visible.
+	// Read back. Bare fetch renders the page BODY as markdown (no title);
+	// the title lives in the JSON form's properties, so verify both faces.
+	out, exit = e2e.RunTool(t, "notion", "", "fetch", pageID, "--json")
+	if exit != 0 {
+		t.Fatalf("fetch --json exit = %d, output:\n%s", exit, out)
+	}
+	if !strings.Contains(out, name) {
+		t.Fatalf("fetched page JSON does not contain title %q:\n%s", name, out)
+	}
 	out, exit = e2e.RunTool(t, "notion", "", "fetch", pageID)
 	if exit != 0 {
 		t.Fatalf("fetch exit = %d, output:\n%s", exit, out)
 	}
-	if !strings.Contains(out, name) {
-		t.Fatalf("fetched page does not contain title %q:\n%s", name, out)
+	if !strings.Contains(out, "Seed content created by anycli e2e.") {
+		t.Fatalf("fetched page body missing seed content:\n%s", out)
 	}
 
 	// Update: append content, then verify it landed.
