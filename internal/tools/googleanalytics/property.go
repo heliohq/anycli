@@ -28,9 +28,10 @@ func (s *Service) newPropertyListCmd(token string) *cobra.Command {
 	var pageSize int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List accessible accounts and their GA4 properties (accountSummaries)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List accessible accounts and their GA4 properties (accountSummaries)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if cmd.Flags().Changed("page-size") {

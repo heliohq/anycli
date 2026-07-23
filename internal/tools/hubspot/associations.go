@@ -26,9 +26,10 @@ const assocV4Base = "/crm/v4/objects"
 
 func (s *Service) newAssocCreateCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "create <fromType> <fromId> <toType> <toId>",
-		Short: "Create a default association between two records",
-		Args:  cobra.ExactArgs(4),
+		Use:         "create <fromType> <fromId> <toType> <toId>",
+		Short:       "Create a default association between two records",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := assocV4Base + "/" + url.PathEscape(args[0]) + "/" + url.PathEscape(args[1]) +
 				"/associations/default/" + url.PathEscape(args[2]) + "/" + url.PathEscape(args[3])
@@ -43,9 +44,10 @@ func (s *Service) newAssocCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newAssocListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list <fromType> <fromId> <toType>",
-		Short: "List associations from one record to a target object type",
-		Args:  cobra.ExactArgs(3),
+		Use:         "list <fromType> <fromId> <toType>",
+		Short:       "List associations from one record to a target object type",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := assocV4Base + "/" + url.PathEscape(args[0]) + "/" + url.PathEscape(args[1]) +
 				"/associations/" + url.PathEscape(args[2])
@@ -60,9 +62,10 @@ func (s *Service) newAssocListCmd(token string) *cobra.Command {
 
 func (s *Service) newAssocDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <fromType> <fromId> <toType> <toId>",
-		Short: "Remove all associations between two records",
-		Args:  cobra.ExactArgs(4),
+		Use:         "delete <fromType> <fromId> <toType> <toId>",
+		Short:       "Remove all associations between two records",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := assocV4Base + "/" + url.PathEscape(args[0]) + "/" + url.PathEscape(args[1]) +
 				"/associations/" + url.PathEscape(args[2]) + "/" + url.PathEscape(args[3])

@@ -23,9 +23,10 @@ func (s *Service) newInsightsCmd(token string) *cobra.Command {
 		until      string
 	)
 	cmd := &cobra.Command{
-		Use:   "insights",
-		Short: "Account-level insights (GET /me/insights)",
-		Args:  cobra.NoArgs,
+		Use:         "insights",
+		Short:       "Account-level insights (GET /me/insights)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("metric", firstNonEmpty(metrics, accountInsightMetrics))

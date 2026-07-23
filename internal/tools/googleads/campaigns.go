@@ -22,9 +22,10 @@ var campaignSetStatuses = map[string]struct{}{"ENABLED": {}, "PAUSED": {}}
 func (s *Service) newCampaignsListCmd(c creds) *cobra.Command {
 	var customerID, status string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns with key metrics (POST googleAds:search)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns with key metrics (POST googleAds:search)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := normalizeCustomerID(customerID)
 			if err != nil {
@@ -53,9 +54,10 @@ func (s *Service) newCampaignsListCmd(c creds) *cobra.Command {
 func (s *Service) newCampaignSetStatusCmd(c creds) *cobra.Command {
 	var customerID, campaignID, status string
 	cmd := &cobra.Command{
-		Use:   "set-status",
-		Short: "Enable or pause a campaign (POST campaigns:mutate)",
-		Args:  cobra.NoArgs,
+		Use:         "set-status",
+		Short:       "Enable or pause a campaign (POST campaigns:mutate)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := normalizeCustomerID(customerID)
 			if err != nil {
@@ -107,9 +109,10 @@ func (s *Service) newBudgetSetCmd(c creds) *cobra.Command {
 	var customerID, budgetID string
 	var amountMicros int64
 	cmd := &cobra.Command{
-		Use:   "set",
-		Short: "Set a campaign budget's amount in micros (POST campaignBudgets:mutate)",
-		Args:  cobra.NoArgs,
+		Use:         "set",
+		Short:       "Set a campaign budget's amount in micros (POST campaignBudgets:mutate)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := normalizeCustomerID(customerID)
 			if err != nil {

@@ -30,9 +30,10 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 	var page int
 	var embedThreads bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List/filter/search conversations (GET /conversations)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List/filter/search conversations (GET /conversations)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := enumValidator("status", "active", "all", "closed", "open", "pending", "spam")(status); err != nil {
 				return err
@@ -81,9 +82,10 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 func (s *Service) newConversationGetCmd(token string) *cobra.Command {
 	var embedThreads bool
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one conversation with its threads (GET /conversations/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one conversation with its threads (GET /conversations/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			if embedThreads {
@@ -106,9 +108,10 @@ func (s *Service) newConversationGetCmd(token string) *cobra.Command {
 func (s *Service) newConversationCreateCmd(token string) *cobra.Command {
 	var mailbox, subject, customerEmail, customerID, convType, status, text, threadType, assignTo, tags string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a conversation with an initial thread (POST /conversations)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a conversation with an initial thread (POST /conversations)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := enumValidator("type", "email", "phone", "chat")(convType); err != nil {
 				return err
@@ -190,9 +193,10 @@ func (s *Service) newConversationUpdateCmd(token string) *cobra.Command {
 	var status, assignTo, subject string
 	var unassign bool
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update status / assignee / subject (PATCH /conversations/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update status / assignee / subject (PATCH /conversations/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Matches the reply status set (Errors doc: active|spam|open|closed|
 			// pending); create is intentionally narrower per its own endpoint.
@@ -243,9 +247,10 @@ func (s *Service) newConversationUpdateCmd(token string) *cobra.Command {
 func (s *Service) newConversationTagCmd(token string) *cobra.Command {
 	var tags string
 	cmd := &cobra.Command{
-		Use:   "tag <id> --tags t1,t2",
-		Short: "Replace a conversation's tag set (PUT /conversations/{id}/tags)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "tag <id> --tags t1,t2",
+		Short:       "Replace a conversation's tag set (PUT /conversations/{id}/tags)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{"tags": splitCSV(tags)}
 			if _, err := s.call(cmd.Context(), token, http.MethodPut, "/conversations/"+url.PathEscape(args[0])+"/tags", nil, body); err != nil {
@@ -266,9 +271,10 @@ func (s *Service) newConversationSnoozeCmd(token string) *cobra.Command {
 	var until string
 	var unsnoozeOnReply bool
 	cmd := &cobra.Command{
-		Use:   "snooze <id> --until <ISO8601>",
-		Short: "Snooze a conversation until a future time (PUT /conversations/{id}/snooze)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "snooze <id> --until <ISO8601>",
+		Short:       "Snooze a conversation until a future time (PUT /conversations/{id}/snooze)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{
 				"snoozedUntil":            until,
@@ -289,9 +295,10 @@ func (s *Service) newConversationSnoozeCmd(token string) *cobra.Command {
 // newConversationUnsnoozeCmd — DELETE /conversations/{id}/snooze.
 func (s *Service) newConversationUnsnoozeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "unsnooze <id>",
-		Short: "Clear a conversation's snooze (DELETE /conversations/{id}/snooze)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "unsnooze <id>",
+		Short:       "Clear a conversation's snooze (DELETE /conversations/{id}/snooze)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := s.call(cmd.Context(), token, http.MethodDelete, "/conversations/"+url.PathEscape(args[0])+"/snooze", nil, nil); err != nil {
 				return err

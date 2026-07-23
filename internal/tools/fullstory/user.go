@@ -24,9 +24,10 @@ func (s *Service) newUserGetCmd(key string) *cobra.Command {
 	var id string
 	var includeSchema bool
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a user by FullStory id (GET /v2/users/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a user by FullStory id (GET /v2/users/{id})",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id == "" {
 				return &usageError{msg: "user get requires --id (the FullStory user id)"}
@@ -51,9 +52,10 @@ func (s *Service) newUserGetCmd(key string) *cobra.Command {
 func (s *Service) newUserListCmd(key string) *cobra.Command {
 	var uid, email string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Find users by uid and/or email (GET /v2/users)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "Find users by uid and/or email (GET /v2/users)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if uid != "" {
@@ -81,9 +83,10 @@ func (s *Service) newUserUpsertCmd(key string) *cobra.Command {
 	var uid, displayName, email string
 	var props []string
 	cmd := &cobra.Command{
-		Use:   "upsert",
-		Short: "Create or update a user by uid (POST /v2/users)",
-		Args:  cobra.NoArgs,
+		Use:         "upsert",
+		Short:       "Create or update a user by uid (POST /v2/users)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if uid == "" {
 				return &usageError{msg: "user upsert requires --uid"}

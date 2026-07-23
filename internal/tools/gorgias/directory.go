@@ -47,9 +47,10 @@ func (s *Service) newViewCmd(token, base string) *cobra.Command {
 func (s *Service) newAccountCmd(token, base string) *cobra.Command {
 	cmd := newGroupCmd("account", "Account identity / health-check")
 	cmd.AddCommand(&cobra.Command{
-		Use:   "get",
-		Short: "Retrieve the account (GET /account)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Retrieve the account (GET /account)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, base, http.MethodGet, "/account", nil, nil)
 			if err != nil {
@@ -66,9 +67,10 @@ func (s *Service) newAccountCmd(token, base string) *cobra.Command {
 func (s *Service) newSimpleListCmd(token, base, use, short, path string) *cobra.Command {
 	var page pageFlags
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.apply(q)
@@ -87,9 +89,10 @@ func (s *Service) newSimpleListCmd(token, base, use, short, path string) *cobra.
 // trailing slash and the id is appended (path-escaped).
 func (s *Service) newSimpleGetCmd(token, base, use, short, pathPrefix string) *cobra.Command {
 	return &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:         use,
+		Short:       short,
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, base, http.MethodGet, pathPrefix+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -104,9 +107,10 @@ func (s *Service) newViewListCmd(token, base string) *cobra.Command {
 	var page pageFlags
 	var category string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List views (GET /views)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List views (GET /views)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.apply(q)
@@ -128,9 +132,10 @@ func (s *Service) newViewListCmd(token, base string) *cobra.Command {
 func (s *Service) newViewItemsCmd(token, base string) *cobra.Command {
 	var page pageFlags
 	cmd := &cobra.Command{
-		Use:   "items <view-id>",
-		Short: "List a view's items/tickets (GET /views/{id}/items)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "items <view-id>",
+		Short:       "List a view's items/tickets (GET /views/{id}/items)",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			page.apply(q)

@@ -11,9 +11,10 @@ import (
 // permission-level check for the AI teammate.
 func (s *Service) newMeCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Show the API key's role and verify connectivity (GET /me)",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Show the API key's role and verify connectivity (GET /me)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/me", nil, nil)
 			if err != nil {

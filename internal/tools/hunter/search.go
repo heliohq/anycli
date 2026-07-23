@@ -13,9 +13,10 @@ func (s *Service) newDomainSearchCmd(key string) *cobra.Command {
 	var domain, company, department, seniority, requiredField, verificationStatus, typ string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "domain-search",
-		Short: "Find email addresses for a domain (GET /domain-search)",
-		Args:  cobra.NoArgs,
+		Use:         "domain-search",
+		Short:       "Find email addresses for a domain (GET /domain-search)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIf(q, "domain", domain)
@@ -55,9 +56,10 @@ func (s *Service) newDomainSearchCmd(key string) *cobra.Command {
 func (s *Service) newEmailCountCmd(key string) *cobra.Command {
 	var domain, company, typ string
 	cmd := &cobra.Command{
-		Use:   "email-count",
-		Short: "Count known emails for a domain (GET /email-count)",
-		Args:  cobra.NoArgs,
+		Use:         "email-count",
+		Short:       "Count known emails for a domain (GET /email-count)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIf(q, "domain", domain)
@@ -83,9 +85,10 @@ func (s *Service) newDomainFinderCmd(key string) *cobra.Command {
 	var limit int
 	var perfectMatch bool
 	cmd := &cobra.Command{
-		Use:   "domain-finder",
-		Short: "Find the domain for a company name (GET /domain-finder)",
-		Args:  cobra.NoArgs,
+		Use:         "domain-finder",
+		Short:       "Find the domain for a company name (GET /domain-finder)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("company", company)

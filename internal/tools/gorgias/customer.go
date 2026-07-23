@@ -20,9 +20,10 @@ func (s *Service) newCustomerListCmd(token, base string) *cobra.Command {
 	var page pageFlags
 	var email, name, externalID string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List / find customers, filterable by email or name (GET /customers)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List / find customers, filterable by email or name (GET /customers)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.apply(q)
@@ -51,9 +52,10 @@ func (s *Service) newCustomerListCmd(token, base string) *cobra.Command {
 
 func (s *Service) newCustomerGetCmd(token, base string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <customer-id>",
-		Short: "Retrieve a customer (GET /customers/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <customer-id>",
+		Short:       "Retrieve a customer (GET /customers/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, base, http.MethodGet, "/customers/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

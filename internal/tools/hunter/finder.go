@@ -13,9 +13,10 @@ func (s *Service) newEmailFinderCmd(key string) *cobra.Command {
 	var domain, company, firstName, lastName, fullName, linkedinHandle string
 	var maxDuration int
 	cmd := &cobra.Command{
-		Use:   "email-finder",
-		Short: "Find a person's email address (GET /email-finder)",
-		Args:  cobra.NoArgs,
+		Use:         "email-finder",
+		Short:       "Find a person's email address (GET /email-finder)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIf(q, "domain", domain)

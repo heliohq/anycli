@@ -23,9 +23,10 @@ func (s *Service) newCustomerListCmd(token string) *cobra.Command {
 	var firstName, lastName, mailbox, modifiedSince, query string
 	var page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List/search customers (GET /customers)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List/search customers (GET /customers)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIf(q, "firstName", firstName)
@@ -53,9 +54,10 @@ func (s *Service) newCustomerListCmd(token string) *cobra.Command {
 // newCustomerGetCmd — GET /customers/{id}.
 func (s *Service) newCustomerGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one customer (GET /customers/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one customer (GET /customers/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/customers/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -72,9 +74,10 @@ func (s *Service) newCustomerGetCmd(token string) *cobra.Command {
 func (s *Service) newCustomerCreateCmd(token string) *cobra.Command {
 	var firstName, lastName, email, organization, jobTitle string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a customer (POST /customers)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a customer (POST /customers)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			setBodyIf(body, "firstName", firstName)
@@ -112,9 +115,10 @@ func (s *Service) newCustomerCreateCmd(token string) *cobra.Command {
 func (s *Service) newCustomerUpdateCmd(token string) *cobra.Command {
 	var firstName, lastName, organization, jobTitle string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Partially update a customer's core fields (PATCH /customers/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Partially update a customer's core fields (PATCH /customers/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ops := []map[string]any{}
 			addReplaceOp(&ops, "/firstName", firstName)

@@ -28,9 +28,10 @@ func (s *Service) newUserCmd(creds clientCreds) *cobra.Command {
 func (s *Service) newUserLookupCmd(creds clientCreds) *cobra.Command {
 	var org, email string
 	cmd := &cobra.Command{
-		Use:   "lookup",
-		Short: "Find a data subject's captured data by email (read-only)",
-		Args:  cobra.NoArgs,
+		Use:         "lookup",
+		Short:       "Find a data subject's captured data by email (read-only)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{
 				"data_subject_email": email,

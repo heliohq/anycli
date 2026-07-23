@@ -33,9 +33,10 @@ func (s *Service) newObjectGetCmd(token, singular, plural string) *cobra.Command
 	var properties []string
 	var byEmail bool
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Retrieve one " + singular + " by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Retrieve one " + singular + " by id",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			applyPropertiesQuery(q, properties)
@@ -62,9 +63,10 @@ func (s *Service) newObjectListCmd(token, plural string) *cobra.Command {
 	var after string
 	var archived bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List " + plural,
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List " + plural,
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			applyPropertiesQuery(q, properties)
@@ -89,9 +91,10 @@ func (s *Service) newObjectListCmd(token, plural string) *cobra.Command {
 func (s *Service) newObjectCreateCmd(token, plural string) *cobra.Command {
 	var props []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a " + plural + " record",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a " + plural + " record",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			properties, err := parseProps(props)
 			if err != nil {
@@ -114,9 +117,10 @@ func (s *Service) newObjectCreateCmd(token, plural string) *cobra.Command {
 func (s *Service) newObjectUpdateCmd(token, plural string) *cobra.Command {
 	var props []string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a " + plural + " record",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a " + plural + " record",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			properties, err := parseProps(props)
 			if err != nil {
@@ -138,9 +142,10 @@ func (s *Service) newObjectUpdateCmd(token, plural string) *cobra.Command {
 
 func (s *Service) newObjectDeleteCmd(token, plural string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Archive a " + plural + " record",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Archive a " + plural + " record",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodDelete, objectPathBase(plural)+"/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -174,9 +179,10 @@ func (s *Service) newObjectSearchCmd(token, plural string) *cobra.Command {
 	var limit int
 	var after string
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search " + plural + " with filters and/or a text query",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search " + plural + " with filters and/or a text query",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			req := searchRequest{Query: query, Limit: limit, After: after}
 			// All --filter predicates go in one filterGroup (AND semantics).

@@ -27,9 +27,10 @@ func (s *Service) newEnrichCmd(key string) *cobra.Command {
 func (s *Service) newEnrichPersonCmd(key string) *cobra.Command {
 	var email, linkedinHandle string
 	cmd := &cobra.Command{
-		Use:   "person",
-		Short: "Enrich a person (GET /people/find)",
-		Args:  cobra.NoArgs,
+		Use:         "person",
+		Short:       "Enrich a person (GET /people/find)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIf(q, "email", email)
@@ -49,9 +50,10 @@ func (s *Service) newEnrichPersonCmd(key string) *cobra.Command {
 func (s *Service) newEnrichCompanyCmd(key string) *cobra.Command {
 	var domain string
 	cmd := &cobra.Command{
-		Use:   "company",
-		Short: "Enrich a company (GET /companies/find)",
-		Args:  cobra.NoArgs,
+		Use:         "company",
+		Short:       "Enrich a company (GET /companies/find)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("domain", domain)
@@ -70,9 +72,10 @@ func (s *Service) newEnrichCompanyCmd(key string) *cobra.Command {
 func (s *Service) newEnrichCombinedCmd(key string) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   "combined",
-		Short: "Enrich a person and their company (GET /combined/find)",
-		Args:  cobra.NoArgs,
+		Use:         "combined",
+		Short:       "Enrich a person and their company (GET /combined/find)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("email", email)

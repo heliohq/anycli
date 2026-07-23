@@ -15,9 +15,10 @@ import (
 func (s *Service) newEmailVerifierCmd(key string) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   "email-verifier",
-		Short: "Verify an email address is deliverable (GET /email-verifier)",
-		Args:  cobra.NoArgs,
+		Use:         "email-verifier",
+		Short:       "Verify an email address is deliverable (GET /email-verifier)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("email", email)

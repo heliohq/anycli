@@ -84,9 +84,10 @@ func (s *Service) newQueryCmd(c creds) *cobra.Command {
 	var stream bool
 	var pageSize int
 	cmd := &cobra.Command{
-		Use:   "query",
-		Short: "Run a raw GAQL query (POST googleAds:search / :searchStream)",
-		Args:  cobra.NoArgs,
+		Use:         "query",
+		Short:       "Run a raw GAQL query (POST googleAds:search / :searchStream)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := normalizeCustomerID(customerID)
 			if err != nil {
@@ -141,9 +142,10 @@ var defaultReportMetrics = []string{"metrics.impressions", "metrics.clicks", "me
 func (s *Service) newReportCmd(c creds) *cobra.Command {
 	var customerID, resource, dateRange, metricsCSV, segmentsCSV string
 	cmd := &cobra.Command{
-		Use:   "report",
-		Short: "Build and run a GAQL performance report (POST googleAds:searchStream)",
-		Args:  cobra.NoArgs,
+		Use:         "report",
+		Short:       "Build and run a GAQL performance report (POST googleAds:searchStream)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			id, err := normalizeCustomerID(customerID)
 			if err != nil {

@@ -28,9 +28,10 @@ func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 	var props []string
 	var assoc engagementAssoc
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a note, optionally associated to records",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a note, optionally associated to records",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			properties, err := parseProps(props)
 			if err != nil {
@@ -86,9 +87,10 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 	var props []string
 	var assoc engagementAssoc
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a task, optionally associated to records",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a task, optionally associated to records",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			properties, err := parseProps(props)
 			if err != nil {
@@ -137,9 +139,10 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newTaskCompleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "complete <id>",
-		Short: "Mark a task completed (hs_task_status=COMPLETED)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "complete <id>",
+		Short:       "Mark a task completed (hs_task_status=COMPLETED)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{"properties": map[string]string{"hs_task_status": "COMPLETED"}}
 			resp, err := s.call(cmd.Context(), token, http.MethodPatch, objectPathBase("tasks")+"/"+url.PathEscape(args[0]), nil, payload)

@@ -36,6 +36,14 @@ const DefaultBaseURL = "https://api.helpscout.net/v2"
 // after 2 days; the host token gateway refreshes and re-injects.
 const EnvAccessToken = "HELPSCOUT_ACCESS_TOKEN"
 
+// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// runnable leaf commands: "false" for state-free reads, "true" for provider
+// mutations. Group commands must not carry either.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Help Scout tool. It satisfies tools.Service
 // by duck typing (this package never imports the registry — no import cycle).
 type Service struct {

@@ -23,9 +23,10 @@ func (s *Service) newTicketListCmd(token, base string) *cobra.Command {
 	var view, customer, externalID string
 	var trashed bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tickets (GET /tickets)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tickets (GET /tickets)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.apply(q)
@@ -58,9 +59,10 @@ func (s *Service) newTicketListCmd(token, base string) *cobra.Command {
 
 func (s *Service) newTicketGetCmd(token, base string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <ticket-id>",
-		Short: "Retrieve a ticket (GET /tickets/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <ticket-id>",
+		Short:       "Retrieve a ticket (GET /tickets/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, base, http.MethodGet, "/tickets/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -76,9 +78,10 @@ func (s *Service) newTicketCreateCmd(token, base string) *cobra.Command {
 	var sourceTo []string
 	var fromAgent bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Open a ticket with an initial message (POST /tickets)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Open a ticket with an initial message (POST /tickets)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// The initial message's sender references the customer the ticket is
 			// for (an incoming, customer-voiced ticket by default).
@@ -127,9 +130,10 @@ func (s *Service) newTicketUpdateCmd(token, base string) *cobra.Command {
 	var status, priority, subject, assignee string
 	var tags []string
 	cmd := &cobra.Command{
-		Use:   "update <ticket-id>",
-		Short: "Update a ticket's status, assignee, priority, or tags (PUT /tickets/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <ticket-id>",
+		Short:       "Update a ticket's status, assignee, priority, or tags (PUT /tickets/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{}
 			if status != "" {

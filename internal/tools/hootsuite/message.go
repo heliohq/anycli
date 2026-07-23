@@ -22,9 +22,10 @@ func (s *Service) newMessageScheduleCmd(token string) *cobra.Command {
 		destinationURL string
 	)
 	cmd := &cobra.Command{
-		Use:   "schedule",
-		Short: "Schedule or send a post (POST /v1/messages)",
-		Args:  cobra.NoArgs,
+		Use:         "schedule",
+		Short:       "Schedule or send a post (POST /v1/messages)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if text == "" {
 				return &usageError{msg: "--text is required"}
@@ -102,9 +103,10 @@ func (s *Service) newMessageListCmd(token string) *cobra.Command {
 		profiles []string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List scheduled/queued posts (GET /v1/messages)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List scheduled/queued posts (GET /v1/messages)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if state != "" {
@@ -142,9 +144,10 @@ func (s *Service) newMessageListCmd(token string) *cobra.Command {
 // newMessageGetCmd fetches one message by id.
 func (s *Service) newMessageGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one message (GET /v1/messages/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one message (GET /v1/messages/{id})",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/messages/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -158,9 +161,10 @@ func (s *Service) newMessageGetCmd(token string) *cobra.Command {
 // newMessageDeleteCmd unschedules/deletes a message.
 func (s *Service) newMessageDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Unschedule/delete a message (DELETE /v1/messages/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Unschedule/delete a message (DELETE /v1/messages/{id})",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodDelete, "/messages/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -174,9 +178,10 @@ func (s *Service) newMessageDeleteCmd(token string) *cobra.Command {
 // newMessageApproveCmd approves a message in an approval workflow.
 func (s *Service) newMessageApproveCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "approve <id>",
-		Short: "Approve a message (POST /v1/messages/{id}/approve)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "approve <id>",
+		Short:       "Approve a message (POST /v1/messages/{id}/approve)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPost, "/messages/"+url.PathEscape(args[0])+"/approve", nil, nil)
 			if err != nil {
@@ -191,9 +196,10 @@ func (s *Service) newMessageApproveCmd(token string) *cobra.Command {
 func (s *Service) newMessageRejectCmd(token string) *cobra.Command {
 	var reason string
 	cmd := &cobra.Command{
-		Use:   "reject <id>",
-		Short: "Reject a message (POST /v1/messages/{id}/reject)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "reject <id>",
+		Short:       "Reject a message (POST /v1/messages/{id}/reject)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var payload any
 			if reason != "" {

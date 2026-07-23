@@ -14,9 +14,10 @@ func (s *Service) newDiscoverCmd(key string) *cobra.Command {
 	var query, filters string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:   "discover",
-		Short: "Search for companies (POST /discover)",
-		Args:  cobra.NoArgs,
+		Use:         "discover",
+		Short:       "Search for companies (POST /discover)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if filters != "" {
