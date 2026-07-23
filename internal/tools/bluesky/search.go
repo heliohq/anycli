@@ -20,9 +20,10 @@ func (s *Service) newSearchPostsCmd(sess *session) *cobra.Command {
 	var q, cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "posts",
-		Short: "Search recent posts (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "posts",
+		Short:       "Search recent posts (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if q == "" {
 				return fmt.Errorf("--q is required")
@@ -55,9 +56,10 @@ func (s *Service) newSearchActorsCmd(sess *session) *cobra.Command {
 	var q string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "actors",
-		Short: "Search people (one page)",
-		Args:  cobra.NoArgs,
+		Use:         "actors",
+		Short:       "Search people (one page)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if q == "" {
 				return fmt.Errorf("--q is required")

@@ -21,9 +21,10 @@ func (s *Service) newBlockListCmd(token string) *cobra.Command {
 	var minDate, maxDate string
 	var calendarID, max int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List blocked-off time (GET /blocks)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List blocked-off time (GET /blocks)",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setStringQuery(q, "minDate", minDate)
@@ -48,9 +49,10 @@ func (s *Service) newBlockCreateCmd(token string) *cobra.Command {
 	var start, end, notes string
 	var calendarID int
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Block off time (POST /blocks)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Block off time (POST /blocks)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"start": start, "end": end}
 			setStringIfSet(body, "notes", notes)
@@ -73,9 +75,10 @@ func (s *Service) newBlockCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newBlockDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a block (DELETE /blocks/:id)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a block (DELETE /blocks/:id)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/blocks/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

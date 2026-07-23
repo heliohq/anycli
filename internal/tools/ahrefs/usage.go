@@ -11,9 +11,10 @@ import (
 // parameters, so it doubles as the connection health / verify probe.
 func (s *Service) newUsageCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "usage",
-		Short: "Plan, API unit limits/usage, and reset date (free; GET /subscription-info/limits-and-usage)",
-		Args:  cobra.NoArgs,
+		Use:         "usage",
+		Short:       "Plan, API unit limits/usage, and reset date (free; GET /subscription-info/limits-and-usage)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/subscription-info/limits-and-usage", nil, nil)
 			if err != nil {

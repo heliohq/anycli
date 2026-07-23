@@ -26,9 +26,10 @@ type exportReceipt struct {
 func (s *Service) newExportCmd(authHeader string) *cobra.Command {
 	var start, end, output string
 	cmd := &cobra.Command{
-		Use:   "export",
-		Short: "Raw event export as a zip archive (GET /api/2/export)",
-		Args:  cobra.NoArgs,
+		Use:         "export",
+		Short:       "Raw event export as a zip archive (GET /api/2/export)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if start == "" || end == "" {
 				return &usageError{msg: "--start and --end are required (YYYYMMDDTHH hour range)"}

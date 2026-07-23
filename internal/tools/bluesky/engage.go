@@ -17,9 +17,10 @@ func (s *Service) newRepostCmd(sess *session) *cobra.Command {
 func (s *Service) newEngagementCmd(sess *session, use, short, collection string) *cobra.Command {
 	var uri, cid string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if _, err := parseATURI(uri); err != nil {
 				return err

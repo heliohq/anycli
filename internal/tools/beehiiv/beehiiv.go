@@ -30,6 +30,14 @@ const DefaultBaseURL = "https://api.beehiiv.com/v2"
 // access token or a self-serve API key.
 const EnvAPIKey = "BEEHIIV_API_KEY"
 
+// readOnly / writeAction carry the design-318 side-effect annotation for a
+// runnable leaf command. readOnly marks side-effect-free reads (GET);
+// writeAction marks state changes (subscriber create/update via POST/PUT).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in beehiiv tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

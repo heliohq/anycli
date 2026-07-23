@@ -27,9 +27,10 @@ func (s *Service) newPeopleSearchCmd(token string) *cobra.Command {
 	var q string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search for people by title/seniority/location/company (POST /mixed_people/api_search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search for people by title/seniority/location/company (POST /mixed_people/api_search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -65,9 +66,10 @@ func (s *Service) newPeopleEnrichCmd(token string) *cobra.Command {
 	var email, name, firstName, lastName, domain, orgName, linkedinURL, id string
 	var revealPersonalEmails, revealPhone bool
 	cmd := &cobra.Command{
-		Use:   "enrich",
-		Short: "Enrich one person to verified email/phone (POST /people/match)",
-		Args:  cobra.NoArgs,
+		Use:         "enrich",
+		Short:       "Enrich one person to verified email/phone (POST /people/match)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -115,9 +117,10 @@ func (s *Service) newPeopleBulkEnrichCmd(token string) *cobra.Command {
 	var body, detailsJSON string
 	var revealPersonalEmails, revealPhone bool
 	cmd := &cobra.Command{
-		Use:   "bulk-enrich",
-		Short: "Enrich up to 10 people in one call (POST /people/bulk_match)",
-		Args:  cobra.NoArgs,
+		Use:         "bulk-enrich",
+		Short:       "Enrich up to 10 people in one call (POST /people/bulk_match)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {

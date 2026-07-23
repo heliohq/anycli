@@ -27,6 +27,14 @@ const DefaultBaseURL = "https://acuityscheduling.com/api/v1"
 // have no refresh grant.
 const EnvAccessToken = "ACUITY_ACCESS_TOKEN"
 
+// readOnly / writeAction carry the design-318 side-effect annotation on runnable
+// leaf commands: "false" for side-effect-free reads (GET), "true" for writes
+// that mutate provider state (POST/PUT/DELETE and semantic writes).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Acuity tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

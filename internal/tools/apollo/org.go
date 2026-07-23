@@ -26,9 +26,10 @@ func (s *Service) newOrgSearchCmd(token string) *cobra.Command {
 	var industries, locations []string
 	var employeesMin, employeesMax, page, perPage int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search for companies by industry/location/size (POST /mixed_companies/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search for companies by industry/location/size (POST /mixed_companies/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -67,9 +68,10 @@ func (s *Service) newOrgSearchCmd(token string) *cobra.Command {
 func (s *Service) newOrgEnrichCmd(token string) *cobra.Command {
 	var domain string
 	cmd := &cobra.Command{
-		Use:   "enrich",
-		Short: "Enrich a company by domain (GET /organizations/enrich)",
-		Args:  cobra.NoArgs,
+		Use:         "enrich",
+		Short:       "Enrich a company by domain (GET /organizations/enrich)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("domain", domain)
@@ -91,9 +93,10 @@ func (s *Service) newOrgBulkEnrichCmd(token string) *cobra.Command {
 	var body string
 	var domains []string
 	cmd := &cobra.Command{
-		Use:   "bulk-enrich",
-		Short: "Enrich multiple companies by domain (POST /organizations/bulk_enrich)",
-		Args:  cobra.NoArgs,
+		Use:         "bulk-enrich",
+		Short:       "Enrich multiple companies by domain (POST /organizations/bulk_enrich)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {

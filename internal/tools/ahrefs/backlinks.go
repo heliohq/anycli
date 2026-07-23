@@ -34,9 +34,10 @@ func (s *Service) newBacklinksRowsCmd(token, use, short, path, defaultSelect str
 	var target string
 	var rf rowFlags
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if target == "" {
 				return &usageError{msg: "ahrefs: --target is required"}

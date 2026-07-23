@@ -25,9 +25,10 @@ func (s *Service) newSequencesListCmd(token string) *cobra.Command {
 	var body, q string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List sequences (POST /emailer_campaigns/search)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List sequences (POST /emailer_campaigns/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -55,9 +56,10 @@ func (s *Service) newSequencesAddCmd(token string) *cobra.Command {
 	var body, emailAccountID string
 	var contactIDs []string
 	cmd := &cobra.Command{
-		Use:   "add <sequence_id>",
-		Short: "Enroll contacts into a sequence (POST /emailer_campaigns/{id}/add_contact_ids)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "add <sequence_id>",
+		Short:       "Enroll contacts into a sequence (POST /emailer_campaigns/{id}/add_contact_ids)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -86,9 +88,10 @@ func (s *Service) newSequencesStopCmd(token string) *cobra.Command {
 	var body, sequenceID, mode string
 	var contactIDs []string
 	cmd := &cobra.Command{
-		Use:   "stop",
-		Short: "Stop or remove contacts in a sequence (POST /emailer_campaigns/remove_or_stop_contact_ids)",
-		Args:  cobra.NoArgs,
+		Use:         "stop",
+		Short:       "Stop or remove contacts in a sequence (POST /emailer_campaigns/remove_or_stop_contact_ids)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {

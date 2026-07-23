@@ -25,9 +25,10 @@ func (s *Service) newDealsCreateCmd(token string) *cobra.Command {
 	var body, name, ownerID, accountID, stageID string
 	var amount string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a deal (POST /opportunities)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a deal (POST /opportunities)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {
@@ -58,9 +59,10 @@ func (s *Service) newDealsCreateCmd(token string) *cobra.Command {
 func (s *Service) newDealsSearchCmd(token string) *cobra.Command {
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "List/search deals (GET /opportunities/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "List/search deals (GET /opportunities/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			applyPageQuery(q, page, perPage)
@@ -79,9 +81,10 @@ func (s *Service) newDealsSearchCmd(token string) *cobra.Command {
 func (s *Service) newDealsUpdateCmd(token string) *cobra.Command {
 	var body, name, stageID, amount string
 	cmd := &cobra.Command{
-		Use:   "update <opportunity_id>",
-		Short: "Update a deal (PATCH /opportunities/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <opportunity_id>",
+		Short:       "Update a deal (PATCH /opportunities/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			b, err := bodyFromFlag(body)
 			if err != nil {

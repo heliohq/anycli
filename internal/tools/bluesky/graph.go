@@ -9,9 +9,10 @@ import (
 func (s *Service) newFollowCmd(sess *session) *cobra.Command {
 	var actor string
 	cmd := &cobra.Command{
-		Use:   "follow",
-		Short: "Follow an actor",
-		Args:  cobra.NoArgs,
+		Use:         "follow",
+		Short:       "Follow an actor",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if actor == "" {
 				return fmt.Errorf("--actor is required")
@@ -40,9 +41,10 @@ func (s *Service) newFollowCmd(sess *session) *cobra.Command {
 func (s *Service) newUnfollowCmd(sess *session) *cobra.Command {
 	var uri string
 	cmd := &cobra.Command{
-		Use:   "unfollow",
-		Short: "Unfollow by deleting the follow record (its at:// URI)",
-		Args:  cobra.NoArgs,
+		Use:         "unfollow",
+		Short:       "Unfollow by deleting the follow record (its at:// URI)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			parsed, err := parseATURI(uri)
 			if err != nil {

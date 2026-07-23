@@ -16,9 +16,10 @@ import (
 func (s *Service) newNoteListCmd(token string) *cobra.Command {
 	var record string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List notes (optionally filtered to a record)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List notes (optionally filtered to a record)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&record, "record", "", "filter to a parent record: <object>:<record_id>")
 	lo := registerLimitOffset(cmd)
@@ -50,9 +51,10 @@ func (s *Service) newNoteListCmd(token string) *cobra.Command {
 // newNoteGetCmd is `note get <note_id>` (GET /v2/notes/{note_id}).
 func (s *Service) newNoteGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <note_id>",
-		Short: "Get one note by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <note_id>",
+		Short:       "Get one note by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/notes/"+url.PathEscape(args[0]), nil)
@@ -71,9 +73,10 @@ func (s *Service) newNoteGetCmd(token string) *cobra.Command {
 func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 	var parent, title, markdown, plaintext string
 	cmd := &cobra.Command{
-		Use:   "create --parent <object>:<id> --title <t> (--markdown <md> | --plaintext <txt>)",
-		Short: "Create a note on a record",
-		Args:  cobra.NoArgs,
+		Use:         "create --parent <object>:<id> --title <t> (--markdown <md> | --plaintext <txt>)",
+		Short:       "Create a note on a record",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&parent, "parent", "", "parent record: <object>:<record_id> (required)")
 	cmd.Flags().StringVar(&title, "title", "", "note title (plaintext, required)")
@@ -115,9 +118,10 @@ func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 // newNoteDeleteCmd is `note delete <note_id>` (DELETE /v2/notes/{note_id}).
 func (s *Service) newNoteDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <note_id>",
-		Short: "Delete one note by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <note_id>",
+		Short:       "Delete one note by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodDelete, "/v2/notes/"+url.PathEscape(args[0]), nil)
@@ -138,9 +142,10 @@ func (s *Service) newNoteDeleteCmd(token string) *cobra.Command {
 func (s *Service) newTaskListCmd(token string) *cobra.Command {
 	var record string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tasks (optionally filtered to a linked record)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tasks (optionally filtered to a linked record)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&record, "record", "", "filter to a linked record: <object>:<record_id>")
 	lo := registerLimitOffset(cmd)
@@ -172,9 +177,10 @@ func (s *Service) newTaskListCmd(token string) *cobra.Command {
 // newTaskGetCmd is `task get <task_id>` (GET /v2/tasks/{task_id}).
 func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <task_id>",
-		Short: "Get one task by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <task_id>",
+		Short:       "Get one task by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/tasks/"+url.PathEscape(args[0]), nil)
@@ -195,9 +201,10 @@ func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 	var content, deadline, assignee, record string
 	cmd := &cobra.Command{
-		Use:   "create --content <txt>",
-		Short: "Create a follow-up task",
-		Args:  cobra.NoArgs,
+		Use:         "create --content <txt>",
+		Short:       "Create a follow-up task",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&content, "content", "", "task text (plaintext, required)")
 	cmd.Flags().StringVar(&deadline, "deadline", "", "deadline as an ISO 8601 timestamp")
@@ -249,9 +256,10 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 	var completed, deadline, assignee, record string
 	cmd := &cobra.Command{
-		Use:   "update <task_id>",
-		Short: "Update a task (completion, deadline, assignee or linked record)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <task_id>",
+		Short:       "Update a task (completion, deadline, assignee or linked record)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&completed, "completed", "", "completion state: true|false")
 	cmd.Flags().StringVar(&deadline, "deadline", "", "deadline as an ISO 8601 timestamp")
@@ -305,9 +313,10 @@ func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 // newTaskDeleteCmd is `task delete <task_id>` (DELETE /v2/tasks/{task_id}).
 func (s *Service) newTaskDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <task_id>",
-		Short: "Delete one task by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <task_id>",
+		Short:       "Delete one task by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodDelete, "/v2/tasks/"+url.PathEscape(args[0]), nil)
@@ -327,9 +336,10 @@ func (s *Service) newTaskDeleteCmd(token string) *cobra.Command {
 func (s *Service) newThreadListCmd(token string) *cobra.Command {
 	var record string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List comment threads (optionally filtered to a record)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List comment threads (optionally filtered to a record)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&record, "record", "", "filter to a record: <object>:<record_id>")
 	lo := registerLimitOffset(cmd)
@@ -361,9 +371,10 @@ func (s *Service) newThreadListCmd(token string) *cobra.Command {
 // newThreadGetCmd is `thread get <thread_id>` (GET /v2/threads/{thread_id}).
 func (s *Service) newThreadGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <thread_id>",
-		Short: "Get one thread (with its comments) by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <thread_id>",
+		Short:       "Get one thread (with its comments) by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/threads/"+url.PathEscape(args[0]), nil)
@@ -387,9 +398,10 @@ func (s *Service) newThreadGetCmd(token string) *cobra.Command {
 func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 	var thread, record, content, author string
 	cmd := &cobra.Command{
-		Use:   "create (--thread <id> | --record <object>:<id>) --content <txt>",
-		Short: "Add a comment to a thread or record",
-		Args:  cobra.NoArgs,
+		Use:         "create (--thread <id> | --record <object>:<id>) --content <txt>",
+		Short:       "Add a comment to a thread or record",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&thread, "thread", "", "existing thread id to reply to")
 	cmd.Flags().StringVar(&record, "record", "", "record to comment on (starts a thread): <object>:<record_id>")
@@ -441,9 +453,10 @@ func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 // newCommentGetCmd is `comment get <comment_id>` (GET /v2/comments/{comment_id}).
 func (s *Service) newCommentGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <comment_id>",
-		Short: "Get one comment by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <comment_id>",
+		Short:       "Get one comment by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/comments/"+url.PathEscape(args[0]), nil)
@@ -460,9 +473,10 @@ func (s *Service) newCommentGetCmd(token string) *cobra.Command {
 // (DELETE /v2/comments/{comment_id}).
 func (s *Service) newCommentDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <comment_id>",
-		Short: "Delete one comment by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <comment_id>",
+		Short:       "Delete one comment by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodDelete, "/v2/comments/"+url.PathEscape(args[0]), nil)

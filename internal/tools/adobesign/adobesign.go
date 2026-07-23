@@ -34,6 +34,14 @@ const (
 // apiPath is the v6 REST path appended to the shard base host.
 const apiPath = "/api/rest/v6"
 
+// readOnly / writeAction carry the design-318 side-effect annotation on runnable
+// leaf commands: "false" for side-effect-free reads (GET/download), "true" for
+// writes that mutate provider state (POST/PUT and semantic writes like send).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Adobe Acrobat Sign tool. It satisfies
 // tools.Service by duck typing (this package never imports the registry — no
 // import cycle).

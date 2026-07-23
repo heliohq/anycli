@@ -13,9 +13,10 @@ import (
 // a one-line workspace summary otherwise.
 func (s *Service) newWhoamiCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "whoami",
-		Short: "Show the token's workspace identity",
-		Args:  cobra.NoArgs,
+		Use:         "whoami",
+		Short:       "Show the token's workspace identity",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		id, body, err := s.self(cmd.Context(), token)
@@ -36,9 +37,10 @@ func (s *Service) newWhoamiCmd(token string) *cobra.Command {
 // including custom objects, before any record op.
 func (s *Service) newObjectListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List all objects (standard and custom)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List all objects (standard and custom)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/objects", nil)
@@ -54,9 +56,10 @@ func (s *Service) newObjectListCmd(token string) *cobra.Command {
 // newObjectGetCmd is `object get <object>` (GET /v2/objects/{object}).
 func (s *Service) newObjectGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <object>",
-		Short: "Get one object by slug or id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <object>",
+		Short:       "Get one object by slug or id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/objects/"+url.PathEscape(args[0]), nil)
@@ -90,9 +93,10 @@ func attributeTarget(object, list string) (string, error) {
 func (s *Service) newAttributeListCmd(token string) *cobra.Command {
 	var object, list string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List attributes on an object or a list",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List attributes on an object or a list",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&object, "object", "", "object slug or id (mutually exclusive with --list)")
 	cmd.Flags().StringVar(&list, "list", "", "list slug or id (mutually exclusive with --object)")
@@ -137,9 +141,10 @@ func (s *Service) newAttributeStatusesCmd(token string) *cobra.Command {
 func (s *Service) newAttributeChildCmd(token, child, short string) *cobra.Command {
 	var object, list, attribute string
 	cmd := &cobra.Command{
-		Use:   child,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         child,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&object, "object", "", "object slug or id (mutually exclusive with --list)")
 	cmd.Flags().StringVar(&list, "list", "", "list slug or id (mutually exclusive with --object)")
@@ -165,9 +170,10 @@ func (s *Service) newAttributeChildCmd(token, child, short string) *cobra.Comman
 // assignee/actor ids for tasks, notes and comment authors.
 func (s *Service) newMemberListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List workspace members",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List workspace members",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/workspace_members", nil)
@@ -183,9 +189,10 @@ func (s *Service) newMemberListCmd(token string) *cobra.Command {
 // newMemberGetCmd is `member get <member_id>` (GET /v2/workspace_members/{id}).
 func (s *Service) newMemberGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <member_id>",
-		Short: "Get one workspace member by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <member_id>",
+		Short:       "Get one workspace member by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		body, err := s.call(cmd.Context(), token, http.MethodGet, "/v2/workspace_members/"+url.PathEscape(args[0]), nil)

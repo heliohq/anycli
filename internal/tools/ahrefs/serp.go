@@ -17,9 +17,10 @@ func (s *Service) newSerpCmd(token string) *cobra.Command {
 	var topPositions int
 	var rf rowFlags
 	cmd := &cobra.Command{
-		Use:   "serp",
-		Short: "SERP overview for a keyword (GET /serp-overview/serp-overview)",
-		Args:  cobra.NoArgs,
+		Use:         "serp",
+		Short:       "SERP overview for a keyword (GET /serp-overview/serp-overview)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if keyword == "" {
 				return &usageError{msg: "ahrefs: --keyword is required"}

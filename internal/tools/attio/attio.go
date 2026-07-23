@@ -28,6 +28,15 @@ const DefaultBaseURL = "https://api.attio.com"
 // EnvToken is the env var the credential binding injects (definitions/tools/attio.json).
 const EnvToken = "ATTIO_ACCESS_TOKEN"
 
+// readOnly / writeAction carry the design-318 side-effect annotation for a
+// runnable leaf command. readOnly marks side-effect-free reads (GET, plus POST
+// search/query endpoints that only return data); writeAction marks state
+// changes (create/update/delete/upsert/add/remove).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Attio tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

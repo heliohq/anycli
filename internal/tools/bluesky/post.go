@@ -26,9 +26,10 @@ func (s *Service) newPostCreateCmd(sess *session) *cobra.Command {
 	var text, replyTo, quote, lang string
 	var images, alts []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a post (text, reply, quote, links, images)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a post (text, reply, quote, links, images)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if strings.TrimSpace(text) == "" {
 				return fmt.Errorf("--text must not be empty")
@@ -201,9 +202,10 @@ func (se *session) fetchPostRef(ctx context.Context, uri string) (recordRef, *re
 func (s *Service) newPostDeleteCmd(sess *session) *cobra.Command {
 	var uri string
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a post by its at:// URI",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a post by its at:// URI",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			parsed, err := parseATURI(uri)
 			if err != nil {
@@ -223,9 +225,10 @@ func (s *Service) newPostDeleteCmd(sess *session) *cobra.Command {
 func (s *Service) newPostGetCmd(sess *session) *cobra.Command {
 	var uri string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a post (and its thread root) by at:// URI",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a post (and its thread root) by at:// URI",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if _, err := parseATURI(uri); err != nil {
 				return err

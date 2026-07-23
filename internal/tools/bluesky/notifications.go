@@ -13,9 +13,10 @@ func (s *Service) newNotificationsCmd(sess *session) *cobra.Command {
 	var limit int
 	var cursor string
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "List notifications (mentions, replies, likes, follows) — one page",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List notifications (mentions, replies, likes, follows) — one page",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query, err := feedQuery(limit, cursor)
 			if err != nil {

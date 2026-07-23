@@ -16,9 +16,10 @@ func (s *Service) newRefdomainsCmd(token string) *cobra.Command {
 	var target string
 	var rf rowFlags
 	cmd := &cobra.Command{
-		Use:   "refdomains",
-		Short: "Referring domains for a target (GET /site-explorer/refdomains)",
-		Args:  cobra.NoArgs,
+		Use:         "refdomains",
+		Short:       "Referring domains for a target (GET /site-explorer/refdomains)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if target == "" {
 				return &usageError{msg: "ahrefs: --target is required"}

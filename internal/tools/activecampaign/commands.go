@@ -66,9 +66,10 @@ func buildInner(convenience map[string]string, dataJSON string) (map[string]any,
 
 func (s *Service) newContactListCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List/search contacts",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List/search contacts",
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := buildListQuery(cmd)
 			if err != nil {
@@ -83,9 +84,10 @@ func (s *Service) newContactListCmd(c *client) *cobra.Command {
 
 func (s *Service) newContactGetCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Retrieve one contact",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Retrieve one contact",
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return c.get(cmd.Context(), "contacts/"+url.PathEscape(args[0]), nil)
 		},
@@ -94,9 +96,10 @@ func (s *Service) newContactGetCmd(c *client) *cobra.Command {
 
 func (s *Service) newContactCreateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			inner, err := contactInnerFromFlags(cmd)
 			if err != nil {
@@ -111,9 +114,10 @@ func (s *Service) newContactCreateCmd(c *client) *cobra.Command {
 
 func (s *Service) newContactUpdateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a contact",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a contact",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inner, err := contactInnerFromFlags(cmd)
 			if err != nil {
@@ -128,9 +132,10 @@ func (s *Service) newContactUpdateCmd(c *client) *cobra.Command {
 
 func (s *Service) newContactDeleteCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a contact",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a contact",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return c.send(cmd.Context(), http.MethodDelete, "contacts/"+url.PathEscape(args[0]), nil)
 		},
@@ -161,9 +166,10 @@ func contactInnerFromFlags(cmd *cobra.Command) (map[string]any, error) {
 
 func (s *Service) newContactSubscribeCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "subscribe",
-		Short: "Add/remove a contact to a list (status 1=subscribe, 2=unsubscribe)",
-		Args:  cobra.NoArgs,
+		Use:         "subscribe",
+		Short:       "Add/remove a contact to a list (status 1=subscribe, 2=unsubscribe)",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			list, _ := cmd.Flags().GetString("list")
 			contact, _ := cmd.Flags().GetString("contact")
@@ -183,9 +189,10 @@ func (s *Service) newContactSubscribeCmd(c *client) *cobra.Command {
 
 func (s *Service) newContactTagCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "tag",
-		Short: "Apply a tag to a contact",
-		Args:  cobra.NoArgs,
+		Use:         "tag",
+		Short:       "Apply a tag to a contact",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			contact, _ := cmd.Flags().GetString("contact")
 			tag, _ := cmd.Flags().GetString("tag")
@@ -203,9 +210,10 @@ func (s *Service) newContactTagCmd(c *client) *cobra.Command {
 
 func (s *Service) newContactUntagCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "untag <contactTagId>",
-		Short: "Remove a tag from a contact (by the contactTag association id)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "untag <contactTagId>",
+		Short:       "Remove a tag from a contact (by the contactTag association id)",
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return c.send(cmd.Context(), http.MethodDelete, "contactTags/"+url.PathEscape(args[0]), nil)
 		},
@@ -214,9 +222,10 @@ func (s *Service) newContactUntagCmd(c *client) *cobra.Command {
 
 func (s *Service) newContactAutomateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "automate",
-		Short: "Enroll a contact into an automation",
-		Args:  cobra.NoArgs,
+		Use:         "automate",
+		Short:       "Enroll a contact into an automation",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			contact, _ := cmd.Flags().GetString("contact")
 			automation, _ := cmd.Flags().GetString("automation")
@@ -236,9 +245,10 @@ func (s *Service) newContactAutomateCmd(c *client) *cobra.Command {
 
 func (s *Service) newTagCreateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a segmentation tag",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a segmentation tag",
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			name, _ := cmd.Flags().GetString("name")
 			tagType, _ := cmd.Flags().GetString("type")
@@ -266,9 +276,10 @@ func (s *Service) newTagCreateCmd(c *client) *cobra.Command {
 // passthrough.
 func (s *Service) newSimpleListCmd(c *client, resource string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List " + resource,
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List " + resource,
+		Annotations: readOnly,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := buildListQuery(cmd)
 			if err != nil {
@@ -284,9 +295,10 @@ func (s *Service) newSimpleListCmd(c *client, resource string) *cobra.Command {
 // newSimpleGetCmd builds a `get <id>` command over a plain v3 resource.
 func (s *Service) newSimpleGetCmd(c *client, resource string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Retrieve one " + strings.TrimSuffix(resource, "s"),
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Retrieve one " + strings.TrimSuffix(resource, "s"),
+		Annotations: readOnly,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return c.get(cmd.Context(), resource+"/"+url.PathEscape(args[0]), nil)
 		},
@@ -297,9 +309,10 @@ func (s *Service) newSimpleGetCmd(c *client, resource string) *cobra.Command {
 // singular resource key (deal → {"deal": …}) and POSTs to the collection.
 func (s *Service) newResourceCreateCmd(c *client, wrapper, resource string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a " + wrapper,
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a " + wrapper,
+		Annotations: writeAction,
+		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			data, _ := cmd.Flags().GetString("data")
 			inner, err := buildInner(nil, data)
@@ -317,9 +330,10 @@ func (s *Service) newResourceCreateCmd(c *client, wrapper, resource string) *cob
 // the singular resource key and PUTs to the resource.
 func (s *Service) newResourceUpdateCmd(c *client, wrapper, resource string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a " + wrapper,
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a " + wrapper,
+		Annotations: writeAction,
+		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			data, _ := cmd.Flags().GetString("data")
 			inner, err := buildInner(nil, data)

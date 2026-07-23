@@ -29,9 +29,10 @@ func (s *Service) runJSON(cmd *cobra.Command, authHeader, path string, query url
 func (s *Service) newSegmentationCmd(authHeader string) *cobra.Command {
 	var events, events2, start, end, metric, interval, segment, groupBy string
 	cmd := &cobra.Command{
-		Use:   "segmentation",
-		Short: "Event segmentation (GET /api/2/events/segmentation)",
-		Args:  cobra.NoArgs,
+		Use:         "segmentation",
+		Short:       "Event segmentation (GET /api/2/events/segmentation)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			e, err := parseJSONFlag("events", events)
 			if err != nil {
@@ -92,9 +93,10 @@ func (s *Service) newFunnelsCmd(authHeader string) *cobra.Command {
 	var events []string
 	var start, end, mode, interval, segment string
 	cmd := &cobra.Command{
-		Use:   "funnels",
-		Short: "Funnel conversion (GET /api/2/funnels)",
-		Args:  cobra.NoArgs,
+		Use:         "funnels",
+		Short:       "Funnel conversion (GET /api/2/funnels)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if len(events) < 2 {
 				return &usageError{msg: "--events must be given at least twice (one JSON event object per funnel step, in order)"}
@@ -147,9 +149,10 @@ func (s *Service) newFunnelsCmd(authHeader string) *cobra.Command {
 func (s *Service) newRetentionCmd(authHeader string) *cobra.Command {
 	var startEvent, returningEvent, start, end, interval, retentionType, segment string
 	cmd := &cobra.Command{
-		Use:   "retention",
-		Short: "Retention analysis (GET /api/2/retention)",
-		Args:  cobra.NoArgs,
+		Use:         "retention",
+		Short:       "Retention analysis (GET /api/2/retention)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			se, err := parseJSONFlag("start-event", startEvent)
 			if err != nil {
@@ -201,9 +204,10 @@ func (s *Service) newRetentionCmd(authHeader string) *cobra.Command {
 // (the prerequisite for building valid segmentation/funnels queries). No params.
 func (s *Service) newEventsListCmd(authHeader string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List all tracked event types (GET /api/2/events/list)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List all tracked event types (GET /api/2/events/list)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.runJSON(cmd, authHeader, "/api/2/events/list", nil)
 		},
@@ -215,9 +219,10 @@ func (s *Service) newEventsListCmd(authHeader string) *cobra.Command {
 func (s *Service) newUserSearchCmd(authHeader string) *cobra.Command {
 	var user string
 	cmd := &cobra.Command{
-		Use:   "user-search",
-		Short: "Search for a user by Amplitude ID, Device ID, User ID, or prefix (GET /api/2/usersearch)",
-		Args:  cobra.NoArgs,
+		Use:         "user-search",
+		Short:       "Search for a user by Amplitude ID, Device ID, User ID, or prefix (GET /api/2/usersearch)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if user == "" {
 				return &usageError{msg: "--user is required"}
@@ -236,9 +241,10 @@ func (s *Service) newUserSearchCmd(authHeader string) *cobra.Command {
 func (s *Service) newUserActivityCmd(authHeader string) *cobra.Command {
 	var user, offset, limit string
 	cmd := &cobra.Command{
-		Use:   "user-activity",
-		Short: "A user's event stream by Amplitude ID (GET /api/2/useractivity)",
-		Args:  cobra.NoArgs,
+		Use:         "user-activity",
+		Short:       "A user's event stream by Amplitude ID (GET /api/2/useractivity)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if user == "" {
 				return &usageError{msg: "--user is required (an Amplitude ID from user-search)"}
@@ -265,9 +271,10 @@ func (s *Service) newUserActivityCmd(authHeader string) *cobra.Command {
 // (metadata only; member download is out of v1 scope). No params.
 func (s *Service) newCohortsListCmd(authHeader string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List all discoverable behavioral cohorts (GET /api/3/cohorts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List all discoverable behavioral cohorts (GET /api/3/cohorts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.runJSON(cmd, authHeader, "/api/3/cohorts", nil)
 		},
