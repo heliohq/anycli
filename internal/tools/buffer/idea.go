@@ -15,9 +15,10 @@ const createIdeaMutation = `mutation($input: CreateIdeaInput!) {
 func (s *Service) newIdeaCreateCmd(token string) *cobra.Command {
 	var org, text, title string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an idea in an organization",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an idea in an organization",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if org == "" {
 				return &usageError{msg: "--org is required"}

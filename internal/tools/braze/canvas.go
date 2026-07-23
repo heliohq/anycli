@@ -26,9 +26,10 @@ func (s *Service) newCanvasListCmd(c *client) *cobra.Command {
 	var page int
 	var includeArchived bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List Canvases (id + name), paginated",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List Canvases (id + name), paginated",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().IntVar(&page, "page", 0, "0-indexed page of Canvases to return")
 	cmd.Flags().BoolVar(&includeArchived, "include-archived", false, "include archived Canvases")
@@ -53,9 +54,10 @@ func (s *Service) newCanvasListCmd(c *client) *cobra.Command {
 func (s *Service) newCanvasDetailsCmd(c *client) *cobra.Command {
 	var canvasID string
 	cmd := &cobra.Command{
-		Use:   "details",
-		Short: "Get a Canvas's configuration and metadata",
-		Args:  cobra.NoArgs,
+		Use:         "details",
+		Short:       "Get a Canvas's configuration and metadata",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&canvasID, "canvas-id", "", "Canvas API identifier (required)")
 	_ = cmd.MarkFlagRequired("canvas-id")
@@ -77,9 +79,10 @@ func (s *Service) newCanvasSeriesCmd(c *client) *cobra.Command {
 	var canvasID, endingAt, startingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:   "series",
-		Short: "Get a Canvas's analytics time-series",
-		Args:  cobra.NoArgs,
+		Use:         "series",
+		Short:       "Get a Canvas's analytics time-series",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&canvasID, "canvas-id", "", "Canvas API identifier (required)")
 	cmd.Flags().IntVar(&length, "length", 7, "number of days (max 14) ending at --ending-at")
@@ -114,9 +117,10 @@ func (s *Service) newCanvasSummaryCmd(c *client) *cobra.Command {
 	var canvasID, endingAt, startingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:   "summary",
-		Short: "Get rollup analytics for a Canvas",
-		Args:  cobra.NoArgs,
+		Use:         "summary",
+		Short:       "Get rollup analytics for a Canvas",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&canvasID, "canvas-id", "", "Canvas API identifier (required)")
 	cmd.Flags().IntVar(&length, "length", 7, "number of days (max 14) ending at --ending-at")
@@ -151,9 +155,10 @@ func (s *Service) newCanvasSummaryCmd(c *client) *cobra.Command {
 func (s *Service) newCanvasTriggerCmd(c *client) *cobra.Command {
 	var canvasID, bodyFlag string
 	cmd := &cobra.Command{
-		Use:   "trigger",
-		Short: "Send an API-triggered Canvas (permission-gated)",
-		Args:  cobra.NoArgs,
+		Use:         "trigger",
+		Short:       "Send an API-triggered Canvas (permission-gated)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&canvasID, "canvas-id", "", "Canvas API identifier (required)")
 	cmd.Flags().StringVar(&bodyFlag, "body", "", "raw JSON object: recipients, canvas_entry_properties, broadcast, audience, …")

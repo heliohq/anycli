@@ -15,9 +15,10 @@ func (s *Service) newOrgMembersCmd(token string) *cobra.Command {
 	var count int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:   "members",
-		Short: "List organization memberships to resolve teammates' user URIs (GET /organization_memberships)",
-		Args:  cobra.NoArgs,
+		Use:         "members",
+		Short:       "List organization memberships to resolve teammates' user URIs (GET /organization_memberships)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			_, orgURI, err := s.resolveMe(cmd.Context(), token)
 			if err != nil {

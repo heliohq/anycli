@@ -11,9 +11,10 @@ import (
 // recipient's channels on file.
 func (s *Service) newProfileGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <user-id>",
-		Short: "Get a recipient profile",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <user-id>",
+		Short:       "Get a recipient profile",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out, err := s.call(cmd.Context(), key, http.MethodGet, "/profiles/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -29,9 +30,10 @@ func (s *Service) newProfileGetCmd(key string) *cobra.Command {
 func (s *Service) newProfileSubscriptionsCmd(key string) *cobra.Command {
 	var cursor string
 	cmd := &cobra.Command{
-		Use:   "subscriptions <user-id>",
-		Short: "List the lists a user is subscribed to",
-		Args:  cobra.ExactArgs(1),
+		Use:         "subscriptions <user-id>",
+		Short:       "List the lists a user is subscribed to",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
 			setIf(q, "cursor", cursor)

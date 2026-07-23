@@ -18,9 +18,10 @@ func (s *Service) newEmailSendCmd(apiKey string) *cobra.Command {
 		tags                             []string
 	)
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a transactional email (POST /smtp/email)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a transactional email (POST /smtp/email)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 

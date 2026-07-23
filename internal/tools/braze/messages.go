@@ -25,9 +25,10 @@ func (s *Service) newMessagesCmd(c *client) *cobra.Command {
 func (s *Service) newMessagesSendCmd(c *client) *cobra.Command {
 	var bodyFlag string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send an immediate message (permission-gated)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send an immediate message (permission-gated)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&bodyFlag, "body", "", "raw JSON object: messages, recipients, broadcast, audience, … (required)")
 	_ = cmd.MarkFlagRequired("body")
@@ -52,9 +53,10 @@ func (s *Service) newMessagesSendCmd(c *client) *cobra.Command {
 func (s *Service) newMessagesScheduleCmd(c *client) *cobra.Command {
 	var bodyFlag, scheduleFlag string
 	cmd := &cobra.Command{
-		Use:   "schedule",
-		Short: "Schedule a message for the future (permission-gated)",
-		Args:  cobra.NoArgs,
+		Use:         "schedule",
+		Short:       "Schedule a message for the future (permission-gated)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&bodyFlag, "body", "", "raw JSON object: messages, recipients, broadcast, audience, … (required)")
 	cmd.Flags().StringVar(&scheduleFlag, "schedule", "", "raw JSON schedule object: time, in_local_time, at_optimal_time (required)")
@@ -84,9 +86,10 @@ func (s *Service) newMessagesScheduleCmd(c *client) *cobra.Command {
 func (s *Service) newMessagesScheduledListCmd(c *client) *cobra.Command {
 	var endTime string
 	cmd := &cobra.Command{
-		Use:   "scheduled-list",
-		Short: "List upcoming scheduled broadcasts",
-		Args:  cobra.NoArgs,
+		Use:         "scheduled-list",
+		Short:       "List upcoming scheduled broadcasts",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&endTime, "end-time", "", "ISO-8601 upper bound on scheduled time (required)")
 	_ = cmd.MarkFlagRequired("end-time")

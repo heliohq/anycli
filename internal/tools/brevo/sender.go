@@ -17,9 +17,10 @@ func itoa(n int) string { return strconv.Itoa(n) }
 func (s *Service) newSenderLsCmd(apiKey string) *cobra.Command {
 	var ip, domain string
 	cmd := &cobra.Command{
-		Use:   "ls",
-		Short: "List verified senders (GET /senders)",
-		Args:  cobra.NoArgs,
+		Use:         "ls",
+		Short:       "List verified senders (GET /senders)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if ip != "" {
@@ -45,9 +46,10 @@ func (s *Service) newSenderLsCmd(apiKey string) *cobra.Command {
 // the api_key verification endpoint (a bad key returns 401 unauthorized).
 func (s *Service) newAccountGetCmd(apiKey string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get account identity, plan, and credits (GET /account)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get account identity, plan, and credits (GET /account)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), apiKey, http.MethodGet, "/account", nil, nil)
 			if err != nil {

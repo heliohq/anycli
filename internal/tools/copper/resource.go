@@ -98,9 +98,10 @@ func (f searchFlags) searchBody() (map[string]any, error) {
 func (s *Service) newResourceListCmd(token string, r crudResource) *cobra.Command {
 	var f searchFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Search " + r.path + " (POST /" + r.path + "/search)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "Search " + r.path + " (POST /" + r.path + "/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := f.searchBody()
 			if err != nil {
@@ -120,9 +121,10 @@ func (s *Service) newResourceListCmd(token string, r crudResource) *cobra.Comman
 func (s *Service) newResourceGetCmd(token string, r crudResource) *cobra.Command {
 	var id int
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one " + r.name + " by id (GET /" + r.path + "/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one " + r.name + " by id (GET /" + r.path + "/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id <= 0 {
 				return &usageError{msg: "--id is required"}
@@ -141,9 +143,10 @@ func (s *Service) newResourceGetCmd(token string, r crudResource) *cobra.Command
 func (s *Service) newResourceCreateCmd(token string, r crudResource) *cobra.Command {
 	var jsonBody string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a " + r.name + " (POST /" + r.path + ")",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a " + r.name + " (POST /" + r.path + ")",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if jsonBody == "" {
 				return &usageError{msg: "--json-body is required (the record payload)"}
@@ -169,9 +172,10 @@ func (s *Service) newResourceUpdateCmd(token string, r crudResource) *cobra.Comm
 		jsonBody string
 	)
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a " + r.name + " (PUT /" + r.path + "/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a " + r.name + " (PUT /" + r.path + "/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id <= 0 {
 				return &usageError{msg: "--id is required"}
@@ -198,9 +202,10 @@ func (s *Service) newResourceUpdateCmd(token string, r crudResource) *cobra.Comm
 func (s *Service) newResourceDeleteCmd(token string, r crudResource) *cobra.Command {
 	var id int
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete a " + r.name + " (DELETE /" + r.path + "/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "delete",
+		Short:       "Delete a " + r.name + " (DELETE /" + r.path + "/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id <= 0 {
 				return &usageError{msg: "--id is required"}
@@ -219,9 +224,10 @@ func (s *Service) newResourceDeleteCmd(token string, r crudResource) *cobra.Comm
 func (s *Service) newResourceFindEmailCmd(token string, r crudResource) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:   "find-email",
-		Short: "Find a " + r.name + " by email (POST /" + r.path + "/fetch_by_email)",
-		Args:  cobra.NoArgs,
+		Use:         "find-email",
+		Short:       "Find a " + r.name + " by email (POST /" + r.path + "/fetch_by_email)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if email == "" {
 				return &usageError{msg: "--email is required"}

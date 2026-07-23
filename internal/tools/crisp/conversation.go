@@ -34,9 +34,10 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 	var page int
 	var filterStatus string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List (triage) conversations in the website inbox",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List (triage) conversations in the website inbox",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			website, err := websiteFlag(cmd)
 			if err != nil {
@@ -69,9 +70,10 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 func (s *Service) newConversationGetCmd(token string) *cobra.Command {
 	var session string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Read one conversation thread",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Read one conversation thread",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			website, err := websiteFlag(cmd)
 			if err != nil {
@@ -96,9 +98,10 @@ func (s *Service) newConversationMessagesCmd(token string) *cobra.Command {
 	var session string
 	var before int64
 	cmd := &cobra.Command{
-		Use:   "messages",
-		Short: "Read a conversation's messages (latest page; --before to paginate)",
-		Args:  cobra.NoArgs,
+		Use:         "messages",
+		Short:       "Read a conversation's messages (latest page; --before to paginate)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			website, err := websiteFlag(cmd)
 			if err != nil {
@@ -127,9 +130,10 @@ func (s *Service) newConversationMessagesCmd(token string) *cobra.Command {
 func (s *Service) newConversationReplyCmd(token string) *cobra.Command {
 	var session, text, from string
 	cmd := &cobra.Command{
-		Use:   "reply",
-		Short: "Send a text message to a customer in a conversation",
-		Args:  cobra.NoArgs,
+		Use:         "reply",
+		Short:       "Send a text message to a customer in a conversation",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			website, err := websiteFlag(cmd)
 			if err != nil {
@@ -167,9 +171,10 @@ func (s *Service) newConversationReplyCmd(token string) *cobra.Command {
 func (s *Service) newConversationStateCmd(token string) *cobra.Command {
 	var session, state string
 	cmd := &cobra.Command{
-		Use:   "state",
-		Short: "Change a conversation's state (resolve / reopen)",
-		Args:  cobra.NoArgs,
+		Use:         "state",
+		Short:       "Change a conversation's state (resolve / reopen)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			website, err := websiteFlag(cmd)
 			if err != nil {
@@ -200,9 +205,10 @@ func (s *Service) newConversationStateCmd(token string) *cobra.Command {
 func (s *Service) newConversationRouteCmd(token string) *cobra.Command {
 	var session, operator string
 	cmd := &cobra.Command{
-		Use:   "route",
-		Short: "Assign a conversation to an operator (by user_id or email)",
-		Args:  cobra.NoArgs,
+		Use:         "route",
+		Short:       "Assign a conversation to an operator (by user_id or email)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			website, err := websiteFlag(cmd)
 			if err != nil {

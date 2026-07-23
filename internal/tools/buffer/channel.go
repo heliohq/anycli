@@ -19,9 +19,10 @@ type channel struct {
 func (s *Service) newChannelListCmd(token string) *cobra.Command {
 	var org string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List channels connected to an organization",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List channels connected to an organization",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if org == "" {
 				return &usageError{msg: "--org is required"}

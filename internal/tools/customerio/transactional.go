@@ -9,9 +9,10 @@ import (
 
 func (s *Service) newTransactionalListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List transactional message templates (GET /v1/transactional)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List transactional message templates (GET /v1/transactional)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd, key, http.MethodGet, "/v1/transactional", nil, nil)
 			if err != nil {
@@ -25,9 +26,10 @@ func (s *Service) newTransactionalListCmd(key string) *cobra.Command {
 func (s *Service) newTransactionalGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a transactional template (GET /v1/transactional/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a transactional template (GET /v1/transactional/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd, key, http.MethodGet, "/v1/transactional/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -45,9 +47,10 @@ func (s *Service) newTransactionalMetricsCmd(key string) *cobra.Command {
 	var id string
 	var m metricsParams
 	cmd := &cobra.Command{
-		Use:   "metrics",
-		Short: "Transactional template performance metrics (GET /v1/transactional/{id}/metrics)",
-		Args:  cobra.NoArgs,
+		Use:         "metrics",
+		Short:       "Transactional template performance metrics (GET /v1/transactional/{id}/metrics)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			m.apply(q)

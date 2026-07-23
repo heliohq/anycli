@@ -12,9 +12,10 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 	var metric, msgType, start string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "Workspace-wide delivery search (GET /v1/messages)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "Workspace-wide delivery search (GET /v1/messages)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if metric != "" {
@@ -46,9 +47,10 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 func (s *Service) newMessageGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a single delivery (GET /v1/messages/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a single delivery (GET /v1/messages/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd, key, http.MethodGet, "/v1/messages/"+url.PathEscape(id), nil, nil)
 			if err != nil {

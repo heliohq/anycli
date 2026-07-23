@@ -14,9 +14,10 @@ func (s *Service) newLinkCreateCmd(token string) *cobra.Command {
 	var eventType string
 	var maxEventCount int
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Mint a single-use scheduling link for an event type (POST /scheduling_links)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Mint a single-use scheduling link for an event type (POST /scheduling_links)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{
 				"max_event_count": maxEventCount,

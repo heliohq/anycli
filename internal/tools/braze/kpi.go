@@ -26,9 +26,10 @@ func (s *Service) newKPIMetricCmd(c *client, use, metric, short string) *cobra.C
 	var endingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().IntVar(&length, "length", 14, "number of days (max 100) ending at --ending-at")
 	cmd.Flags().StringVar(&endingAt, "ending-at", "", "ISO-8601 end date/time (optional; default now)")

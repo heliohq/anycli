@@ -21,9 +21,10 @@ func (s *Service) newSendsSeriesCmd(c *client) *cobra.Command {
 	var campaignID, sendID, endingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:   "series",
-		Short: "Get analytics for a tracked send id",
-		Args:  cobra.NoArgs,
+		Use:         "series",
+		Short:       "Get analytics for a tracked send id",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&campaignID, "campaign-id", "", "campaign API identifier (required)")
 	cmd.Flags().StringVar(&sendID, "send-id", "", "send identifier from the send-id tracking (required)")

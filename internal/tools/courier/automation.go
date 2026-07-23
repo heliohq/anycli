@@ -13,9 +13,10 @@ import (
 func (s *Service) newAutomationInvokeCmd(key string) *cobra.Command {
 	var automation, recipient, template, brand, data, profile string
 	cmd := &cobra.Command{
-		Use:   "invoke",
-		Short: "Trigger an ad-hoc automation run",
-		Args:  cobra.NoArgs,
+		Use:         "invoke",
+		Short:       "Trigger an ad-hoc automation run",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if automation == "" {
 				return &usageError{msg: "courier automation invoke: --automation (JSON object) is required"}

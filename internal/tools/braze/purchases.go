@@ -21,9 +21,10 @@ func (s *Service) newPurchasesSeriesCmd(c *client) *cobra.Command {
 	var metric, endingAt, appID, productID string
 	var length int
 	cmd := &cobra.Command{
-		Use:   "series",
-		Short: "Get revenue or purchase-quantity time-series",
-		Args:  cobra.NoArgs,
+		Use:         "series",
+		Short:       "Get revenue or purchase-quantity time-series",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&metric, "metric", "revenue", "revenue|quantity")
 	cmd.Flags().IntVar(&length, "length", 7, "number of days (max 100) ending at --ending-at")

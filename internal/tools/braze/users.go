@@ -22,9 +22,10 @@ func (s *Service) newUsersExportCmd(c *client) *cobra.Command {
 	var externalIDs, fields []string
 	var email, brazeID string
 	cmd := &cobra.Command{
-		Use:   "export",
-		Short: "Look up user profiles by identifier (POST /users/export/ids)",
-		Args:  cobra.NoArgs,
+		Use:         "export",
+		Short:       "Look up user profiles by identifier (POST /users/export/ids)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	// Braze's /users/export/ids contract: external_ids is an array (up to 50),
 	// but email_address and braze_id are single strings ("only one email_address
@@ -66,9 +67,10 @@ func (s *Service) newUsersExportCmd(c *client) *cobra.Command {
 func (s *Service) newUsersTrackCmd(c *client) *cobra.Command {
 	var attributesFlag, eventsFlag, purchasesFlag string
 	cmd := &cobra.Command{
-		Use:   "track",
-		Short: "Identify users and record attributes/events/purchases (permission-gated)",
-		Args:  cobra.NoArgs,
+		Use:         "track",
+		Short:       "Identify users and record attributes/events/purchases (permission-gated)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&attributesFlag, "attributes", "", "raw JSON array of attribute objects")
 	cmd.Flags().StringVar(&eventsFlag, "events", "", "raw JSON array of custom-event objects")

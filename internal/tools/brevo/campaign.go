@@ -14,9 +14,10 @@ func (s *Service) newCampaignListCmd(apiKey string) *cobra.Command {
 		limit, offset        int
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List email campaigns (GET /emailCampaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List email campaigns (GET /emailCampaigns)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("limit", itoa(limit))
@@ -45,9 +46,10 @@ func (s *Service) newCampaignListCmd(apiKey string) *cobra.Command {
 func (s *Service) newCampaignGetCmd(apiKey string) *cobra.Command {
 	var id int
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get an email campaign (GET /emailCampaigns/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get an email campaign (GET /emailCampaigns/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), apiKey, http.MethodGet, "/emailCampaigns/"+itoa(id), nil, nil)
 			if err != nil {
@@ -71,9 +73,10 @@ func (s *Service) newCampaignCreateCmd(apiKey string) *cobra.Command {
 		listIDs                          []int
 	)
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an email campaign (POST /emailCampaigns)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an email campaign (POST /emailCampaigns)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"name": name, "subject": subject}
 			if cmd.Flags().Changed("sender-id") {

@@ -14,9 +14,10 @@ func (s *Service) newEventTypeListCmd(token string) *cobra.Command {
 	var count int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List bookable event types (GET /event_types)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List bookable event types (GET /event_types)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if org {
@@ -56,9 +57,10 @@ func (s *Service) newEventTypeListCmd(token string) *cobra.Command {
 
 func (s *Service) newEventTypeGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <event-type-id|uri>",
-		Short: "Get one event type (GET /event_types/{uuid})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <event-type-id|uri>",
+		Short:       "Get one event type (GET /event_types/{uuid})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/event_types/"+url.PathEscape(uuidOf(args[0])), nil, nil)
 			if err != nil {

@@ -47,9 +47,10 @@ func (lf listFlags) apply(q url.Values) {
 func (s *Service) newListCmd(token, name, collectionPath string) *cobra.Command {
 	var lf listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List " + name + "s (paginated)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List " + name + "s (paginated)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			lf.apply(q)
@@ -66,9 +67,10 @@ func (s *Service) newListCmd(token, name, collectionPath string) *cobra.Command 
 
 func (s *Service) newGetCmd(token, name, collectionPath string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one " + name + " by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one " + name + " by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, collectionPath+url.PathEscape(args[0])+"/", nil, nil)
 			if err != nil {
@@ -82,9 +84,10 @@ func (s *Service) newGetCmd(token, name, collectionPath string) *cobra.Command {
 func (s *Service) newCreateCmd(token, name, collectionPath string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "create --data <json|@file>",
-		Short: "Create a " + name + " from a JSON body",
-		Args:  cobra.NoArgs,
+		Use:         "create --data <json|@file>",
+		Short:       "Create a " + name + " from a JSON body",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := readData("data", data)
 			if err != nil {
@@ -104,9 +107,10 @@ func (s *Service) newCreateCmd(token, name, collectionPath string) *cobra.Comman
 func (s *Service) newUpdateCmd(token, name, collectionPath string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:   "update <id> --data <json|@file>",
-		Short: "Update a " + name + " from a JSON body",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id> --data <json|@file>",
+		Short:       "Update a " + name + " from a JSON body",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := readData("data", data)
 			if err != nil {
@@ -125,9 +129,10 @@ func (s *Service) newUpdateCmd(token, name, collectionPath string) *cobra.Comman
 
 func (s *Service) newDeleteCmd(token, name, collectionPath string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a " + name + " by id",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a " + name + " by id",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodDelete, collectionPath+url.PathEscape(args[0])+"/", nil, nil)
 			if err != nil {
@@ -143,9 +148,10 @@ func (s *Service) newDeleteCmd(token, name, collectionPath string) *cobra.Comman
 func (s *Service) newTaskCmd(token string) *cobra.Command {
 	group := s.newResourceCmd(token, "task", "/task/", "Manage tasks (follow-up reminders)")
 	group.AddCommand(&cobra.Command{
-		Use:   "complete <id>",
-		Short: "Mark a task complete",
-		Args:  cobra.ExactArgs(1),
+		Use:         "complete <id>",
+		Short:       "Mark a task complete",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPut, "/task/"+url.PathEscape(args[0])+"/", nil, map[string]any{"is_complete": true})
 			if err != nil {

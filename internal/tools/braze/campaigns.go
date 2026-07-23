@@ -26,9 +26,10 @@ func (s *Service) newCampaignsListCmd(c *client) *cobra.Command {
 	var page int
 	var includeArchived bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List campaigns (id + name), paginated",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List campaigns (id + name), paginated",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().IntVar(&page, "page", 0, "0-indexed page of campaigns to return")
 	cmd.Flags().BoolVar(&includeArchived, "include-archived", false, "include archived campaigns")
@@ -53,9 +54,10 @@ func (s *Service) newCampaignsListCmd(c *client) *cobra.Command {
 func (s *Service) newCampaignsDetailsCmd(c *client) *cobra.Command {
 	var campaignID string
 	cmd := &cobra.Command{
-		Use:   "details",
-		Short: "Get a campaign's configuration and metadata",
-		Args:  cobra.NoArgs,
+		Use:         "details",
+		Short:       "Get a campaign's configuration and metadata",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&campaignID, "campaign-id", "", "campaign API identifier (required)")
 	_ = cmd.MarkFlagRequired("campaign-id")
@@ -77,9 +79,10 @@ func (s *Service) newCampaignsSeriesCmd(c *client) *cobra.Command {
 	var campaignID, endingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:   "series",
-		Short: "Get a campaign's analytics time-series",
-		Args:  cobra.NoArgs,
+		Use:         "series",
+		Short:       "Get a campaign's analytics time-series",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&campaignID, "campaign-id", "", "campaign API identifier (required)")
 	cmd.Flags().IntVar(&length, "length", 7, "number of days (max 100) ending at --ending-at")
@@ -108,9 +111,10 @@ func (s *Service) newCampaignsSeriesCmd(c *client) *cobra.Command {
 func (s *Service) newCampaignsTriggerCmd(c *client) *cobra.Command {
 	var campaignID, bodyFlag string
 	cmd := &cobra.Command{
-		Use:   "trigger",
-		Short: "Send an API-triggered campaign (permission-gated)",
-		Args:  cobra.NoArgs,
+		Use:         "trigger",
+		Short:       "Send an API-triggered campaign (permission-gated)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 	}
 	cmd.Flags().StringVar(&campaignID, "campaign-id", "", "campaign API identifier (required)")
 	cmd.Flags().StringVar(&bodyFlag, "body", "", "raw JSON object: recipients, trigger_properties, broadcast, audience, …")

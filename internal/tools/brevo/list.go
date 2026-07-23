@@ -12,9 +12,10 @@ func (s *Service) newListLsCmd(apiKey string) *cobra.Command {
 	var limit, offset int
 	var sort string
 	cmd := &cobra.Command{
-		Use:   "ls",
-		Short: "List contact lists (GET /contacts/lists)",
-		Args:  cobra.NoArgs,
+		Use:         "ls",
+		Short:       "List contact lists (GET /contacts/lists)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("limit", itoa(limit))
@@ -39,9 +40,10 @@ func (s *Service) newListLsCmd(apiKey string) *cobra.Command {
 func (s *Service) newListGetCmd(apiKey string) *cobra.Command {
 	var id int
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a contact list (GET /contacts/lists/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a contact list (GET /contacts/lists/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), apiKey, http.MethodGet, "/contacts/lists/"+itoa(id), nil, nil)
 			if err != nil {
@@ -60,9 +62,10 @@ func (s *Service) newListCreateCmd(apiKey string) *cobra.Command {
 	var name string
 	var folderID int
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact list (POST /contacts/lists)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact list (POST /contacts/lists)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"name": name, "folderId": folderID}
 			resp, err := s.call(cmd.Context(), apiKey, http.MethodPost, "/contacts/lists", nil, body)
@@ -87,9 +90,10 @@ func (s *Service) newListAddContactsCmd(apiKey string) *cobra.Command {
 	var emails []string
 	var ids []int
 	cmd := &cobra.Command{
-		Use:   "add-contacts",
-		Short: "Add contacts to a list (POST /contacts/lists/{id}/contacts/add)",
-		Args:  cobra.NoArgs,
+		Use:         "add-contacts",
+		Short:       "Add contacts to a list (POST /contacts/lists/{id}/contacts/add)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if len(emails) > 0 {

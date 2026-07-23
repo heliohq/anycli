@@ -32,9 +32,10 @@ func (s *Service) newLookupCmd(token string) *cobra.Command {
 	for _, e := range lookupEndpoints {
 		e := e
 		group.AddCommand(&cobra.Command{
-			Use:   e.name,
-			Short: e.short + " (GET " + e.path + ")",
-			Args:  cobra.NoArgs,
+			Use:         e.name,
+			Short:       e.short + " (GET " + e.path + ")",
+			Args:        cobra.NoArgs,
+			Annotations: readOnly,
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				resp, err := s.call(cmd.Context(), token, http.MethodGet, e.path, nil)
 				if err != nil {

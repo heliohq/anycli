@@ -12,9 +12,10 @@ func (s *Service) newPersonSearchCmd(key string) *cobra.Command {
 	var email, filter, start string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Find a person by email (GET /v1/customers) or filter people by segment/attributes (POST /v1/customers)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Find a person by email (GET /v1/customers) or filter people by segment/attributes (POST /v1/customers)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if (email == "") == (filter == "") {
 				return &usageError{msg: "exactly one of --email or --filter is required"}
@@ -58,9 +59,10 @@ func (s *Service) newPersonSearchCmd(key string) *cobra.Command {
 func (s *Service) newPersonGetCmd(key string) *cobra.Command {
 	var id, idType string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a person's profile attributes (GET /v1/customers/{id}/attributes)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a person's profile attributes (GET /v1/customers/{id}/attributes)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIDType(q, idType)
@@ -78,9 +80,10 @@ func (s *Service) newPersonGetCmd(key string) *cobra.Command {
 func (s *Service) newPersonSegmentsCmd(key string) *cobra.Command {
 	var id, idType string
 	cmd := &cobra.Command{
-		Use:   "segments",
-		Short: "List the segments a person is in (GET /v1/customers/{id}/segments)",
-		Args:  cobra.NoArgs,
+		Use:         "segments",
+		Short:       "List the segments a person is in (GET /v1/customers/{id}/segments)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIDType(q, idType)
@@ -99,9 +102,10 @@ func (s *Service) newPersonMessagesCmd(key string) *cobra.Command {
 	var id, idType, start string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "messages",
-		Short: "List a person's delivery history (GET /v1/customers/{id}/messages)",
-		Args:  cobra.NoArgs,
+		Use:         "messages",
+		Short:       "List a person's delivery history (GET /v1/customers/{id}/messages)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIDType(q, idType)
@@ -128,9 +132,10 @@ func (s *Service) newPersonActivitiesCmd(key string) *cobra.Command {
 	var id, idType, activityType, start string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "activities",
-		Short: "List a person's activity log (GET /v1/customers/{id}/activities)",
-		Args:  cobra.NoArgs,
+		Use:         "activities",
+		Short:       "List a person's activity log (GET /v1/customers/{id}/activities)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIDType(q, idType)

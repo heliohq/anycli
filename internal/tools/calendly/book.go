@@ -18,9 +18,10 @@ func (s *Service) newBookCreateCmd(token string) *cobra.Command {
 	var eventType, start, name, email, timezone, locationKind, location string
 	var guests []string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Book a slot on an invitee's behalf (POST /invitees, Scheduling API; requires a paid plan)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Book a slot on an invitee's behalf (POST /invitees, Scheduling API; requires a paid plan)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			invitee := map[string]any{
 				"name":     name,

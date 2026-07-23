@@ -21,9 +21,10 @@ func (s *Service) newSessionsSeriesCmd(c *client) *cobra.Command {
 	var endingAt, unit, appID, segmentID string
 	var length int
 	cmd := &cobra.Command{
-		Use:   "series",
-		Short: "Get app-session counts over time",
-		Args:  cobra.NoArgs,
+		Use:         "series",
+		Short:       "Get app-session counts over time",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().IntVar(&length, "length", 7, "number of units (max 100) ending at --ending-at")
 	cmd.Flags().StringVar(&unit, "unit", "", "time unit: day|hour (optional; default day)")

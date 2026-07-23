@@ -14,9 +14,10 @@ import (
 func (s *Service) newAvailabilitySlotsCmd(token string) *cobra.Command {
 	var eventType, from, to string
 	cmd := &cobra.Command{
-		Use:   "slots",
-		Short: "Open slots for an event type (GET /event_type_available_times)",
-		Args:  cobra.NoArgs,
+		Use:         "slots",
+		Short:       "Open slots for an event type (GET /event_type_available_times)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("event_type", s.normalizeURI("event_types", eventType))
@@ -42,9 +43,10 @@ func (s *Service) newAvailabilitySlotsCmd(token string) *cobra.Command {
 func (s *Service) newAvailabilityBusyCmd(token string) *cobra.Command {
 	var user, from, to string
 	cmd := &cobra.Command{
-		Use:   "busy",
-		Short: "Calendar busy view for a user (GET /user_busy_times, ≤7 days)",
-		Args:  cobra.NoArgs,
+		Use:         "busy",
+		Short:       "Calendar busy view for a user (GET /user_busy_times, ≤7 days)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			userURI, err := s.resolveUserURI(cmd.Context(), token, user)
 			if err != nil {
@@ -75,9 +77,10 @@ func (s *Service) newAvailabilityScheduleCmd(token string) *cobra.Command {
 	group := newGroupCmd("schedule", "Working-hours availability schedules")
 	var user string
 	list := &cobra.Command{
-		Use:   "list",
-		Short: "Working-hours schedules + date overrides (GET /user_availability_schedules)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "Working-hours schedules + date overrides (GET /user_availability_schedules)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			userURI, err := s.resolveUserURI(cmd.Context(), token, user)
 			if err != nil {

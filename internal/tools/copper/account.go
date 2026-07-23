@@ -12,9 +12,10 @@ import (
 func (s *Service) newAccountCmd(token string) *cobra.Command {
 	group := newGroupCmd("account", "Copper account (organization)")
 	group.AddCommand(&cobra.Command{
-		Use:   "get",
-		Short: "Get the Copper account (GET /account)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the Copper account (GET /account)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/account", nil)
 			if err != nil {
@@ -32,9 +33,10 @@ func (s *Service) newUserCmd(token string) *cobra.Command {
 	group := newGroupCmd("user", "Copper users")
 	group.AddCommand(
 		&cobra.Command{
-			Use:   "me",
-			Short: "Get the authenticated Copper user (GET /users/me)",
-			Args:  cobra.NoArgs,
+			Use:         "me",
+			Short:       "Get the authenticated Copper user (GET /users/me)",
+			Args:        cobra.NoArgs,
+			Annotations: readOnly,
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				resp, err := s.call(cmd.Context(), token, http.MethodGet, "/users/me", nil)
 				if err != nil {
@@ -44,9 +46,10 @@ func (s *Service) newUserCmd(token string) *cobra.Command {
 			},
 		},
 		&cobra.Command{
-			Use:   "list",
-			Short: "List Copper users (GET /users)",
-			Args:  cobra.NoArgs,
+			Use:         "list",
+			Short:       "List Copper users (GET /users)",
+			Args:        cobra.NoArgs,
+			Annotations: readOnly,
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				resp, err := s.call(cmd.Context(), token, http.MethodGet, "/users", nil)
 				if err != nil {
@@ -63,9 +66,10 @@ func (s *Service) newUserCmd(token string) *cobra.Command {
 func (s *Service) newUserGetCmd(token string) *cobra.Command {
 	var id int
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get one Copper user by id (GET /users/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get one Copper user by id (GET /users/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if id <= 0 {
 				return &usageError{msg: "--id is required"}

@@ -26,9 +26,10 @@ func (s *Service) newTemplatesEmailListCmd(c *client) *cobra.Command {
 	var limit, offset int
 	var modifiedAfter, modifiedBefore string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List email templates, paginated",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List email templates, paginated",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().IntVar(&limit, "limit", 0, "max templates to return (max 1000)")
 	cmd.Flags().IntVar(&offset, "offset", 0, "number of templates to skip")
@@ -61,9 +62,10 @@ func (s *Service) newTemplatesEmailListCmd(c *client) *cobra.Command {
 func (s *Service) newTemplatesEmailInfoCmd(c *client) *cobra.Command {
 	var templateID string
 	cmd := &cobra.Command{
-		Use:   "info",
-		Short: "Get an email template's content and metadata",
-		Args:  cobra.NoArgs,
+		Use:         "info",
+		Short:       "Get an email template's content and metadata",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&templateID, "template-id", "", "email template identifier (required)")
 	_ = cmd.MarkFlagRequired("template-id")
@@ -95,9 +97,10 @@ func (s *Service) newContentBlocksListCmd(c *client) *cobra.Command {
 	var limit, offset int
 	var modifiedAfter, modifiedBefore string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List Content Blocks, paginated",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List Content Blocks, paginated",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().IntVar(&limit, "limit", 0, "max Content Blocks to return (max 1000)")
 	cmd.Flags().IntVar(&offset, "offset", 0, "number of Content Blocks to skip")
@@ -130,9 +133,10 @@ func (s *Service) newContentBlocksListCmd(c *client) *cobra.Command {
 func (s *Service) newContentBlocksInfoCmd(c *client) *cobra.Command {
 	var contentBlockID string
 	cmd := &cobra.Command{
-		Use:   "info",
-		Short: "Get a Content Block's content and metadata",
-		Args:  cobra.NoArgs,
+		Use:         "info",
+		Short:       "Get a Content Block's content and metadata",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 	}
 	cmd.Flags().StringVar(&contentBlockID, "content-block-id", "", "Content Block identifier (required)")
 	_ = cmd.MarkFlagRequired("content-block-id")

@@ -17,9 +17,10 @@ import (
 func (s *Service) newInviteeNoShowCmd(token string) *cobra.Command {
 	var undo bool
 	cmd := &cobra.Command{
-		Use:   "no-show <invitee-uri|no-show-id>",
-		Short: "Mark an invitee no-show, or clear one with --undo",
-		Args:  cobra.ExactArgs(1),
+		Use:         "no-show <invitee-uri|no-show-id>",
+		Short:       "Mark an invitee no-show, or clear one with --undo",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if undo {
 				resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/invitee_no_shows/"+url.PathEscape(uuidOf(args[0])), nil, nil)
