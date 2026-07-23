@@ -97,6 +97,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/paddle"
 	"github.com/heliohq/anycli/internal/tools/pandadoc"
 	"github.com/heliohq/anycli/internal/tools/paperform"
+	"github.com/heliohq/anycli/internal/tools/paypal"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -137,6 +138,7 @@ func init() {
 	RegisterService("outreach", &outreach.Service{})
 	RegisterService("pandadoc", &pandadoc.Service{})
 	RegisterService("paperform", &paperform.Service{})
+	RegisterService("paypal", &paypal.Service{})
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("google-ads", &googleads.Service{})
