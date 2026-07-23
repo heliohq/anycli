@@ -98,6 +98,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/pandadoc"
 	"github.com/heliohq/anycli/internal/tools/paperform"
 	"github.com/heliohq/anycli/internal/tools/paypal"
+	"github.com/heliohq/anycli/internal/tools/pennylane"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -178,6 +179,7 @@ func init() {
 	RegisterService("mercury", &mercury.Service{})
 	RegisterService("netsuite", &netsuite.Service{})
 	RegisterService("paddle", &paddle.Service{})
+	RegisterService("pennylane", &pennylane.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility

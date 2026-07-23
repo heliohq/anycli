@@ -1,0 +1,13 @@
+{
+  "name": "pennylane",
+  "type": "service",
+  "description": "Pennylane accounting: customers, suppliers, invoices, transactions, and ledger.",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "PENNYLANE_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
