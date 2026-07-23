@@ -101,6 +101,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/pennylane"
 	"github.com/heliohq/anycli/internal/tools/phantombuster"
 	"github.com/heliohq/anycli/internal/tools/pinterest"
+	"github.com/heliohq/anycli/internal/tools/pipedrive"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -143,6 +144,7 @@ func init() {
 	RegisterService("paperform", &paperform.Service{})
 	RegisterService("paypal", &paypal.Service{})
 	RegisterService("pinterest", &pinterest.Service{})
+	RegisterService("pipedrive", &pipedrive.Service{})
 	RegisterService("sheets", &sheets.Service{})
 	RegisterService("gmail", &gmail.Service{})
 	RegisterService("google-ads", &googleads.Service{})
