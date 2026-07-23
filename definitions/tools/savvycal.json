@@ -1,0 +1,13 @@
+{
+  "name": "savvycal",
+  "type": "service",
+  "description": "SavvyCal scheduling as a tool (OAuth user token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SAVVYCAL_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

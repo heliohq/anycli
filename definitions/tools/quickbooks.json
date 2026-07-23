@@ -1,0 +1,17 @@
+{
+  "name": "quickbooks",
+  "type": "service",
+  "description": "QuickBooks Online accounting as a tool (OAuth 2.0, company-scoped Accounting + Reports API)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "QUICKBOOKS_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "account_key"},
+        "inject": {"type": "env", "env_var": "QUICKBOOKS_REALM_ID"}
+      }
+    ]
+  }
+}

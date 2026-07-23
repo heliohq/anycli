@@ -1,0 +1,13 @@
+{
+  "name": "close",
+  "type": "service",
+  "description": "Close CRM as a tool (OAuth or API key): leads, contacts, opportunities, activities, tasks, search",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "CLOSE_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

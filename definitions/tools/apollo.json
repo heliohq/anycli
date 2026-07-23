@@ -1,0 +1,13 @@
+{
+  "name": "apollo",
+  "type": "service",
+  "description": "Apollo.io as a tool (sales intelligence: people/org search + enrich, contacts, sequences, tasks, deals via OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "APOLLO_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

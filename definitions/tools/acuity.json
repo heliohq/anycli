@@ -1,0 +1,13 @@
+{
+  "name": "acuity",
+  "type": "service",
+  "description": "Acuity Scheduling as a tool (appointments, availability, clients)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "ACUITY_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

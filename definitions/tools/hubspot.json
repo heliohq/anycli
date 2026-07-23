@@ -1,0 +1,13 @@
+{
+  "name": "hubspot",
+  "type": "service",
+  "description": "HubSpot CRM as a tool (OAuth access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "HUBSPOT_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

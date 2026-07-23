@@ -1,0 +1,13 @@
+{
+  "name": "brex",
+  "type": "service",
+  "description": "Brex accounts, transactions, expenses, cards, budgets, and users (OAuth)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "BREX_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

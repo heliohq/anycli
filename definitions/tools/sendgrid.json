@@ -1,0 +1,13 @@
+{
+  "name": "sendgrid",
+  "type": "service",
+  "description": "SendGrid as a tool (transactional mail send, templates, marketing contacts, suppressions, stats; API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "SENDGRID_API_KEY"}
+      }
+    ]
+  }
+}

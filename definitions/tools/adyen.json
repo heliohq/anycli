@@ -1,0 +1,13 @@
+{
+  "name": "adyen",
+  "type": "service",
+  "description": "Adyen as a tool (Management API v3, X-API-Key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "ADYEN_API_KEY"}
+      }
+    ]
+  }
+}

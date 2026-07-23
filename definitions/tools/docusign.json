@@ -1,0 +1,21 @@
+{
+  "name": "docusign",
+  "type": "service",
+  "description": "DocuSign eSignature as a tool: send envelopes for signature, track status, download signed documents, and list templates (user OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "DOCUSIGN_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "base_uri"},
+        "inject": {"type": "env", "env_var": "DOCUSIGN_BASE_URI"}
+      },
+      {
+        "source": {"field": "account_id"},
+        "inject": {"type": "env", "env_var": "DOCUSIGN_ACCOUNT_ID"}
+      }
+    ]
+  }
+}

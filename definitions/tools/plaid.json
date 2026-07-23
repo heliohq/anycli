@@ -1,0 +1,21 @@
+{
+  "name": "plaid",
+  "type": "service",
+  "description": "Plaid financial data as a tool (institution lookups, Item reads, sandbox loop) via the Plaid REST API",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "client_id"},
+        "inject": {"type": "env", "env_var": "PLAID_CLIENT_ID"}
+      },
+      {
+        "source": {"field": "secret"},
+        "inject": {"type": "env", "env_var": "PLAID_SECRET"}
+      },
+      {
+        "source": {"field": "environment"},
+        "inject": {"type": "env", "env_var": "PLAID_ENV"}
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "sprout-social",
+  "type": "service",
+  "description": "Sprout Social as a tool: read analytics, triage the inbox, and draft posts (account-scoped API token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SPROUT_SOCIAL_TOKEN"}
+      },
+      {
+        "source": {"field": "customer_id"},
+        "inject": {"type": "env", "env_var": "SPROUT_SOCIAL_CUSTOMER_ID"}
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "freshdesk",
+  "type": "service",
+  "description": "Freshdesk support desk as a tool (tickets, contacts, companies, agents) via the v2 REST API",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "FRESHDESK_API_KEY"}
+      },
+      {
+        "source": {"field": "domain"},
+        "inject": {"type": "env", "env_var": "FRESHDESK_DOMAIN"}
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "tally",
+  "type": "service",
+  "description": "Tally forms and submissions (personal API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "TALLY_API_KEY"}
+      }
+    ]
+  }
+}

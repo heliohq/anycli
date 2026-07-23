@@ -1,0 +1,17 @@
+{
+  "name": "activecampaign",
+  "type": "service",
+  "description": "ActiveCampaign marketing automation & CRM (API v3, Api-Token header)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "ACTIVECAMPAIGN_API_TOKEN"}
+      },
+      {
+        "source": {"field": "account_url"},
+        "inject": {"type": "env", "env_var": "ACTIVECAMPAIGN_API_URL"}
+      }
+    ]
+  }
+}

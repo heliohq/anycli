@@ -1,0 +1,13 @@
+{
+  "name": "expensify",
+  "type": "service",
+  "description": "Expensify Integration Server API (policies, reports, expenses) via a partnerUserID:partnerUserSecret pair",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "credentials"},
+        "inject": {"type": "env", "env_var": "EXPENSIFY_CREDENTIALS"}
+      }
+    ]
+  }
+}

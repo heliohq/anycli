@@ -1,0 +1,13 @@
+{
+  "name": "ramp",
+  "type": "service",
+  "description": "Ramp transactions, reimbursements, cards, users, departments, locations, and business (OAuth)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "RAMP_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

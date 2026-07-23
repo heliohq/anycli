@@ -1,0 +1,17 @@
+{
+  "name": "twitch",
+  "type": "service",
+  "description": "Twitch as a tool (Helix API / OAuth user token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "TWITCH_TOKEN"}
+      },
+      {
+        "source": {"field": "client_id"},
+        "inject": {"type": "env", "env_var": "TWITCH_CLIENT_ID"}
+      }
+    ]
+  }
+}

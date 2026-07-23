@@ -1,0 +1,13 @@
+{
+  "name": "mixpanel",
+  "type": "service",
+  "description": "Mixpanel product analytics — query Insights, Segmentation, Funnels, Retention, Events, Cohorts, People; Lexicon schemas; bounded raw export (Service Account auth)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "credentials"},
+        "inject": {"type": "env", "env_var": "MIXPANEL_CREDENTIALS"}
+      }
+    ]
+  }
+}

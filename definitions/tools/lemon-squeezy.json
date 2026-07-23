@@ -1,0 +1,13 @@
+{
+  "name": "lemon-squeezy",
+  "type": "service",
+  "description": "Lemon Squeezy as a tool (API key) — stores, products, orders, subscriptions, customers, discounts, license keys, checkouts",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "LEMONSQUEEZY_API_KEY"}
+      }
+    ]
+  }
+}

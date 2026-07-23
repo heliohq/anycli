@@ -1,0 +1,191 @@
+// Package brevo is the built-in Brevo service: a non-interactive cobra tree
+// over the Brevo REST API v3 (https://api.brevo.com/v3). Brevo (formerly
+// Sendinblue) is an email-marketing / transactional-email / contacts / CRM
+// platform; this tool wraps the load-bearing jobs — sending mail, managing the
+// contact database, and reading campaign/list state. Auth is the "api-key"
+// request header. Brevo fails with a non-2xx status and a JSON body carrying
+// code/message; every command surfaces both. Each command emits the provider
+// JSON on stdout verbatim (agent-friendly passthrough).
+package brevo
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
+	"github.com/spf13/cobra"
+)
+
+// DefaultBaseURL is the production Brevo v3 API base.
+const DefaultBaseURL = "https://api.brevo.com/v3"
+
+// EnvAPIKey is the env var the credential binding injects
+// (definitions/tools/brevo.json). The value is sent as the "api-key" header.
+const EnvAPIKey = "BREVO_API_KEY"
+
+// Service implements the built-in Brevo tool. It satisfies tools.Service by
+// duck typing (this package never imports the registry — no import cycle).
+type Service struct {
+	// BaseURL overrides the Brevo API base; empty = DefaultBaseURL. Tests point
+	// it at an httptest server.
+	BaseURL string
+	// HC is the HTTP client; nil = http.DefaultClient.
+	HC *http.Client
+	// Out / Err override stdout / stderr; nil = the process streams.
+	Out io.Writer
+	Err io.Writer
+}
+
+// Execute runs one brevo subcommand with the resolved credentials in env.
+// Success is exit 0; usage/param errors (illegal flag combos, bad JSON,
+// missing required flags, unknown subcommands) are exit 2; runtime/API errors
+// (Brevo non-2xx, transport failure) are exit 1. Errors render to stderr — as a
+// JSON envelope under --json, plain text otherwise.
+func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
+	apiKey := env[EnvAPIKey]
+	if apiKey == "" {
+		s.renderError(hasJSONArg(args), &usageError{msg: "BREVO_API_KEY is not set"})
+		return execution.Result{ExitCode: 1}, nil
+	}
+	root := s.newRoot(apiKey)
+	root.SetArgs(args)
+	err := root.ExecuteContext(ctx)
+	if err == nil {
+		return execution.Result{}, nil
+	}
+
+	jsonMode, _ := root.PersistentFlags().GetBool("json")
+	s.renderError(jsonMode, err)
+
+	var apiErr *apiError
+	if errors.As(err, &apiErr) {
+		// Runtime/API failure: exit 1, preserving credential-rejection
+		// classification carried through the wrapped cause.
+		return execution.Failure(err), nil
+	}
+	// usageError plus every cobra-originated parse/arg/enum/unknown-command
+	// error is inherently a usage error → exit 2.
+	return execution.Result{ExitCode: 2}, nil
+}
+
+// hasJSONArg reports whether the raw args carry the --json global flag, used to
+// pick the error format before cobra has parsed flags (the pre-parse
+// missing-key check).
+func hasJSONArg(args []string) bool {
+	for _, a := range args {
+		if a == "--json" || a == "--json=true" {
+			return true
+		}
+	}
+	return false
+}
+
+// renderError writes err to stderr. Under --json the shape is
+// {"error":{"message":…,"code":…,"kind":"usage|api","status":<HTTP or omitted>}}.
+func (s *Service) renderError(jsonMode bool, err error) {
+	if !jsonMode {
+		fmt.Fprintln(s.stderr(), err)
+		return
+	}
+	payload := map[string]any{"message": err.Error(), "kind": "usage"}
+	var apiErr *apiError
+	if errors.As(err, &apiErr) {
+		payload["kind"] = "api"
+		payload["message"] = apiErr.message
+		if apiErr.code != "" {
+			payload["code"] = apiErr.code
+		}
+		if apiErr.status != 0 {
+			payload["status"] = apiErr.status
+		}
+	}
+	b, mErr := json.Marshal(map[string]any{"error": payload})
+	if mErr != nil {
+		fmt.Fprintln(s.stderr(), err)
+		return
+	}
+	fmt.Fprintln(s.stderr(), string(b))
+}
+
+func (s *Service) stdout() io.Writer {
+	if s.Out != nil {
+		return s.Out
+	}
+	return os.Stdout
+}
+
+func (s *Service) stderr() io.Writer {
+	if s.Err != nil {
+		return s.Err
+	}
+	return os.Stderr
+}
+
+// newRoot builds the grouped-by-resource cobra tree (notion pattern): every
+// leaf command hangs under a resource group (email/contact/list/campaign/
+// sender/account).
+func (s *Service) newRoot(apiKey string) *cobra.Command {
+	root := &cobra.Command{
+		Use:           "brevo",
+		Short:         "Brevo built-in service (email marketing, transactional email, contacts, CRM)",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+	root.SetOut(s.stdout())
+	root.SetErr(s.stderr())
+	root.PersistentFlags().Bool("json", false, "render errors as a structured JSON envelope")
+
+	email := newGroupCmd("email", "Send transactional email")
+	email.AddCommand(s.newEmailSendCmd(apiKey))
+
+	contact := newGroupCmd("contact", "Manage contacts")
+	contact.AddCommand(
+		s.newContactCreateCmd(apiKey),
+		s.newContactUpdateCmd(apiKey),
+		s.newContactGetCmd(apiKey),
+		s.newContactListCmd(apiKey),
+		s.newContactDeleteCmd(apiKey),
+	)
+
+	list := newGroupCmd("list", "Manage contact lists")
+	list.AddCommand(
+		s.newListLsCmd(apiKey),
+		s.newListGetCmd(apiKey),
+		s.newListCreateCmd(apiKey),
+		s.newListAddContactsCmd(apiKey),
+	)
+
+	campaign := newGroupCmd("campaign", "Manage email campaigns")
+	campaign.AddCommand(
+		s.newCampaignListCmd(apiKey),
+		s.newCampaignGetCmd(apiKey),
+		s.newCampaignCreateCmd(apiKey),
+	)
+
+	sender := newGroupCmd("sender", "List verified senders")
+	sender.AddCommand(s.newSenderLsCmd(apiKey))
+
+	account := newGroupCmd("account", "Account identity, plan, and credits")
+	account.AddCommand(s.newAccountGetCmd(apiKey))
+
+	root.AddCommand(email, contact, list, campaign, sender, account)
+	return root
+}
+
+// newGroupCmd is a runnable command group. cobra skips Args validation on
+// non-runnable commands (help + exit 0 even for an unknown subcommand — a false
+// success for an agent); making the group runnable restores it: a bare group
+// shows help, an unknown subcommand fails.
+func newGroupCmd(use, short string) *cobra.Command {
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  cobra.NoArgs,
+		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+	}
+}

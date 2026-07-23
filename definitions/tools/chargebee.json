@@ -1,0 +1,17 @@
+{
+  "name": "chargebee",
+  "type": "service",
+  "description": "Chargebee subscription billing (customers, subscriptions, invoices, catalog) via the v2 REST API",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "CHARGEBEE_API_KEY"}
+      },
+      {
+        "source": {"field": "site"},
+        "inject": {"type": "env", "env_var": "CHARGEBEE_SITE"}
+      }
+    ]
+  }
+}

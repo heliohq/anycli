@@ -1,0 +1,21 @@
+{
+  "name": "paypal",
+  "type": "service",
+  "description": "PayPal as a tool — invoicing, transaction reporting, subscriptions (REST client-credentials)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "client_id"},
+        "inject": {"type": "env", "env_var": "PAYPAL_CLIENT_ID"}
+      },
+      {
+        "source": {"field": "api_secret"},
+        "inject": {"type": "env", "env_var": "PAYPAL_CLIENT_SECRET"}
+      },
+      {
+        "source": {"field": "environment"},
+        "inject": {"type": "env", "env_var": "PAYPAL_ENV"}
+      }
+    ]
+  }
+}

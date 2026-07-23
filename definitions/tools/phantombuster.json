@@ -1,0 +1,13 @@
+{
+  "name": "phantombuster",
+  "type": "service",
+  "description": "PhantomBuster as a tool (workspace API key): list/launch/observe Phantoms and fetch run results",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "PHANTOMBUSTER_API_KEY"}
+      }
+    ]
+  }
+}

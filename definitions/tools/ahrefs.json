@@ -1,0 +1,13 @@
+{
+  "name": "ahrefs",
+  "type": "service",
+  "description": "Ahrefs SEO data as a tool (API v3, OAuth/API-key bearer token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "AHREFS_API_TOKEN"}
+      }
+    ]
+  }
+}

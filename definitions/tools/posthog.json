@@ -1,0 +1,13 @@
+{
+  "name": "posthog",
+  "type": "service",
+  "description": "PostHog product analytics as a tool (OAuth access token or personal API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "POSTHOG_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

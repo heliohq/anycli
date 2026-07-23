@@ -1,0 +1,13 @@
+{
+  "name": "novu",
+  "type": "service",
+  "description": "Novu notification infrastructure as a tool (environment secret key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "NOVU_SECRET_KEY"}
+      }
+    ]
+  }
+}

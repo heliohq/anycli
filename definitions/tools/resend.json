@@ -1,0 +1,13 @@
+{
+  "name": "resend",
+  "type": "service",
+  "description": "Resend as a tool (send transactional & broadcast email via API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "RESEND_API_KEY"}
+      }
+    ]
+  }
+}

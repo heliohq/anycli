@@ -1,0 +1,13 @@
+{
+  "name": "signnow",
+  "type": "service",
+  "description": "SignNow e-signature: send documents for signing, track invites, download signed PDFs",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SIGNNOW_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "kit",
+  "type": "service",
+  "description": "Kit (ConvertKit) as a tool — creator email marketing (OAuth)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "KIT_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

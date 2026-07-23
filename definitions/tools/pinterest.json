@@ -1,0 +1,13 @@
+{
+  "name": "pinterest",
+  "type": "service",
+  "description": "Pinterest as a tool (OAuth 2.0 access token) — account, boards, and pins on api.pinterest.com/v5",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "PINTEREST_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

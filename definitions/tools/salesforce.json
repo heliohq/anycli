@@ -1,0 +1,17 @@
+{
+  "name": "salesforce",
+  "type": "service",
+  "description": "Salesforce CRM as a tool (SOQL queries, record CRUD, search, describe)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SALESFORCE_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "instance_url"},
+        "inject": {"type": "env", "env_var": "SALESFORCE_INSTANCE_URL"}
+      }
+    ]
+  }
+}

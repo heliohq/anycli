@@ -1,0 +1,13 @@
+{
+  "name": "keap",
+  "type": "service",
+  "description": "Keap CRM as a tool (OAuth 2.0 access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "KEAP_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

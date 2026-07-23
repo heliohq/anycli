@@ -1,0 +1,17 @@
+{
+  "name": "google-ads",
+  "type": "service",
+  "description": "Google Ads as a tool (user access token + app developer token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "GOOGLE_ADS_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "developer_token"},
+        "inject": {"type": "env", "env_var": "GOOGLE_ADS_DEVELOPER_TOKEN"}
+      }
+    ]
+  }
+}

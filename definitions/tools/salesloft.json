@@ -1,0 +1,13 @@
+{
+  "name": "salesloft",
+  "type": "service",
+  "description": "Salesloft sales engagement (people, cadences, tasks, activity)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SALESLOFT_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "zoho-books",
+  "type": "service",
+  "description": "Zoho Books as a tool (OAuth user access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "ZOHO_BOOKS_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

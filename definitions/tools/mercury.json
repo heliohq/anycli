@@ -1,0 +1,13 @@
+{
+  "name": "mercury",
+  "type": "service",
+  "description": "Mercury as a tool (banking accounts, transactions, recipients, treasury, cards via OAuth2 access token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "MERCURY_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

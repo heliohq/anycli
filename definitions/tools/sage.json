@@ -1,0 +1,13 @@
+{
+  "name": "sage",
+  "type": "service",
+  "description": "Sage Accounting (Business Cloud) as a tool (OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SAGE_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

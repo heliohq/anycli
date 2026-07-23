@@ -1,0 +1,17 @@
+{
+  "name": "gorgias",
+  "type": "service",
+  "description": "Gorgias helpdesk as a tool (OAuth token, per-account subdomain)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "GORGIAS_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "subdomain"},
+        "inject": {"type": "env", "env_var": "GORGIAS_SUBDOMAIN"}
+      }
+    ]
+  }
+}

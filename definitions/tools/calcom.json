@@ -1,0 +1,13 @@
+{
+  "name": "calcom",
+  "type": "service",
+  "description": "Cal.com scheduling as a tool (event types, availability slots, bookings)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "CALCOM_TOKEN"}
+      }
+    ]
+  }
+}
