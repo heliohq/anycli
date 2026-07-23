@@ -105,6 +105,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/plaid"
 	"github.com/heliohq/anycli/internal/tools/posthog"
 	"github.com/heliohq/anycli/internal/tools/postmark"
+	"github.com/heliohq/anycli/internal/tools/quickbooks"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
 	"github.com/heliohq/anycli/internal/tools/slides"
@@ -190,6 +191,7 @@ func init() {
 	RegisterService("paddle", &paddle.Service{})
 	RegisterService("pennylane", &pennylane.Service{})
 	RegisterService("plaid", &plaid.Service{})
+	RegisterService("quickbooks", &quickbooks.Service{})
 	// gate-probe is the approval-gate E2E harness (design 318): hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility
