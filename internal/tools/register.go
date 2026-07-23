@@ -143,6 +143,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/xero"
 	"github.com/heliohq/anycli/internal/tools/youtube"
 	"github.com/heliohq/anycli/internal/tools/zohobooks"
+	"github.com/heliohq/anycli/internal/tools/zohocrm"
 )
 
 // Built-in service registration. internal/exec imports this package (for
@@ -297,4 +298,5 @@ func init() {
 	RegisterService("twitch", &twitch.Service{})
 	RegisterService("typefully", &typefully.Service{})
 	RegisterService("youtube", &youtube.Service{})
+	RegisterService("zoho-crm", &zohocrm.Service{})
 }
