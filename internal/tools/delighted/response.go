@@ -27,6 +27,7 @@ func (s *Service) newResponseListCmd(key string) *cobra.Command {
 		Short: "List survey responses (GET /survey_responses.json)",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	perPage, page := registerPaging(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
@@ -55,9 +56,10 @@ func (s *Service) newResponseListCmd(key string) *cobra.Command {
 func (s *Service) newResponseGetCmd(key string) *cobra.Command {
 	var id, expand string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Retrieve one survey response (GET /survey_responses/{id}.json)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Retrieve one survey response (GET /survey_responses/{id}.json)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if expand != "" {
@@ -79,9 +81,10 @@ func (s *Service) newResponseGetCmd(key string) *cobra.Command {
 func (s *Service) newResponseCreateCmd(key string) *cobra.Command {
 	var person, score, comment, properties string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a survey response (POST /survey_responses.json)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a survey response (POST /survey_responses.json)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"person": person, "score": score}
 			if comment != "" {
@@ -114,9 +117,10 @@ func (s *Service) newResponseUpdateCmd(key string) *cobra.Command {
 	var id, notes, properties string
 	var tags []string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a survey response's tags/notes (PUT /survey_responses/{id}.json)",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a survey response's tags/notes (PUT /survey_responses/{id}.json)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{}
 			if cmd.Flags().Changed("tags") {

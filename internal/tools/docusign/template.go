@@ -9,9 +9,10 @@ import (
 
 func (s *Service) newTemplateListCmd(c *apiClient) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List reusable templates a send can reference by id",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List reusable templates a send can reference by id",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := c.callJSON(cmd.Context(), http.MethodGet, "/templates", nil, nil)
 			if err != nil {
@@ -40,9 +41,10 @@ func (s *Service) newTemplateListCmd(c *apiClient) *cobra.Command {
 
 func (s *Service) newTemplateGetCmd(c *apiClient) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get <template-id>",
-		Short: "Inspect one template",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <template-id>",
+		Short:       "Inspect one template",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := c.callJSON(cmd.Context(), http.MethodGet, "/templates/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

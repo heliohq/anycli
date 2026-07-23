@@ -22,9 +22,10 @@ func (s *Service) newRequesterListCmd(c *client) *cobra.Command {
 	var email string
 	var perPage, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List requesters (GET /requesters)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List requesters (GET /requesters)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validatePerPage(perPage); err != nil {
 				return err
@@ -46,9 +47,10 @@ func (s *Service) newRequesterListCmd(c *client) *cobra.Command {
 
 func (s *Service) newRequesterGetCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one requester (GET /requesters/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one requester (GET /requesters/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, _, err := c.call(cmd.Context(), http.MethodGet, "/requesters/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -74,9 +76,10 @@ func (s *Service) newAgentListCmd(c *client) *cobra.Command {
 	var email string
 	var perPage, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List agents (GET /agents)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List agents (GET /agents)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validatePerPage(perPage); err != nil {
 				return err
@@ -98,9 +101,10 @@ func (s *Service) newAgentListCmd(c *client) *cobra.Command {
 
 func (s *Service) newAgentGetCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Get one agent (GET /agents/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Get one agent (GET /agents/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, _, err := c.call(cmd.Context(), http.MethodGet, "/agents/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {
@@ -120,9 +124,10 @@ func (s *Service) newGroupCmd(c *client) *cobra.Command {
 func (s *Service) newGroupListCmd(c *client) *cobra.Command {
 	var perPage, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List groups (GET /groups)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List groups (GET /groups)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validatePerPage(perPage); err != nil {
 				return err

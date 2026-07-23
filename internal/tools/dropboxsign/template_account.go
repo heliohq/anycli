@@ -15,9 +15,10 @@ func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 		query    string
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List reusable templates",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List reusable templates",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if page > 0 {
@@ -45,9 +46,10 @@ func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 // newTemplateGetCmd fetches one template's roles and fields.
 func (s *Service) newTemplateGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <template_id>",
-		Short: "Get one template (roles and fields)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <template_id>",
+		Short:       "Get one template (roles and fields)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.callGET(cmd.Context(), token, "/template/"+url.PathEscape(args[0]), nil)
 			if err != nil {
@@ -63,9 +65,10 @@ func (s *Service) newTemplateGetCmd(token string) *cobra.Command {
 // account, so no query params are needed).
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get the authenticated account (identity and quota)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the authenticated account (identity and quota)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.callGET(cmd.Context(), token, "/account", nil)
 			if err != nil {

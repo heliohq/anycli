@@ -33,6 +33,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly / writeAction carry the design-318 side-effect annotation for runnable leaves.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+var writeAction = map[string]string{"anycli.side_effect": "true"}
+
 // EnvURL is the env var the credential binding injects
 // (definitions/tools/freshservice.json). The resolved value is the URL blob
 // https://<api_key>@<domain>.freshservice.com.

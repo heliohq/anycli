@@ -24,9 +24,10 @@ func (s *Service) newContactListCmd(c *client) *cobra.Command {
 	var email, companyID, updatedSince string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List contacts (GET /contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contacts (GET /contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setNonEmpty(q, "email", email)
@@ -50,9 +51,10 @@ func (s *Service) newContactListCmd(c *client) *cobra.Command {
 func (s *Service) newContactGetCmd(c *client) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a contact (GET /contacts/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a contact (GET /contacts/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := c.call(cmd.Context(), http.MethodGet, "/contacts/"+url.PathEscape(id), nil, nil)
 			if err != nil {
@@ -69,9 +71,10 @@ func (s *Service) newContactGetCmd(c *client) *cobra.Command {
 func (s *Service) newContactCreateCmd(c *client) *cobra.Command {
 	var name, email, phone, mobile, companyID, customFieldsJSON string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact (POST /contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact (POST /contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			setBodyStr(body, "name", name)
@@ -101,9 +104,10 @@ func (s *Service) newContactCreateCmd(c *client) *cobra.Command {
 func (s *Service) newContactUpdateCmd(c *client) *cobra.Command {
 	var id, name, email, phone, mobile, companyID, customFieldsJSON string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a contact (PUT /contacts/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a contact (PUT /contacts/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			setBodyStr(body, "name", name)
@@ -136,9 +140,10 @@ func (s *Service) newContactSearchCmd(c *client) *cobra.Command {
 	var query string
 	var page int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search contacts (GET /search/contacts). --query is Freshdesk query syntax.",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search contacts (GET /search/contacts). --query is Freshdesk query syntax.",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("query", quoteQuery(query))

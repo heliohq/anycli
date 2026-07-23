@@ -34,6 +34,7 @@ func (s *Service) newDomainOverviewCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/dataforseo_labs/google/domain_rank_overview/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&target, "target", "", "domain, e.g. example.com without protocol (required)")
 	_ = cmd.MarkFlagRequired("target")
 	registerLocationLang(cmd, &tp)
@@ -60,6 +61,7 @@ func (s *Service) newDomainRankedKeywordsCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/dataforseo_labs/google/ranked_keywords/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&target, "target", "", "domain, subdomain, or URL (required)")
 	_ = cmd.MarkFlagRequired("target")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max keywords (default 100, max 1000)")
@@ -87,6 +89,7 @@ func (s *Service) newDomainCompetitorsCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/dataforseo_labs/google/competitors_domain/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&target, "target", "", "domain, e.g. example.com without protocol (required)")
 	_ = cmd.MarkFlagRequired("target")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max competitors (default 100, max 1000)")

@@ -21,6 +21,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// readOnly / writeAction carry the design-318 side-effect annotation for runnable leaves.
+var readOnly = map[string]string{"anycli.side_effect": "false"}
+var writeAction = map[string]string{"anycli.side_effect": "true"}
+
 // EnvAPIKey is the env var carrying the Freshdesk API key (the Basic-auth
 // username). Injected per definitions/tools/freshdesk.json.
 const EnvAPIKey = "FRESHDESK_API_KEY"

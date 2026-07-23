@@ -25,9 +25,10 @@ func (s *Service) newAssetListCmd(c *client) *cobra.Command {
 	var filter string
 	var perPage, page int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List assets (GET /assets)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List assets (GET /assets)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validatePerPage(perPage); err != nil {
 				return err
@@ -53,9 +54,10 @@ func (s *Service) newAssetListCmd(c *client) *cobra.Command {
 // display id, not the internal id.
 func (s *Service) newAssetGetCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <display-id>",
-		Short: "Get one asset by display id (GET /assets/{display_id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <display-id>",
+		Short:       "Get one asset by display id (GET /assets/{display_id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, _, err := c.call(cmd.Context(), http.MethodGet, "/assets/"+url.PathEscape(args[0]), nil, nil)
 			if err != nil {

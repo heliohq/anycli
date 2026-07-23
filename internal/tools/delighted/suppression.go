@@ -16,6 +16,7 @@ func (s *Service) newBouncesCmd(key string) *cobra.Command {
 		Short: "List bounced people (GET /bounces.json)",
 		Args:  cobra.NoArgs,
 	}
+	list.Annotations = readOnly
 	perPage, page := registerPaging(list)
 	list.RunE = func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
@@ -47,6 +48,7 @@ func (s *Service) newUnsubscribesListCmd(key string) *cobra.Command {
 		Short: "List unsubscribed people (GET /unsubscribes.json)",
 		Args:  cobra.NoArgs,
 	}
+	cmd.Annotations = readOnly
 	perPage, page := registerPaging(cmd)
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
@@ -63,9 +65,10 @@ func (s *Service) newUnsubscribesListCmd(key string) *cobra.Command {
 func (s *Service) newUnsubscribesAddCmd(key string) *cobra.Command {
 	var personEmail string
 	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Unsubscribe a person (POST /unsubscribes.json)",
-		Args:  cobra.NoArgs,
+		Use:         "add",
+		Short:       "Unsubscribe a person (POST /unsubscribes.json)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"person_email": personEmail}
 			resp, err := s.call(cmd.Context(), key, http.MethodPost, "/unsubscribes.json", nil, payload)

@@ -28,9 +28,10 @@ func (s *Service) newTicketListCmd(c *client) *cobra.Command {
 	var include []string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tickets (GET /tickets). Use `ticket search` to filter by status/priority.",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tickets (GET /tickets). Use `ticket search` to filter by status/priority.",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setNonEmpty(q, "filter", filter)
@@ -67,9 +68,10 @@ func (s *Service) newTicketGetCmd(c *client) *cobra.Command {
 	var id string
 	var include []string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Get a ticket (GET /tickets/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get a ticket (GET /tickets/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			if len(include) > 0 {
@@ -102,7 +104,8 @@ func (s *Service) newTicketCreateCmd(c *client) *cobra.Command {
 			"is still good practice so the ticket lands in the state you intend.\n" +
 			"Status: 2 Open|3 Pending|4 Resolved|5 Closed. Priority: 1 Low|2\n" +
 			"Medium|3 High|4 Urgent.",
-		Args: cobra.NoArgs,
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			setBodyStr(body, "subject", subject)
@@ -147,9 +150,10 @@ func (s *Service) newTicketUpdateCmd(c *client) *cobra.Command {
 	var id, subject, description, priority, status, groupID, responderID, customFieldsJSON string
 	var tags []string
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a ticket (PUT /tickets/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a ticket (PUT /tickets/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			setBodyStr(body, "subject", subject)
@@ -190,9 +194,10 @@ func (s *Service) newTicketSearchCmd(c *client) *cobra.Command {
 	var query string
 	var page int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search tickets (GET /search/tickets). --query is Freshdesk query syntax, e.g. status:2 AND priority:4",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search tickets (GET /search/tickets). --query is Freshdesk query syntax, e.g. status:2 AND priority:4",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("query", quoteQuery(query))
@@ -216,9 +221,10 @@ func (s *Service) newTicketReplyCmd(c *client) *cobra.Command {
 	var id, body string
 	var cc, bcc []string
 	cmd := &cobra.Command{
-		Use:   "reply",
-		Short: "Reply to a ticket, visible to the requester (POST /tickets/{id}/reply)",
-		Args:  cobra.NoArgs,
+		Use:         "reply",
+		Short:       "Reply to a ticket, visible to the requester (POST /tickets/{id}/reply)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"body": body}
 			if len(cc) > 0 {
@@ -248,9 +254,10 @@ func (s *Service) newTicketNoteCmd(c *client) *cobra.Command {
 	var notify []string
 	var private, public bool
 	cmd := &cobra.Command{
-		Use:   "note",
-		Short: "Add a note to a ticket (POST /tickets/{id}/notes). Notes are private by default.",
-		Args:  cobra.NoArgs,
+		Use:         "note",
+		Short:       "Add a note to a ticket (POST /tickets/{id}/notes). Notes are private by default.",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"body": body}
 			// Private by default; --public makes the note visible to the requester.
@@ -279,9 +286,10 @@ func (s *Service) newTicketConversationsCmd(c *client) *cobra.Command {
 	var id string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:   "conversations",
-		Short: "List a ticket's conversations (GET /tickets/{id}/conversations)",
-		Args:  cobra.NoArgs,
+		Use:         "conversations",
+		Short:       "List a ticket's conversations (GET /tickets/{id}/conversations)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			applyPaging(q, page, perPage)

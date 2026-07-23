@@ -45,9 +45,10 @@ func validatePlatform(platform string) error {
 func (s *Service) newAutopilotMembershipListCmd(key string) *cobra.Command {
 	var platform, personEmail string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List autopilot memberships (GET /autopilot/{platform}/memberships.json)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List autopilot memberships (GET /autopilot/{platform}/memberships.json)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validatePlatform(platform); err != nil {
 				return err
@@ -70,9 +71,10 @@ func (s *Service) newAutopilotMembershipListCmd(key string) *cobra.Command {
 func (s *Service) newAutopilotMembershipAddCmd(key string) *cobra.Command {
 	var platform, personEmail, name, properties string
 	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Add a person to autopilot (POST /autopilot/{platform}/memberships.json)",
-		Args:  cobra.NoArgs,
+		Use:         "add",
+		Short:       "Add a person to autopilot (POST /autopilot/{platform}/memberships.json)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validatePlatform(platform); err != nil {
 				return err
@@ -108,9 +110,10 @@ func (s *Service) newAutopilotMembershipAddCmd(key string) *cobra.Command {
 func (s *Service) newAutopilotMembershipRemoveCmd(key string) *cobra.Command {
 	var platform, personEmail string
 	cmd := &cobra.Command{
-		Use:   "remove",
-		Short: "Remove a person from autopilot (DELETE /autopilot/{platform}/memberships.json)",
-		Args:  cobra.NoArgs,
+		Use:         "remove",
+		Short:       "Remove a person from autopilot (DELETE /autopilot/{platform}/memberships.json)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validatePlatform(platform); err != nil {
 				return err
@@ -138,9 +141,10 @@ func (s *Service) newAutopilotConfigCmd(key string) *cobra.Command {
 		Short: "Autopilot configuration",
 	}
 	get := &cobra.Command{
-		Use:   "get",
-		Short: "Read autopilot configuration (GET /autopilot/{platform}.json)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Read autopilot configuration (GET /autopilot/{platform}.json)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := validatePlatform(platform); err != nil {
 				return err

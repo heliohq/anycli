@@ -36,6 +36,7 @@ func (s *Service) newKeywordsVolumeCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/keywords_data/google_ads/search_volume/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&keywords, "keywords", "", "comma-separated keywords (required)")
 	_ = cmd.MarkFlagRequired("keywords")
 	registerLocationLang(cmd, &tp)
@@ -62,6 +63,7 @@ func (s *Service) newKeywordsIdeasCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/dataforseo_labs/google/keyword_ideas/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&keywords, "keywords", "", "comma-separated seed keywords (required)")
 	_ = cmd.MarkFlagRequired("keywords")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max keyword ideas (default 700, max 1000)")
@@ -89,6 +91,7 @@ func (s *Service) newKeywordsSuggestionsCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/dataforseo_labs/google/keyword_suggestions/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&keyword, "keyword", "", "seed keyword (required)")
 	_ = cmd.MarkFlagRequired("keyword")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max suggestions (default 100, max 1000)")
@@ -112,6 +115,7 @@ func (s *Service) newKeywordsDifficultyCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/dataforseo_labs/google/bulk_keyword_difficulty/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&keywords, "keywords", "", "comma-separated keywords (required)")
 	_ = cmd.MarkFlagRequired("keywords")
 	registerLocationLang(cmd, &tp)
@@ -135,6 +139,7 @@ func (s *Service) newKeywordsIntentCmd(credential string) *cobra.Command {
 			return s.do(cmd.Context(), credential, http.MethodPost, "/dataforseo_labs/google/search_intent/live", task)
 		},
 	}
+	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&keywords, "keywords", "", "comma-separated keywords (required)")
 	_ = cmd.MarkFlagRequired("keywords")
 	registerLanguageOnly(cmd, &tp)
