@@ -1,0 +1,13 @@
+{
+  "name": "lusha",
+  "type": "service",
+  "description": "Lusha B2B contact & company enrichment and prospecting (API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "LUSHA_API_KEY"}
+      }
+    ]
+  }
+}
