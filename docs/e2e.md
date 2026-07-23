@@ -20,6 +20,18 @@ Design: [design 008](design/008-ci-e2e-integration-tests.md).
   after a stable streak; demote to skip when its provider is known-broken
   (leave a dated comment saying why).
 
+### Known failure mode: queue-supersession false-reds
+
+Each tool's matrix job runs in a per-tool concurrency group (design 008
+D7) that keeps one run active and at most one queued. A third overlapping
+run on the same tool (e.g. two PRs touching it in quick succession, or a
+push racing a PR) gets its queued job cancelled by GitHub — not by a test
+failure. That surfaces as a cancelled e2e result and, if the tool is
+`required`, a red `e2e-gate` with zero actual test failures. The remedy is
+simply to re-run the workflow on the affected PR. Keep this in mind before
+promoting any tool to `required`: a tool with frequent concurrent changes
+will see this more often.
+
 ## One-time bootstrap (human)
 
 1. Create a dedicated Helio org + assistant for e2e. Test accounts only —
