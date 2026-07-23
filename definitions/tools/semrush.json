@@ -1,0 +1,13 @@
+{
+  "name": "semrush",
+  "type": "service",
+  "description": "Semrush SEO analytics (domain, keyword, backlink research; v3 API key)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "api_key"},
+        "inject": {"type": "env", "env_var": "SEMRUSH_API_KEY"}
+      }
+    ]
+  }
+}
