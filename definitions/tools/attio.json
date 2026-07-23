@@ -1,0 +1,13 @@
+{
+  "name": "attio",
+  "type": "service",
+  "description": "Attio CRM as a tool (records, lists, notes, tasks via OAuth token)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "ATTIO_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

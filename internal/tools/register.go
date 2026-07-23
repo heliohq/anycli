@@ -8,6 +8,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/ahrefs"
 	"github.com/heliohq/anycli/internal/tools/amplitude"
 	"github.com/heliohq/anycli/internal/tools/apollo"
+	"github.com/heliohq/anycli/internal/tools/attio"
 	"github.com/heliohq/anycli/internal/tools/bitly"
 	"github.com/heliohq/anycli/internal/tools/calendar"
 	"github.com/heliohq/anycli/internal/tools/contacts"
@@ -71,4 +72,5 @@ func init() {
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility
 	// is gated by the consumer, not here.
 	RegisterService("gate-probe", &gateprobe.Service{})
+	RegisterService("attio", &attio.Service{})
 }
