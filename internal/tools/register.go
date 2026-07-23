@@ -141,6 +141,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/wise"
 	"github.com/heliohq/anycli/internal/tools/x"
 	"github.com/heliohq/anycli/internal/tools/xero"
+	"github.com/heliohq/anycli/internal/tools/youtube"
 )
 
 // Built-in service registration. internal/exec imports this package (for
@@ -293,4 +294,5 @@ func init() {
 	RegisterService("tally", &tally.Service{})
 	RegisterService("twitch", &twitch.Service{})
 	RegisterService("typefully", &typefully.Service{})
+	RegisterService("youtube", &youtube.Service{})
 }
