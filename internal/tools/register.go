@@ -9,6 +9,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/amplitude"
 	"github.com/heliohq/anycli/internal/tools/apollo"
 	"github.com/heliohq/anycli/internal/tools/attio"
+	"github.com/heliohq/anycli/internal/tools/beehiiv"
 	"github.com/heliohq/anycli/internal/tools/bitly"
 	"github.com/heliohq/anycli/internal/tools/calendar"
 	"github.com/heliohq/anycli/internal/tools/contacts"
@@ -45,6 +46,7 @@ func init() {
 	RegisterService("ahrefs", &ahrefs.Service{})
 	RegisterService("amplitude", &amplitude.Service{})
 	RegisterService("apollo", &apollo.Service{})
+	RegisterService("beehiiv", &beehiiv.Service{})
 	RegisterService("bitly", &bitly.Service{})
 	RegisterService("adobe-sign", &adobesign.Service{})
 	RegisterService("slack", &slack.Service{})
