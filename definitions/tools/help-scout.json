@@ -1,0 +1,13 @@
+{
+  "name": "help-scout",
+  "type": "service",
+  "description": "Help Scout shared-inbox support tool (conversations, replies, customers)",
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "HELPSCOUT_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}
