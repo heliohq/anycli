@@ -87,6 +87,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/missive"
 	"github.com/heliohq/anycli/internal/tools/mixpanel"
 	"github.com/heliohq/anycli/internal/tools/mongodb"
+	"github.com/heliohq/anycli/internal/tools/moz"
 	"github.com/heliohq/anycli/internal/tools/notion"
 	"github.com/heliohq/anycli/internal/tools/sheets"
 	"github.com/heliohq/anycli/internal/tools/slack"
@@ -197,4 +198,5 @@ func init() {
 	RegisterService("mailerlite", &mailerlite.Service{})
 	RegisterService("mailjet", &mailjet.Service{})
 	RegisterService("mixpanel", &mixpanel.Service{})
+	RegisterService("moz", &moz.Service{})
 }
