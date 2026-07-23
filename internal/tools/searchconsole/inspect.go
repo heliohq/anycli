@@ -17,9 +17,10 @@ type inspectRequest struct {
 func (s *Service) newInspectCmd(token string) *cobra.Command {
 	var site, pageURL, language string
 	cmd := &cobra.Command{
-		Use:   "inspect",
-		Short: "URL Inspection: index status and coverage for a page (indexed version only)",
-		Args:  cobra.NoArgs,
+		Use:         "inspect",
+		Short:       "URL Inspection: index status and coverage for a page (indexed version only)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if site == "" {
 				return &usageError{msg: "--site is required"}

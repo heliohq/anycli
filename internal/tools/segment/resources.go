@@ -27,9 +27,10 @@ func (pf pageFlags) query() url.Values { return paginationQuery(pf.count, pf.cur
 func (s *Service) newListCmd(token, use, short, path string) *cobra.Command {
 	var pf pageFlags
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), token, path, pf.query())
 			if err != nil {
@@ -47,9 +48,10 @@ func (s *Service) newListCmd(token, use, short, path string) *cobra.Command {
 func (s *Service) newGetByIDCmd(token, use, short, idFlag string, pathFor func(id string) string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), token, pathFor(url.PathEscape(id)), nil)
 			if err != nil {
@@ -69,9 +71,10 @@ func (s *Service) newListByIDCmd(token, use, short, idFlag string, pathFor func(
 	var id string
 	var pf pageFlags
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.NoArgs,
+		Use:         use,
+		Short:       short,
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), token, pathFor(url.PathEscape(id)), pf.query())
 			if err != nil {
@@ -90,9 +93,10 @@ func (s *Service) newListByIDCmd(token, use, short, idFlag string, pathFor func(
 
 func (s *Service) newWorkspaceGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get",
-		Short: "Get the current workspace (also the identity endpoint)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Get the current workspace (also the identity endpoint)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), token, "/", nil)
 			if err != nil {
@@ -198,9 +202,10 @@ func (s *Service) newEventsVolumeCmd(token string) *cobra.Command {
 	var granularity, start, end string
 	var params []string
 	cmd := &cobra.Command{
-		Use:   "events-volume",
-		Short: "Workspace event volume over time (GET /events/volume)",
-		Args:  cobra.NoArgs,
+		Use:         "events-volume",
+		Short:       "Workspace event volume over time (GET /events/volume)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := parseParams(params)
 			if err != nil {
@@ -237,9 +242,10 @@ func (s *Service) newDeliveryMetricsCmd(token string) *cobra.Command {
 	var destinationID string
 	var params []string
 	cmd := &cobra.Command{
-		Use:   "metrics",
-		Short: "Delivery metrics summary for a destination (GET /destinations/{id}/delivery-metrics)",
-		Args:  cobra.NoArgs,
+		Use:         "metrics",
+		Short:       "Delivery metrics summary for a destination (GET /destinations/{id}/delivery-metrics)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := parseParams(params)
 			if err != nil {

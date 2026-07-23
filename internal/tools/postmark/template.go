@@ -15,9 +15,10 @@ func (s *Service) newTemplateCmd(token string) *cobra.Command {
 func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 	var count, offset int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List templates (GET /templates)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List templates (GET /templates)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("count", itoa(count))
@@ -31,9 +32,10 @@ func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 
 func (s *Service) newTemplateGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id-or-alias>",
-		Short: "Get one template (GET /templates/{idOrAlias})",
-		Args:  requireArgs(1, "get requires a <id-or-alias>"),
+		Use:         "get <id-or-alias>",
+		Short:       "Get one template (GET /templates/{idOrAlias})",
+		Args:        requireArgs(1, "get requires a <id-or-alias>"),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.getAndEmit(cmd.Context(), token, "/templates/"+url.PathEscape(args[0]), nil)
 		},

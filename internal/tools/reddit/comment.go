@@ -20,9 +20,10 @@ func (s *Service) newCommentCmd(token string) *cobra.Command {
 func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 	var parent, text string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Reply to a post or comment (--parent is its fullname)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Reply to a post or comment (--parent is its fullname)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireFullname(parent); err != nil {
 				return err
@@ -53,9 +54,10 @@ func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 func (s *Service) newCommentEditCmd(token string) *cobra.Command {
 	var text string
 	cmd := &cobra.Command{
-		Use:   "edit <fullname>",
-		Short: "Edit your own comment (t1_ fullname)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "edit <fullname>",
+		Short:       "Edit your own comment (t1_ fullname)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireFullname(args[0]); err != nil {
 				return err
@@ -72,9 +74,10 @@ func (s *Service) newCommentEditCmd(token string) *cobra.Command {
 
 func (s *Service) newCommentDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <fullname>",
-		Short: "Delete your own comment (t1_ fullname)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <fullname>",
+		Short:       "Delete your own comment (t1_ fullname)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.deleteThing(cmd, token, args[0])
 		},

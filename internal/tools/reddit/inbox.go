@@ -21,9 +21,10 @@ func (s *Service) newInboxListCmd(token string) *cobra.Command {
 	var filter, after string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List inbox items (replies, mentions, private messages)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List inbox items (replies, mentions, private messages)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := requireEnum("filter", filter, "all", "unread", "mentions"); err != nil {
 				return err
@@ -60,9 +61,10 @@ func (s *Service) newInboxListCmd(token string) *cobra.Command {
 
 func (s *Service) newInboxMarkReadCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "mark-read <fullname>...",
-		Short: "Mark one or more inbox items read (t4_/t1_ fullnames)",
-		Args:  cobra.MinimumNArgs(1),
+		Use:         "mark-read <fullname>...",
+		Short:       "Mark one or more inbox items read (t4_/t1_ fullnames)",
+		Args:        cobra.MinimumNArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for _, id := range args {
 				if err := requireFullname(id); err != nil {

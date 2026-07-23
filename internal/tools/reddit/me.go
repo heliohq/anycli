@@ -10,9 +10,10 @@ import (
 // newMeCmd is `reddit me`: the identity of the connected account.
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "me",
-		Short: "Show the connected Reddit account",
-		Args:  cobra.NoArgs,
+		Use:         "me",
+		Short:       "Show the connected Reddit account",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.get(cmd.Context(), token, "/api/v1/me", url.Values{})
 			if err != nil {

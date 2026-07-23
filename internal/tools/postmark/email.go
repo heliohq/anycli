@@ -107,9 +107,10 @@ func (s *Service) newEmailSendCmd(token string) *cobra.Command {
 	var common commonSendFlags
 	var subject, html, text string
 	cmd := &cobra.Command{
-		Use:   "send",
-		Short: "Send a single email (POST /email)",
-		Args:  cobra.NoArgs,
+		Use:         "send",
+		Short:       "Send a single email (POST /email)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
 			if err := common.applyTo(body); err != nil {
@@ -140,9 +141,10 @@ func (s *Service) newEmailSendTemplateCmd(token string) *cobra.Command {
 	var templateID int
 	var templateAlias, model string
 	cmd := &cobra.Command{
-		Use:   "send-template",
-		Short: "Send using a template (POST /email/withTemplate)",
-		Args:  cobra.NoArgs,
+		Use:         "send-template",
+		Short:       "Send using a template (POST /email/withTemplate)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			hasID := cmd.Flags().Changed("template-id")
 			if hasID == (templateAlias != "") {

@@ -12,9 +12,10 @@ import (
 func (s *Service) newCompanyLookupCmd(key string) *cobra.Command {
 	var name, domain string
 	cmd := &cobra.Command{
-		Use:   "lookup",
-		Short: "Look up a company's firmographics (GET /company/lookup)",
-		Args:  cobra.NoArgs,
+		Use:         "lookup",
+		Short:       "Look up a company's firmographics (GET /company/lookup)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			switch {
@@ -44,9 +45,10 @@ func (s *Service) newCompanySearchCmd(key string) *cobra.Command {
 	var name, domain, jsonQuery string
 	var pageSize, start int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search companies by firmographics (POST /company/search)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search companies by firmographics (POST /company/search)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			query := map[string]any{}
 			if jsonQuery != "" {

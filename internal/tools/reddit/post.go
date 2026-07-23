@@ -22,9 +22,10 @@ func (s *Service) newPostCmd(token string) *cobra.Command {
 
 func (s *Service) newPostGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Fetch a single post by id (t3_ prefix optional)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Fetch a single post by id (t3_ prefix optional)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
 			if !hasPrefix(id) {
@@ -43,9 +44,10 @@ func (s *Service) newPostCommentsCmd(token string) *cobra.Command {
 	var sort string
 	var depth, limit int
 	cmd := &cobra.Command{
-		Use:   "comments <id>",
-		Short: "Fetch a post's comment tree (flattened, with depth)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "comments <id>",
+		Short:       "Fetch a post's comment tree (flattened, with depth)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireEnum("sort", sort, "best", "top", "new", "controversial", "old", "qa"); err != nil {
 				return err
@@ -79,9 +81,10 @@ func (s *Service) newPostCommentsCmd(token string) *cobra.Command {
 func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 	var subreddit, title, text, link string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Submit a text or link post",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Submit a text or link post",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if subreddit == "" || title == "" {
 				return &usageError{msg: "--subreddit and --title are required"}
@@ -122,9 +125,10 @@ func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 func (s *Service) newPostEditCmd(token string) *cobra.Command {
 	var text string
 	cmd := &cobra.Command{
-		Use:   "edit <fullname>",
-		Short: "Edit the body of your own self-post (t3_ fullname)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "edit <fullname>",
+		Short:       "Edit the body of your own self-post (t3_ fullname)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireFullname(args[0]); err != nil {
 				return err
@@ -141,9 +145,10 @@ func (s *Service) newPostEditCmd(token string) *cobra.Command {
 
 func (s *Service) newPostDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <fullname>",
-		Short: "Delete your own post (t3_ fullname)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <fullname>",
+		Short:       "Delete your own post (t3_ fullname)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.deleteThing(cmd, token, args[0])
 		},

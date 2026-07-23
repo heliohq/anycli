@@ -44,6 +44,15 @@ const EnvServerToken = "POSTMARK_SERVER_TOKEN"
 // requests. Every built-in Postmark call sets it.
 const serverTokenHeader = "X-Postmark-Server-Token"
 
+// readOnly / writeAction carry the design-318 side-effect annotation for a
+// runnable leaf command. readOnly marks side-effect-free reads (GET searches
+// and detail lookups); writeAction marks provider-state mutations (send email,
+// reactivate a recipient).
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Postmark tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

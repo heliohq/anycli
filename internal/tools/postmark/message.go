@@ -25,9 +25,10 @@ func (s *Service) newMessageListOutboundCmd(token string) *cobra.Command {
 	var count, offset int
 	var recipient, fromEmail, tag, subject, status, stream string
 	cmd := &cobra.Command{
-		Use:   "list-outbound",
-		Short: "Search sent messages (GET /messages/outbound)",
-		Args:  cobra.NoArgs,
+		Use:         "list-outbound",
+		Short:       "Search sent messages (GET /messages/outbound)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("count", itoa(count))
@@ -53,9 +54,10 @@ func (s *Service) newMessageListOutboundCmd(token string) *cobra.Command {
 
 func (s *Service) newMessageGetOutboundCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-outbound <message-id>",
-		Short: "Get one outbound message's detail and events (GET /messages/outbound/{id}/details)",
-		Args:  requireArgs(1, "get-outbound requires a <message-id>"),
+		Use:         "get-outbound <message-id>",
+		Short:       "Get one outbound message's detail and events (GET /messages/outbound/{id}/details)",
+		Args:        requireArgs(1, "get-outbound requires a <message-id>"),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.getAndEmit(cmd.Context(), token, "/messages/outbound/"+url.PathEscape(args[0])+"/details", nil)
 		},
@@ -66,9 +68,10 @@ func (s *Service) newMessageListInboundCmd(token string) *cobra.Command {
 	var count, offset int
 	var recipient, fromEmail, subject, status string
 	cmd := &cobra.Command{
-		Use:   "list-inbound",
-		Short: "Search inbound messages (GET /messages/inbound)",
-		Args:  cobra.NoArgs,
+		Use:         "list-inbound",
+		Short:       "Search inbound messages (GET /messages/inbound)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			q.Set("count", itoa(count))
@@ -90,9 +93,10 @@ func (s *Service) newMessageListInboundCmd(token string) *cobra.Command {
 
 func (s *Service) newMessageGetInboundCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-inbound <message-id>",
-		Short: "Get one inbound message's detail (GET /messages/inbound/{id}/details)",
-		Args:  requireArgs(1, "get-inbound requires a <message-id>"),
+		Use:         "get-inbound <message-id>",
+		Short:       "Get one inbound message's detail (GET /messages/inbound/{id}/details)",
+		Args:        requireArgs(1, "get-inbound requires a <message-id>"),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.getAndEmit(cmd.Context(), token, "/messages/inbound/"+url.PathEscape(args[0])+"/details", nil)
 		},

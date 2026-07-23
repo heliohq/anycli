@@ -22,9 +22,10 @@ func (s *Service) newNoteListCmd(token string) *cobra.Command {
 	var assocType string
 	var assocIDs []string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List notes (GET /v2/notes); filter by --associated-with-type / --associated-with-id",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List notes (GET /v2/notes); filter by --associated-with-type / --associated-with-id",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := lf.values()
 			if err != nil {
@@ -54,9 +55,10 @@ func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 	var assocID int
 	var skipActivities bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a note on a person or account (POST /v2/notes)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a note on a person or account (POST /v2/notes)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{
 				"content":              content,

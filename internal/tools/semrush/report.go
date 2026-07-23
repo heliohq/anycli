@@ -42,9 +42,10 @@ type reportSpec struct {
 func (s *Service) newReportCmd(key string, spec reportSpec) *cobra.Command {
 	var flags reportFlags
 	cmd := &cobra.Command{
-		Use:   spec.use + " " + spec.argName,
-		Short: spec.short,
-		Args:  cobra.ArbitraryArgs,
+		Use:         spec.use + " " + spec.argName,
+		Short:       spec.short,
+		Args:        cobra.ArbitraryArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.runReport(cmd, key, spec, args, flags)
 		},

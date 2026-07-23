@@ -21,9 +21,10 @@ func (s *Service) newAudienceCmd(key string) *cobra.Command {
 
 func (s *Service) newAudienceListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List audiences (GET /audiences)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List audiences (GET /audiences)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/audiences", nil, nil)
 			if err != nil {
@@ -36,9 +37,10 @@ func (s *Service) newAudienceListCmd(key string) *cobra.Command {
 
 func (s *Service) newAudienceGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Retrieve an audience (GET /audiences/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Retrieve an audience (GET /audiences/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/audiences/"+args[0], nil, nil)
 			if err != nil {
@@ -52,9 +54,10 @@ func (s *Service) newAudienceGetCmd(key string) *cobra.Command {
 func (s *Service) newAudienceCreateCmd(key string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create an audience (POST /audiences)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create an audience (POST /audiences)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodPost, "/audiences", map[string]any{"name": name}, nil)
 			if err != nil {
@@ -70,9 +73,10 @@ func (s *Service) newAudienceCreateCmd(key string) *cobra.Command {
 
 func (s *Service) newAudienceDeleteCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete an audience (DELETE /audiences/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete an audience (DELETE /audiences/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodDelete, "/audiences/"+args[0], nil, nil)
 			if err != nil {
@@ -106,9 +110,10 @@ func audienceFlag(cmd *cobra.Command, audience *string) {
 func (s *Service) newContactListCmd(key string) *cobra.Command {
 	var audience string
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List contacts in an audience (GET /audiences/{aid}/contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List contacts in an audience (GET /audiences/{aid}/contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/audiences/"+audience+"/contacts", nil, nil)
 			if err != nil {
@@ -124,9 +129,10 @@ func (s *Service) newContactListCmd(key string) *cobra.Command {
 func (s *Service) newContactGetCmd(key string) *cobra.Command {
 	var audience string
 	cmd := &cobra.Command{
-		Use:   "get <id>",
-		Short: "Retrieve a contact by id or email (GET /audiences/{aid}/contacts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Retrieve a contact by id or email (GET /audiences/{aid}/contacts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/audiences/"+audience+"/contacts/"+args[0], nil, nil)
 			if err != nil {
@@ -143,9 +149,10 @@ func (s *Service) newContactCreateCmd(key string) *cobra.Command {
 	var audience, email, firstName, lastName string
 	var unsubscribed bool
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a contact (POST /audiences/{aid}/contacts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a contact (POST /audiences/{aid}/contacts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"email": email}
 			if firstName != "" {
@@ -177,9 +184,10 @@ func (s *Service) newContactUpdateCmd(key string) *cobra.Command {
 	var audience, firstName, lastName string
 	var unsubscribed bool
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a contact by id or email (PATCH /audiences/{aid}/contacts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a contact by id or email (PATCH /audiences/{aid}/contacts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if firstName != "" {
@@ -208,9 +216,10 @@ func (s *Service) newContactUpdateCmd(key string) *cobra.Command {
 func (s *Service) newContactDeleteCmd(key string) *cobra.Command {
 	var audience string
 	cmd := &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a contact by id or email (DELETE /audiences/{aid}/contacts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a contact by id or email (DELETE /audiences/{aid}/contacts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodDelete, "/audiences/"+audience+"/contacts/"+args[0], nil, nil)
 			if err != nil {
@@ -240,9 +249,10 @@ func (s *Service) newBroadcastCmd(key string) *cobra.Command {
 
 func (s *Service) newBroadcastListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List broadcasts (GET /broadcasts)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List broadcasts (GET /broadcasts)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/broadcasts", nil, nil)
 			if err != nil {
@@ -255,9 +265,10 @@ func (s *Service) newBroadcastListCmd(key string) *cobra.Command {
 
 func (s *Service) newBroadcastGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Retrieve a broadcast (GET /broadcasts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Retrieve a broadcast (GET /broadcasts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/broadcasts/"+args[0], nil, nil)
 			if err != nil {
@@ -271,9 +282,10 @@ func (s *Service) newBroadcastGetCmd(key string) *cobra.Command {
 func (s *Service) newBroadcastCreateCmd(key string) *cobra.Command {
 	var audience, from, subject, replyTo, html, text, name string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a broadcast (POST /broadcasts)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a broadcast (POST /broadcasts)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{
 				"audience_id": audience,
@@ -315,9 +327,10 @@ func (s *Service) newBroadcastCreateCmd(key string) *cobra.Command {
 func (s *Service) newBroadcastUpdateCmd(key string) *cobra.Command {
 	var subject, replyTo, html, text, name string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a draft broadcast (PATCH /broadcasts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a draft broadcast (PATCH /broadcasts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if subject != "" {
@@ -353,9 +366,10 @@ func (s *Service) newBroadcastUpdateCmd(key string) *cobra.Command {
 func (s *Service) newBroadcastSendCmd(key string) *cobra.Command {
 	var scheduledAt string
 	cmd := &cobra.Command{
-		Use:   "send <id>",
-		Short: "Send or schedule a broadcast (POST /broadcasts/{id}/send)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "send <id>",
+		Short:       "Send or schedule a broadcast (POST /broadcasts/{id}/send)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if scheduledAt != "" {
@@ -374,9 +388,10 @@ func (s *Service) newBroadcastSendCmd(key string) *cobra.Command {
 
 func (s *Service) newBroadcastDeleteCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a draft broadcast (DELETE /broadcasts/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a draft broadcast (DELETE /broadcasts/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodDelete, "/broadcasts/"+args[0], nil, nil)
 			if err != nil {

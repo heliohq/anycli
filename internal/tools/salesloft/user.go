@@ -20,9 +20,10 @@ func (s *Service) newUserCmd(token string) *cobra.Command {
 func (s *Service) newUserListCmd(token string) *cobra.Command {
 	var lf listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List team users (GET /v2/users)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List team users (GET /v2/users)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := lf.values()
 			if err != nil {
@@ -42,9 +43,10 @@ func (s *Service) newUserListCmd(token string) *cobra.Command {
 func (s *Service) newUserGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Fetch one user (GET /v2/users/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Fetch one user (GET /v2/users/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/users/"+id, nil, nil)
 			if err != nil {

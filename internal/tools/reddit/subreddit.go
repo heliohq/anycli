@@ -21,9 +21,10 @@ func (s *Service) newSubredditCmd(token string) *cobra.Command {
 
 func (s *Service) newSubredditAboutCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "about <name>",
-		Short: "Subreddit metadata (subscribers, description)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "about <name>",
+		Short:       "Subreddit metadata (subscribers, description)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.get(cmd.Context(), token, "/r/"+url.PathEscape(args[0])+"/about", nil)
 			if err != nil {
@@ -47,9 +48,10 @@ func (s *Service) newSubredditAboutCmd(token string) *cobra.Command {
 
 func (s *Service) newSubredditRulesCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "rules <name>",
-		Short: "Subreddit posting rules",
-		Args:  cobra.ExactArgs(1),
+		Use:         "rules <name>",
+		Short:       "Subreddit posting rules",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.get(cmd.Context(), token, "/r/"+url.PathEscape(args[0])+"/about/rules", nil)
 			if err != nil {
@@ -91,9 +93,10 @@ func (s *Service) newSubredditPostsCmd(token string) *cobra.Command {
 	var sort, timeRange, after string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "posts <name>",
-		Short: "List posts in a subreddit",
-		Args:  cobra.ExactArgs(1),
+		Use:         "posts <name>",
+		Short:       "List posts in a subreddit",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireEnum("sort", sort, "hot", "new", "top", "rising"); err != nil {
 				return err

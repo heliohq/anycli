@@ -21,9 +21,10 @@ func (s *Service) newDomainCmd(key string) *cobra.Command {
 
 func (s *Service) newDomainListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List sending domains (GET /domains)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List sending domains (GET /domains)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/domains", nil, nil)
 			if err != nil {
@@ -36,9 +37,10 @@ func (s *Service) newDomainListCmd(key string) *cobra.Command {
 
 func (s *Service) newDomainGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "get <id>",
-		Short: "Retrieve a domain (GET /domains/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "get <id>",
+		Short:       "Retrieve a domain (GET /domains/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodGet, "/domains/"+args[0], nil, nil)
 			if err != nil {
@@ -52,9 +54,10 @@ func (s *Service) newDomainGetCmd(key string) *cobra.Command {
 func (s *Service) newDomainCreateCmd(key string) *cobra.Command {
 	var name, region string
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Add a sending domain (POST /domains)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Add a sending domain (POST /domains)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{"name": name}
 			if region != "" {
@@ -75,9 +78,10 @@ func (s *Service) newDomainCreateCmd(key string) *cobra.Command {
 
 func (s *Service) newDomainVerifyCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "verify <id>",
-		Short: "Trigger domain DNS verification (POST /domains/{id}/verify)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "verify <id>",
+		Short:       "Trigger domain DNS verification (POST /domains/{id}/verify)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodPost, "/domains/"+args[0]+"/verify", nil, nil)
 			if err != nil {
@@ -92,9 +96,10 @@ func (s *Service) newDomainUpdateCmd(key string) *cobra.Command {
 	var openTracking, clickTracking bool
 	var tls string
 	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update a domain's tracking settings (PATCH /domains/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "update <id>",
+		Short:       "Update a domain's tracking settings (PATCH /domains/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body := map[string]any{}
 			if cmd.Flags().Changed("open-tracking") {
@@ -121,9 +126,10 @@ func (s *Service) newDomainUpdateCmd(key string) *cobra.Command {
 
 func (s *Service) newDomainDeleteCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <id>",
-		Short: "Delete a domain (DELETE /domains/{id})",
-		Args:  cobra.ExactArgs(1),
+		Use:         "delete <id>",
+		Short:       "Delete a domain (DELETE /domains/{id})",
+		Args:        cobra.ExactArgs(1),
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resp, err := s.call(cmd.Context(), key, http.MethodDelete, "/domains/"+args[0], nil, nil)
 			if err != nil {

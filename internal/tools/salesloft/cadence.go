@@ -22,9 +22,10 @@ func (s *Service) newCadenceCmd(token string) *cobra.Command {
 func (s *Service) newCadenceListCmd(token string) *cobra.Command {
 	var lf listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List cadences (GET /v2/cadences)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List cadences (GET /v2/cadences)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := lf.values()
 			if err != nil {
@@ -44,9 +45,10 @@ func (s *Service) newCadenceListCmd(token string) *cobra.Command {
 func (s *Service) newCadenceGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Fetch one cadence (GET /v2/cadences/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Fetch one cadence (GET /v2/cadences/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/cadences/"+id, nil, nil)
 			if err != nil {
@@ -63,9 +65,10 @@ func (s *Service) newCadenceGetCmd(token string) *cobra.Command {
 func (s *Service) newCadenceAddPersonCmd(token string) *cobra.Command {
 	var personID, cadenceID, userID int
 	cmd := &cobra.Command{
-		Use:   "add-person",
-		Short: "Enroll a person into a cadence (POST /v2/cadence_memberships)",
-		Args:  cobra.NoArgs,
+		Use:         "add-person",
+		Short:       "Enroll a person into a cadence (POST /v2/cadence_memberships)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{
 				"person_id":  personID,
@@ -94,9 +97,10 @@ func (s *Service) newCadenceMembershipsCmd(token string) *cobra.Command {
 	var lf listFlags
 	var personIDs, cadenceIDs []string
 	cmd := &cobra.Command{
-		Use:   "memberships",
-		Short: "List cadence memberships (GET /v2/cadence_memberships); filter by --person-id / --cadence-id",
-		Args:  cobra.NoArgs,
+		Use:         "memberships",
+		Short:       "List cadence memberships (GET /v2/cadence_memberships); filter by --person-id / --cadence-id",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := lf.values()
 			if err != nil {

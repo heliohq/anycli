@@ -17,9 +17,10 @@ func (s *Service) newActivityCmd(token string) *cobra.Command {
 func (s *Service) newActivityListCmd(token string) *cobra.Command {
 	var lf listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List activity history (GET /v2/activity_histories)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List activity history (GET /v2/activity_histories)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.listInto(cmd, token, "/activity_histories", &lf)
 		},
@@ -41,9 +42,10 @@ func (s *Service) newEmailCmd(token string) *cobra.Command {
 func (s *Service) newEmailListCmd(token string) *cobra.Command {
 	var lf listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List email activities (GET /v2/activities/emails)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List email activities (GET /v2/activities/emails)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.listInto(cmd, token, "/activities/emails", &lf)
 		},
@@ -55,9 +57,10 @@ func (s *Service) newEmailListCmd(token string) *cobra.Command {
 func (s *Service) newEmailGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Fetch one email activity (GET /v2/activities/emails/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Fetch one email activity (GET /v2/activities/emails/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/activities/emails/"+id, nil, nil)
 			if err != nil {
@@ -81,9 +84,10 @@ func (s *Service) newCallCmd(token string) *cobra.Command {
 func (s *Service) newCallListCmd(token string) *cobra.Command {
 	var lf listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List call activities (GET /v2/activities/calls)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List call activities (GET /v2/activities/calls)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.listInto(cmd, token, "/activities/calls", &lf)
 		},

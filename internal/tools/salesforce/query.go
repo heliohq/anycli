@@ -26,9 +26,10 @@ func (s *Service) newQueryCmd(c *client) *cobra.Command {
 	var all bool
 	var maxRecords int
 	cmd := &cobra.Command{
-		Use:   "query <soql>",
-		Short: "Run a SOQL query (follows pagination up to --max-records)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "query <soql>",
+		Short:       "Run a SOQL query (follows pagination up to --max-records)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			resource := "/query"
 			if all {
@@ -95,9 +96,10 @@ func (s *Service) newSearchCmd(c *client) *cobra.Command {
 	var fields []string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "search <term>",
-		Short: "Cross-object search (SOSL via parameterizedSearch)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "search <term>",
+		Short:       "Cross-object search (SOSL via parameterizedSearch)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reqBody := searchRequest{Q: args[0], Fields: fields, OverallLimit: limit}
 			for _, name := range objects {
@@ -123,9 +125,10 @@ func (s *Service) newSearchCmd(c *client) *cobra.Command {
 
 func (s *Service) newWhoamiCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "whoami",
-		Short: "Show the connected user and org (OpenID userinfo)",
-		Args:  cobra.NoArgs,
+		Use:         "whoami",
+		Short:       "Show the connected user and org (OpenID userinfo)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, _, err := c.get(cmd.Context(), "/services/oauth2/userinfo")
 			if err != nil {
@@ -138,9 +141,10 @@ func (s *Service) newWhoamiCmd(c *client) *cobra.Command {
 
 func (s *Service) newLimitsCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:   "limits",
-		Short: "Show org API limits (DailyApiRequests, etc.)",
-		Args:  cobra.NoArgs,
+		Use:         "limits",
+		Short:       "Show org API limits (DailyApiRequests, etc.)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, _, err := c.get(cmd.Context(), dataPath(apiVersion(cmd), "/limits"))
 			if err != nil {

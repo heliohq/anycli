@@ -21,9 +21,10 @@ func (s *Service) newTaskCmd(token string) *cobra.Command {
 func (s *Service) newTaskListCmd(token string) *cobra.Command {
 	var lf listFlags
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tasks (GET /v2/tasks)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List tasks (GET /v2/tasks)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q, err := lf.values()
 			if err != nil {
@@ -43,9 +44,10 @@ func (s *Service) newTaskListCmd(token string) *cobra.Command {
 func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Fetch one task (GET /v2/tasks/{id})",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Fetch one task (GET /v2/tasks/{id})",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resp, err := s.call(cmd.Context(), token, http.MethodGet, "/tasks/"+id, nil, nil)
 			if err != nil {
@@ -63,9 +65,10 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 	var subject, taskType, dueDate, currentState, body string
 	var personID, accountID, userID int
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a task (POST /v2/tasks)",
-		Args:  cobra.NoArgs,
+		Use:         "create",
+		Short:       "Create a task (POST /v2/tasks)",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			named := taskNamedBody(cmd, subject, taskType, dueDate, currentState, personID, accountID, userID)
 			payload, err := mergeBody(named, body)
@@ -87,9 +90,10 @@ func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 	var id, subject, taskType, dueDate, currentState, body string
 	var personID, accountID, userID int
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a task (PUT /v2/tasks/{id}); set --current-state completed to finish it",
-		Args:  cobra.NoArgs,
+		Use:         "update",
+		Short:       "Update a task (PUT /v2/tasks/{id}); set --current-state completed to finish it",
+		Args:        cobra.NoArgs,
+		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			named := taskNamedBody(cmd, subject, taskType, dueDate, currentState, personID, accountID, userID)
 			payload, err := mergeBody(named, body)

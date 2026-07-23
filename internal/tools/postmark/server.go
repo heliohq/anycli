@@ -28,9 +28,10 @@ type serverView struct {
 func (s *Service) newServerCmd(token string) *cobra.Command {
 	group := newGroupCmd("server", "Inspect the connected server")
 	group.AddCommand(&cobra.Command{
-		Use:   "get",
-		Short: "Show current server metadata, redacting API tokens (GET /server)",
-		Args:  cobra.NoArgs,
+		Use:         "get",
+		Short:       "Show current server metadata, redacting API tokens (GET /server)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			raw, err := s.call(cmd.Context(), token, http.MethodGet, "/server", nil, nil)
 			if err != nil {

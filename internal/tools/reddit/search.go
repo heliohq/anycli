@@ -13,9 +13,10 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var query, subreddit, sort, timeRange, after string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   "search",
-		Short: "Search posts (optionally within one subreddit)",
-		Args:  cobra.NoArgs,
+		Use:         "search",
+		Short:       "Search posts (optionally within one subreddit)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if query == "" {
 				return &usageError{msg: "--query is required"}

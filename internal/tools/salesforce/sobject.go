@@ -27,9 +27,10 @@ type trimmedSObject struct {
 func (s *Service) newSObjectListCmd(c *client) *cobra.Command {
 	var customOnly, standardOnly, raw bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List the org's sObjects (trimmed; --raw for full)",
-		Args:  cobra.NoArgs,
+		Use:         "list",
+		Short:       "List the org's sObjects (trimmed; --raw for full)",
+		Args:        cobra.NoArgs,
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if customOnly && standardOnly {
 				return &usageError{msg: "--custom-only and --standard-only are mutually exclusive"}
@@ -92,9 +93,10 @@ type trimmedField struct {
 func (s *Service) newSObjectDescribeCmd(c *client) *cobra.Command {
 	var fieldNamesOnly, raw bool
 	cmd := &cobra.Command{
-		Use:   "describe <sobject>",
-		Short: "Describe an sObject's fields (trimmed; --raw for full)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "describe <sobject>",
+		Short:       "Describe an sObject's fields (trimmed; --raw for full)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := dataPath(apiVersion(cmd), "/sobjects/"+url.PathEscape(args[0])+"/describe")
 			body, _, err := c.get(cmd.Context(), path)

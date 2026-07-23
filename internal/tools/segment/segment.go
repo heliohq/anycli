@@ -36,6 +36,14 @@ const DefaultBaseURL = "https://api.segmentapis.com"
 // workspace-scoped and long-lived (no expiry, no refresh).
 const EnvToken = "SEGMENT_TOKEN"
 
+// readOnly / writeAction tag leaf commands for the design-318 approval gate.
+// Every first-class Segment leaf is a management/observability GET; only the
+// raw `request` escape hatch can issue a non-GET write, so it is a write action.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Segment tool. It satisfies tools.Service by
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {

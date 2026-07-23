@@ -35,6 +35,14 @@ const (
 	EnvInstanceURL = "SALESFORCE_INSTANCE_URL"
 )
 
+// readOnly / writeAction tag leaf commands for the design-318 approval gate.
+// Reads (query, search, whoami, limits, record get, sobject list/describe) are
+// side-effect-free; record create/update/delete/upsert mutate provider state.
+var (
+	readOnly    = map[string]string{"anycli.side_effect": "false"}
+	writeAction = map[string]string{"anycli.side_effect": "true"}
+)
+
 // Service implements the built-in Salesforce tool. It satisfies tools.Service
 // by duck typing (this package never imports the registry — no import cycle).
 type Service struct {

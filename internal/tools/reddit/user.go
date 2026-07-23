@@ -21,9 +21,10 @@ func (s *Service) newUserCmd(token string) *cobra.Command {
 
 func (s *Service) newUserAboutCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "about <name>",
-		Short: "A Redditor's profile (karma, account age)",
-		Args:  cobra.ExactArgs(1),
+		Use:         "about <name>",
+		Short:       "A Redditor's profile (karma, account age)",
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.get(cmd.Context(), token, "/user/"+url.PathEscape(args[0])+"/about", nil)
 			if err != nil {
@@ -56,9 +57,10 @@ func (s *Service) newUserHistoryCmd(token, use, segment string, posts bool) *cob
 	var after string
 	var limit int
 	cmd := &cobra.Command{
-		Use:   use + " <name>",
-		Short: "A Redditor's " + use,
-		Args:  cobra.ExactArgs(1),
+		Use:         use + " <name>",
+		Short:       "A Redditor's " + use,
+		Args:        cobra.ExactArgs(1),
+		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireLimit(limit); err != nil {
 				return err
