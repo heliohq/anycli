@@ -120,8 +120,8 @@ func TestPostCreate_Happy(t *testing.T) {
 	if got.Auth != "Bearer li-token" {
 		t.Errorf("Authorization = %q, want Bearer li-token", got.Auth)
 	}
-	if got.Version != "202406" {
-		t.Errorf("LinkedIn-Version = %q, want 202406", got.Version)
+	if got.Version != "202607" {
+		t.Errorf("LinkedIn-Version = %q, want 202607", got.Version)
 	}
 	if got.Protocol != "2.0.0" {
 		t.Errorf("X-Restli-Protocol-Version = %q, want 2.0.0", got.Protocol)
@@ -138,6 +138,9 @@ func TestPostCreate_Happy(t *testing.T) {
 	}
 	if payload["lifecycleState"] != "PUBLISHED" {
 		t.Errorf("lifecycleState = %v, want PUBLISHED", payload["lifecycleState"])
+	}
+	if content, ok := payload["content"]; ok {
+		t.Errorf("plain-text post must not carry content, got %v", content)
 	}
 	if !strings.Contains(stdout, "urn:li:share:1") {
 		t.Errorf("stdout = %q, want the provider JSON", stdout)
@@ -173,6 +176,9 @@ func TestPostCreate_APIError(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "Not enough permissions") {
 		t.Errorf("stderr = %q, want the LinkedIn message", stderr)
+	}
+	if !strings.Contains(stderr, "posting video may require reconnecting LinkedIn with updated permissions") {
+		t.Errorf("stderr = %q, want the 403 reconnect hint", stderr)
 	}
 }
 

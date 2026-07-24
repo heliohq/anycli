@@ -77,6 +77,28 @@ func requireConnectedUserID(userID string) error {
 	return requireNumericID("connected user id", userID)
 }
 
+// mediaCategories are the media_category values accepted by the v2 media
+// upload APIs.
+var mediaCategories = map[string]struct{}{
+	"tweet_image":   {},
+	"tweet_video":   {},
+	"tweet_gif":     {},
+	"dm_image":      {},
+	"dm_video":      {},
+	"dm_gif":        {},
+	"amplify_video": {},
+}
+
+func requireMediaCategory(value string) error {
+	if value == "" {
+		return nil // derived from the file type
+	}
+	if _, ok := mediaCategories[value]; !ok {
+		return fmt.Errorf("category must be one of tweet_image, tweet_video, tweet_gif, dm_image, dm_video, dm_gif, amplify_video")
+	}
+	return nil
+}
+
 func requireSortOrder(value string) error {
 	if value != "" && value != "recency" && value != "relevancy" {
 		return fmt.Errorf(`sort order must be "recency" or "relevancy"`)

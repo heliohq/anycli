@@ -1,12 +1,13 @@
 package x
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/spf13/cobra"
@@ -14,6 +15,8 @@ import (
 
 const maxSimpleImageBytes = 5 << 20
 
+// supportedSimpleImageTypes are the content types the one-shot simple upload
+// API accepts; anything else (video, GIF, oversized images) goes chunked.
 var supportedSimpleImageTypes = map[string]struct{}{
 	"image/jpeg": {},
 	"image/png":  {},
@@ -34,35 +37,49 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 	var file, category string
 	cmd := &cobra.Command{
 		Use:         "upload",
-		Short:       "Upload one JPEG, PNG, or WebP image with the simple upload API",
+		Short:       "Upload one image, GIF, or video and wait until it is ready to attach",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if category != "tweet_image" && category != "dm_image" {
-				return fmt.Errorf("category must be tweet_image or dm_image")
+			if err := requireMediaCategory(category); err != nil {
+				return err
 			}
-			contents, mediaType, err := readSimpleImage(file)
+			info, err := os.Stat(file)
+			if err != nil {
+				return fmt.Errorf("read media file: %w", err)
+			}
+			if info.IsDir() {
+				return fmt.Errorf("--file %q is a directory", file)
+			}
+			if info.Size() == 0 {
+				return fmt.Errorf("--file %q is empty", file)
+			}
+			sniff, err := sniffMediaFile(file)
 			if err != nil {
 				return err
 			}
-			payload := struct {
-				Media         string `json:"media"`
-				MediaType     string `json:"media_type"`
-				MediaCategory string `json:"media_category"`
-			}{
-				Media:         base64.StdEncoding.EncodeToString(contents),
-				MediaType:     mediaType,
-				MediaCategory: category,
+			mediaType, defaultCategory, err := mediaTypeForUpload(sniff, file)
+			if err != nil {
+				return err
 			}
-			body, err := s.call(cmd.Context(), token, http.MethodPost, "/2/media/upload", nil, payload)
+			if category == "" {
+				category = defaultCategory
+			}
+			var body []byte
+			_, simple := supportedSimpleImageTypes[mediaType]
+			if simple && info.Size() <= maxSimpleImageBytes && strings.HasSuffix(category, "_image") {
+				body, err = s.simpleUpload(cmd.Context(), token, file, mediaType, category)
+			} else {
+				body, err = s.chunkedUpload(cmd.Context(), token, file, category)
+			}
 			if err != nil {
 				return err
 			}
 			return s.emit(body)
 		},
 	}
-	cmd.Flags().StringVar(&file, "file", "", "image file to upload (maximum 5 MiB)")
-	cmd.Flags().StringVar(&category, "category", "tweet_image", "media use: tweet_image or dm_image")
+	cmd.Flags().StringVar(&file, "file", "", "media file to upload (image, GIF, or video)")
+	cmd.Flags().StringVar(&category, "category", "", "media use: tweet_image, tweet_video, tweet_gif, dm_image, dm_video, dm_gif, or amplify_video (empty = derived from the file type)")
 	_ = cmd.MarkFlagRequired("file")
 	return cmd
 }
@@ -77,7 +94,7 @@ func (s *Service) newMediaStatusCmd(token string) *cobra.Command {
 			if err := requireNumericID("media id", args[0]); err != nil {
 				return err
 			}
-			query := url.Values{"media_id": {args[0]}}
+			query := url.Values{"media_id": {args[0]}, "command": {"STATUS"}}
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/2/media/upload", query, nil)
 			if err != nil {
 				return err
@@ -125,23 +142,21 @@ func (s *Service) newMediaMetadataCmd(token string) *cobra.Command {
 	return cmd
 }
 
-func readSimpleImage(path string) ([]byte, string, error) {
-	file, err := os.Open(path)
+// simpleUpload posts one small JPEG, PNG, or WebP through the one-shot
+// /2/media/upload endpoint and returns the response body.
+func (s *Service) simpleUpload(ctx context.Context, token, file, mediaType, category string) ([]byte, error) {
+	contents, err := os.ReadFile(file)
 	if err != nil {
-		return nil, "", fmt.Errorf("open media file: %w", err)
+		return nil, fmt.Errorf("read media file: %w", err)
 	}
-	defer file.Close()
-
-	contents, err := io.ReadAll(io.LimitReader(file, maxSimpleImageBytes+1))
-	if err != nil {
-		return nil, "", fmt.Errorf("read media file: %w", err)
+	payload := struct {
+		Media         string `json:"media"`
+		MediaType     string `json:"media_type"`
+		MediaCategory string `json:"media_category"`
+	}{
+		Media:         base64.StdEncoding.EncodeToString(contents),
+		MediaType:     mediaType,
+		MediaCategory: category,
 	}
-	if len(contents) > maxSimpleImageBytes {
-		return nil, "", fmt.Errorf("media file exceeds the 5 MiB simple-image limit; chunked video/GIF upload is not supported yet")
-	}
-	mediaType := http.DetectContentType(contents)
-	if _, ok := supportedSimpleImageTypes[mediaType]; !ok {
-		return nil, "", fmt.Errorf("only JPEG, PNG, and WebP images are supported by simple upload; video/GIF upload is not supported yet")
-	}
-	return contents, mediaType, nil
+	return s.call(ctx, token, http.MethodPost, "/2/media/upload", nil, payload)
 }

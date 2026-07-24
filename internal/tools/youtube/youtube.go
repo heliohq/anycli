@@ -53,6 +53,9 @@ type Service struct {
 	// BaseURL overrides the API base; empty = DefaultBaseURL. Tests point it
 	// at an httptest server.
 	BaseURL string
+	// UploadBaseURL overrides the resumable-upload base; empty =
+	// DefaultUploadBaseURL. Tests point it at an httptest server.
+	UploadBaseURL string
 	// HC is the HTTP client; nil = http.DefaultClient.
 	HC *http.Client
 	// Out / Err override stdout / stderr; nil = the process streams.
@@ -150,6 +153,13 @@ func (s *Service) base() string {
 	return DefaultBaseURL
 }
 
+func (s *Service) uploadBase() string {
+	if s.UploadBaseURL != "" {
+		return strings.TrimRight(s.UploadBaseURL, "/")
+	}
+	return DefaultUploadBaseURL
+}
+
 func (s *Service) client() *http.Client {
 	if s.HC != nil {
 		return s.HC
@@ -177,6 +187,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	videos.AddCommand(
 		s.newVideosGetCmd(token),
 		s.newVideosMineCmd(token),
+		s.newVideosUploadCmd(token),
 		s.newVideosUpdateCmd(token),
 		s.newVideosRateCmd(token),
 	)

@@ -12,8 +12,10 @@ import (
 // commands carry no annotation.
 func TestSideEffectAnnotations(t *testing.T) {
 	want := map[string]string{
-		"post create": "true",  // POST /rest/posts
-		"me":          "false", // GET /v2/userinfo
+		"post create":  "true",  // POST /rest/posts
+		"me":           "false", // GET /v2/userinfo
+		"video upload": "true",  // POST /rest/videos?action=initializeUpload|finalizeUpload
+		"video get":    "false", // GET /rest/videos/{urn}
 	}
 
 	seen := map[string]string{}
