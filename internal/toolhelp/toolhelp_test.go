@@ -74,7 +74,7 @@ func TestLeaves(t *testing.T) {
 }
 
 // TestRenderFlattensWithExhaustivenessClaim is the regression for the incident
-// in design 331: help must show the callable commands, not the nouns, and must
+// in design 335: help must show the callable commands, not the nouns, and must
 // say the list is complete.
 func TestRenderFlattensWithExhaustivenessClaim(t *testing.T) {
 	var buf bytes.Buffer
@@ -92,7 +92,7 @@ func TestRenderFlattensWithExhaustivenessClaim(t *testing.T) {
 		"  post search         Search recent posts (one page)",
 		"  post thread create  Create a thread",
 		"",
-		"Run `<leaf> --help` for parameters, limits and cost notes.",
+		"Run `<leaf> --help` for its flags and their ranges.",
 		"",
 	}, "\n")
 	if got != want {
@@ -125,7 +125,7 @@ func TestRenderCountIsDerived(t *testing.T) {
 	}
 }
 
-// TestRenderIncludesRootLong keeps the tool-level mental model (design 331 D1,
+// TestRenderIncludesRootLong keeps the tool-level mental model (design 335 D1,
 // service-root Long) on the coverage face.
 func TestRenderIncludesRootLong(t *testing.T) {
 	root := sampleTree()
@@ -173,7 +173,7 @@ func TestRenderIncludesRootFlags(t *testing.T) {
 		"Flags:",
 		"      --json   single-result JSON; multi-result commands may emit JSONL",
 		"",
-		"Run `<leaf> --help` for parameters, limits and cost notes.",
+		"Run `<leaf> --help` for its flags and their ranges.",
 		"",
 	}, "\n")
 	if got != want {
@@ -264,7 +264,7 @@ func TestRenderSingleCommandTreeFallsBackToCobra(t *testing.T) {
 // tool has: the root itself is the primary capability (a passthrough) and the
 // subcommands are side entrances. Walking children only would claim a
 // "complete list" that omits the main thing the tool does — a false claim,
-// which design 331 treats as worse than no claim.
+// which design 335 treats as worse than no claim.
 func TestLeavesCountsRunnableRoot(t *testing.T) {
 	root := &cobra.Command{
 		Use:   "browser [--browser <name|id>] -- <agent-browser args...>",

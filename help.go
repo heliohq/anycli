@@ -1,4 +1,4 @@
-// Capability-discovery help face (design 331). AnyCLI flattens a service
+// Capability-discovery help face (design 335). AnyCLI flattens a service
 // tool's cobra tree to its callable leaves and states the leaf count, because
 // a consumer that reads a partial command list treats the missing entries as
 // "not supported" rather than "look deeper". The renderer here is exported so

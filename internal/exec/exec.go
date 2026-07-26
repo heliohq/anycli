@@ -91,7 +91,7 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 		Env:  make(map[string]string),
 	}
 
-	// 1b. A help request never resolves credentials (design 331 D3):
+	// 1b. A help request never resolves credentials (design 335 D3):
 	// capability discovery must work before a tool is connected, and help
 	// makes no network call and touches no user data.
 	//
@@ -169,7 +169,7 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 
 	// 5. Resolve the real binary path.
 	//
-	// Note on design 331 D3's "help doesn't touch the network": that holds
+	// Note on design 335 D3's "help doesn't touch the network": that holds
 	// exactly for service tools, which answer help off the in-process command
 	// tree above. A binary passthrough's help is printed by the wrapped binary
 	// itself, so `<tool> --help` on a cold runtime resolves — and may lazily
@@ -223,17 +223,17 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 // renderServiceHelp answers a service tool's help off its in-process cobra
 // tree and reports whether it did. It returns false — meaning "not a help
 // request, carry on" — unless cobra itself consumed a built-in -h/--help
-// during the dry-run parse (design 331 D3). RunE is never invoked, so no
+// during the dry-run parse (design 335 D3). RunE is never invoked, so no
 // provider call can happen on this path.
 //
 // The help that gets printed is the RESOLVED node's, not always the root's:
 //
 //   - root -> the flattened capability face, which lists every callable leaf
-//     under the derived "(N — complete list)" claim (design 331 D2). cobra's
+//     under the derived "(N — complete list)" claim (design 335 D2). cobra's
 //     own root help lists direct children only, which is the false-absence
 //     signal the whole design exists to remove.
 //   - any deeper node -> cobra's own help for that node, which is what prints
-//     the command's Long. Under design 331 D1 the Long is where the provider
+//     the command's Long. Under design 335 D1 the Long is where the provider
 //     API knowledge lives, and `<leaf> --help` is the only way to read it — so
 //     an unconnected tool that could list its commands but never read their
 //     prose would still be half-mute.
@@ -298,7 +298,7 @@ func renderServiceHelp(svc tools.Service, args []string) (bool, error) {
 // stripFlags, not mistyped. That trades a note on the rare genuine typo whose
 // token happens to name a real command elsewhere (`post list --help` in a tree
 // with a top-level `list`) for never printing a false-absence claim — the
-// asymmetry design 331 asks for, since a false denial is read as a statement
+// asymmetry design 335 asks for, since a false denial is read as a statement
 // about the provider's coverage while silence is merely silence.
 func pathTypoNote(root *cobra.Command, res dryrun.Resolution) string {
 	if len(res.Args) == 0 || !res.Cmd.HasSubCommands() {

@@ -22,19 +22,22 @@ AnyCLI is an embeddable Go library (design 002): the engine plus the embedded de
 - Keep it simple — no over-engineering
 - **No interactive prompts** — all input must come from flags or environment variables. AnyCLI is designed for agents, not humans typing into terminals.
 
-## Command Prose (design 331)
+## Command Help (design 335)
 
-A tool's `--help` is the only place an agent learns what the integration covers, and it reads a partial list as "not supported". Two rules follow:
+A tool's `--help` is the only place an agent learns what the integration covers, and it reads a partial list as "not supported". So the coverage face must be exhaustive, and it must say that it is.
 
-- Every command carries its own prose. `Short` is the one-line coverage entry; `Long` is where provider API facts live — parameter limits, windows, cost/cheaper-path notes, vocabulary ("comment" = reply). Tool-wide conventions go on the service root's `Long`. Keep the knowledge in the command it describes, never in a separate manual: a separate manual drifts the moment someone changes a validation rule.
-- New leaf commands must ship a non-empty `Long`. `internal/tools/long_ratchet_test.go` enforces this against `internal/tools/testdata/long_baseline.txt`, the snapshot of leaves that predate the rule. That file only shrinks — delete lines as prose lands; adding one is a review-visible exception.
-
-`--help` itself is generated, and *which* help you get depends on the node argv resolves to:
+`--help` is generated, and *which* help you get depends on the node argv resolves to:
 
 - **root** (`<tool> --help`) — `internal/toolhelp` flattens the whole tree to its callable leaves and states the derived count. Never write that count down anywhere.
-- **any deeper node** (`<tool> post search --help`) — cobra's own help for that node, which is what prints the `Long`.
+- **any deeper node** (`<tool> post search --help`) — cobra's own help for that node: its flags, and its `Long` if it has one.
 
-Help-ness is decided by `internal/dryrun`, a real cobra `Find` + `ParseFlags` shared with `Inspect` (design 318) — never by scanning argv for the token `--help`, which both misses `post search --help` and fires on `post create --text "--help"`. Neither path resolves credentials, so an unconnected tool can still answer both (design 331 D3). Binary-passthrough tools (`github`, `lark`) have no tree: their help comes from the wrapped binary and anycli must not stamp a completeness claim on it.
+Keep the root face lean. It is the coverage surface — the exhaustive leaf list is the payload, and prose above it pushes the list down. Depth belongs on the leaf, where it is fetched only when someone is about to run that command.
+
+`Short` is required and is what the flattened list echoes, so make it carry real information (`post replies` says "one page, last 7 days"). `Long` is optional; write one when there is a provider fact the flags cannot express — a pagination window, an API-tier gate, a cheaper path to the same answer. There is no coverage requirement on `Long` and no lint enforcing one: a rule like that gets satisfied by placeholder prose, which is worse than an empty field.
+
+Per-tool guides live in the Helio repo under `agents/marketplace/heliox/skills/tool/`, read on demand. Design 335 §D1 records why they were not folded into `Long` — the migration was implemented in full and rejected, because a service root's `Long` renders on the coverage face.
+
+Help-ness is decided by `internal/dryrun`, a real cobra `Find` + `ParseFlags` shared with `Inspect` (design 318) — never by scanning argv for the token `--help`, which both misses `post search --help` and fires on `post create --text "--help"`. Neither path resolves credentials, so an unconnected tool can still answer both (design 335 D3). Binary-passthrough tools (`github`, `lark`) have no tree: their help comes from the wrapped binary and anycli must not stamp a completeness claim on it.
 
 ## Code Style
 

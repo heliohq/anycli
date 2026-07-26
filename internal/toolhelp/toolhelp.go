@@ -1,5 +1,5 @@
 // Package toolhelp renders the capability-discovery help face for a service
-// tool's in-process cobra command tree (design 331, D2/D3).
+// tool's in-process cobra command tree (design 335, D2/D3).
 //
 // cobra's default help lists a command's *direct children* only, so a tool
 // whose commands are grouped under nouns advertises the nouns and hides every
@@ -26,13 +26,13 @@ import (
 
 // helpHint is the closing line of the flattened face: coverage is complete
 // here, depth is one command away.
-const helpHint = "Run `<leaf> --help` for parameters, limits and cost notes."
+const helpHint = "Run `<leaf> --help` for its flags and their ranges."
 
 // Leaves returns every AI-callable form of root, depth-first in cobra's own
 // child order (sorted by default).
 //
 // A leaf is a command with no subcommands that has a Run or RunE body. Three
-// things are excluded, per design 331 D2:
+// things are excluded, per design 335 D2:
 //
 //   - Hidden commands — an ops/onboarding surface, not an AI-callable one.
 //     (This is intentionally a different cut from the design-318 lint, which
@@ -180,7 +180,7 @@ func visibleFlagUsages(set *pflag.FlagSet) string {
 //	Flags:
 //	      --json   single-result JSON; multi-result commands may emit JSONL
 //
-//	Run `<leaf> --help` for parameters, limits and cost notes.
+//	Run `<leaf> --help` for its flags and their ranges.
 //
 // The count is always derived from the walk, never a written-down constant —
 // a stale constant would be exactly the false claim this face exists to
