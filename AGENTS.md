@@ -22,6 +22,20 @@ AnyCLI is an embeddable Go library (design 002): the engine plus the embedded de
 - Keep it simple — no over-engineering
 - **No interactive prompts** — all input must come from flags or environment variables. AnyCLI is designed for agents, not humans typing into terminals.
 
+## Command Prose (design 331)
+
+A tool's `--help` is the only place an agent learns what the integration covers, and it reads a partial list as "not supported". Two rules follow:
+
+- Every command carries its own prose. `Short` is the one-line coverage entry; `Long` is where provider API facts live — parameter limits, windows, cost/cheaper-path notes, vocabulary ("comment" = reply). Tool-wide conventions go on the service root's `Long`. Keep the knowledge in the command it describes, never in a separate manual: a separate manual drifts the moment someone changes a validation rule.
+- New leaf commands must ship a non-empty `Long`. `internal/tools/long_ratchet_test.go` enforces this against `internal/tools/testdata/long_baseline.txt`, the snapshot of leaves that predate the rule. That file only shrinks — delete lines as prose lands; adding one is a review-visible exception.
+
+`--help` itself is generated, and *which* help you get depends on the node argv resolves to:
+
+- **root** (`<tool> --help`) — `internal/toolhelp` flattens the whole tree to its callable leaves and states the derived count. Never write that count down anywhere.
+- **any deeper node** (`<tool> post search --help`) — cobra's own help for that node, which is what prints the `Long`.
+
+Help-ness is decided by `internal/dryrun`, a real cobra `Find` + `ParseFlags` shared with `Inspect` (design 318) — never by scanning argv for the token `--help`, which both misses `post search --help` and fires on `post create --text "--help"`. Neither path resolves credentials, so an unconnected tool can still answer both (design 331 D3). Binary-passthrough tools (`github`, `lark`) have no tree: their help comes from the wrapped binary and anycli must not stamp a completeness claim on it.
+
 ## Code Style
 
 - Prefer simple, readable code over clever abstractions
