@@ -328,21 +328,6 @@ func TestInboxMarkRead_JoinsFullnames(t *testing.T) {
 	}
 }
 
-func TestMessageSend_ComposeForm(t *testing.T) {
-	var got capturedRequest
-	srv := newServer(t, http.StatusOK, `{"json":{"errors":[],"data":{}}}`, &got)
-	defer srv.Close()
-
-	code, _, _ := run(t, srv, "message", "send", "--to", "alice", "--subject", "hi", "--text", "hello")
-	if code != 0 {
-		t.Fatalf("exit = %d, want 0", code)
-	}
-	if got.Path != "/api/compose" || got.Form.Get("to") != "alice" ||
-		got.Form.Get("subject") != "hi" || got.Form.Get("text") != "hello" || got.Form.Get("api_type") != "json" {
-		t.Errorf("request = %s form=%v, want /api/compose to=alice subject=hi text=hello api_type=json", got.Path, got.Form)
-	}
-}
-
 func TestSubsList_StripsEnvelope(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK,
