@@ -166,8 +166,23 @@ func (s *Service) stderr() io.Writer {
 // get / recipients / void / download) and template (list / get).
 func (s *Service) newRoot(client *apiClient) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "docusign",
-		Short:         "DocuSign eSignature built-in service (send / track / retrieve / void)",
+		Use:   "docusign",
+		Short: "DocuSign eSignature built-in service (send / track / retrieve / void)",
+		Long: "An envelope is the unit of work: documents plus recipients plus their\n" +
+			"signing state. It moves through `created` (a draft, nothing emailed),\n" +
+			"`sent`, `delivered` (the signer opened it), and then `completed`,\n" +
+			"`declined` or `voided`. Only the in-flight states can be voided, and\n" +
+			"nothing returns an envelope to an earlier one.\n" +
+			"\n" +
+			"Default output is one tab-separated summary line per row. `--json` emits\n" +
+			"provider-neutral snake_case objects (`envelope_id`, `signed_at`,\n" +
+			"`routing_order`), NOT DocuSign's camelCase — do not expect the raw API\n" +
+			"field names.\n" +
+			"\n" +
+			"Every command acts on the connected user's default DocuSign account; the\n" +
+			"region host and account id are resolved when the connection is made, so no\n" +
+			"command takes them and a user with several accounts cannot choose between\n" +
+			"them here.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

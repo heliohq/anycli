@@ -80,8 +80,28 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "gumroad",
-		Short:         "Gumroad built-in service",
+		Use:   "gumroad",
+		Short: "Gumroad built-in service",
+		Long: "Store operations on ONE connected Gumroad creator account over API v2:\n" +
+			"what is selling, product state, buyers and subscribers, discount codes and\n" +
+			"software-license checks. `user get` names the account every other command\n" +
+			"acts on.\n" +
+			"\n" +
+			"Responses are Gumroad's own JSON, passed through verbatim, so list keys\n" +
+			"(`products`, `sales`, `subscribers`) and the `next_page_key` cursor survive\n" +
+			"untouched. Gumroad wraps success as `{\"success\": true, ...}` and can answer\n" +
+			"HTTP 200 with `\"success\": false` — a product that does not exist arrives\n" +
+			"that way. The tool treats it as a failure, exits non-zero and prints the\n" +
+			"provider's message to stderr, so a zero exit genuinely means the call\n" +
+			"worked rather than merely reached the server.\n" +
+			"\n" +
+			"Ids are Gumroad's opaque strings, never names, slugs or permalinks;\n" +
+			"`product list` and `sale list` are how to resolve one. Money is always\n" +
+			"cents (`--amount-cents`, `--amount-off`).\n" +
+			"\n" +
+			"Writes land on a live store the moment they return. `product enable`\n" +
+			"reverses `product disable` and `license enable` reverses `license disable`,\n" +
+			"but there is no un-refund and no undelete for a product or an offer code.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -12,8 +12,19 @@ func (s *Service) newSendEmailCmd(key string) *cobra.Command {
 	var identifiers []string
 	var disableRetention, queueDraft bool
 	cmd := &cobra.Command{
-		Use:         "email",
-		Short:       "Send a transactional email (POST /v1/send/email)",
+		Use:   "email",
+		Short: "Send a transactional email (POST /v1/send/email)",
+		Long: "Sends a real email immediately unless --queue-draft is set, which is the\n" +
+			"only non-sending path. --transactional-id names an existing template from\n" +
+			"`transactional list`; templates cannot be created here.\n" +
+			"\n" +
+			"--to is the destination address while --identifier is the PERSON, given as\n" +
+			"repeatable key=value pairs (email=, id= or cio_id=) — both are required\n" +
+			"and they are not the same thing: the identifier is what attaches the\n" +
+			"delivery to a profile so it shows up in `person messages`. --message-data\n" +
+			"supplies the liquid values the template renders. The --subject, --body,\n" +
+			"--plaintext-body and --from flags override what the template defines\n" +
+			"rather than adding to it.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

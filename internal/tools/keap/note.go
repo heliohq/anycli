@@ -32,8 +32,12 @@ func (s *Service) newNoteListCmd(token string) *cobra.Command {
 	var contactID string
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List a contact's notes (GET /v2/contacts/{id}/notes)",
+		Use:   "list",
+		Short: "List a contact's notes (GET /v2/contacts/{id}/notes)",
+		Long: "Notes are contact-scoped in v2, so `--contact-id` is required and is checked\n" +
+			"locally; there is no account-wide note list to search. The shared\n" +
+			"`--page-size` / `--page-token` / `--filter` params apply within one\n" +
+			"contact's notes.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -55,8 +59,11 @@ func (s *Service) newNoteListCmd(token string) *cobra.Command {
 func (s *Service) newNoteGetCmd(token string) *cobra.Command {
 	var contactID, noteID string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a contact note (GET /v2/contacts/{id}/notes/{note_id})",
+		Use:   "get",
+		Short: "Get a contact note (GET /v2/contacts/{id}/notes/{note_id})",
+		Long: "Both `--contact-id` and `--note-id` are required FLAGS: unlike the other get\n" +
+			"verbs this one takes no positional argument, because a note id is only\n" +
+			"addressable underneath its contact.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -78,8 +85,12 @@ func (s *Service) newNoteGetCmd(token string) *cobra.Command {
 func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 	var contactID, userID, text, title, noteType, jsonBody string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a contact note (POST /v2/contacts/{id}/notes)",
+		Use:   "create",
+		Short: "Create a contact note (POST /v2/contacts/{id}/notes)",
+		Long: "`--contact-id` scopes the note and `--user-id` names its author; both are\n" +
+			"required and both are checked locally before the request. `user me` returns\n" +
+			"a usable author id. The body is `--text`, with optional `--title` and\n" +
+			"`--type`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -124,8 +135,12 @@ func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 func (s *Service) newNoteUpdateCmd(token string) *cobra.Command {
 	var contactID, noteID, text, title, noteType, jsonBody string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a contact note (PATCH /v2/contacts/{id}/notes/{note_id})",
+		Use:   "update",
+		Short: "Update a contact note (PATCH /v2/contacts/{id}/notes/{note_id})",
+		Long: "Both `--contact-id` and `--note-id` are required, and at least one of\n" +
+			"`--text`, `--title`, `--type` or `--json-body` must carry a value. The\n" +
+			"note's author cannot be changed here — there is no `--user-id` flag on\n" +
+			"update.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -167,8 +182,10 @@ func (s *Service) newNoteUpdateCmd(token string) *cobra.Command {
 func (s *Service) newNoteDeleteCmd(token string) *cobra.Command {
 	var contactID, noteID string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a contact note (DELETE /v2/contacts/{id}/notes/{note_id})",
+		Use:   "delete",
+		Short: "Delete a contact note (DELETE /v2/contacts/{id}/notes/{note_id})",
+		Long: "Both `--contact-id` and `--note-id` are required flags; there is no\n" +
+			"positional form. Irreversible.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -13,8 +13,14 @@ import (
 func (s *Service) newRecipientListCmd(token string) *cobra.Command {
 	var profile, currency string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List saved recipient accounts (GET /v2/accounts)",
+		Use:   "list",
+		Short: "List saved recipient accounts (GET /v2/accounts)",
+		Long: "The beneficiaries already saved on the account, with masked account\n" +
+			"details and a display name per entry — useful for confirming who a\n" +
+			"transfer went to, or that a payee exists at all. `--profile` and\n" +
+			"`--currency` are optional filters. Reading a recipient does not enable\n" +
+			"paying it: no command here sends money, and recipients cannot be created\n" +
+			"or edited.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {

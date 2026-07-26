@@ -131,8 +131,29 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the noun-verb cobra tree grouped by resource.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "kit",
-		Short:         "Kit (ConvertKit) built-in service — creator email marketing",
+		Use:   "kit",
+		Short: "Kit (ConvertKit) built-in service — creator email marketing",
+		Long: "Kit, formerly ConvertKit, over its V4 API: the subscriber list, tags,\n" +
+			"broadcasts, sequences, forms, custom fields and segments of one creator\n" +
+			"account.\n" +
+			"\n" +
+			"Tags are the automation TRIGGER primitive. Applying a tag is how a\n" +
+			"subscriber enters most Kit automations, so `tag add` is often the faithful\n" +
+			"action where `sequence add` would enrol someone directly and skip whatever\n" +
+			"the rest of the account filters on.\n" +
+			"\n" +
+			"Every response is one envelope with the resource lifted into a stable\n" +
+			"`data` key, plus `pagination` on lists — the shape does not change per\n" +
+			"endpoint the way Kit's own wrappers do.\n" +
+			"\n" +
+			"Lists return ONE page and never follow cursors on their own: read\n" +
+			"`pagination.end_cursor` and pass it as --after to go forward, or\n" +
+			"`pagination.start_cursor` with --before to go back. --limit maps to Kit's\n" +
+			"per_page, which defaults to 500 and caps at 1000.\n" +
+			"\n" +
+			"`tag add`, `tag remove`, `sequence add` and `form add` all target a person\n" +
+			"by exactly one of --subscriber-id or --email. Passing both, or neither, is\n" +
+			"a usage error rather than a guess.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

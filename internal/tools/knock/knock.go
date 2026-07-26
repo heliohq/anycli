@@ -142,8 +142,31 @@ func (s *Service) stderr() io.Writer {
 // object, tenant, schedule).
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "knock",
-		Short:         "Knock built-in service (notification infrastructure)",
+		Use:   "knock",
+		Short: "Knock built-in service (notification infrastructure)",
+		Long: "Knock is notification infrastructure: a human designs WORKFLOWS and channel\n" +
+			"templates in the Knock dashboard, and this tool runs them. Channels, copy\n" +
+			"and routing are not settable from here — `workflow trigger --key <k>` runs\n" +
+			"a workflow that must already exist in the connected environment, and a key\n" +
+			"that does not exist answers 404 rather than delivering anything.\n" +
+			"\n" +
+			"Delivery is ASYNCHRONOUS. `workflow trigger` returns a workflow_run_id at\n" +
+			"once and says nothing about whether anything arrived; that is read\n" +
+			"afterwards from the `message` commands, and a message exists only once a\n" +
+			"run actually produced one.\n" +
+			"\n" +
+			"A recipient has to be known to Knock at trigger time. `user identify`\n" +
+			"upserts a person, `object set` registers a non-user recipient — a project,\n" +
+			"a document — inside a named collection, and `tenant set` scopes branding\n" +
+			"and preferences per customer. Triggering for a bare id nobody identified\n" +
+			"reaches nobody.\n" +
+			"\n" +
+			"The credential is an environment-scoped secret key, so the key itself\n" +
+			"decides which Knock environment every command acts on. There is no\n" +
+			"environment flag, and ids do not carry across environments.\n" +
+			"\n" +
+			"Lists come back as `{entries, page_info}` and page with --after; an\n" +
+			"empty-body success prints `{\"ok\":true}`. Output is Knock's JSON verbatim.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

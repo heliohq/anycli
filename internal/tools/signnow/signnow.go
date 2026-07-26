@@ -165,8 +165,33 @@ var (
 // document / invite / template / link each hang under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "signnow",
-		Short:         "SignNow built-in service (e-signature)",
+		Use:   "signnow",
+		Short: "SignNow built-in service (e-signature)",
+		Long: "The signature lifecycle runs in one direction: upload a document, give it\n" +
+			"fillable fields (explicitly, or by extracting the text tags already in the\n" +
+			"file), invite signers, track their invite statuses, then download the\n" +
+			"executed PDF. A template is a reusable document that is copied into a\n" +
+			"fresh document per agreement rather than signed itself.\n" +
+			"\n" +
+			"Three id kinds look alike and are not interchangeable. `invite cancel`\n" +
+			"takes the DOCUMENT id while `invite resend` takes the FIELD INVITE id,\n" +
+			"which appears nowhere except inside `document get`'s `field_invites`.\n" +
+			"Template ids are a third space again.\n" +
+			"\n" +
+			"Whether a document has fields decides which invite shape works. A fielded\n" +
+			"document needs the role-based `invite send --to`; a document with no\n" +
+			"fields takes the free-form `invite send --email`. SignNow rejects the\n" +
+			"mismatch rather than adapting, and adding fields flips a document from the\n" +
+			"second case to the first.\n" +
+			"\n" +
+			"Document reads are projected, not raw: `document list` and `document get`\n" +
+			"return ids, names, roles, per-signer invite statuses and a signature count\n" +
+			"instead of the hundreds of raw field and element lines the API actually\n" +
+			"sends.\n" +
+			"\n" +
+			"Sending an invite emails an external person and starts a legally binding\n" +
+			"flow. There is no unsend — `invite cancel` recalls what has not been\n" +
+			"signed yet, and nothing recalls what has.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -138,8 +138,27 @@ func (s *Service) stderr() io.Writer {
 // person and company each hang under a runnable resource group.
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "rocketreach",
-		Short:         "RocketReach built-in service (contact enrichment + prospecting)",
+		Use:   "rocketreach",
+		Short: "RocketReach built-in service (contact enrichment + prospecting)",
+		Long: "Search finds, lookup enriches. `person search` and `company search` return\n" +
+			"matching profiles with their RocketReach ids and NO contact information;\n" +
+			"emails and phone numbers only ever come from `person lookup` on one of\n" +
+			"those ids.\n" +
+			"\n" +
+			"Enrichment is asynchronous. `person lookup` returns a record with a\n" +
+			"`status` of complete, searching, waiting, progress or failed, and the\n" +
+			"contact fields are only populated once it reads complete. Anything else\n" +
+			"means poll `person status --ids <id>` until it does — treating the first\n" +
+			"response as final is how a real match gets reported as \"no email found\".\n" +
+			"\n" +
+			"Lookups spend a finite credit balance that belongs to the connected\n" +
+			"RocketReach account, and credits are charged only on a match. `account` is\n" +
+			"free and non-consuming, so read `credit_usage[].remaining` (the string\n" +
+			"\"inf\" when unlimited) before a large run.\n" +
+			"\n" +
+			"A 429 is a rate or credit limit rather than a bad key — check `account`\n" +
+			"instead of retrying in a loop. Output is always the provider's JSON;\n" +
+			"`--json` only controls the format errors are rendered in.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

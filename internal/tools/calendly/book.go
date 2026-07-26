@@ -18,8 +18,20 @@ func (s *Service) newBookCreateCmd(token string) *cobra.Command {
 	var eventType, start, name, email, timezone, locationKind, location string
 	var guests []string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Book a slot on an invitee's behalf (POST /invitees, Scheduling API; requires a paid plan)",
+		Use:   "create",
+		Short: "Book a slot on an invitee's behalf (POST /invitees, Scheduling API; requires a paid plan)",
+		Long: "Creates a real meeting on both calendars and Calendly emails the invitee a\n" +
+			"confirmation at once — there is no draft or hold state, and undoing it\n" +
+			"means `event cancel`, which emails them again.\n" +
+			"\n" +
+			"The Scheduling API needs a PAID Calendly plan; a free-tier account answers\n" +
+			"403 and no retry changes that — mint a `link create` booking link instead.\n" +
+			"`--start` is UTC ISO-8601 and must be a slot `availability slots` actually\n" +
+			"offers, since an unavailable time is rejected. `--timezone` is the\n" +
+			"INVITEE's IANA zone and decides what their confirmation says.\n" +
+			"`--location-kind` must be one the event type permits (`event-type get`\n" +
+			"lists them) with `--location` carrying the value, such as a phone number.\n" +
+			"`--guest` repeats for additional attendees.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

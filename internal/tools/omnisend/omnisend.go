@@ -135,8 +135,28 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "omnisend",
-		Short:         "Omnisend built-in service (dated API line)",
+		Use:   "omnisend",
+		Short: "Omnisend built-in service (dated API line)",
+		Long: "Reads (`list`, `get`) are structured commands with flags. Writes\n" +
+			"(`create`, `update`, `event send`, `batch create`) take one --data JSON\n" +
+			"body that is sent through UNCHANGED, so the caller owns Omnisend's exact\n" +
+			"request schema and the tool never guesses nested shapes such as a\n" +
+			"contact's `identifiers` and `channels`. Only JSON syntax is checked\n" +
+			"locally; a well-formed body with the wrong fields fails at the API.\n" +
+			"\n" +
+			"Lists are cursor-paged, not offset-paged. A page carries\n" +
+			"`paging.cursors.after` and `paging.hasMore`; replay that cursor as\n" +
+			"--after for the next page. --limit defaults to 0, which sends no limit\n" +
+			"and lets Omnisend choose the page size.\n" +
+			"\n" +
+			"Every call pins the dated API line (Omnisend-Version: 2026-03-15), so\n" +
+			"request and response shapes follow that version rather than whatever the\n" +
+			"live Omnisend documentation currently shows.\n" +
+			"\n" +
+			"Exit 2 means the invocation was rejected locally — missing required\n" +
+			"flag, malformed --data JSON, unknown subcommand — and NOTHING reached\n" +
+			"Omnisend. Exit 1 means the request was sent and the API failed it; under\n" +
+			"--json stderr carries {\"error\":{\"message\",\"kind\",\"status\"}}.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

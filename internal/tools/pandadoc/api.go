@@ -16,8 +16,16 @@ func (s *Service) newAPICmd(authz string) *cobra.Command {
 	var body, bodyFile string
 	var queries []string
 	cmd := &cobra.Command{
-		Use:         "api <method> <path>",
-		Short:       "Make a raw PandaDoc API request",
+		Use:   "api <method> <path>",
+		Short: "Make a raw PandaDoc API request",
+		Long: "Takes a method and a path, for example `api GET /documents --query\n" +
+			"count=5`. The `/public/v1` prefix is optional and stripped when present,\n" +
+			"and a full https URL is reduced to its path. --query key=value is\n" +
+			"repeatable; --body and --body-file supply a raw request body and are\n" +
+			"mutually exclusive. The response is always printed as raw JSON, never the\n" +
+			"concise rendering. Use it only for endpoints with no first-class command —\n" +
+			"it applies no argument validation, so a DELETE against a document path\n" +
+			"deletes that document.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

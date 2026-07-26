@@ -15,8 +15,14 @@ func (s *Service) newMetricsCmd(key string) *cobra.Command {
 	var since, until string
 	var trend string
 	get := &cobra.Command{
-		Use:         "get",
-		Short:       "Read aggregate metrics (GET /metrics.json)",
+		Use:   "get",
+		Short: "Read aggregate metrics (GET /metrics.json)",
+		Long: "One call for the headline score and its promoter/passive/detractor split,\n" +
+			"which is far cheaper than paging `response list` and computing it. Which\n" +
+			"score comes back (NPS, CSAT or CES) is fixed by the project's own survey\n" +
+			"type and cannot be chosen here. `--since` and `--until` are Unix\n" +
+			"timestamps in seconds and bound the window; omitting them returns the\n" +
+			"project's configured default range.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

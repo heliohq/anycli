@@ -22,8 +22,13 @@ func (s *Service) newUnsubscribeCmd(key string) *cobra.Command {
 func (s *Service) newUnsubscribeListCmd(key string) *cobra.Command {
 	var offset, limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List the suppression entries (GET /unsubscribes)",
+		Use:   "list",
+		Short: "List the suppression entries (GET /unsubscribes)",
+		Long: "The account-wide suppression list, offset-paged with `--offset` and\n" +
+			"`--limit`. An entry is either a single address or a whole domain, and\n" +
+			"anything on it is excluded from every campaign — which makes this the\n" +
+			"first thing to check when a lead is enrolled and still receiving\n" +
+			"nothing.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -48,8 +53,14 @@ func (s *Service) newUnsubscribeListCmd(key string) *cobra.Command {
 
 func (s *Service) newUnsubscribeAddCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "add <emailOrDomain>",
-		Short:       "Add an email or domain to the suppression list (POST /unsubscribes/{email})",
+		Use:   "add <emailOrDomain>",
+		Short: "Add an email or domain to the suppression list (POST /unsubscribes/{email})",
+		Long: "Takes an email address or a bare domain (`acme.com`), and the entry\n" +
+			"applies account-wide, to every campaign present and future. A domain\n" +
+			"entry suppresses everyone at that company at once, which is a much\n" +
+			"wider action than it looks — prefer the address unless the whole\n" +
+			"organisation asked. `lead unsubscribe` is the campaign-scoped\n" +
+			"alternative.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -64,8 +75,13 @@ func (s *Service) newUnsubscribeAddCmd(key string) *cobra.Command {
 
 func (s *Service) newUnsubscribeDeleteCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <emailOrDomain>",
-		Short:       "Remove an email or domain from the suppression list (DELETE /unsubscribes/{email})",
+		Use:   "delete <emailOrDomain>",
+		Short: "Remove an email or domain from the suppression list (DELETE /unsubscribes/{email})",
+		Long: "Removes an email or domain from suppression, making that address\n" +
+			"contactable by campaigns again — the one action here that undoes a\n" +
+			"person's opt-out, so it belongs to a re-consent, not to cleanup. It\n" +
+			"re-enrols nobody: the lead still has to be added back to a campaign\n" +
+			"before anything is sent.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

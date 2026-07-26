@@ -13,8 +13,14 @@ func (s *Service) newNotificationsCmd(sess *session) *cobra.Command {
 	var limit int
 	var cursor string
 	list := &cobra.Command{
-		Use:         "list",
-		Short:       "List notifications (mentions, replies, likes, follows) — one page",
+		Use:   "list",
+		Short: "List notifications (mentions, replies, likes, follows) — one page",
+		Long: "Each entry carries a `reason` naming which kind it is, the author, the\n" +
+			"at:// uri and cid of the subject, and `is_read`. Reading here does not\n" +
+			"mark anything read — no command moves the read cursor — so `is_read`\n" +
+			"only reflects what other Bluesky clients have done, and a repeat call\n" +
+			"returns the same entries. --limit is 1-100, default 25; continue with\n" +
+			"--cursor.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

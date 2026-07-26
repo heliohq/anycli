@@ -165,8 +165,30 @@ func (s *Service) emit(body []byte) error {
 // each carry search+enrich; lookup and usage are top-level.
 func (s *Service) newRoot(st *runState) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "zoominfo",
-		Short:         "ZoomInfo B2B sales intelligence (search + enrich people and companies)",
+		Use:   "zoominfo",
+		Short: "ZoomInfo B2B sales intelligence (search + enrich people and companies)",
+		Long: "There is no OAuth here: each invocation signs a JWT with the account's RSA\n" +
+			"private key and exchanges it for a short-lived token. A 401 therefore means\n" +
+			"the PKI credential itself was rejected, not that a token aged out. An\n" +
+			"Enterprise API seat is required; there is no free tier.\n" +
+			"\n" +
+			"The workflow is two stages that cost differently. SEARCH (`contact search`,\n" +
+			"`company search`) finds candidates by filter and returns record ids plus\n" +
+			"light hints, spending NO credit. ENRICH (`contact enrich`,\n" +
+			"`company enrich`) pulls the full profile for up to 25 ids or match keys and\n" +
+			"spends ONE CREDIT per newly enriched record, with repeats free for 12\n" +
+			"months. Search to scope, then enrich only the ids that matter, and check\n" +
+			"`usage` before a large batch.\n" +
+			"\n" +
+			"Search and enrich take their request body as JSON via `--body` or `--file`\n" +
+			"(`-` for stdin), never as individual flags, and exactly one of the two. The\n" +
+			"body is checked for well-formed JSON locally, so a malformed one costs no\n" +
+			"request — but field NAMES are not checked, and a rejected filter or\n" +
+			"`outputFields` entry means the schema moved. `lookup` returns the names that\n" +
+			"are currently valid.\n" +
+			"\n" +
+			"Responses are printed verbatim, and an enrich response carries the credits\n" +
+			"it consumed — that figure is the only accounting a caller gets.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -176,13 +198,13 @@ func (s *Service) newRoot(st *runState) *cobra.Command {
 
 	contact := newGroupCmd("contact", "Search and enrich people")
 	contact.AddCommand(
-		s.newBodyCmd(st, "search", "Find contact candidates by title/company/location (no credit)", "/search/contact"),
-		s.newBodyCmd(st, "enrich", "Enrich up to 25 contacts by id or match keys (CONSUMES CREDITS)", "/enrich/contact"),
+		s.newBodyCmd(st, "search", "Find contact candidates by title/company/location (no credit)", longContactSearch, "/search/contact"),
+		s.newBodyCmd(st, "enrich", "Enrich up to 25 contacts by id or match keys (CONSUMES CREDITS)", longContactEnrich, "/enrich/contact"),
 	)
 	company := newGroupCmd("company", "Search and enrich companies")
 	company.AddCommand(
-		s.newBodyCmd(st, "search", "Find company candidates by name/domain/industry (no credit)", "/search/company"),
-		s.newBodyCmd(st, "enrich", "Enrich up to 25 companies by id (CONSUMES CREDITS)", "/enrich/company"),
+		s.newBodyCmd(st, "search", "Find company candidates by name/domain/industry (no credit)", longCompanySearch, "/search/company"),
+		s.newBodyCmd(st, "enrich", "Enrich up to 25 companies by id (CONSUMES CREDITS)", longCompanyEnrich, "/enrich/company"),
 	)
 	root.AddCommand(contact, company, s.newLookupCmd(st), s.newUsageCmd(st))
 	return root

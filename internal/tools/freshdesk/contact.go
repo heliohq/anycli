@@ -24,8 +24,12 @@ func (s *Service) newContactListCmd(c *client) *cobra.Command {
 	var email, companyID, updatedSince string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List contacts (GET /contacts)",
+		Use:   "list",
+		Short: "List contacts (GET /contacts)",
+		Long: "The filters are exact-match only — --email, --company-id,\n" +
+			"--updated-since — with no name matching and no partial matching;\n" +
+			"`contact search` is the path for those. Contacts are requesters, a\n" +
+			"different population from the staff `agent list` returns.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -51,8 +55,13 @@ func (s *Service) newContactListCmd(c *client) *cobra.Command {
 func (s *Service) newContactGetCmd(c *client) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a contact (GET /contacts/{id})",
+		Use:   "get",
+		Short: "Get a contact (GET /contacts/{id})",
+		Long: "Takes the numeric contact id, never an email address; resolve one with\n" +
+			"`contact search --query \"email:'someone@example.com'\"`. The response\n" +
+			"carries the `company_id` that a B2B ticket's account context hangs off,\n" +
+			"and `other_emails`, which is where a second address for the same person\n" +
+			"lives.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -71,8 +80,14 @@ func (s *Service) newContactGetCmd(c *client) *cobra.Command {
 func (s *Service) newContactCreateCmd(c *client) *cobra.Command {
 	var name, email, phone, mobile, companyID, customFieldsJSON string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a contact (POST /contacts)",
+		Use:   "create",
+		Short: "Create a contact (POST /contacts)",
+		Long: "Freshdesk wants a name plus at least one way to reach the person — email,\n" +
+			"phone or mobile — and rejects an email another contact already holds with\n" +
+			"a validation error rather than returning that contact, so search before\n" +
+			"creating. `ticket create --email` already creates a contact implicitly for\n" +
+			"an unknown address, which makes this the command for filling in the\n" +
+			"details that flow cannot capture.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -104,8 +119,12 @@ func (s *Service) newContactCreateCmd(c *client) *cobra.Command {
 func (s *Service) newContactUpdateCmd(c *client) *cobra.Command {
 	var id, name, email, phone, mobile, companyID, customFieldsJSON string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a contact (PUT /contacts/{id})",
+		Use:   "update",
+		Short: "Update a contact (PUT /contacts/{id})",
+		Long: "Only flags actually passed are sent, so omitted fields keep their current\n" +
+			"values despite the PUT. Changing --email re-keys which contact future mail\n" +
+			"from that address attaches to, and fails if another contact already holds\n" +
+			"it. Setting --company-id is what puts the person under a B2B account.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -140,8 +159,12 @@ func (s *Service) newContactSearchCmd(c *client) *cobra.Command {
 	var query string
 	var page int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search contacts (GET /search/contacts). --query is Freshdesk query syntax.",
+		Use:   "search",
+		Short: "Search contacts (GET /search/contacts). --query is Freshdesk query syntax.",
+		Long: "--query is Freshdesk query syntax with inner quotes around string values:\n" +
+			"\"email:'jane@acme.com'\", \"name:'Jane'\", \"company_id:42\". This is the only\n" +
+			"way to find a contact by name. Results are 30 to a page with no\n" +
+			"--per-page, and --page stops at 10.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

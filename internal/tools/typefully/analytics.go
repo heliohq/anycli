@@ -19,8 +19,13 @@ func (s *Service) newAnalyticsPostsCmd(token string) *cobra.Command {
 	var includeReplies bool
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "posts",
-		Short:       "Per-post metrics (GET /v2/social-sets/{id}/analytics/{platform}/posts)",
+		Use:   "posts",
+		Short: "Per-post metrics (GET /v2/social-sets/{id}/analytics/{platform}/posts)",
+		Long: "--platform defaults to x, and X is the only platform Typefully reports\n" +
+			"analytics for, so a LinkedIn or Bluesky set has nothing to return here.\n" +
+			"--start-date and --end-date bound the window; --include-replies folds in\n" +
+			"reply posts, which are excluded by default. Paged with --limit /\n" +
+			"--offset. The numbers come from the platform and lag real time.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -54,8 +59,11 @@ func (s *Service) newAnalyticsPostsCmd(token string) *cobra.Command {
 func (s *Service) newAnalyticsFollowersCmd(token string) *cobra.Command {
 	var socialSet, platform, startDate, endDate string
 	cmd := &cobra.Command{
-		Use:         "followers",
-		Short:       "Follower metrics over time (GET /v2/social-sets/{id}/analytics/{platform}/followers)",
+		Use:   "followers",
+		Short: "Follower metrics over time (GET /v2/social-sets/{id}/analytics/{platform}/followers)",
+		Long: "A time series, not one current number — the latest point is the current\n" +
+			"total. --start-date and --end-date bound the window. --platform defaults\n" +
+			"to x, which is the only platform Typefully reports analytics for.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

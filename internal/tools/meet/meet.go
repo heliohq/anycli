@@ -109,8 +109,33 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "meet",
-		Short:         "Google Meet built-in service",
+		Use:   "meet",
+		Short: "Google Meet built-in service",
+		Long: "Meet's value here is POST-meeting: who attended, for how long, and what was\n" +
+			"said. Scheduling, inviting and rescheduling are Calendar operations and are\n" +
+			"not in this tool — `spaces create` mints an instant link with no event, no\n" +
+			"time and no invitees.\n" +
+			"\n" +
+			"A conference record and its transcript entries are deleted by Google\n" +
+			"roughly 30 DAYS after the meeting ends; the record's `expireTime` is the\n" +
+			"exact deadline. Past it `records get` returns 404 and there is nothing to\n" +
+			"retry. The Drive and Docs FILES can outlive the record, so the `exportUri`\n" +
+			"from `recordings list` or `transcripts list` is what is left — this tool\n" +
+			"downloads nothing.\n" +
+			"\n" +
+			"Resource arguments accept a bare id or the full resource name (`r1` or\n" +
+			"`conferenceRecords/r1`), and `spaces get` also takes a raw meeting code.\n" +
+			"Note which resource each verb wants: `participants sessions` takes a\n" +
+			"participant, `transcripts entries` and `transcripts text` take a\n" +
+			"transcript, and the rest take the conference record.\n" +
+			"\n" +
+			"`--json` switches the OUTPUT, not just error formatting: without it\n" +
+			"commands print a compact human summary, with it the provider JSON.\n" +
+			"\n" +
+			"An empty recordings, transcripts or smart-notes list is not an error. The\n" +
+			"meeting had the feature switched off, or the account's Workspace edition\n" +
+			"cannot produce it at all — consumer accounts cannot. Report the empty\n" +
+			"result instead of retrying.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

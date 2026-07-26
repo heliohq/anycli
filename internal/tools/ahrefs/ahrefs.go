@@ -123,8 +123,37 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // tool-merged shape). The tree is read-only end to end.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "ahrefs",
-		Short:         "Ahrefs built-in service (SEO data, read-only)",
+		Use:   "ahrefs",
+		Short: "Ahrefs built-in service (SEO data, read-only)",
+		Long: "Read-only: SEO data comes out, nothing goes in.\n" +
+			"\n" +
+			"Ahrefs bills API units per rows times fields, with a minimum of 50 units\n" +
+			"on every paid request, and the units come out of the connected account's\n" +
+			"balance. That is the constraint shaping this whole tool: every rows\n" +
+			"command already ships a curated `--select` and a `--limit` of 10, so\n" +
+			"widening either is a deliberate decision to spend more. `usage` is free\n" +
+			"and is the right first call — it shows the plan, the remaining units and\n" +
+			"the reset date, and doubles as the connectivity probe.\n" +
+			"\n" +
+			"When several domains need comparing, `batch` does up to 100 targets in ONE\n" +
+			"request and is far cheaper than looping a per-domain command.\n" +
+			"\n" +
+			"The rows commands share a filter grammar: `--select` picks the fields\n" +
+			"(cost scales with them), `--where` takes Ahrefs' documented filter\n" +
+			"expression and is passed through verbatim — this tool invents no query DSL\n" +
+			"— plus `--order-by 'field:desc'`, `--limit` (default 10) and `--offset`.\n" +
+			"Site Explorer commands add `--mode exact|prefix|domain|subdomains` and\n" +
+			"`--protocol both|http|https` to control how `--target` is read.\n" +
+			"\n" +
+			"`--country` is an ISO code such as us or gb. It is REQUIRED on\n" +
+			"`competitors`, `keyword overview`, `keyword ideas`, `keyword\n" +
+			"volume-history` and `serp`, and optional everywhere else — so take the\n" +
+			"requirement from the command, not from a rule of thumb.\n" +
+			"\n" +
+			"Ahrefs issues no refresh token and a token lives about a year, so a 401\n" +
+			"means the user has to reconnect rather than anything being retried.\n" +
+			"Requests are rate-limited (60 a minute by default) and a 429 surfaces\n" +
+			"verbatim; wait rather than tight-looping.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

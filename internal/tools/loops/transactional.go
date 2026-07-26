@@ -23,8 +23,16 @@ func (s *Service) newEmailSendCmd(key string) *cobra.Command {
 	var dataVariable []string
 	var addToAudience bool
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a templated transactional email (POST /v1/transactional)",
+		Use:   "send",
+		Short: "Send a templated transactional email (POST /v1/transactional)",
+		Long: "One template to one address, sent immediately — there is no batch form and\n" +
+			"no scheduling. --transactional-id is the template id from `email list`, and\n" +
+			"every data variable the template declares has to be supplied or Loops\n" +
+			"rejects the send rather than substituting a blank. --add-to-audience\n" +
+			"creates the contact when it is absent, which sending otherwise does NOT\n" +
+			"do. Attachments only work if Loops support enabled them on the account.\n" +
+			"A suppressed recipient is dropped silently, so a success here is not proof\n" +
+			"of delivery — check `contact suppression get`.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -81,8 +89,13 @@ func (s *Service) newEmailSendCmd(key string) *cobra.Command {
 func (s *Service) newEmailListCmd(key string) *cobra.Command {
 	var perPage, cursor string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List transactional email templates (GET /v1/transactional; deprecated by Loops)",
+		Use:   "list",
+		Short: "List transactional email templates (GET /v1/transactional; deprecated by Loops)",
+		Long: "Each template comes back with its id and the data-variable names it\n" +
+			"expects, which is how to know what `email send --data-variable` must\n" +
+			"supply. Cursor-paginated: pass the returned cursor back as --cursor. Loops\n" +
+			"has marked this endpoint deprecated — it still answers, but do not build a\n" +
+			"loop that depends on it existing forever.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

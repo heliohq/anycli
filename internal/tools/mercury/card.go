@@ -12,8 +12,13 @@ import (
 func (s *Service) newCardListCmd(token string) *cobra.Command {
 	var account string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List the cards on an account (GET /account/{id}/cards)",
+		Use:   "list",
+		Short: "List the cards on an account (GET /account/{id}/cards)",
+		Long: "Cards belong to a bank account, so --account is required and there is no\n" +
+			"call that returns every card in the organization — that means iterating\n" +
+			"`account list`. The response describes the cards themselves (last four,\n" +
+			"status, holder) and never their spend; card transactions appear in\n" +
+			"`transaction list` for the same account.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {

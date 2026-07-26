@@ -18,8 +18,15 @@ func (s *Service) newEventSendCmd(key string) *cobra.Command {
 	var eventName, email, userID, propsJSON, idempotencyKey string
 	var property, mailingList []string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send an event to trigger workflows (POST /v1/events/send)",
+		Use:   "send",
+		Short: "Send an event to trigger workflows (POST /v1/events/send)",
+		Long: "Firing an event starts every Loops workflow listening for that name, so the\n" +
+			"blast radius is whatever a person configured in the UI rather than\n" +
+			"anything visible here — an event can send real email. --event-name plus at\n" +
+			"least one of --email / --user-id is required, and a contact that does not\n" +
+			"exist is created by the call. --mailing-list id=true|false changes\n" +
+			"subscriptions in the same request. --idempotency-key makes a retry safe: a\n" +
+			"replay answers 409 rather than triggering the workflow twice.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -21,8 +21,11 @@ func (s *Service) newCompanyCmd(c *client) *cobra.Command {
 func (s *Service) newCompanyListCmd(c *client) *cobra.Command {
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List companies (GET /companies)",
+		Use:   "list",
+		Short: "List companies (GET /companies)",
+		Long: "Takes no filter at all beyond --page / --per-page, so finding one company\n" +
+			"by name means `company search`. Companies are the B2B accounts a contact's\n" +
+			"`company_id` points at, not a population of people.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -42,8 +45,12 @@ func (s *Service) newCompanyListCmd(c *client) *cobra.Command {
 func (s *Service) newCompanyGetCmd(c *client) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a company (GET /companies/{id})",
+		Use:   "get",
+		Short: "Get a company (GET /companies/{id})",
+		Long: "Takes the numeric company id, usually read off a contact's or a ticket's\n" +
+			"`company_id`. Returns the account's own fields and custom fields; it does\n" +
+			"NOT return the company's tickets or its people — those are\n" +
+			"`ticket list --company-id` and `contact list --company-id`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -63,8 +70,11 @@ func (s *Service) newCompanySearchCmd(c *client) *cobra.Command {
 	var query string
 	var page int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search companies (GET /search/companies). --query is Freshdesk query syntax.",
+		Use:   "search",
+		Short: "Search companies (GET /search/companies). --query is Freshdesk query syntax.",
+		Long: "--query is Freshdesk query syntax with inner quotes around string values,\n" +
+			"e.g. \"name:'Acme'\". Same ceiling as the other searches: 30 rows a page,\n" +
+			"no --per-page, and --page stops at 10.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

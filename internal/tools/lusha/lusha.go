@@ -137,8 +137,30 @@ func (s *Service) stderr() io.Writer {
 // search prospecting) feed one reveal step per entity, plus a usage check.
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "lusha",
-		Short:         "Lusha built-in service (B2B contact & company data)",
+		Use:   "lusha",
+		Short: "Lusha built-in service (B2B contact & company data)",
+		Long: "Two discovery paths feed one reveal step per entity. `contact enrich` and\n" +
+			"`company enrich` take a real-world identifier — an email, a LinkedIn URL, a\n" +
+			"domain, a name — and return the revealed record in one call. `contact\n" +
+			"search` and `company search` take an ICP filter and return name-only\n" +
+			"PREVIEWS that carry a Lusha id and no email or phone; `contact reveal` and\n" +
+			"`company reveal` turn those ids into full records. A search result is\n" +
+			"unusable on its own, so always carry its ids into the matching reveal.\n" +
+			"\n" +
+			"Credits are the scarce resource and the two paths do not cost the same. An\n" +
+			"enrich is billed as a search plus a reveal, so sweeping with `search` and\n" +
+			"revealing only the rows worth revealing is the cheaper shape for anything\n" +
+			"larger than a handful of known identifiers. `account usage` is itself\n" +
+			"credit-free and reports what each action costs.\n" +
+			"\n" +
+			"Every command emits `{data, meta}`. `data` is an array on every verb except\n" +
+			"`account usage`. `meta` carries `credits_charged` — what the call actually\n" +
+			"cost — and `request_id`, and on the search verbs also `page`, `size`,\n" +
+			"`total` and `has_more`.\n" +
+			"\n" +
+			"Auth is an account-level API key that Lusha issues only on its higher plan\n" +
+			"tiers. A 401 or 403 means the key was rejected and the account has to\n" +
+			"reconnect; a 429 is a plain rate-limit retry and not a credential problem.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -20,8 +20,13 @@ func (s *Service) newSearchPostsCmd(sess *session) *cobra.Command {
 	var q, cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "posts",
-		Short:       "Search recent posts (one page)",
+		Use:   "posts",
+		Short: "Search recent posts (one page)",
+		Long: "--q is required and runs against Bluesky's search index, which trails\n" +
+			"live posting and does not contain everything ever posted — a post that\n" +
+			"demonstrably exists can be missing here, so absence is not evidence.\n" +
+			"Read a known account with `feed author` instead. --limit is 1-100,\n" +
+			"default 25; continue with --cursor.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -56,8 +61,13 @@ func (s *Service) newSearchActorsCmd(sess *session) *cobra.Command {
 	var q string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "actors",
-		Short:       "Search people (one page)",
+		Use:   "actors",
+		Short: "Search people (one page)",
+		Long: "Matches handles, display names and profile text, so a result's handle\n" +
+			"can look nothing like --q. This command takes no --cursor: the `cursor`\n" +
+			"in its output cannot be fed back, unlike every other paged read here, so\n" +
+			"one page is all that is reachable — narrow --q rather than trying to\n" +
+			"page. --limit is 1-100, default 25.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

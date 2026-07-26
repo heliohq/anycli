@@ -117,8 +117,35 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // newRoot builds the grouped-by-resource cobra tree (resource → verb).
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "keap",
-		Short:         "Keap CRM built-in service",
+		Use:   "keap",
+		Short: "Keap CRM built-in service",
+		Long: "Calls Keap's REST v2 API as one connected Keap tenant. Keap's OAuth grant\n" +
+			"has a single scope, `full`, so the connection reads and writes everything\n" +
+			"in that account — there is no narrower read-only mode to fall back on.\n" +
+			"\n" +
+			"Every command prints Keap's JSON response on stdout verbatim. Errors go to\n" +
+			"stderr as one line, or as a structured envelope under `--json`. Exit 2 is a\n" +
+			"usage or parameter error caught before any request leaves; exit 1 is a Keap\n" +
+			"API or transport failure. A 401 is terminal — the token was revoked or has\n" +
+			"expired for good, and retrying will not recover it.\n" +
+			"\n" +
+			"List verbs share four passthrough query params: `--filter` (a v2 expression\n" +
+			"such as `email==jo@x.com`), `--order-by`, `--fields` (a comma-separated\n" +
+			"projection) and `--page-size`. They are sent to Keap unvalidated, so a field\n" +
+			"name Keap does not recognise fails the request rather than being ignored.\n" +
+			"Each list returns one page plus a `next_page_token`; feed that value back\n" +
+			"through `--page-token`.\n" +
+			"\n" +
+			"Create and update verbs expose flags for the common fields and `--json-body`\n" +
+			"for everything else — custom fields, addresses, any key the flags do not\n" +
+			"cover. `--json-body` is merged over the flag-built payload and its keys WIN,\n" +
+			"so it can also override a flag. Updates are PATCH: only the keys sent are\n" +
+			"touched.\n" +
+			"\n" +
+			"Several writes need a Keap user id that no other resource returns —\n" +
+			"`task create --assigned-to-user-id`, `note create --user-id` and\n" +
+			"`email send --user-id`. Resolve one with `user list` or `user me` first; the\n" +
+			"CLI rejects the call locally when it is missing, before contacting Keap.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

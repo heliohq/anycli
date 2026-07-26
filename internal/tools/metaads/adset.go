@@ -18,8 +18,13 @@ func (s *Service) newAdSetListCmd(token string) *cobra.Command {
 	var flags edgeListFlags
 	var campaign string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List ad sets in an ad account (GET /act_<id>/adsets)",
+		Use:   "list",
+		Short: "List ad sets in an ad account (GET /act_<id>/adsets)",
+		Long: "--account act_<id> is required; --campaign narrows to one campaign's ad\n" +
+			"sets and must be a bare numeric id. --limit is 1-500, default 50, paging\n" +
+			"with --after. The default fields include `targeting`, `optimization_goal`\n" +
+			"and both budget fields — the ad set is where an ad's actual spend\n" +
+			"behaviour lives, and the campaign above it usually carries none of that.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -41,8 +46,12 @@ func (s *Service) newAdSetListCmd(token string) *cobra.Command {
 func (s *Service) newAdSetGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:         "get <adset_id>",
-		Short:       "Get one ad set",
+		Use:   "get <adset_id>",
+		Short: "Get one ad set",
+		Long: "Takes a bare numeric ad set id. This is the level that owns budget,\n" +
+			"schedule, bid and targeting, so it is the object to read when the question\n" +
+			"is who an ad reaches or what it is allowed to spend. --fields defaults to\n" +
+			"the curated set; widen it for anything Graph does not return by default.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -57,8 +66,13 @@ func (s *Service) newAdSetUpdateCmd(token string) *cobra.Command {
 	form := updateForm{}
 	var name string
 	cmd := &cobra.Command{
-		Use:         "update <adset_id>",
-		Short:       "Update an ad set's status, budget, or name (POST /<adset_id>)",
+		Use:   "update <adset_id>",
+		Short: "Update an ad set's status, budget, or name (POST /<adset_id>)",
+		Long: "Takes a bare numeric ad set id and needs at least one of --status,\n" +
+			"--daily-budget, --lifetime-budget or --name. Budgets are INTEGERS in the\n" +
+			"ad account currency's minor unit — 5000 is 50.00 in USD. Setting --status\n" +
+			"ACTIVE starts spend immediately, but only takes real effect while the\n" +
+			"campaign above it is also active.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

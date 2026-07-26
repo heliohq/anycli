@@ -27,8 +27,12 @@ func (s *Service) newContactListCmd(token string) *cobra.Command {
 	var perPage int
 	var startingAfter string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List contacts (GET /contacts)",
+		Use:   "list",
+		Short: "List contacts (GET /contacts)",
+		Long: "A whole-workspace walk, cursor-paginated at Intercom's default of 50 per\n" +
+			"page and a ceiling of 150. Finding one person is `contact search --email`;\n" +
+			"paging this to look someone up is the expensive way to get the same\n" +
+			"answer.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -55,8 +59,14 @@ func (s *Service) newContactSearchCmd(token string) *cobra.Command {
 	var sf searchFlags
 	var email, updatedSince string
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search contacts (POST /contacts/search)",
+		Use:   "search",
+		Short: "Search contacts (POST /contacts/search)",
+		Long: "The convenience filters are --email, which is an EXACT equality match and\n" +
+			"will not find a substring or a second address on the same person, and\n" +
+			"--updated-since, compiled to `updated_at >` a Unix timestamp in seconds.\n" +
+			"Anything else — name, external_id, custom attributes, role — needs a raw\n" +
+			"--query object, which cannot be combined with the convenience flags. A\n" +
+			"call with neither filter is rejected.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -87,8 +97,12 @@ func (s *Service) newContactSearchCmd(token string) *cobra.Command {
 func (s *Service) newContactGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one contact (GET /contacts/{id})",
+		Use:   "get",
+		Short: "Get one contact (GET /contacts/{id})",
+		Long: "Takes Intercom's own contact id. An email address or your system's\n" +
+			"external_id will not work here — resolve those through `contact search`\n" +
+			"first, by --email for the former and a raw --query on `external_id` for\n" +
+			"the latter.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -107,8 +121,14 @@ func (s *Service) newContactGetCmd(token string) *cobra.Command {
 func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 	var role, email, externalID, name, phone, bodyJSON string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a contact (POST /contacts)",
+		Use:   "create",
+		Short: "Create a contact (POST /contacts)",
+		Long: "--role picks user or lead, defaulting to user; a lead is an unidentified\n" +
+			"visitor and converting one later is not exposed here. Intercom does not\n" +
+			"deduplicate on email at this endpoint, so calling it twice for the same\n" +
+			"address leaves two contacts behind — search first. Custom attributes and\n" +
+			"any field without a flag go through --body-json, which is merged over the\n" +
+			"scalar flags and wins on conflict.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -135,8 +155,13 @@ func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 func (s *Service) newContactUpdateCmd(token string) *cobra.Command {
 	var id, role, email, externalID, name, phone, bodyJSON string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a contact (PUT /contacts/{id})",
+		Use:   "update",
+		Short: "Update a contact (PUT /contacts/{id})",
+		Long: "Only the flags actually passed are sent, so unmentioned fields keep their\n" +
+			"values. --role is the exception worth knowing: its `user` default is\n" +
+			"dropped unless explicitly set, which is what stops a routine name change\n" +
+			"from silently converting a lead into a user. --body-json merges over the\n" +
+			"scalar flags for custom attributes.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -195,8 +220,13 @@ func contactBody(role, email, externalID, name, phone, bodyJSON string) (map[str
 func (s *Service) newContactNoteCmd(token string) *cobra.Command {
 	var id, body, adminID string
 	cmd := &cobra.Command{
-		Use:         "note",
-		Short:       "Attach a note to a contact (POST /contacts/{id}/notes)",
+		Use:   "note",
+		Short: "Attach a note to a contact (POST /contacts/{id}/notes)",
+		Long: "Teammate-only, and attached to the PERSON rather than to a conversation,\n" +
+			"so it stays visible across every future conversation with them — the right\n" +
+			"place for standing context like account tier or escalation history.\n" +
+			"--admin-id is genuinely optional here and is not resolved from /me, so\n" +
+			"this write costs a single request.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -222,8 +252,11 @@ func (s *Service) newContactNoteCmd(token string) *cobra.Command {
 func (s *Service) newContactTagCmd(token string) *cobra.Command {
 	var id, tagID string
 	cmd := &cobra.Command{
-		Use:         "tag",
-		Short:       "Add a tag to a contact (POST /contacts/{id}/tags)",
+		Use:   "tag",
+		Short: "Add a tag to a contact (POST /contacts/{id}/tags)",
+		Long: "--tag-id comes from `tag list` and must be an id, not a name. There is no\n" +
+			"matching untag for contacts — `conversation untag` covers conversations\n" +
+			"only, so removing a tag from a person is a UI action.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

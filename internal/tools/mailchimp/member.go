@@ -24,8 +24,13 @@ func (s *Service) newMemberCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberListCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list <list_id>",
-		Short:       "List members (GET /lists/{list_id}/members)",
+		Use:   "list <list_id>",
+		Short: "List members (GET /lists/{list_id}/members)",
+		Long: "`--status` filters server-side and is usually worth setting: the rows include\n" +
+			"`unsubscribed`, `cleaned` and `archived` members, so an unfiltered count is\n" +
+			"not the mailable count. Accepted values are `subscribed`, `unsubscribed`,\n" +
+			"`cleaned`, `pending`, `transactional` and `archived`. For a single known\n" +
+			"address use `member get --email`, which is one call instead of paging.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -47,8 +52,14 @@ func (s *Service) newMemberListCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberGetCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <list_id>",
-		Short:       "Get one member (GET /lists/{list_id}/members/{subscriber_hash})",
+		Use:   "get <list_id>",
+		Short: "Get one member (GET /lists/{list_id}/members/{subscriber_hash})",
+		Long: "Requires exactly one of `--email` (hashed to the subscriber hash locally) or\n" +
+			"`--hash`; neither or both is a usage error raised before any request. The\n" +
+			"list id is the positional argument and the member selector is a flag, not the\n" +
+			"other way round. An address that was never in this audience answers 404,\n" +
+			"which is the intended membership test — there is no separate \"is this address\n" +
+			"subscribed\" command.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,8 +80,16 @@ func (s *Service) newMemberGetCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberUpsertCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "upsert <list_id>",
-		Short:       "Add or update a member (PUT /lists/{list_id}/members/{subscriber_hash})",
+		Use:   "upsert <list_id>",
+		Short: "Add or update a member (PUT /lists/{list_id}/members/{subscriber_hash})",
+		Long: "A PUT, so it creates or updates in one idempotent call. `--status-if-new`\n" +
+			"(default `subscribed`) applies ONLY at creation while `--status` changes an\n" +
+			"existing member, so passing just one of them silently does nothing in the\n" +
+			"other case. Mailchimp refuses to re-subscribe an address that previously\n" +
+			"unsubscribed or was cleaned — that is an API error, and the person has to opt\n" +
+			"in themselves. `--merge` is a JSON object keyed by merge tag\n" +
+			"(`{\"FNAME\":\"Ada\"}`); `--tags` is honored on creation, and `member tag` is the\n" +
+			"way to change tags afterwards.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -111,8 +130,13 @@ func (s *Service) newMemberUpsertCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberArchiveCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "archive <list_id>",
-		Short:       "Archive a member (DELETE /lists/{list_id}/members/{subscriber_hash})",
+		Use:   "archive <list_id>",
+		Short: "Archive a member (DELETE /lists/{list_id}/members/{subscriber_hash})",
+		Long: "Archiving is Mailchimp's soft delete: the member stops being mailable and\n" +
+			"drops out of the default member view, but their history survives and they can\n" +
+			"be restored from the web app. It is NOT an unsubscribe — no opt-out is\n" +
+			"recorded — and it is not the permanent delete, which this tool deliberately\n" +
+			"does not expose. `member list --status archived` finds them again.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -132,8 +156,13 @@ func (s *Service) newMemberArchiveCmd(r *requester) *cobra.Command {
 
 func (s *Service) newMemberTagCmd(r *requester) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "tag <list_id>",
-		Short:       "Add/remove member tags (POST /lists/{list_id}/members/{subscriber_hash}/tags)",
+		Use:   "tag <list_id>",
+		Short: "Add/remove member tags (POST /lists/{list_id}/members/{subscriber_hash}/tags)",
+		Long: "At least one of `--add` or `--remove` is required; both take comma-separated\n" +
+			"names. Adding a name that does not exist yet creates the tag. Only the names\n" +
+			"passed are touched — tags left unmentioned are preserved, so this is a delta,\n" +
+			"not a replacement. Tags are scoped to one audience, so the same name in two\n" +
+			"audiences is two independent tags.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

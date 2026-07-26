@@ -21,8 +21,13 @@ func (s *Service) newQueueCmd(token string) *cobra.Command {
 func (s *Service) newQueueViewCmd(token string) *cobra.Command {
 	var socialSet, startDate, endDate string
 	cmd := &cobra.Command{
-		Use:         "view",
-		Short:       "Show slots + scheduled drafts in a window (GET /v2/social-sets/{id}/queue)",
+		Use:   "view",
+		Short: "Show slots + scheduled drafts in a window (GET /v2/social-sets/{id}/queue)",
+		Long: "--start-date and --end-date bound the window and Typefully rejects a span\n" +
+			"longer than 62 days; omitting both lets it pick. The response pairs the\n" +
+			"recurring slots with whatever scheduled draft occupies each, which is how\n" +
+			"to see what `--publish-at next-free-slot` will actually pick without\n" +
+			"guessing.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -49,8 +54,11 @@ func (s *Service) newQueueViewCmd(token string) *cobra.Command {
 func (s *Service) newQueueScheduleGetCmd(token string) *cobra.Command {
 	var socialSet string
 	cmd := &cobra.Command{
-		Use:         "schedule-get",
-		Short:       "Get the recurring slot schedule (GET /v2/social-sets/{id}/queue/schedule)",
+		Use:   "schedule-get",
+		Short: "Get the recurring slot schedule (GET /v2/social-sets/{id}/queue/schedule)",
+		Long: "The recurring rule — the weekly times `--publish-at next-free-slot` draws\n" +
+			"from — not the occupancy. Which of those slots are already taken over a\n" +
+			"date range is `queue view`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -68,8 +76,13 @@ func (s *Service) newQueueScheduleGetCmd(token string) *cobra.Command {
 func (s *Service) newQueueScheduleSetCmd(token string) *cobra.Command {
 	var socialSet, data string
 	cmd := &cobra.Command{
-		Use:         "schedule-set",
-		Short:       "Replace the recurring slot schedule (PUT /v2/social-sets/{id}/queue/schedule; needs ADMIN)",
+		Use:   "schedule-set",
+		Short: "Replace the recurring slot schedule (PUT /v2/social-sets/{id}/queue/schedule; needs ADMIN)",
+		Long: "A PUT, not a merge: the --data body REPLACES the entire recurring schedule,\n" +
+			"so any slot missing from it is removed. Start from what `queue\n" +
+			"schedule-get` returns and edit that. This is the only command needing\n" +
+			"ADMIN on the social set, so it can fail with a 403 where every other write\n" +
+			"in this tool succeeds.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -27,8 +27,11 @@ func (s *Service) newGroupListCmd(token string) *cobra.Command {
 	var name string
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List groups (GET /groups)",
+		Use:   "list",
+		Short: "List groups (GET /groups)",
+		Long: "Page-numbered with --page, unlike the cursor-paged subscriber lists.\n" +
+			"--name filters by group name, which is the way to resolve the id every\n" +
+			"other group verb needs from a name a human used.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -53,8 +56,12 @@ func (s *Service) newGroupListCmd(token string) *cobra.Command {
 func (s *Service) newGroupCreateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a group (POST /groups)",
+		Use:   "create",
+		Short: "Create a group (POST /groups)",
+		Long: "A group is a manual bucket: it starts empty and is filled by `group\n" +
+			"assign` or by `subscriber create --groups`. Nothing about a group is\n" +
+			"rule-driven — self-maintaining audiences are segments, which cannot be\n" +
+			"created through this API at all.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -73,8 +80,10 @@ func (s *Service) newGroupCreateCmd(token string) *cobra.Command {
 func (s *Service) newGroupUpdateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Rename a group (PUT /groups/{id})",
+		Use:   "update <id>",
+		Short: "Rename a group (PUT /groups/{id})",
+		Long: "Renaming only; membership is untouched and the group id stays the same, so\n" +
+			"campaigns and automations already targeting it keep working.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -92,8 +101,12 @@ func (s *Service) newGroupUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newGroupDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <id>",
-		Short:       "Delete a group (DELETE /groups/{id})",
+		Use:   "delete <id>",
+		Short: "Delete a group (DELETE /groups/{id})",
+		Long: "Destroys the group, not its members: every subscriber stays in the account\n" +
+			"and loses only this one membership. Campaigns and automations still\n" +
+			"targeting the group lose their audience silently, so check what points at\n" +
+			"it before deleting.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -110,8 +123,12 @@ func (s *Service) newGroupSubscribersCmd(token string) *cobra.Command {
 	var status, cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "subscribers <id>",
-		Short:       "List a group's subscribers (GET /groups/{id}/subscribers)",
+		Use:   "subscribers <id>",
+		Short: "List a group's subscribers (GET /groups/{id}/subscribers)",
+		Long: "Cursor-paged: pass `meta.next_cursor` back as --cursor, there is no\n" +
+			"--page. --status narrows to active, unsubscribed, unconfirmed, bounced or\n" +
+			"junk, which matters because a group keeps people who have since opted out\n" +
+			"and they still appear here unfiltered.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -135,8 +152,13 @@ func (s *Service) newGroupSubscribersCmd(token string) *cobra.Command {
 
 func (s *Service) newGroupAssignCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "assign <subscriber-id> <group-id>",
-		Short:       "Assign a subscriber to a group (POST /subscribers/{sub}/groups/{group})",
+		Use:   "assign <subscriber-id> <group-id>",
+		Short: "Assign a subscriber to a group (POST /subscribers/{sub}/groups/{group})",
+		Long: "The safe way to add a membership: it adds this one group and leaves every\n" +
+			"other membership alone, unlike `subscriber update --groups`, which\n" +
+			"replaces the whole set. Both arguments are positional and ordered\n" +
+			"subscriber first, group second — reversing them addresses a subscriber\n" +
+			"that does not exist.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -152,8 +174,12 @@ func (s *Service) newGroupAssignCmd(token string) *cobra.Command {
 
 func (s *Service) newGroupUnassignCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "unassign <subscriber-id> <group-id>",
-		Short:       "Unassign a subscriber from a group (DELETE /subscribers/{sub}/groups/{group})",
+		Use:   "unassign <subscriber-id> <group-id>",
+		Short: "Unassign a subscriber from a group (DELETE /subscribers/{sub}/groups/{group})",
+		Long: "Removes one membership and nothing else — the subscriber stays in the\n" +
+			"account with every other group intact. Arguments are subscriber first,\n" +
+			"group second. This does not unsubscribe anyone; changing consent is\n" +
+			"`subscriber update --status unsubscribed`.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

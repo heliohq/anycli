@@ -22,8 +22,13 @@ func (s *Service) newMessageListCmd(basic string) *cobra.Command {
 	var limit, offset int
 	var contactID, campaignID int64
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List sent messages (GET /v3/REST/message)",
+		Use:   "list",
+		Short: "List sent messages (GET /v3/REST/message)",
+		Long: "The delivery record for messages already sent: one row per recipient message,\n" +
+			"with its status and event counters. `--contact-id` narrows to one recipient\n" +
+			"and `--campaign-id` to one campaign, which is the practical way to answer \"did\n" +
+			"this person receive it\". `--limit` defaults to 10, so an unfiltered call shows\n" +
+			"only the ten most recent Mailjet returns.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -57,8 +62,12 @@ func (s *Service) newMessageListCmd(basic string) *cobra.Command {
 func (s *Service) newMessageGetCmd(basic string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one message by ID (GET /v3/REST/message/{id})",
+		Use:   "get",
+		Short: "Get one message by ID (GET /v3/REST/message/{id})",
+		Long: "`--id` is required and is the `MessageID` a `send` response returned for a\n" +
+			"specific recipient, not a campaign id. Returns that single message's delivery\n" +
+			"state — queued, sent, opened, clicked, bounced, blocked or spam — which is the\n" +
+			"authoritative answer for one recipient, where `stat counters` only aggregates.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

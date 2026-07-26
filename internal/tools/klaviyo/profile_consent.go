@@ -15,27 +15,63 @@ func (s *Service) newProfileConsentCmds(token string) []*cobra.Command {
 	return []*cobra.Command{
 		s.newSubscriptionJobCmd(token, "subscribe",
 			"Subscribe a profile to email/SMS marketing (POST /profile-subscription-bulk-create-jobs)",
+			longProfileSubscribe,
 			"/profile-subscription-bulk-create-jobs", "profile-subscription-bulk-create-job", true),
 		s.newSubscriptionJobCmd(token, "unsubscribe",
 			"Unsubscribe a profile (POST /profile-subscription-bulk-delete-jobs)",
+			longProfileUnsubscribe,
 			"/profile-subscription-bulk-delete-jobs", "profile-subscription-bulk-delete-job", false),
 		s.newSuppressionJobCmd(token, "suppress",
 			"Suppress a profile from email marketing (POST /profile-suppression-bulk-create-jobs)",
+			longProfileSuppress,
 			"/profile-suppression-bulk-create-jobs", "profile-suppression-bulk-create-job"),
 		s.newSuppressionJobCmd(token, "unsuppress",
 			"Remove a profile from the suppression list (POST /profile-suppression-bulk-delete-jobs)",
+			longProfileUnsuppress,
 			"/profile-suppression-bulk-delete-jobs", "profile-suppression-bulk-delete-job"),
 	}
 }
 
+// The four consent Longs. They sit next to the two shared builders because the
+// builders are what fix the bulk-job receipt and the identifier flags all four
+// share, while the difference that matters — list-scoped consent versus
+// account-wide suppression — has to be stated per verb.
+const (
+	longProfileSubscribe = "Wraps Klaviyo's bulk subscription-create job for one profile, so the answer\n" +
+		"is a JOB RECEIPT and not the updated profile — re-read the profile to\n" +
+		"confirm the state landed. --channel is email (the default) or sms, and sms\n" +
+		"REQUIRES --phone in E.164. --list-id attaches the consent to a list, which\n" +
+		"is what a double opt-in expects. This writes a marketing-consent record\n" +
+		"about a real person, so it has to match what they actually agreed to."
+
+	longProfileUnsubscribe = "The bulk subscription-DELETE job for one profile, answering a job receipt\n" +
+		"rather than the updated profile. --email or --phone identifies them;\n" +
+		"--list-id scopes the withdrawal to one list, and without it the withdrawal\n" +
+		"is global for the channel. This is not suppression — mail can still reach\n" +
+		"them through a list they are still subscribed to. Use `profile suppress`\n" +
+		"to stop email outright."
+
+	longProfileSuppress = "Suppression stops ALL email marketing to the address regardless of which\n" +
+		"lists it sits on, which is broader and stronger than `profile\n" +
+		"unsubscribe`. --email is the only identifier this job accepts — there is\n" +
+		"no phone or id form — or pass a full --data body. Answers a job receipt,\n" +
+		"so re-read the profile to confirm."
+
+	longProfileUnsuppress = "Lifts the suppression so email can reach the address again — but only\n" +
+		"where a list subscription still exists, since this restores nothing that\n" +
+		"`profile unsubscribe` removed. --email is the only identifier this job\n" +
+		"accepts. Answers a job receipt rather than the updated profile."
+)
+
 // newSubscriptionJobCmd builds a subscribe/unsubscribe command. withConsent
 // adds the per-channel SUBSCRIBED consent block required by the create job;
 // the delete job omits it. --list-id sets the optional list relationship.
-func (s *Service) newSubscriptionJobCmd(token, use, short, path, jobType string, withConsent bool) *cobra.Command {
+func (s *Service) newSubscriptionJobCmd(token, use, short, long, path, jobType string, withConsent bool) *cobra.Command {
 	var email, phone, listID, channel, data string
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -62,11 +98,12 @@ func (s *Service) newSubscriptionJobCmd(token, use, short, path, jobType string,
 
 // newSuppressionJobCmd builds a suppress/unsuppress command. Suppression jobs
 // take only the profile identifier (no list, no consent channel).
-func (s *Service) newSuppressionJobCmd(token, use, short, path, jobType string) *cobra.Command {
+func (s *Service) newSuppressionJobCmd(token, use, short, long, path, jobType string) *cobra.Command {
 	var email, data string
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

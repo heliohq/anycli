@@ -29,8 +29,21 @@ func (s *Service) newWorkflowTriggerCmd(key string) *cobra.Command {
 		idempotencyKey  string
 	)
 	cmd := &cobra.Command{
-		Use:         "trigger",
-		Short:       "Trigger a workflow to notify one or more recipients",
+		Use:   "trigger",
+		Short: "Trigger a workflow to notify one or more recipients",
+		Long: "--key must name a workflow that already exists in the connected\n" +
+			"environment; a missing key is a 404, not a delivery. At least one\n" +
+			"--recipient is required and an empty audience is refused outright.\n" +
+			"--recipient and --recipients-json are mutually exclusive: the first takes\n" +
+			"ids of already-identified recipients, the second takes inline recipient\n" +
+			"objects and identifies them in the same call.\n" +
+			"\n" +
+			"--sandbox simulates the run and delivers nothing, which is how to confirm\n" +
+			"the audience and payload before a real fan-out. --data is the JSON the\n" +
+			"workflow's templates render. --cancellation-key tags the queued runs so\n" +
+			"`workflow cancel` can stop them later, and --idempotency-key makes a retry\n" +
+			"safe inside a 24-hour dedup window. The response is a workflow_run_id, not\n" +
+			"a delivery result — check `message list --recipient` afterwards.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -100,8 +113,13 @@ func (s *Service) newWorkflowCancelCmd(key string) *cobra.Command {
 		recipient       []string
 	)
 	cmd := &cobra.Command{
-		Use:         "cancel",
-		Short:       "Cancel queued workflow runs by cancellation key",
+		Use:   "cancel",
+		Short: "Cancel queued workflow runs by cancellation key",
+		Long: "--key and --cancellation-key are both required, and the cancellation key\n" +
+			"only matches runs that were triggered WITH that same key — a trigger sent\n" +
+			"without one cannot be cancelled at all. Only queued runs are stoppable;\n" +
+			"anything already sent has left. --recipient narrows the cancellation to\n" +
+			"part of the run's audience instead of all of it.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

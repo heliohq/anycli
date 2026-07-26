@@ -146,8 +146,25 @@ func (s *Service) stderr() io.Writer {
 // top-level; document / template / contact hang under a resource group.
 func (s *Service) newRoot(authz string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "pandadoc",
-		Short:         "PandaDoc built-in service (documents, templates, eSignature)",
+		Use:   "pandadoc",
+		Short: "PandaDoc built-in service (documents, templates, eSignature)",
+		Long: "The signature loop runs template to document to send to signed PDF: read a\n" +
+			"template's roles, tokens and fields with `template details`, build the\n" +
+			"document with `document create`, `document send` it, poll `document\n" +
+			"status` until it completes, then pull the certified copy with `document\n" +
+			"download --protected`.\n" +
+			"\n" +
+			"Documents, templates and contacts are addressed by uuid. `document list`\n" +
+			"and `template list` are the only way to resolve one from a name, and both\n" +
+			"match on name only.\n" +
+			"\n" +
+			"Default output is concise text — id, status, name. The global `--json`\n" +
+			"switches any command to PandaDoc's own JSON response, which is what to use\n" +
+			"when a field beyond those three is needed.\n" +
+			"\n" +
+			"`api <method> <path>` is the raw passthrough for endpoints with no\n" +
+			"first-class command (folders, content library, quotes), with credentials\n" +
+			"still injected.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

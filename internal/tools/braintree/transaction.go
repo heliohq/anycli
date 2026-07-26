@@ -80,8 +80,19 @@ func (s *Service) newTransactionSearchCmd(cl *client) *cobra.Command {
 		after         string
 	)
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search transactions (status, amount, date, customer, order)",
+		Use:   "search",
+		Short: "Search transactions (status, amount, date, customer, order)",
+		Long: "`--status` is repeatable and case-insensitive (SETTLED, AUTHORIZED,\n" +
+			"SETTLING, SUBMITTED_FOR_SETTLEMENT, VOIDED, ...); values are upper-cased\n" +
+			"before the request and combined as OR. `--amount-min` / `--amount-max` and\n" +
+			"`--created-after` / `--created-before` are inclusive bounds, and either end\n" +
+			"may be given alone. Dates here are ISO 8601 timestamps, unlike the\n" +
+			"YYYY-MM-DD dates `dispute search` takes.\n" +
+			"\n" +
+			"Each row carries only `id`, `legacyId`, `status`, `amount`, `createdAt` and\n" +
+			"`orderId`. `transaction get` returns exactly the same fields, so there is no\n" +
+			"enrich-after-search step and no access to the payment method, line items or\n" +
+			"customer detail from a transaction.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -131,8 +142,13 @@ func (s *Service) newTransactionSearchCmd(cl *client) *cobra.Command {
 
 func (s *Service) newTransactionGetCmd(cl *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one transaction by id",
+		Use:   "get <id>",
+		Short: "Get one transaction by id",
+		Long: "Takes the GraphQL global `id`, not the `legacyId` printed in the Control\n" +
+			"Panel; an id that resolves to some other type comes back as not found rather\n" +
+			"than as the other object. Returns the same six fields `transaction search`\n" +
+			"lists, so calling this on a search result adds nothing — use it when the id\n" +
+			"arrived from elsewhere or to re-read `status` after a refund or void.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -157,7 +173,16 @@ func (s *Service) newTransactionRefundCmd(cl *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "refund <id>",
 		Short: "Refund a settled transaction (full, or partial with --amount)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Only works once the transaction has SETTLED; on an unsettled one Braintree\n" +
+			"rejects it and `transaction void` is the correct verb. `--amount` refunds\n" +
+			"part of the total and may be issued more than once up to the original\n" +
+			"amount; omitting it refunds the full remaining balance. `--order-id` stamps\n" +
+			"a merchant order id on the refund itself, not on the original transaction.\n" +
+			"\n" +
+			"The object printed is the NEW refund, with its own `id` and `amount`; the\n" +
+			"original transaction is not echoed, so re-read it with `transaction get` if\n" +
+			"its state matters. Money leaves immediately and there is no undo verb.",
+		Args: cobra.ExactArgs(1),
 		// Money movement: refunds funds to the customer.
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -192,7 +217,13 @@ func (s *Service) newTransactionVoidCmd(cl *client) *cobra.Command {
 	return &cobra.Command{
 		Use:   "void <id>",
 		Short: "Void an UNSETTLED transaction (errors once settled — never refunds)",
-		Args:  cobra.ExactArgs(1),
+		Long: "The safe reversal: it releases an authorization that has not settled and\n" +
+			"errors out (\"Transaction cannot be voided in its current state\") the moment\n" +
+			"it has. It NEVER falls back to a refund, which is exactly why it is separate\n" +
+			"from `transaction reverse`. A void is cheaper than a refund — no funds ever\n" +
+			"move — and it takes no amount, being all-or-nothing. Prints the transaction\n" +
+			"with its post-void status.",
+		Args: cobra.ExactArgs(1),
 		// Money movement: cancels an unsettled authorization.
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -214,7 +245,13 @@ func (s *Service) newTransactionReverseCmd(cl *client) *cobra.Command {
 	return &cobra.Command{
 		Use:   "reverse <id>",
 		Short: "Reverse a transaction: void if unsettled, FULL REFUND if settled",
-		Args:  cobra.ExactArgs(1),
+		Long: "State-dependent, and the branch it takes is not knowable before the call: a\n" +
+			"transaction that settled between the last read and this one is refunded in\n" +
+			"FULL rather than voided. There is no partial form — use `transaction refund\n" +
+			"--amount` for that, or `transaction void` when only a void is acceptable.\n" +
+			"Read `__typename` on the result to see which branch ran: `Transaction` means\n" +
+			"voided, `Refund` means money was returned.",
+		Args: cobra.ExactArgs(1),
 		// Money movement: issues a full refund on an already-settled transaction.
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

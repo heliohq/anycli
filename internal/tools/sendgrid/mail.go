@@ -25,8 +25,23 @@ func (s *Service) newMailSendCmd(token string, region *string) *cobra.Command {
 	var to, cc, bcc []string
 	var from, fromName, subject, text, html, templateID, dataJSON, replyTo, fullJSON string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send an email (POST /v3/mail/send)",
+		Use:   "send",
+		Short: "Send an email (POST /v3/mail/send)",
+		Long: "--from must already appear in `sender list`; an unverified address is\n" +
+			"rejected with a 403 naming the Sender Identity, which is an account\n" +
+			"setup gap that no key change fixes. A templated send passes\n" +
+			"--template-id (from `template list`) plus --data as the\n" +
+			"dynamic_template_data object and leaves --subject/--text/--html unset\n" +
+			"for whatever the template supplies.\n" +
+			"\n" +
+			"SendGrid answers a successful send with 202 and an EMPTY body, so the\n" +
+			"printed {\"status\":\"accepted\",\"message_id\":...} is synthesized from the\n" +
+			"X-Message-Id response header. Accepted means queued for delivery, never\n" +
+			"delivered — report it that way, and keep the message_id as the tracking\n" +
+			"handle. Anything the flags do not model (several personalizations,\n" +
+			"attachments, categories, send_at, unsubscribe groups) goes through\n" +
+			"--json-body, which carries a full v3 Mail Send body and overrides every\n" +
+			"other flag.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -29,8 +29,13 @@ func (s *Service) newSubscriberListCmd(token string) *cobra.Command {
 	var status, cursor, include string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List subscribers (GET /subscribers)",
+		Use:   "list",
+		Short: "List subscribers (GET /subscribers)",
+		Long: "Cursor-paged, not page-numbered: take `meta.next_cursor` from the response\n" +
+			"and pass it as --cursor, since there is no --page here. --status narrows\n" +
+			"to active, unsubscribed, unconfirmed, bounced or junk. --include accepts\n" +
+			"only the value `groups`, which folds each subscriber's group membership\n" +
+			"into the same response and saves one call per person.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -58,8 +63,13 @@ func (s *Service) newSubscriberListCmd(token string) *cobra.Command {
 
 func (s *Service) newSubscriberGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id-or-email>",
-		Short:       "Get a subscriber by id or email (GET /subscribers/{id|email})",
+		Use:   "get <id-or-email>",
+		Short: "Get a subscriber by id or email (GET /subscribers/{id|email})",
+		Long: "The single argument may be either a subscriber id or the email address\n" +
+			"itself, so an address does not have to be resolved to an id first. This is\n" +
+			"the only place in the tool where an email substitutes for an id:\n" +
+			"`subscriber update`, `subscriber delete`, `group assign` and the rest all\n" +
+			"require the numeric id this returns.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -76,8 +86,16 @@ func (s *Service) newSubscriberCreateCmd(token string) *cobra.Command {
 	var email, fields, groups, status string
 	var resubscribe bool
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create or upsert a subscriber (POST /subscribers)",
+		Use:   "create",
+		Short: "Create or upsert a subscriber (POST /subscribers)",
+		Long: "An upsert, not a strict create: a new address answers 201 and an address\n" +
+			"already on file answers 200 with the existing record updated, so this\n" +
+			"never fails as a duplicate. --groups is additive here, taking a\n" +
+			"comma-separated list of group ids. --fields is a JSON object whose keys\n" +
+			"must already exist as custom fields — an unknown key is not created\n" +
+			"implicitly, so run `field list` or `field create` first. Bringing back\n" +
+			"someone who previously opted out needs --resubscribe; without it their\n" +
+			"unsubscribed status stands.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -104,8 +122,13 @@ func (s *Service) newSubscriberCreateCmd(token string) *cobra.Command {
 func (s *Service) newSubscriberUpdateCmd(token string) *cobra.Command {
 	var fields, groups, status string
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update a subscriber (PUT /subscribers/{id})",
+		Use:   "update <id>",
+		Short: "Update a subscriber (PUT /subscribers/{id})",
+		Long: "Only the flags actually passed are sent, so unmentioned attributes survive\n" +
+			"— with one destructive exception: --groups REPLACES the whole membership\n" +
+			"set, removing the subscriber from every group not named in the list.\n" +
+			"Adding one group without disturbing the others is `group assign`. Takes\n" +
+			"the id, not an email; resolve one with `subscriber get`.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -150,8 +173,12 @@ func subscriberWriteBody(cmd *cobra.Command, email, fields, groups, status strin
 
 func (s *Service) newSubscriberDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <id>",
-		Short:       "Delete a subscriber (DELETE /subscribers/{id})",
+		Use:   "delete <id>",
+		Short: "Delete a subscriber (DELETE /subscribers/{id})",
+		Long: "Ordinary removal from the account. This is NOT the GDPR erasure — for a\n" +
+			"right-to-be-forgotten request use `subscriber forget`, which destroys the\n" +
+			"personal data rather than the record. Deleting does not suppress the\n" +
+			"address: re-adding it later with `subscriber create` succeeds.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -166,8 +193,13 @@ func (s *Service) newSubscriberDeleteCmd(token string) *cobra.Command {
 
 func (s *Service) newSubscriberCountCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "count",
-		Short:       "Count subscribers (GET /subscribers?limit=0)",
+		Use:   "count",
+		Short: "Count subscribers (GET /subscribers?limit=0)",
+		Long: "The same endpoint as `subscriber list` requested with a page size of zero,\n" +
+			"so the total arrives in the response envelope with no subscriber rows\n" +
+			"attached — one call instead of paging the account. It takes no filters, so\n" +
+			"the number covers every status; a per-status count means `subscriber list\n" +
+			"--status <s>` and reading the envelope's total.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -185,8 +217,13 @@ func (s *Service) newSubscriberActivityCmd(token string) *cobra.Command {
 	var logName string
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:         "activity <id>",
-		Short:       "Subscriber activity log (GET /subscribers/{id}/activity-log)",
+		Use:   "activity <id>",
+		Short: "Subscriber activity log (GET /subscribers/{id}/activity-log)",
+		Long: "Page-numbered with --page and defaulting to 100 per page, unlike the\n" +
+			"cursor-paged `subscriber list` — the two do not share a pagination model.\n" +
+			"--log-name narrows to one kind of event, such as campaign_send, email_open\n" +
+			"or link_click, which is usually necessary since an engaged subscriber\n" +
+			"accumulates a long undifferentiated log.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -210,8 +247,12 @@ func (s *Service) newSubscriberActivityCmd(token string) *cobra.Command {
 
 func (s *Service) newSubscriberForgetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "forget <id>",
-		Short:       "GDPR-forget a subscriber (POST /subscribers/{id}/forget)",
+		Use:   "forget <id>",
+		Short: "GDPR-forget a subscriber (POST /subscribers/{id}/forget)",
+		Long: "A permanent erasure of the person's data for a right-to-be-forgotten\n" +
+			"request, not a soft delete and not reversible by re-creating the address.\n" +
+			"Everyday removal is `subscriber delete`. Reach for this only when the\n" +
+			"request is explicitly a GDPR one.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

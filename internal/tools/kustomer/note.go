@@ -10,8 +10,12 @@ import (
 // newNoteListCmd: GET /conversations/{id}/notes (read internal notes).
 func (s *Service) newNoteListCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list <conversation-id>",
-		Short:       "List a conversation's internal notes",
+		Use:   "list <conversation-id>",
+		Short: "List a conversation's internal notes",
+		Long: "The agent-only track running alongside the customer thread — handover\n" +
+			"context, internal decisions, whatever was never said to the customer.\n" +
+			"Notes and messages are separate collections, so a full picture of a ticket\n" +
+			"needs this and `message list`. Paged with `--page` / `--page-size`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 	}
@@ -33,8 +37,12 @@ func (s *Service) newNoteListCmd(base, token string) *cobra.Command {
 // newNoteCreateCmd: POST /conversations/{id}/notes (leave an internal note).
 func (s *Service) newNoteCreateCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "create <conversation-id>",
-		Short:       "Add an internal note to a conversation from a JSON body",
+		Use:   "create <conversation-id>",
+		Short: "Add an internal note to a conversation from a JSON body",
+		Long: "Visible to agents only and never delivered to the customer, which makes it\n" +
+			"the safe place to record findings while a ticket is being worked. The body\n" +
+			"is Kustomer's note shape, typically `{\"note\":\"…\"}`, sent unmodified.\n" +
+			"There is no verb to edit or remove a note once added.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 	}

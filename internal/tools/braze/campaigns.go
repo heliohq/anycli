@@ -26,8 +26,14 @@ func (s *Service) newCampaignsListCmd(c *client) *cobra.Command {
 	var page int
 	var includeArchived bool
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List campaigns (id + name), paginated",
+		Use:   "list",
+		Short: "List campaigns (id + name), paginated",
+		Long: "Returns the campaign API identifiers every other campaigns command needs;\n" +
+			"there is no lookup by name, so this is the resolution step. --page is\n" +
+			"0-INDEXED and the page size is Braze's own — keep advancing until a page\n" +
+			"comes back empty. Archived campaigns are hidden unless --include-archived\n" +
+			"is passed, which is why a campaign that exists in the dashboard can be\n" +
+			"missing here.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -54,8 +60,12 @@ func (s *Service) newCampaignsListCmd(c *client) *cobra.Command {
 func (s *Service) newCampaignsDetailsCmd(c *client) *cobra.Command {
 	var campaignID string
 	cmd := &cobra.Command{
-		Use:         "details",
-		Short:       "Get a campaign's configuration and metadata",
+		Use:   "details",
+		Short: "Get a campaign's configuration and metadata",
+		Long: "--campaign-id is required and is the API identifier from `campaigns list`,\n" +
+			"not the name shown in the dashboard. Returns how the campaign is\n" +
+			"configured — channels, messages, schedule — and not how it performed,\n" +
+			"which is `campaigns series`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -79,8 +89,12 @@ func (s *Service) newCampaignsSeriesCmd(c *client) *cobra.Command {
 	var campaignID, endingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:         "series",
-		Short:       "Get a campaign's analytics time-series",
+		Use:   "series",
+		Short: "Get a campaign's analytics time-series",
+		Long: "--campaign-id is required. --length is days back from --ending-at (default\n" +
+			"now, --length default 7) and caps at 100 — unlike the Canvas series, which\n" +
+			"caps at 14. Numbers are aggregated across the whole campaign; a single\n" +
+			"tracked send is broken out by `sends series` instead.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -111,8 +125,15 @@ func (s *Service) newCampaignsSeriesCmd(c *client) *cobra.Command {
 func (s *Service) newCampaignsTriggerCmd(c *client) *cobra.Command {
 	var campaignID, bodyFlag string
 	cmd := &cobra.Command{
-		Use:         "trigger",
-		Short:       "Send an API-triggered campaign (permission-gated)",
+		Use:   "trigger",
+		Short: "Send an API-triggered campaign (permission-gated)",
+		Long: "Only works on a campaign the dashboard marked as API-triggered; an ordinary\n" +
+			"scheduled campaign cannot be fired this way. --campaign-id is set into the\n" +
+			"body for you and everything else — recipients, trigger_properties,\n" +
+			"broadcast, audience — comes from --body as raw Braze JSON. Sending with\n" +
+			"`broadcast` and no recipients reaches the campaign's whole audience, which\n" +
+			"is not undoable. This endpoint family has a much tighter rate limit than\n" +
+			"the account default.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}

@@ -122,8 +122,36 @@ func (s *Service) renderError(jsonMode bool, err error) {
 
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "loops",
-		Short:         "Loops built-in service (transactional email, contacts, events)",
+		Use:   "loops",
+		Short: "Loops built-in service (transactional email, contacts, events)",
+		Long: "Transactional email and audience management, scoped to one Loops team. This\n" +
+			"tool covers the CRM and messaging core — contacts, custom properties,\n" +
+			"events that trigger workflows, transactional sends, mailing lists.\n" +
+			"Campaign and workflow AUTHORING is deliberately absent: a person builds\n" +
+			"those in Loops and this tool only fires and reads what they built.\n" +
+			"\n" +
+			"A contact is keyed by `email`, by an external `userId`, or by both, and\n" +
+			"which of those a command accepts is not cosmetic. `contact find`,\n" +
+			"`contact delete` and both suppression commands take EXACTLY ONE and reject\n" +
+			"the pair; `contact update` and `event send` need at least one and accept\n" +
+			"both, which is how a userId gets attached to a contact that was created by\n" +
+			"email.\n" +
+			"\n" +
+			"Two things must already exist before a write can land: a custom property,\n" +
+			"created with `contact-property create` before any contact can carry it,\n" +
+			"and a transactional template, built in Loops before `email send` can name\n" +
+			"its id.\n" +
+			"\n" +
+			"--property, --event-property and --data-variable all take key=value and\n" +
+			"coerce the value by its shape: true/false becomes a boolean, a numeric\n" +
+			"string becomes a number, anything else stays a string. Where that guess is\n" +
+			"wrong — a zip code, a version number — use the matching --*-json flag and\n" +
+			"set the types explicitly.\n" +
+			"\n" +
+			"`subscribed` is transmitted only when --subscribed is passed, so an update\n" +
+			"that omits it cannot silently unsubscribe anyone. Writes take effect\n" +
+			"immediately; --idempotency-key on `event send` and `email send` makes a\n" +
+			"retry safe by answering 409 on replay instead of firing twice.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

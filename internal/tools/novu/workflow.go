@@ -18,10 +18,26 @@ func (s *Service) newWorkflowCmd(c *client) *cobra.Command {
 	return group
 }
 
+// The workflow Longs, grouped above the constructors that use them because
+// both leaves are built by the shared leafCmd helper.
+const (
+	longWorkflowList = "The catalog of what can be triggered, and the source of the trigger\n" +
+		"identifier `event trigger --workflow` requires. Read each workflow's\n" +
+		"status: an inactive workflow still accepts a trigger and answers\n" +
+		"trigger_not_active while delivering nothing. Read-only — workflows are\n" +
+		"authored in the Novu dashboard and nothing here creates or edits one.\n" +
+		"Paged with --limit and --offset."
+
+	longWorkflowGet = "--workflow-id accepts either the workflow id or its trigger identifier.\n" +
+		"The step list in the response is what determines which channels a trigger\n" +
+		"can possibly reach, so this is where a no_workflow_active_steps_defined\n" +
+		"outcome — which the trigger only names — is actually explained."
+)
+
 func (s *Service) newWorkflowListCmd(c *client) *cobra.Command {
 	var query, status, tags, orderBy, orderDirection string
 	var limit, offset int
-	cmd := leafCmd("list", "List workflows", readOnly, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("list", "List workflows", longWorkflowList, readOnly, func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
 		addQueryString(q, "query", query)
 		addQueryString(q, "status", status)
@@ -49,7 +65,7 @@ func (s *Service) newWorkflowListCmd(c *client) *cobra.Command {
 
 func (s *Service) newWorkflowGetCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("get", "Get one workflow by id", readOnly, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("get", "Get one workflow by id", longWorkflowGet, readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("workflow-id", id); err != nil {
 			return err
 		}

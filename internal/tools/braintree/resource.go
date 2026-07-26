@@ -44,8 +44,12 @@ const subscriptionGetQuery = `query BraintreeSubscriptionGet($id: ID!) {
 
 func (s *Service) newPingCmd(cl *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "ping",
-		Short:       "Verify the API key pair and connectivity (returns pong)",
+		Use:   "ping",
+		Short: "Verify the API key pair and connectivity (returns pong)",
+		Long: "Issues the GraphQL `ping` query — the cheapest call in the tool, reaching\n" +
+			"whichever host the stored credential's environment selects. Emits\n" +
+			"`{\"result\": \"pong\"}` on success; a non-zero exit here means the key pair or\n" +
+			"the network is at fault, not the command that failed before it.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -72,8 +76,12 @@ func (s *Service) newCustomerCmd(cl *client) *cobra.Command {
 
 func (s *Service) newCustomerGetCmd(cl *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one customer by id",
+		Use:   "get <id>",
+		Short: "Get one customer by id",
+		Long: "Returns identity fields only — `id`, `legacyId`, `firstName`, `lastName`,\n" +
+			"`company`, `email`, `createdAt`. Stored payment methods, addresses and\n" +
+			"subscriptions are NOT included, and there is no verb that returns them.\n" +
+			"For the customer's payment history use `transaction search --customer-id`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -98,8 +106,12 @@ func (s *Service) newCustomerSearchCmd(cl *client) *cobra.Command {
 		after string
 	)
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search customers (email, id)",
+		Use:   "search",
+		Short: "Search customers (email, id)",
+		Long: "Both filters are EXACT matches, not prefix or fuzzy ones: `--email` must be\n" +
+			"the whole address and `--id` the whole id. There is no name or company\n" +
+			"filter, and omitting both filters returns the account's customers\n" +
+			"unfiltered. Returns the same identity fields as `customer get`.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -140,8 +152,12 @@ func (s *Service) newDisputeCmd(cl *client) *cobra.Command {
 
 func (s *Service) newDisputeGetCmd(cl *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one dispute by id",
+		Use:   "get <id>",
+		Short: "Get one dispute by id",
+		Long: "Read-only. Returns `status`, `reason`, `amountDisputed`, `receivedDate` and\n" +
+			"`replyByDate` — the last of which is the provider's deadline for responding.\n" +
+			"There is no verb here to accept a dispute or submit evidence; that has to\n" +
+			"happen in the Braintree Control Panel before `replyByDate` passes.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -167,8 +183,14 @@ func (s *Service) newDisputeSearchCmd(cl *client) *cobra.Command {
 		after          string
 	)
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search disputes (status, received date)",
+		Use:   "search",
+		Short: "Search disputes (status, received date)",
+		Long: "`--status` is repeatable and case-insensitive (OPEN, WON, LOST and the rest\n" +
+			"of the Braintree dispute enum); values are upper-cased before the request.\n" +
+			"The window is `--received-after` / `--received-before` in plain YYYY-MM-DD\n" +
+			"form, not the ISO 8601 timestamps `transaction search` takes, and it filters\n" +
+			"on `receivedDate` — the day the dispute reached the merchant, not the date of\n" +
+			"the original payment.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -211,8 +233,13 @@ func (s *Service) newSubscriptionCmd(cl *client) *cobra.Command {
 
 func (s *Service) newSubscriptionGetCmd(cl *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one subscription by id",
+		Use:   "get <id>",
+		Short: "Get one subscription by id",
+		Long: "The thinnest selection in the tool: `id`, `legacyId` and `status`, with no\n" +
+			"plan, price, billing period or next-billing date. There is also no\n" +
+			"subscription search or list verb, so the id has to come from somewhere else\n" +
+			"— the Control Panel, or a stored record. Subscriptions cannot be created,\n" +
+			"paused or cancelled from here.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -28,8 +28,18 @@ func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 	var props []string
 	var assoc engagementAssoc
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a note, optionally associated to records",
+		Use:   "create",
+		Short: "Create a note, optionally associated to records",
+		Long: "`--body` fills `hs_note_body` and `--owner` fills `hubspot_owner_id`.\n" +
+			"HubSpot requires `hs_timestamp` on every engagement, so `--timestamp`\n" +
+			"defaults to now when it is not given.\n" +
+			"\n" +
+			"`--contact`, `--company`, `--deal` and `--ticket` are repeatable id flags\n" +
+			"that associate the note as it is created, using HubSpot's default\n" +
+			"engagement association types. A note created with NONE of them still\n" +
+			"exists but hangs off no record's timeline, and re-attaching it afterwards\n" +
+			"takes an `assoc create` call. `--prop key=value` sets any further note\n" +
+			"property.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -87,8 +97,18 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 	var props []string
 	var assoc engagementAssoc
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a task, optionally associated to records",
+		Use:   "create",
+		Short: "Create a task, optionally associated to records",
+		Long: "`--subject`, `--body`, `--owner`, `--status` and `--priority` fill\n" +
+			"`hs_task_subject`, `hs_task_body`, `hubspot_owner_id`, `hs_task_status` and\n" +
+			"`hs_task_priority`. `--due` is the task's `hs_timestamp` and DEFAULTS TO\n" +
+			"NOW, so a task created without it is due immediately.\n" +
+			"\n" +
+			"`--status` is NOT_STARTED, IN_PROGRESS, WAITING, COMPLETED or DEFERRED and\n" +
+			"`--priority` is LOW, MEDIUM or HIGH; neither is checked locally, so a typo\n" +
+			"surfaces as a HubSpot validation error. `--owner` takes an id from\n" +
+			"`owner list`. The repeatable `--contact` / `--company` / `--deal` /\n" +
+			"`--ticket` flags associate the task at creation time.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -139,8 +159,11 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newTaskCompleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "complete <id>",
-		Short:       "Mark a task completed (hs_task_status=COMPLETED)",
+		Use:   "complete <id>",
+		Short: "Mark a task completed (hs_task_status=COMPLETED)",
+		Long: "Sets `hs_task_status` to COMPLETED and touches nothing else — no completion\n" +
+			"note, no outcome, no timestamp change. There is no un-complete verb; put\n" +
+			"the status back with `task update <id> --prop hs_task_status=NOT_STARTED`.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -136,8 +136,31 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "dropbox-sign",
-		Short:         "Dropbox Sign (HelloSign) built-in service",
+		Use:   "dropbox-sign",
+		Short: "Dropbox Sign (HelloSign) built-in service",
+		Long: "Wraps the Dropbox Sign v3 API as the connected account. Dropbox Sign was\n" +
+			"formerly HelloSign, which is why the API still lives on hellosign.com; it is\n" +
+			"a DIFFERENT product from Dropbox file storage and cannot browse or read files\n" +
+			"there.\n" +
+			"\n" +
+			"The loop is send -> track -> download. `signature-request send` (or\n" +
+			"`send-with-template`) returns a `signature_request_id`; `signature-request\n" +
+			"get` reports per-signer progress on it; `signature-request files` pulls the\n" +
+			"document back. `template` is read-only here — templates are authored in the\n" +
+			"Dropbox Sign web app and this tool only lists and sends with them.\n" +
+			"\n" +
+			"`--test-mode` on both send commands produces a watermarked, non-binding\n" +
+			"request that neither consumes signature quota nor requires a paid plan. A\n" +
+			"real send from a free plan is rejected with 402, so rehearse with it.\n" +
+			"\n" +
+			"A non-test send emails real people and creates a legally binding document the\n" +
+			"moment the call returns. `signature-request cancel` stops a request that is\n" +
+			"still incomplete; nothing reverses a completed signature.\n" +
+			"\n" +
+			"Both list verbs page with `--page` (1-based) and `--page-size`, and take\n" +
+			"`--query` in Dropbox Sign's own search syntax rather than a bare substring.\n" +
+			"Leaving the paging flags unset sends no paging parameters at all, so the\n" +
+			"provider default page applies.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

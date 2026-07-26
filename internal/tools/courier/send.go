@@ -29,8 +29,16 @@ type sendFlags struct {
 func (s *Service) newSendCmd(key string) *cobra.Command {
 	var f sendFlags
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a notification to a recipient across configured channels",
+		Use:   "send",
+		Short: "Send a notification to a recipient across configured channels",
+		Long: "Exactly one recipient selector — --user-id, --email, --phone, --list-id or\n" +
+			"--audience-id — and exactly one content form: --template, or --title and\n" +
+			"--body together. Two recipients, or a template alongside inline content,\n" +
+			"is a usage error raised before the request leaves, so nothing is sent.\n" +
+			"--data carries template variables, --routing overrides channel selection\n" +
+			"(`{\"method\":\"single\",\"channels\":[\"email\"]}` pins one channel), and\n" +
+			"--brand-id picks the rendering brand. The response is a `requestId` and\n" +
+			"nothing else; whether it arrived is `message get`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

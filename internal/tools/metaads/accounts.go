@@ -22,8 +22,13 @@ func (s *Service) newAccountsListCmd(token string) *cobra.Command {
 	var fields string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List ad accounts (GET /me/adaccounts)",
+		Use:   "list",
+		Short: "List ad accounts (GET /me/adaccounts)",
+		Long: "The first call of any Meta Ads session: since the connection is a Facebook\n" +
+			"user rather than an ad account, this is what reveals the `act_<id>` values\n" +
+			"every other command needs. Each row carries `account_status` and\n" +
+			"`currency`, and the currency matters — every budget flag elsewhere is an\n" +
+			"integer in that currency's minor unit. --limit is 1-500, default 100.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

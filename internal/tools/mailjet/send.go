@@ -16,8 +16,20 @@ func (s *Service) newSendCmd(basic string) *cobra.Command {
 	var to, cc, bcc []string
 	var templateID int64
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a transactional email (POST /v3.1/send)",
+		Use:   "send",
+		Short: "Send a transactional email (POST /v3.1/send)",
+		Long: "`--from-email` is required and must be a sender address already validated in\n" +
+			"Mailjet — an unvalidated one is refused by the API, not by this tool. At least\n" +
+			"one `--to` is required, and each of `--to` / `--cc` / `--bcc` is repeatable in\n" +
+			"either `email` or `Name <email>` form. A body is required too: at least one of\n" +
+			"`--text`, `--html` or `--template-id`, checked locally before the call.\n" +
+			"\n" +
+			"`--template-id` sends a saved template and turns Mailjet's template language\n" +
+			"on, so `--variables-json` substitutions take effect only on that path. All the\n" +
+			"recipients named in one invocation receive ONE message, so `--to` with several\n" +
+			"addresses exposes every recipient to the others — use repeated calls or\n" +
+			"`--bcc` for individual delivery. The response carries a per-recipient\n" +
+			"`MessageID` and `MessageUUID`, which is what `message get --id` then takes.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

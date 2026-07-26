@@ -18,11 +18,46 @@ import (
 // the AI discovers valid filters/outputFields via `lookup`. The response body
 // is emitted verbatim so the assistant reads record ids, data, and — for
 // enrich — the credit consumption the response reports.
-func (s *Service) newBodyCmd(st *runState, use, short, path string) *cobra.Command {
+// The four search/enrich Longs live here, next to the shared builder, because
+// it is the builder that fixes the JSON-body contract and the endpoint all four
+// describe; only the resource and the credit cost differ between them.
+const (
+	longContactSearch = "Returns candidate `personId` values with light identity hints — never the\n" +
+		"email or direct phone, which is what `contact enrich` exists for. The body\n" +
+		"takes ZoomInfo's contact filters (job title, company name or domain,\n" +
+		"management level, department, location); `lookup inputFields/contact` is the\n" +
+		"authoritative list of them. Spends no credit, so narrow the candidate set\n" +
+		"here before spending anything."
+
+	longContactEnrich = "At most 25 records per call; a larger set has to be batched across calls.\n" +
+		"The body pairs `matchPersonInput` — an array of `personId`s from\n" +
+		"`contact search`, or match keys such as an email plus a company — with an\n" +
+		"explicit `outputFields` list. Omitting `outputFields` gets ZoomInfo's\n" +
+		"default projection rather than the fields actually wanted.\n" +
+		"\n" +
+		"One credit per record that has not already been enriched in the last 12\n" +
+		"months; a repeat inside that window is free. The response reports what the\n" +
+		"call actually consumed, which is the only feedback on cost."
+
+	longCompanySearch = "Returns candidate `companyId` values with firmographic hints. The body takes\n" +
+		"company filters (name, website domain, industry, employee count, revenue,\n" +
+		"location) — `lookup inputFields/company` is the authoritative list. A domain\n" +
+		"is far more selective than a name, which collides across regions and\n" +
+		"subsidiaries. Spends no credit."
+
+	longCompanyEnrich = "At most 25 companies per call, keyed by `companyId` from `company search` or\n" +
+		"by a website domain, with an explicit `outputFields` list for the\n" +
+		"firmographics needed. One credit per record newly enriched, free again for\n" +
+		"the next 12 months, and the response reports the spend. Enriching a whole\n" +
+		"search page speculatively is how a monthly allotment disappears."
+)
+
+func (s *Service) newBodyCmd(st *runState, use, short, long, path string) *cobra.Command {
 	var body, file string
 	cmd := &cobra.Command{
 		Use:           use,
 		Short:         short,
+		Long:          long,
 		Annotations:   readOnly,
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
@@ -53,8 +88,14 @@ func (s *Service) newBodyCmd(st *runState, use, short, path string) *cobra.Comma
 // `lookup outputFields/company`). No credit is consumed.
 func (s *Service) newLookupCmd(st *runState) *cobra.Command {
 	return &cobra.Command{
-		Use:           "lookup <resource>",
-		Short:         "Discover valid input filters / output fields (no credit)",
+		Use:   "lookup <resource>",
+		Short: "Discover valid input filters / output fields (no credit)",
+		Long: "The resource is a path segment: `inputFields/contact`,\n" +
+			"`outputFields/contact`, `inputFields/company`, `outputFields/company`. This\n" +
+			"is the only source of truth for the field names a search or enrich body may\n" +
+			"carry — ZoomInfo is mid-migration from its Legacy Enterprise API to a new\n" +
+			"one and the names differ between them, so a rejected filter or output field\n" +
+			"is a signal to run this rather than to retry. Spends no credit.",
 		Annotations:   readOnly,
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
@@ -81,8 +122,13 @@ func (s *Service) newLookupCmd(st *runState) *cobra.Command {
 // allotment so the assistant can check cost before enriching. No credit.
 func (s *Service) newUsageCmd(st *runState) *cobra.Command {
 	return &cobra.Command{
-		Use:           "usage",
-		Short:         "Report remaining API credits and request limits (no credit)",
+		Use:   "usage",
+		Short: "Report remaining API credits and request limits (no credit)",
+		Long: "Reports the remaining credit balance and request limits against the monthly\n" +
+			"allotment. Free to call, and worth calling before any sizeable\n" +
+			"`contact enrich` / `company enrich` batch: enrich is the only thing in this\n" +
+			"tool that spends, at one credit per newly enriched record, and it will not\n" +
+			"stop partway to warn about the balance.",
 		Annotations:   readOnly,
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,

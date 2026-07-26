@@ -30,8 +30,17 @@ func (s *Service) newActivityListCmd(token string) *cobra.Command {
 		typeName string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List activities, optionally filtered by lead and type",
+		Use:   "list",
+		Short: "List activities, optionally filtered by lead and type",
+		Long: "The interaction history that `lead get` deliberately leaves out — notes,\n" +
+			"calls, emails, SMS and meetings. --lead-id scopes it to one company and\n" +
+			"--type to one kind.\n" +
+			"\n" +
+			"Mind the casing: --type takes Close's capitalised type names (Note, Call,\n" +
+			"Email, Meeting), while `activity get`, `activity delete` and `activity\n" +
+			"create` take the LOWERCASE path form (note, call, email, meeting) as a\n" +
+			"positional argument. The two are not interchangeable and a mismatched\n" +
+			"value returns nothing rather than erroring. Page with --limit and --skip.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -58,8 +67,13 @@ func (s *Service) newActivityListCmd(token string) *cobra.Command {
 
 func (s *Service) newActivityGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <type> <id>",
-		Short:       "Get one activity by type and id (type ∈ note|call|email|sms|meeting)",
+		Use:   "get <type> <id>",
+		Short: "Get one activity by type and id (type ∈ note|call|email|sms|meeting)",
+		Long: "Takes two positional arguments, type first then id, because Close stores\n" +
+			"each activity kind behind its own endpoint. The type is the lowercase path\n" +
+			"form — note, call, email, sms, meeting — not the capitalised value\n" +
+			"`activity list --type` filters on. Both come off the same row in an\n" +
+			"`activity list` response.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -74,8 +88,12 @@ func (s *Service) newActivityGetCmd(token string) *cobra.Command {
 
 func (s *Service) newActivityDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <type> <id>",
-		Short:       "Delete one activity by type and id",
+		Use:   "delete <type> <id>",
+		Short: "Delete one activity by type and id",
+		Long: "Two positional arguments, type then id, with the type in its lowercase\n" +
+			"path form. Permanent: the note, call record or email disappears from the\n" +
+			"lead's history for the whole team, and there is no undo. Correcting a note\n" +
+			"usually means adding another rather than removing the original.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -94,8 +112,13 @@ func (s *Service) newActivityNoteAddCmd(token string) *cobra.Command {
 		note   string
 	)
 	cmd := &cobra.Command{
-		Use:         "note-add --lead-id <id> --note <text>",
-		Short:       "Add a note activity to a lead",
+		Use:   "note-add --lead-id <id> --note <text>",
+		Short: "Add a note activity to a lead",
+		Long: "The one activity type with a typed shortcut: both --lead-id and --note are\n" +
+			"required and the note is filed against that company for the whole team to\n" +
+			"read. Every other kind — a call, an email, a meeting — goes through\n" +
+			"`activity create <type> --data`, since their required fields differ per\n" +
+			"type.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -122,8 +145,17 @@ func (s *Service) newActivityNoteAddCmd(token string) *cobra.Command {
 func (s *Service) newActivityCreateCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:         "create <type> --data <json|@file>",
-		Short:       "Create an activity of a given type from a JSON body (call, email, sms, meeting, …)",
+		Use:   "create <type> --data <json|@file>",
+		Short: "Create an activity of a given type from a JSON body (call, email, sms, meeting, …)",
+		Long: "The generic writer: --data is posted verbatim to the endpoint for the type\n" +
+			"given as the positional argument, in its lowercase form (call, email, sms,\n" +
+			"meeting). Required fields differ per type — a call wants `direction`, an\n" +
+			"email wants `subject` and a body — and every one wants `lead_id`.\n" +
+			"\n" +
+			"Email activities carry a `status`, and the value decides whether Close\n" +
+			"merely records the message or actually puts it on the wire; `draft` only\n" +
+			"records. Set it deliberately, because this is the one activity type that\n" +
+			"can reach a customer.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

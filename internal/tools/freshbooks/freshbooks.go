@@ -129,6 +129,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "freshbooks",
 		Short:         "FreshBooks cloud accounting built-in service",
+		Long:          longRoot,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -152,6 +153,7 @@ func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:         "me",
 		Short:       "Show the connected identity and its FreshBooks accounts",
+		Long:        longMe,
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {

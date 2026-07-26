@@ -12,8 +12,12 @@ func (s *Service) newTemplateListCmd(authz string) *cobra.Command {
 	var q string
 	var count, page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List templates",
+		Use:   "list",
+		Short: "List templates",
+		Long: "--q matches the template name. The uuid returned here is what `document\n" +
+			"create --template` takes; a template name is not accepted there. Paging is\n" +
+			"`--count` per page plus a 1-based `--page`. Templates are read-only\n" +
+			"through this tool — they are authored in PandaDoc itself.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -43,8 +47,12 @@ func (s *Service) newTemplateListCmd(authz string) *cobra.Command {
 
 func (s *Service) newTemplateDetailsCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "details <id>",
-		Short:       "Show a template's roles, tokens, and fields",
+		Use:   "details <id>",
+		Short: "Show a template's roles, tokens, and fields",
+		Long: "Read this before `document create`. It names the template's ROLES, which\n" +
+			"`document create --recipient email:role` must match exactly, its tokens\n" +
+			"(`--token name=value`) and its merge fields (`--field name=value`).\n" +
+			"Guessing those names is the usual cause of a create PandaDoc rejects.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

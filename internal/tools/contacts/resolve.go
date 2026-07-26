@@ -39,8 +39,16 @@ const (
 func (s *Service) newResolveCmd(token string) *cobra.Command {
 	var max int
 	cmd := &cobra.Command{
-		Use:         "resolve <name>",
-		Short:       "Resolve a name to email/phone across My Contacts + Other Contacts",
+		Use:   "resolve <name>",
+		Short: "Resolve a name to email/phone across My Contacts + Other Contacts",
+		Long: "Queries both stores in parallel and merges them, My Contacts first,\n" +
+			"de-duplicated by primary email, each match tagged with `source`\n" +
+			"(my_contact or other_contact). A zero-hit lookup is a SUCCESSFUL empty\n" +
+			"result rather than a failure: it exits 2 and prints \"no contacts\n" +
+			"matched\", which means try a shorter prefix, not that something broke —\n" +
+			"repeating the identical query cannot change the answer. Several matches\n" +
+			"mean the name is ambiguous and the address is a guess until a person\n" +
+			"picks one. --max is per source and capped at 30.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

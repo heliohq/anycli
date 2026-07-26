@@ -128,8 +128,36 @@ func (s *Service) stderr() io.Writer {
 // top-level (cross-resource); everything else hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "notion",
-		Short:         "Notion built-in service (markdown-native, MCP-aligned)",
+		Use:   "notion",
+		Short: "Notion built-in service (markdown-native, MCP-aligned)",
+		Long: "Page content is read and written as MARKDOWN, not Notion block JSON:\n" +
+			"--content, --new-str and --old/--new all take markdown, and `fetch`\n" +
+			"returns markdown for a page.\n" +
+			"\n" +
+			"A page has two halves that different commands reach. The BODY is the\n" +
+			"free-form area under the title and is what `fetch` and every `page` write\n" +
+			"command touch. The PROPERTIES are a database row's column values — status,\n" +
+			"owner, dates — and they sit outside the body, so `fetch` on a row returns\n" +
+			"its body (usually empty) and never its field values. Rows with their\n" +
+			"fields come from `data-source query`.\n" +
+			"\n" +
+			"The container hierarchy is database → data source → rows, and the two ids\n" +
+			"are not interchangeable: `fetch <database-id>` returns the database and\n" +
+			"its `data_sources[]`, and those ids are what `data-source query`,\n" +
+			"`data-source update` and `view create --data-source-id` take. Both\n" +
+			"data-source commands reject a database id outright rather than guessing.\n" +
+			"Anywhere an id is accepted, a Notion URL is accepted too.\n" +
+			"\n" +
+			"Property values pass through verbatim in Notion's REST value shape, so a\n" +
+			"title is `{\"title\":[{\"text\":{\"content\":\"Hello\"}}]}` and never\n" +
+			"`{\"title\":\"Hello\"}`. Notion markdown also diverges from GFM for\n" +
+			"callouts: write `<callout icon=\"🎯\" color=\"blue_bg\">…</callout>`, since a\n" +
+			"`> [!NOTE]` admonition renders as an ordinary quote.\n" +
+			"\n" +
+			"There is NO delete or archive command anywhere in this tool, by design:\n" +
+			"pages, databases and comments cannot be removed here, so anything created\n" +
+			"by mistake has to be cleaned up in the Notion UI. The single exception is\n" +
+			"`data-source update --in-trash true`, which trashes a data source.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -22,8 +22,13 @@ const maxTransactionWindow = 31 * 24 * time.Hour
 func (s *Service) newInvoiceListCmd(cl *client) *cobra.Command {
 	var page, pageSize int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List invoices (receivables), newest page first",
+		Use:   "list",
+		Short: "List invoices (receivables), newest page first",
+		Long: "Returns every invoice the account owns, drafts included, with no filter\n" +
+			"beyond paging — `--page` is 1-1000 and `--page-size` 1-100, default 20.\n" +
+			"To narrow by status, recipient or date use `invoice search`, which is a\n" +
+			"different endpoint and not reachable from here. Each row is a summary;\n" +
+			"`invoice get` returns the line items and payment history.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -46,8 +51,16 @@ func (s *Service) newInvoiceListCmd(cl *client) *cobra.Command {
 
 func (s *Service) newInvoiceGetCmd(cl *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <invoice-id>",
-		Short:       "Read one invoice's full detail and status",
+		Use:   "get <invoice-id>",
+		Short: "Read one invoice's full detail and status",
+		Long: "Takes the invoice id PayPal assigns (`INV2-…`), which comes back from\n" +
+			"`invoice create-draft`, `invoice list` or `invoice search` — the\n" +
+			"human-readable invoice number printed on the document is a different\n" +
+			"value and is not accepted. Adds what the collection rows omit: `items`,\n" +
+			"`amount` breakdown, `payments`, `refunds` and the recipient's\n" +
+			"`billing_info`. `status` is the field that decides what can happen next —\n" +
+			"only a DRAFT can be sent, only a SENT or PARTIALLY_PAID invoice is\n" +
+			"awaiting money.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -64,8 +77,16 @@ func (s *Service) newInvoiceSearchCmd(cl *client) *cobra.Command {
 	var status, recipientEmail, startDate, endDate string
 	var page, pageSize int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search invoices by status, recipient, or invoice date range",
+		Use:   "search",
+		Short: "Search invoices by status, recipient, or invoice date range",
+		Long: "The filtered counterpart to `invoice list`, and a separate PayPal\n" +
+			"endpoint rather than a query on the collection. `--status` takes one\n" +
+			"PayPal status at a time (DRAFT, SENT, UNPAID, PAID, PARTIALLY_PAID,\n" +
+			"MARKED_AS_PAID, CANCELLED, REFUNDED), not a comma list.\n" +
+			"`--start-date`/`--end-date` are plain `YYYY-MM-DD` and filter on the\n" +
+			"invoice date, not the sent or paid date; `--end-date` alone is silently\n" +
+			"ignored, since the range is only sent when `--start-date` is present.\n" +
+			"With no flags at all it degenerates into `invoice list`.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -103,7 +124,15 @@ func (s *Service) newInvoiceCreateDraftCmd(cl *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create-draft",
 		Short: "Create a DRAFT invoice (safe: not emailed until `invoice send`)",
-		Args:  cobra.NoArgs,
+		Long: "`--body` is a full PayPal Invoicing v2 create payload, parsed locally\n" +
+			"before the call so malformed JSON fails as usage without reaching PayPal.\n" +
+			"A workable minimum is `detail.currency_code`, one entry in\n" +
+			"`primary_recipients[].billing_info.email_address`, and `items[]` with\n" +
+			"`name`, `quantity` and `unit_amount`; leave `detail.invoice_number` out\n" +
+			"and PayPal assigns the next one. Keep the `id` from the response — it is\n" +
+			"what `invoice get` and `invoice send` take, and nothing here lists drafts\n" +
+			"by their content.",
+		Args: cobra.NoArgs,
 		// Writes a draft — may-mutate, so the fact is true (design 318). A draft
 		// is inert until send, but it still creates a resource.
 		Annotations: map[string]string{"anycli.side_effect": "true"},
@@ -132,7 +161,14 @@ func (s *Service) newInvoiceSendCmd(cl *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "send <invoice-id>",
 		Short: "Send (email) a drafted invoice to its recipient",
-		Args:  cobra.ExactArgs(1),
+		Long: "Only a DRAFT can be sent, and sending is one-way: the invoice moves to\n" +
+			"SENT, the recipient gets a real email from PayPal, and no command here\n" +
+			"cancels or recalls it. `--subject` and `--note` ride on that email.\n" +
+			"`--send-to-recipient=false` marks the invoice SENT without emailing\n" +
+			"anyone, which is the path to take when the payment link is to be\n" +
+			"delivered some other way. The response body is thin — confirm the\n" +
+			"resulting state with `invoice get` rather than reading it here.",
+		Args: cobra.ExactArgs(1),
 		// Sends a real invoice email — a genuine side effect.
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -162,8 +198,16 @@ func (s *Service) newTransactionListCmd(cl *client) *cobra.Command {
 	var startDate, endDate, fields string
 	var page, pageSize int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List transactions in a date window (max 31 days, last 3 years)",
+		Use:   "list",
+		Short: "List transactions in a date window (max 31 days, last 3 years)",
+		Long: "Both bounds are required and must be RFC3339 with a zone\n" +
+			"(`2026-07-01T00:00:00Z`); the span is checked locally, so a too-wide\n" +
+			"range fails as usage without spending a call. Cover a quarter by walking\n" +
+			"consecutive windows and paging each one — `--page-size` is 1-500,\n" +
+			"default 100. PayPal also settles this report asynchronously: the last\n" +
+			"few hours of activity may be missing, so re-read a window rather than\n" +
+			"treating a fresh one as final. `--fields` defaults to `all`; narrowing it\n" +
+			"to `transaction_info` makes large windows markedly lighter.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -221,8 +265,15 @@ func validateWindow(startDate, endDate string) error {
 func (s *Service) newBalanceListCmd(cl *client) *cobra.Command {
 	var asOfTime string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "Read the current (or as-of) account balances snapshot",
+		Use:   "list",
+		Short: "Read the current (or as-of) account balances snapshot",
+		Long: "One entry per currency the account holds, each with `total_balance`,\n" +
+			"`available_balance` and `withheld_balance` — money in a pending or\n" +
+			"reserved state sits in the total but not in the available figure, so\n" +
+			"quote `available_balance` when the question is what can be spent.\n" +
+			"`--as-of-time` is RFC3339 and rewinds the snapshot to a past instant;\n" +
+			"without it the answer is now. This is a point-in-time snapshot, not a\n" +
+			"movement history — for that use `transaction list`.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -245,8 +296,16 @@ func (s *Service) newBalanceListCmd(cl *client) *cobra.Command {
 
 func (s *Service) newSubscriptionGetCmd(cl *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <subscription-id>",
-		Short:       "Look up a subscription's status and detail",
+		Use:   "get <subscription-id>",
+		Short: "Look up a subscription's status and detail",
+		Long: "Takes a PayPal Billing subscription id (`I-…`). There is no command that\n" +
+			"lists or searches subscriptions, so the id has to arrive from somewhere\n" +
+			"else — the merchant's own records, or a transaction row. The reply\n" +
+			"carries `status` (APPROVAL_PENDING, ACTIVE, SUSPENDED, CANCELLED,\n" +
+			"EXPIRED) plus `billing_info` with `next_billing_time`,\n" +
+			"`last_payment` and `failed_payments_count`, which is where a churn\n" +
+			"question is actually answered. Read only: nothing here activates,\n" +
+			"suspends or cancels a subscription.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

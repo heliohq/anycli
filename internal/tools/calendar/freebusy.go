@@ -20,7 +20,15 @@ func (s *Service) newFreebusyCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "freebusy",
 		Short: "Query busy intervals for calendars (the right way to find a free slot — never events list on someone else's calendar)",
-		Args:  cobra.NoArgs,
+		Long: "Returns busy start/end pairs and nothing else — no titles, guests or\n" +
+			"locations — which is why it works against calendars whose owner shared\n" +
+			"free/busy but not details. --calendar is repeatable and also accepts a\n" +
+			"comma-separated list, capped at 50 calendars per query and rejected\n" +
+			"locally beyond that. A calendar the caller cannot see yields a\n" +
+			"per-calendar `error` entry INSIDE an otherwise successful response\n" +
+			"rather than failing the call, so read every id in the output before\n" +
+			"treating an empty busy list as free.",
+		Args: cobra.NoArgs,
 		// POST /freeBusy — POST only because the query carries a body:
 		// freebusy.query is a documented pure read (no mutation is possible
 		// under any input), so it is read-only per the design 318 may-mutate

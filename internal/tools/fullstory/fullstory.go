@@ -85,8 +85,36 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "fullstory",
-		Short:         "FullStory built-in service",
+		Use:   "fullstory",
+		Short: "FullStory built-in service",
+		Long: "Calls the FullStory Server API v2 with a pasted API key. The key is\n" +
+			"long-lived and has no refresh, so a failure that survives a retry means a\n" +
+			"new key, not a reconnect.\n" +
+			"\n" +
+			"What the key may do depends on its ROLE, which `me` prints. Sending data\n" +
+			"(`user upsert`, `event create`) and `session list` work on a Standard key;\n" +
+			"reading profiles (`user get`, `user list`) generally needs an Architect\n" +
+			"key and otherwise comes back as a permission error rather than an empty\n" +
+			"result. Run `me` before concluding a user does not exist.\n" +
+			"\n" +
+			"Two kinds of user id run through the commands and they are not\n" +
+			"interchangeable: `--uid` is the application's own id, the one FullStory\n" +
+			"was instrumented with, while `user get --id` wants the FullStory-assigned\n" +
+			"id that appears in `user list` and session results. Session ids are\n" +
+			"`deviceId:sessionId`.\n" +
+			"\n" +
+			"`--prop key=value` is repeatable on the two write verbs and is TYPED on\n" +
+			"the way out: `true` and `false` become booleans, anything that parses as a\n" +
+			"number becomes a number, everything else stays a string. There is no way\n" +
+			"to force a numeric-looking value to remain text.\n" +
+			"\n" +
+			"Every command prints FullStory's JSON verbatim, lists keeping the\n" +
+			"`{\"results\":[...]}` envelope. Exit 2 is a usage error caught before any\n" +
+			"request; exit 1 is an API failure, which is also how the monthly\n" +
+			"server-event quota surfaces (a 429 carrying FullStory's reason).\n" +
+			"\n" +
+			"Session-event capture, AI session summaries and bulk import/export are\n" +
+			"separate FullStory products and are not wrapped here.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -23,8 +23,16 @@ func (s *Service) newPostListCmd(token string) *cobra.Command {
 		limit                                                string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List posts with stats (GET /publications/{pub}/posts)",
+		Use:   "list",
+		Short: "List posts with stats (GET /publications/{pub}/posts)",
+		Long: "A reporting call — posts are read-only in this tool. `--expand stats` is\n" +
+			"what turns a bare listing into open, click and delivery numbers;\n" +
+			"without it those fields are absent. `--status` is\n" +
+			"`draft|confirmed|archived|all` (a `confirmed` post is one that actually\n" +
+			"went out), `--audience` is `free|premium|all` and `--platform` is\n" +
+			"`web|email|both|all`. `--order-by` takes `created`, `publish_date` or\n" +
+			"`displayed_date` with `--direction asc|desc`; `--limit` is 1-100, paged\n" +
+			"by `--page`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -67,8 +75,14 @@ func (s *Service) newPostListCmd(token string) *cobra.Command {
 func (s *Service) newPostGetCmd(token string) *cobra.Command {
 	var expand []string
 	cmd := &cobra.Command{
-		Use:         "get <postId>",
-		Short:       "Get one post (GET /publications/{pub}/posts/{postId})",
+		Use:   "get <postId>",
+		Short: "Get one post (GET /publications/{pub}/posts/{postId})",
+		Long: "Takes the `post_…` id positionally and the publication as a flag.\n" +
+			"`--expand` is repeatable: `stats` for the performance numbers,\n" +
+			"`free_web_content` for the rendered body, `recipients` for who it went\n" +
+			"to — none of which appear without asking. There is no create, update or\n" +
+			"send counterpart anywhere in this tool; writing and sending a post\n" +
+			"happens in beehiiv's own app.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

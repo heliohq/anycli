@@ -27,8 +27,25 @@ func (s *Service) newSearchCmd(apiKey string) *cobra.Command {
 		params                                                []string
 	)
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Run a live search (GET /search); --engine selects the vertical",
+		Use:   "search",
+		Short: "Run a live search (GET /search); --engine selects the vertical",
+		Long: "The only command here that COSTS a search from the plan's quota, so check\n" +
+			"`account` before a batch and reach for `archive get` to re-read anything\n" +
+			"already fetched. `--engine` defaults to `google` and is the one param always\n" +
+			"sent; every other flag is omitted from the request unless explicitly set, so\n" +
+			"unset flags never force a provider default.\n" +
+			"\n" +
+			"`--location` must be a CANONICAL SerpApi location name — a raw city string\n" +
+			"usually matches nothing — so resolve it through `locations` first and copy\n" +
+			"`canonical_name`. `--gl` and `--hl` are the country and language codes,\n" +
+			"`--num` the result count and `--start` the pagination offset. `--no-cache`\n" +
+			"forces a fresh crawl instead of SerpApi's cached copy, and costs quota either\n" +
+			"way.\n" +
+			"\n" +
+			"`--param key=value` is applied AFTER the first-class flags, so it overrides\n" +
+			"one of the same name — but never the injected `api_key`, which is set later\n" +
+			"and cannot be displaced. The response's `search_metadata.id` is what\n" +
+			"`archive get` later takes.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -91,8 +108,14 @@ func (s *Service) newArchiveCmd(apiKey string) *cobra.Command {
 		Short: "Search Archive API (free re-read of a prior search)",
 	}
 	get := &cobra.Command{
-		Use:         "get <search_id>",
-		Short:       "Fetch an archived search by id (GET /searches/<id>.json)",
+		Use:   "get <search_id>",
+		Short: "Fetch an archived search by id (GET /searches/<id>.json)",
+		Long: "Takes the `search_metadata.id` from a previous `search` response and returns\n" +
+			"that exact result again, free and without spending quota, for up to 31 days.\n" +
+			"Prefer it to re-running a query whose answer is already in hand — the results\n" +
+			"are the ones originally paid for, frozen, which also makes them stable to\n" +
+			"cite. A search older than the retention window is simply gone; re-running is\n" +
+			"then the only option.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -117,8 +140,13 @@ func (s *Service) newLocationsCmd() *cobra.Command {
 	var query string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "locations",
-		Short:       "Resolve a place name to a canonical location (free, no credential)",
+		Use:   "locations",
+		Short: "Resolve a place name to a canonical location (free, no credential)",
+		Long: "The prerequisite for `search --location`, which needs SerpApi's canonical\n" +
+			"name rather than free text. Pass rough text to `--q` and take `canonical_name`\n" +
+			"from the row that matches — the full comma-joined form, not the city alone.\n" +
+			"`--limit` caps the number of candidates. This call sends no credential at all\n" +
+			"and costs nothing, so there is no reason to guess a location string instead.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -146,8 +174,14 @@ func (s *Service) newLocationsCmd() *cobra.Command {
 // before emit so the secret never reaches the agent transcript.
 func (s *Service) newAccountCmd(apiKey string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "account",
-		Short:       "Account API: plan, searches left, rate limit (api_key redacted)",
+		Use:   "account",
+		Short: "Account API: plan, searches left, rate limit (api_key redacted)",
+		Long: "Free to call and the natural budget check before a batch: it reports the plan,\n" +
+			"`total_searches_left` and the hourly rate limit. It also doubles as the\n" +
+			"credential smoke test, since it is the cheapest authenticated call in the\n" +
+			"tool. SerpApi echoes the private key back in this response; that field is\n" +
+			"stripped before anything is printed, so the secret never lands in the\n" +
+			"transcript.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

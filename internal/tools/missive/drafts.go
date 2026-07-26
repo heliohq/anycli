@@ -17,8 +17,15 @@ func (s *Service) newDraftsCmd(token string) *cobra.Command {
 func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 	var inline, file string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create (and optionally send) a draft (POST /drafts). Body: {\"drafts\":{...}}",
+		Use:   "create",
+		Short: "Create (and optionally send) a draft (POST /drafts). Body: {\"drafts\":{...}}",
+		Long: "The customer-facing write, and the only send path in this tool: a body\n" +
+			"carrying `\"send\":true` goes out immediately over email or SMS with no\n" +
+			"recall, while omitting it leaves a draft in Missive for a person to\n" +
+			"finish. The body wraps under `drafts`; `conversation` replies into an\n" +
+			"existing thread and its absence starts a new one, alongside `from_field`\n" +
+			"and `to_fields`. `from_field` must be an address the shared account\n" +
+			"actually owns.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

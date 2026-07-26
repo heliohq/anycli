@@ -17,8 +17,15 @@ func (s *Service) newContactCreateCmd(apiKey string) *cobra.Command {
 		updateEnabled                bool
 	)
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create or upsert a contact (POST /contacts)",
+		Use:   "create",
+		Short: "Create or upsert a contact (POST /contacts)",
+		Long: "Without `--update-enabled` this FAILS on a contact that already exists\n" +
+			"rather than merging, so the safe form for import-style work is\n" +
+			"`--update-enabled`. Identify the contact with `--email` or `--ext-id`.\n" +
+			"`--attributes-json` is a raw JSON object whose keys are Brevo's uppercase\n" +
+			"attribute names (`FIRSTNAME`, `SMS`), and `--list-ids` is repeatable and\n" +
+			"takes integer list ids from `list ls`, subscribing the contact as it is\n" +
+			"created.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -64,8 +71,14 @@ func (s *Service) newContactUpdateCmd(apiKey string) *cobra.Command {
 		listIDs, unlinkListIDs                    []int
 	)
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a contact (PUT /contacts/{identifier})",
+		Use:   "update",
+		Short: "Update a contact (PUT /contacts/{identifier})",
+		Long: "`--id` is required and accepts an email, a contact id or an ext_id; add\n" +
+			"`--identifier-type email_id|contact_id|ext_id` when the value could be\n" +
+			"read either way. Only the attributes present in `--attributes-json` are\n" +
+			"touched. This is also the membership verb: `--list-ids` subscribes and\n" +
+			"`--unlink-list-ids` unsubscribes, both repeatable integers, and there is\n" +
+			"no remove-from-list command elsewhere.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -107,8 +120,13 @@ func (s *Service) newContactUpdateCmd(apiKey string) *cobra.Command {
 func (s *Service) newContactGetCmd(apiKey string) *cobra.Command {
 	var id, identifierType string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a contact (GET /contacts/{identifier})",
+		Use:   "get",
+		Short: "Get a contact (GET /contacts/{identifier})",
+		Long: "`--id` is required and takes an email address directly, so no lookup step\n" +
+			"is needed to go from an address to a contact. Use `--identifier-type` when\n" +
+			"the value is ambiguous — a numeric ext_id would otherwise be read as a\n" +
+			"contact id. The response carries the contact's list memberships and\n" +
+			"attributes.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -132,8 +150,14 @@ func (s *Service) newContactListCmd(apiKey string) *cobra.Command {
 		sort, modifiedSince string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List / search contacts (GET /contacts)",
+		Use:   "list",
+		Short: "List / search contacts (GET /contacts)",
+		Long: "Walks the whole contact database — there is no search-by-attribute here,\n" +
+			"so going from an email address to a contact is `contact get --id`, not a\n" +
+			"scan. `--limit` defaults to 50 and tops out at 1000, and `--offset` pages.\n" +
+			"`--modified-since` takes an ISO-8601 timestamp and is the cheap way to\n" +
+			"pick up changes since a previous sweep; `--sort` is asc or desc by\n" +
+			"creation.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -164,8 +188,13 @@ func (s *Service) newContactListCmd(apiKey string) *cobra.Command {
 func (s *Service) newContactDeleteCmd(apiKey string) *cobra.Command {
 	var id, identifierType string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a contact (DELETE /contacts/{identifier})",
+		Use:   "delete",
+		Short: "Delete a contact (DELETE /contacts/{identifier})",
+		Long: "`--id` is required, with the same email / contact id / ext_id handling and\n" +
+			"`--identifier-type` as the other contact verbs. This removes the contact\n" +
+			"and its history outright and cannot be undone. To stop mailing someone\n" +
+			"without erasing them, drop them from the list instead with\n" +
+			"`contact update --unlink-list-ids`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

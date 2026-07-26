@@ -150,7 +150,12 @@ func (s *Service) newRecordsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <record>",
 		Short: "Show one conference record: start/end/expire times and its space",
-		Args:  cobra.ExactArgs(1),
+		Long: "Prints start, end, EXPIRE time and the parent space. `expireTime` is the\n" +
+			"number that decides whether participants and transcript entries are still\n" +
+			"readable at all, so check it before planning a multi-call analysis. A 404\n" +
+			"means the record is past Google's ~30-day retention, not that the id is\n" +
+			"wrong. A conference still in progress shows its end as `ongoing`.",
+		Args: cobra.ExactArgs(1),
 		// GET /conferenceRecords/{r} — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -189,7 +194,14 @@ func (s *Service) newParticipantsListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list <record>",
 		Short: "List participants of a conference record (who attended, and their overall window)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Each row is one attendee and the window between their FIRST join and LAST\n" +
+			"leave — not the time they were actually connected. Somebody who dropped\n" +
+			"and rejoined looks continuous here; `participants sessions` breaks that\n" +
+			"apart. Signed-in, anonymous and phone attendees all appear, and one Meet\n" +
+			"has no name for falls back to its resource name. Somebody still in the\n" +
+			"call shows as `still in call`. `--max` defaults to 100; continue with\n" +
+			"`--page-token`.",
+		Args: cobra.ExactArgs(1),
 		// GET /conferenceRecords/{r}/participants — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -239,7 +251,12 @@ func (s *Service) newParticipantsSessionsCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sessions <participant>",
 		Short: "List a participant's join/leave sessions (participantSessions.list; segments across reconnects)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Takes the PARTICIPANT resource name from `participants list`, not the\n" +
+			"conference record. One row per join/leave segment, which is what answers\n" +
+			"\"how long were they really in the call\" for anyone who reconnected — the\n" +
+			"single window on `participants list` overstates it. An open session prints\n" +
+			"as `still in call`. `--max` defaults to 100.",
+		Args: cobra.ExactArgs(1),
 		// GET .../participants/{p}/participantSessions — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

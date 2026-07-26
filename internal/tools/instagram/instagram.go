@@ -140,8 +140,38 @@ func (s *Service) stderr() io.Writer {
 // (account-level); everything else hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "instagram",
-		Short:         "Instagram professional account built-in service (Instagram API with Instagram Login)",
+		Use:   "instagram",
+		Short: "Instagram professional account built-in service (Instagram API with Instagram Login)",
+		Long: "Speaks the Instagram API with Instagram Login (graph.instagram.com), not the\n" +
+			"Facebook-Login path, pinned to a fixed Graph version. One connection is ONE\n" +
+			"Instagram professional account — Business or Creator; a personal account\n" +
+			"cannot be used at all — and `/me` is always that account, which is why no\n" +
+			"command takes an account selector.\n" +
+			"\n" +
+			"Publishing is not a single call. It is a container flow: `publish create`\n" +
+			"registers the media, Instagram fetches and processes it in the background,\n" +
+			"`publish status` reports when that is done, and only then does\n" +
+			"`publish finish` post it. There is no one-shot post verb, and firing\n" +
+			"`publish finish` on an unfinished container fails.\n" +
+			"\n" +
+			"Insight metric names are version-specific and Instagram retires them per\n" +
+			"version. `profile_views`, for instance, is gone on the pinned version. When a\n" +
+			"metric call fails on the metric name itself, the fix is a different `--metrics`\n" +
+			"value, not a retry.\n" +
+			"\n" +
+			"Reads that page use Instagram's cursor style: take `paging.cursors.after` from\n" +
+			"the response and pass it as `--after`. `--fields` on the read commands is a\n" +
+			"comma-separated Graph field list that replaces this tool's default projection\n" +
+			"rather than adding to it, so name every field wanted.\n" +
+			"\n" +
+			"The stored credential is a long-lived token that expires after roughly 60 days\n" +
+			"and is not refreshed automatically. An `OAuthException` with `code:190` or an\n" +
+			"HTTP 401 means it has lapsed or been revoked — that is expected on a dormant\n" +
+			"account and retrying will not fix it.\n" +
+			"\n" +
+			"Direct messages, mentions and tags, and hashtag search are not exposed here at\n" +
+			"all. The reachable surface is the account's own media, its comments, its\n" +
+			"insights, and publishing.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

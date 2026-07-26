@@ -20,8 +20,13 @@ func (s *Service) newAccountCmd(key string) *cobra.Command {
 // The response object is passed through under "data".
 func (s *Service) newAccountUsageCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "usage",
-		Short:       "Get account credit usage, plan, and pricing (GET /account/usage)",
+		Use:   "usage",
+		Short: "Get account credit usage, plan, and pricing (GET /account/usage)",
+		Long: "The only credit-free call in the tool, and the pre-flight for anything\n" +
+			"expensive: `data` carries credits used, remaining and total, the plan, the\n" +
+			"rate limits, and a `pricing` block naming what each metered action costs,\n" +
+			"so the price of a planned sweep is computable before it runs. `data` is an\n" +
+			"object here, not the array the enrich, search and reveal verbs return.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

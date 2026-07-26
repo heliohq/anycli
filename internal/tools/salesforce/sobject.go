@@ -27,8 +27,14 @@ type trimmedSObject struct {
 func (s *Service) newSObjectListCmd(c *client) *cobra.Command {
 	var customOnly, standardOnly, raw bool
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List the org's sObjects (trimmed; --raw for full)",
+		Use:   "list",
+		Short: "List the org's sObjects (trimmed; --raw for full)",
+		Long: "Emits a projection of `name`, `label`, `custom` and `queryable` per object,\n" +
+			"because the org's full global describe runs to hundreds of KB; `--raw`\n" +
+			"returns that untrimmed body. `--custom-only` and `--standard-only` are\n" +
+			"mutually exclusive and passing both is a usage error. `name` is the API\n" +
+			"name every other command takes and it is NOT the label a user sees — what\n" +
+			"the team calls \"Deals\" may be `Opportunity` or a custom `Deal__c`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -93,8 +99,16 @@ type trimmedField struct {
 func (s *Service) newSObjectDescribeCmd(c *client) *cobra.Command {
 	var fieldNamesOnly, raw bool
 	cmd := &cobra.Command{
-		Use:         "describe <sobject>",
-		Short:       "Describe an sObject's fields (trimmed; --raw for full)",
+		Use:   "describe <sobject>",
+		Short: "Describe an sObject's fields (trimmed; --raw for full)",
+		Long: "Emits one entry per field — `name`, `label`, `type`, `required`,\n" +
+			"`updateable`, and picklist values where the field has them — trimmed from a\n" +
+			"describe body that is hundreds of KB on a mature object. `--raw` returns\n" +
+			"the whole thing and `--field-names-only` cuts it to bare API names.\n" +
+			"`required` is derived as \"not nillable and not defaulted on create\", which\n" +
+			"is exactly what a `record create` payload must satisfy. Picklist fields\n" +
+			"reject values outside their list, so read the values here before writing\n" +
+			"one.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

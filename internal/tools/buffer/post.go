@@ -57,8 +57,15 @@ func (s *Service) newPostListCmd(token string) *cobra.Command {
 	var org, channelID, status, after string
 	var first int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List posts in an organization (optionally filtered by channel/status)",
+		Use:   "list",
+		Short: "List posts in an organization (optionally filtered by channel/status)",
+		Long: "`--org` is required; `--channel` and `--status` narrow it. `--status`\n" +
+			"(`sent`, `draft`, …) is handed to Buffer's own `PostStatus` enum, so an\n" +
+			"unrecognised value fails as an API error rather than quietly returning an\n" +
+			"empty page. Each post carries `id`, `text`, `createdAt` and `channelId`\n" +
+			"only — no engagement metrics and no scheduled `dueAt`. `--first` caps one\n" +
+			"page; continue by passing the returned `pageInfo.endCursor` as `--after`\n" +
+			"until `hasNextPage` is false.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -123,8 +130,20 @@ func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 	var channelID, text, mode, dueAt, assetsJSON, metadataJSON string
 	var draft bool
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a post on a channel (queue or custom-scheduled)",
+		Use:   "create",
+		Short: "Create a post on a channel (queue or custom-scheduled)",
+		Long: "Puts real content on a real social profile. The default `--mode addToQueue`\n" +
+			"drops the post into the channel's next free posting slot, which can be\n" +
+			"minutes away and is not stated back in the response; `--mode\n" +
+			"customScheduled` pins it and then `--due-at` is mandatory, ISO-8601 UTC.\n" +
+			"`--draft` stores the text without queuing it and is the only outcome that\n" +
+			"cannot publish.\n" +
+			"\n" +
+			"`--assets-json` and `--metadata-json` take raw Buffer objects and are\n" +
+			"parsed before anything is sent, so malformed JSON costs no API call. A\n" +
+			"payload carrying both `assets.videos` and a per-service\n" +
+			"`metadata.<service>.linkAttachment` is rejected up front — Buffer accepts\n" +
+			"only one of the two and would otherwise drop the video silently.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -184,8 +203,15 @@ func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 func (s *Service) newPostEditCmd(token string) *cobra.Command {
 	var id, text, mode, dueAt, assetsJSON, metadataJSON string
 	cmd := &cobra.Command{
-		Use:         "edit",
-		Short:       "Edit an existing post",
+		Use:   "edit",
+		Short: "Edit an existing post",
+		Long: "`--mode` is part of every edit and DEFAULTS to `addToQueue`, so editing only\n" +
+			"the text of a custom-scheduled post moves it back into the queue and\n" +
+			"forgets its time — repeat `--mode customScheduled --due-at <ts>` to keep\n" +
+			"the schedule. `--text` left off leaves the existing text alone.\n" +
+			"`--assets-json` / `--metadata-json` follow the same rules and the same\n" +
+			"videos-versus-link-attachment exclusion as `post create`. `--id` is the\n" +
+			"post id from `post list`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -241,8 +267,12 @@ func (s *Service) newPostEditCmd(token string) *cobra.Command {
 func (s *Service) newPostDeleteCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a post",
+		Use:   "delete",
+		Short: "Delete a post",
+		Long: "Removes the post from Buffer — a queued or scheduled one never goes out, a\n" +
+			"draft is discarded — and returns only the deleted id. There is no undo and\n" +
+			"no trash to restore from. It acts on Buffer's own record: content already\n" +
+			"published to the social network is not retracted by deleting it here.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

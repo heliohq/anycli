@@ -151,7 +151,35 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(cfg reqConfig) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "chargebee",
+		Use: "chargebee",
+		Long: "Chargebee Billing v2 against ONE site. The site and its API key were\n" +
+			"captured at connect time and are applied automatically, so no command names\n" +
+			"them and one connection reads and writes exactly one site's billing data.\n" +
+			"\n" +
+			"Responses are Chargebee's native JSON. A list is\n" +
+			"`{\"list\": [{\"<resource>\": {…}}, …], \"next_offset\": \"<cursor>\"}` — note each\n" +
+			"row is wrapped in a single-key object — and a single read is\n" +
+			"`{\"<resource>\": {…}}`. Page by feeding `next_offset` back as `--offset`; it\n" +
+			"is an OPAQUE cursor, not a row count, and Chargebee caps `--limit` at 100.\n" +
+			"\n" +
+			"Filters use Chargebee's bracket-operator syntax, passed through verbatim and\n" +
+			"repeatable: `--filter \"status[is]=active\"`,\n" +
+			"`--filter \"id[in]=[\\\"cust_1\\\",\\\"cust_2\\\"]\"`. Timestamps inside them are UNIX\n" +
+			"SECONDS.\n" +
+			"\n" +
+			"Writes are form-encoded: flat fields through repeatable\n" +
+			"`--param key=value`, subscription lines through `--item-price\n" +
+			"id[:quantity]`, which the tool expands into Chargebee's indexed bracket\n" +
+			"encoding.\n" +
+			"\n" +
+			"The catalog has two generations. A Product Catalog 2.0 site subscribes to\n" +
+			"ITEM PRICES (`item`, `item-price`), which is what `subscription create` and\n" +
+			"`subscription change` take; `plan` is the legacy PC 1.0 surface and is empty\n" +
+			"on a 2.0 site.\n" +
+			"\n" +
+			"Billing writes move real money: creating a subscription can charge a card,\n" +
+			"changing one can prorate into an invoice or a credit note, and none of it is\n" +
+			"reversible from here.",
 		Short:         "Chargebee subscription billing (v2 REST) built-in service",
 		SilenceUsage:  true,
 		SilenceErrors: true,

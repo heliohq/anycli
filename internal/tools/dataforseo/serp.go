@@ -24,7 +24,14 @@ func (s *Service) newSERPGoogleCmd(credential string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "google",
 		Short: "Live Google organic SERP for a keyword",
-		Args:  cobra.NoArgs,
+		Long: "Fetches the live organic results with their SERP features. --depth is how\n" +
+			"many results to return (default 10, max 200) and costs more as it grows,\n" +
+			"because each block of results is another page fetched. --device is desktop\n" +
+			"(default) or mobile, and the two rank differently often enough to be worth\n" +
+			"choosing deliberately. A --keyword carrying a search operator such as\n" +
+			"`site:` or `inurl:` costs roughly FIVE TIMES a plain keyword, so add one\n" +
+			"only when the question needs it.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			task := map[string]any{"keyword": keyword}
 			tp.apply(task)

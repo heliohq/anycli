@@ -25,8 +25,13 @@ func (s *Service) newAssetListCmd(c *client) *cobra.Command {
 	var filter string
 	var perPage, page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List assets (GET /assets)",
+		Use:   "list",
+		Short: "List assets (GET /assets)",
+		Long: "--filter is an asset filter expression such as `name:'MacBook'` or\n" +
+			"`asset_type_id:12`, sent raw — the quoting Freshservice requires is added\n" +
+			"for you. Omitting it lists the entire CMDB a page at a time: --per-page is\n" +
+			"1-100, default 30, and --page is 1-based. Each item carries both an `id`\n" +
+			"and a `display_id`; it is the display_id that `asset get` takes.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -54,8 +59,12 @@ func (s *Service) newAssetListCmd(c *client) *cobra.Command {
 // display id, not the internal id.
 func (s *Service) newAssetGetCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <display-id>",
-		Short:       "Get one asset by display id (GET /assets/{display_id})",
+		Use:   "get <display-id>",
+		Short: "Get one asset by display id (GET /assets/{display_id})",
+		Long: "Addressed by DISPLAY id — the number the UI and ticket references show —\n" +
+			"not the internal `id` carried on the same object, so passing the internal\n" +
+			"one 404s. Read the display id off `asset list`. The response is the asset\n" +
+			"record itself; tickets referencing the asset are not included.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

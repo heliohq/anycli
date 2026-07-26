@@ -46,8 +46,13 @@ func readData(value string) ([]byte, error) {
 func (s *Service) newRecordGetCmd(c *client) *cobra.Command {
 	var fields []string
 	cmd := &cobra.Command{
-		Use:         "get <sobject> <id>",
-		Short:       "Retrieve one record by id",
+		Use:   "get <sobject> <id>",
+		Short: "Retrieve one record by id",
+		Long: "Takes the sObject API name and the record id positionally, in that order —\n" +
+			"`record get Account 001…`, never the label a user sees. Without `--fields`\n" +
+			"the org returns EVERY field on the record, which on a customised Account is\n" +
+			"hundreds of them, so name the fields wanted. This is an id lookup only:\n" +
+			"finding a record by name or email is `query` or `search`.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,8 +74,15 @@ func (s *Service) newRecordGetCmd(c *client) *cobra.Command {
 func (s *Service) newRecordCreateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:         "create <sobject>",
-		Short:       "Create a record",
+		Use:   "create <sobject>",
+		Short: "Create a record",
+		Long: "`--data` carries the field JSON and accepts a literal string, `@file`, or\n" +
+			"`@-` for stdin. It is parsed before anything is sent, so malformed JSON\n" +
+			"fails as a usage error without touching the org. Returns `id`, `success`\n" +
+			"and `errors`, with the new record's 18-character id. Which fields are\n" +
+			"mandatory is org configuration, not a Salesforce constant — read\n" +
+			"`sobject describe <Object>` rather than assuming, and expect validation\n" +
+			"rules and triggers the payload cannot see.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -93,8 +105,14 @@ func (s *Service) newRecordCreateCmd(c *client) *cobra.Command {
 func (s *Service) newRecordUpdateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:         "update <sobject> <id>",
-		Short:       "Update a record (PATCH; 204 No Content on success)",
+		Use:   "update <sobject> <id>",
+		Short: "Update a record (PATCH; 204 No Content on success)",
+		Long: "PATCH semantics: only the fields present in `--data` are touched, so a\n" +
+			"one-field payload is the normal case and there is no read-modify-write.\n" +
+			"Clearing a field therefore means sending it explicitly as null — omitting\n" +
+			"it leaves the old value. Salesforce answers with an empty 204, so the tool\n" +
+			"synthesizes `{\"success\": true, \"id\": …}` and stdout still carries a result.\n" +
+			"`--data` accepts a literal string, `@file`, or `@-` for stdin.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -116,8 +134,13 @@ func (s *Service) newRecordUpdateCmd(c *client) *cobra.Command {
 
 func (s *Service) newRecordDeleteCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <sobject> <id>",
-		Short:       "Delete a record (204 No Content on success)",
+		Use:   "delete <sobject> <id>",
+		Short: "Delete a record (204 No Content on success)",
+		Long: "The record goes to the org's Recycle Bin rather than being erased, so a\n" +
+			"person can restore it in Salesforce and `query --all` still sees it. The\n" +
+			"delete CASCADES: removing an Account takes its Contacts, Opportunities and\n" +
+			"Cases with it, which is far more than the one id names. Salesforce answers\n" +
+			"with an empty 204 and the tool synthesizes `{\"success\": true, \"id\": …}`.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -134,8 +157,16 @@ func (s *Service) newRecordDeleteCmd(c *client) *cobra.Command {
 func (s *Service) newRecordUpsertCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:         "upsert <sobject> <ext-id-field> <value>",
-		Short:       "Upsert a record by external id field",
+		Use:   "upsert <sobject> <ext-id-field> <value>",
+		Short: "Upsert a record by external id field",
+		Long: "Three positional arguments: the sObject, the API name of a field marked\n" +
+			"EXTERNAL ID in the org, and the value to match on. It is not a record id\n" +
+			"and not any arbitrary field — Salesforce rejects a field that lacks the\n" +
+			"External Id attribute. No match creates, exactly one match updates, and\n" +
+			"several matches is an error rather than a pick, which is what makes this\n" +
+			"the idempotent way to sync records in from an outside system. A create\n" +
+			"answers 201 with `created: true`; a matched update can answer an empty 204,\n" +
+			"which the tool renders as a bare `{\"success\": true}` carrying no id.",
 		Args:        cobra.ExactArgs(3),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

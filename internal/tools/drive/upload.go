@@ -48,8 +48,16 @@ func (s *Service) newFilesUploadCmd(token string) *cobra.Command {
 	var parent, name string
 	var convert bool
 	cmd := &cobra.Command{
-		Use:         "upload <path>...",
-		Short:       "Upload local files to Drive (returns webViewLink). --convert turns Office/CSV/text into Google Docs/Sheets.",
+		Use:   "upload <path>...",
+		Short: "Upload local files to Drive (returns webViewLink). --convert turns Office/CSV/text into Google Docs/Sheets.",
+		Long: "Prints each file's id and `webViewLink`, which is the link to hand back.\n" +
+			"--parent picks the destination folder and defaults to the account's My\n" +
+			"Drive root; --name applies only when a single path is given. --convert\n" +
+			"turns Office, CSV and plain-text files into the matching Google Docs,\n" +
+			"Sheets or Slides document, which is what makes the result editable in the\n" +
+			"browser instead of an attachment sitting in Drive. Media above 5 MB\n" +
+			"switches to a resumable upload on its own. Drive does not dedupe by name:\n" +
+			"uploading the same file twice yields two files with different ids.",
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

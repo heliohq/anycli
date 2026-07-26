@@ -20,7 +20,14 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 		Use:         "api <method> <path>",
 		Annotations: writeAction,
 		Short:       "Make a raw Instantly API request",
-		Args:        cobra.ExactArgs(2),
+		Long: "The escape hatch for endpoints with no first-class command —\n" +
+			"subsequences, custom tags, block lists, webhooks, inbox placement. Method\n" +
+			"and path are positional, and the path may be bare (`subsequences`),\n" +
+			"`/api/v2`-prefixed, or a full URL. --query is a repeatable key=value and\n" +
+			"--data the raw JSON body. The Authorization header is injected and cannot\n" +
+			"be overridden. Every invocation counts as a write regardless of the\n" +
+			"method used.",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			method := strings.ToUpper(strings.TrimSpace(args[0]))
 			path, err := normalizeAPIPath(args[1])

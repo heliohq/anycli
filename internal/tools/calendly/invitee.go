@@ -17,8 +17,16 @@ import (
 func (s *Service) newInviteeNoShowCmd(token string) *cobra.Command {
 	var undo bool
 	cmd := &cobra.Command{
-		Use:         "no-show <invitee-uri|no-show-id>",
-		Short:       "Mark an invitee no-show, or clear one with --undo",
+		Use:   "no-show <invitee-uri|no-show-id>",
+		Short: "Mark an invitee no-show, or clear one with --undo",
+		Long: "Marking takes the FULL invitee URI\n" +
+			"(…/scheduled_events/{uuid}/invitees/{uuid}) from `event invitees`. A bare\n" +
+			"UUID is ambiguous because invitee ids are nested under their event, and the\n" +
+			"tool rejects one before making any call.\n" +
+			"\n" +
+			"`--undo` clears the mark and takes a DIFFERENT id: the no-show record's own\n" +
+			"id or URI, which came back when the no-show was created. Passing the\n" +
+			"invitee URI to `--undo` will not find it.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

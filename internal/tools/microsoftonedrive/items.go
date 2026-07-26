@@ -61,8 +61,13 @@ func (s *Service) newItemsListCmd(token string) *cobra.Command {
 	var path, parent, page string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List a folder's children (drive root by default; --path or --parent to target a folder)",
+		Use:   "list",
+		Short: "List a folder's children (drive root by default; --path or --parent to target a folder)",
+		Long: "Lists one folder's direct children only — it does not recurse, so walking a\n" +
+			"tree means one call per folder, and finding a file by name anywhere is\n" +
+			"`search` instead. `--path` and `--parent` are mutually exclusive and both\n" +
+			"may be omitted to read the drive root. `--max` defaults to 20; folders\n" +
+			"render with their child count, files with size and MIME type.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -88,8 +93,13 @@ func (s *Service) newItemsListCmd(token string) *cobra.Command {
 func (s *Service) newItemsGetCmd(token string) *cobra.Command {
 	var path string
 	cmd := &cobra.Command{
-		Use:         "get [item-id]",
-		Short:       "Show one item's metadata (name / size / mimeType / lastModified)",
+		Use:   "get [item-id]",
+		Short: "Show one item's metadata (name / size / mimeType / lastModified)",
+		Long: "Metadata only — it never fetches the bytes, so reading a document means\n" +
+			"`download` afterwards. Pass either the item id or `--path`, never both.\n" +
+			"This is also the cheap way to turn a known path into the item id that\n" +
+			"`items move`, `items share` and `items delete` require, and to read the\n" +
+			"webUrl a human can open.",
 		Args:        cobra.MaximumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -126,8 +136,13 @@ func (s *Service) newItemsGetCmd(token string) *cobra.Command {
 func (s *Service) newItemsMkdirCmd(token string) *cobra.Command {
 	var name, parent, path string
 	cmd := &cobra.Command{
-		Use:         "mkdir",
-		Short:       "Create a folder (in the drive root by default; --parent or --path to nest)",
+		Use:   "mkdir",
+		Short: "Create a folder (in the drive root by default; --parent or --path to nest)",
+		Long: "Creates one folder, not a chain: the parent given by `--parent` (folder id)\n" +
+			"or `--path` (root-relative folder path) must already exist, and the two\n" +
+			"are mutually exclusive. The conflict behaviour is fail, so a name already\n" +
+			"taken in that parent returns an error instead of silently making a second\n" +
+			"folder or reusing the existing one.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -161,8 +176,13 @@ func (s *Service) newItemsMkdirCmd(token string) *cobra.Command {
 func (s *Service) newItemsMoveCmd(token string) *cobra.Command {
 	var toDir, name string
 	cmd := &cobra.Command{
-		Use:         "move <item-id>",
-		Short:       "Move an item into another folder (optionally renaming it)",
+		Use:   "move <item-id>",
+		Short: "Move an item into another folder (optionally renaming it)",
+		Long: "Both arguments are ids: the item to move, and `--to`, which is the\n" +
+			"destination folder's ITEM ID — a path is not accepted here, so resolve one\n" +
+			"first with `items get --path <folder>`. `--name` renames the item in the\n" +
+			"same call. The item keeps its id, so links and ids captured earlier still\n" +
+			"resolve after the move.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -193,8 +213,12 @@ func (s *Service) newItemsMoveCmd(token string) *cobra.Command {
 func (s *Service) newItemsRenameCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:         "rename <item-id>",
-		Short:       "Rename an item in place",
+		Use:   "rename <item-id>",
+		Short: "Rename an item in place",
+		Long: "`--name` replaces the whole file name, extension included — pass\n" +
+			"report-final.docx, not report-final, or the item loses the extension that\n" +
+			"tells Office which app opens it. The parent folder and the item id are\n" +
+			"unchanged; use `items move` to relocate.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -220,8 +244,16 @@ func (s *Service) newItemsRenameCmd(token string) *cobra.Command {
 func (s *Service) newItemsShareCmd(token string) *cobra.Command {
 	var linkType, scope string
 	cmd := &cobra.Command{
-		Use:         "share <item-id>",
-		Short:       "Create a sharing link (default scope organization — anonymous exposes the item publicly)",
+		Use:   "share <item-id>",
+		Short: "Create a sharing link (default scope organization — anonymous exposes the item publicly)",
+		Long: "`--scope organization` (the default) mints a link that still requires a\n" +
+			"sign-in inside the account's own tenant; `--scope anonymous` mints one\n" +
+			"that grants ANYONE holding the URL access, with no sign-in and no expiry\n" +
+			"set by this command. `--type` is view or edit, and edit means the holder\n" +
+			"can change the file. Both are validated locally before the call. Graph\n" +
+			"returns the existing link when one of the same type and scope is already\n" +
+			"on the item, so re-running does not create a second URL — and there is no\n" +
+			"verb here that revokes a link once created.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -264,8 +296,13 @@ func (s *Service) newItemsShareCmd(token string) *cobra.Command {
 
 func (s *Service) newItemsDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <item-id>...",
-		Short:       "Move items to the recycle bin",
+		Use:   "delete <item-id>...",
+		Short: "Move items to the recycle bin",
+		Long: "Deleting a folder takes its whole subtree with it. Several ids are deleted\n" +
+			"one request at a time and the run is NOT atomic: it stops at the first\n" +
+			"failure, and the error names the ids already recycled so the remainder can\n" +
+			"be retried without repeating them. Items land in the OneDrive recycle bin\n" +
+			"and no command here restores them.",
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -21,8 +21,12 @@ func (s *Service) newContactPropertyCmd(key string) *cobra.Command {
 func (s *Service) newContactPropertyListCmd(key string) *cobra.Command {
 	var list string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List contact properties (GET /v1/contacts/properties)",
+		Use:   "list",
+		Short: "List contact properties (GET /v1/contacts/properties)",
+		Long: "--list is all or custom; custom hides Loops' built-in fields and is the view\n" +
+			"that answers whether a property exists before a contact write tries to set\n" +
+			"it. Each entry carries its declared type, which is what values are coerced\n" +
+			"to on write.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -42,8 +46,13 @@ func (s *Service) newContactPropertyListCmd(key string) *cobra.Command {
 func (s *Service) newContactPropertyCreateCmd(key string) *cobra.Command {
 	var name, propType string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a custom contact property (POST /v1/contacts/properties)",
+		Use:   "create",
+		Short: "Create a custom contact property (POST /v1/contacts/properties)",
+		Long: "This has to run before any `--property <name>=...` can be set on a contact.\n" +
+			"--name is camelCase and becomes the key used everywhere afterwards; --type\n" +
+			"is string, number, boolean or date. Nothing in this tool renames a property\n" +
+			"or changes its type later, so a value that only looks numeric — a phone\n" +
+			"number, a zip code, a version — belongs as a string from the start.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

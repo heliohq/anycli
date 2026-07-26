@@ -14,8 +14,18 @@ import (
 func (c *client) newGraphQLCmd() *cobra.Command {
 	var query, variables string
 	cmd := &cobra.Command{
-		Use:         "graphql",
-		Short:       "Run a raw GraphQL query or mutation (escape hatch)",
+		Use:   "graphql",
+		Short: "Run a raw GraphQL query or mutation (escape hatch)",
+		Long: "The only verb that reaches the rest of the Admin schema — fulfillments,\n" +
+			"metafields, price rules, draft orders, media — and it accepts mutations as\n" +
+			"well as queries. `--variables` takes a JSON object and is rejected locally\n" +
+			"if it does not parse.\n" +
+			"\n" +
+			"Two differences from the modelled verbs. Ids are not normalized here, so\n" +
+			"pass full `gid://shopify/<Type>/<n>` values. And the `data` object is\n" +
+			"printed verbatim with NO `userErrors` inspection, so a mutation Shopify\n" +
+			"rejected still exits 0 — read `userErrors` out of the payload before\n" +
+			"treating the write as done.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAnnotation(),
 	}

@@ -141,8 +141,33 @@ var readOnly = map[string]string{"anycli.side_effect": "false"}
 // surveys, responses, and collectors hang under resource groups.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "surveymonkey",
-		Short:         "SurveyMonkey built-in service (read-only surveys and responses)",
+		Use:   "surveymonkey",
+		Short: "SurveyMonkey built-in service (read-only surveys and responses)",
+		Long: "Read-only over SurveyMonkey's v3 API: nothing here creates, edits or\n" +
+			"deletes a survey, a collector or a response. Output is SurveyMonkey's own\n" +
+			"JSON, with lists keeping the `{data, page, per_page, total, links}`\n" +
+			"envelope; page with `--page` / `--per-page`, both 1-based and both left to\n" +
+			"the provider default when unset.\n" +
+			"\n" +
+			"Analysis is a chain: find the survey, read its STRUCTURE, then read the\n" +
+			"responses. Answers reference question ids and answer-option ids, never\n" +
+			"human text, so `survey details` is what makes a response readable at all.\n" +
+			"\n" +
+			"Reading actual answers is PLAN-GATED. `response bulk` and `response get`\n" +
+			"are the only two commands that return them and both need the paid\n" +
+			"`responses_read_detail` permission; on a free plan they fail with an\n" +
+			"explicit paid-plan message. That is a plan limit, not a transient error —\n" +
+			"do not retry and do not look for another route to the same data. A great\n" +
+			"deal still works without it: `survey get` carries `response_count`,\n" +
+			"`response list` paginates response metadata and its envelope `total`\n" +
+			"gives filtered counts, `survey details` gives the full structure, and\n" +
+			"`collector list` shows where responses came from.\n" +
+			"\n" +
+			"Ids are passed as flags (`--id`, `--survey`), never positionally. An\n" +
+			"account served from a non-default datacenter, such as EU data residency,\n" +
+			"is not reachable and fails with a region message that has no workaround\n" +
+			"here. A 429 is SurveyMonkey's per-minute or per-day app limit and clears\n" +
+			"only after its reset window.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

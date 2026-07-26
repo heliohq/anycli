@@ -149,8 +149,36 @@ func (s *Service) stderr() io.Writer {
 // sequences, tasks, deals, users, email-accounts).
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "apollo",
-		Short:         "Apollo.io built-in service (sales intelligence + engagement)",
+		Use:   "apollo",
+		Short: "Apollo.io built-in service (sales intelligence + engagement)",
+		Long: "Apollo splits into a global prospect database (`people`, `org`) and the\n" +
+			"team's own saved records (`contacts`, `accounts`, `sequences`, `tasks`,\n" +
+			"`deals`). The working order is: FIND with `people search` or `org search`,\n" +
+			"ENRICH a match into a verified email or phone with `people enrich` / `org\n" +
+			"enrich`, SAVE it with `contacts create` so it can be sequenced, then\n" +
+			"ENGAGE with `sequences add`, `tasks create` and `deals`.\n" +
+			"\n" +
+			"Search never returns contact details — it returns matches and Apollo ids\n" +
+			"only. An empty email on a search result means the person has not been\n" +
+			"enriched yet, not that no email exists. Enrichment is the step that spends\n" +
+			"the account's Apollo credits.\n" +
+			"\n" +
+			"Apollo documents `people search`, `sequences add`, `sequences stop`,\n" +
+			"`deals search` and `deals update` as reachable only with an Apollo master\n" +
+			"API key; the connected OAuth token gets a 403 carrying a master-key hint\n" +
+			"on those. That is a capability boundary, not a transient failure —\n" +
+			"retrying will not clear it.\n" +
+			"\n" +
+			"Every command prints Apollo's JSON response verbatim, including the\n" +
+			"`pagination` block on list and search calls. Paging is `--page` (1-based)\n" +
+			"plus `--per-page`; both are omitted from the request when left at 0, so\n" +
+			"Apollo's own defaults apply.\n" +
+			"\n" +
+			"Commands that POST a body also take `--body '<json>'`, a raw JSON object\n" +
+			"used as the request-body base so any documented Apollo filter or field the\n" +
+			"typed flags do not name can still be sent; typed flags override it. The\n" +
+			"GET-backed commands (`org enrich`, `contacts stages`, `deals search`,\n" +
+			"`users list`, `users profile`, `email-accounts list`) have no `--body`.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

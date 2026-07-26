@@ -22,8 +22,12 @@ func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 	var search string
 	var page, pageSize int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List reusable templates (GET /v1/template/list)",
+		Use:   "list",
+		Short: "List reusable templates (GET /v1/template/list)",
+		Long: "`--page` is 1-based, `--page-size` falls back to BoldSign's default of 10,\n" +
+			"and `--search` matches a template's title or id. A template already carries\n" +
+			"its roles and its signature fields in position, which is why `template send`\n" +
+			"needs no field configuration at all.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -51,8 +55,12 @@ func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 func (s *Service) newTemplateGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a template's properties and roles (GET /v1/template/properties)",
+		Use:   "get",
+		Short: "Get a template's properties and roles (GET /v1/template/properties)",
+		Long: "Read this before `template send`: the response lists the roles, and each\n" +
+			"role's INDEX is what `--role \"<roleIndex>:Name <email>\"` binds against. It\n" +
+			"also names the existing form fields whose ids `--field <fieldId>=<value>`\n" +
+			"can prefill. `--id` is a required flag, not a positional argument.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -75,8 +83,16 @@ func (s *Service) newTemplateSendCmd(token string) *cobra.Command {
 	var roles, fields []string
 	var signingOrder bool
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a document from a template (POST /v1/template/send)",
+		Use:   "send",
+		Short: "Send a document from a template (POST /v1/template/send)",
+		Long: "`--role` is repeatable, at least one is required, and its form is\n" +
+			"`\"<roleIndex>:Name <email>\"` — the index is the template's role position\n" +
+			"and must be 1 to 50, checked locally. Get the indexes from `template get`;\n" +
+			"a role left unbound is left to BoldSign to resolve. `--field\n" +
+			"\"<fieldId>=<value>\"` prefills form fields that already exist on the\n" +
+			"template and cannot add new ones. `--signing-order` makes the role index\n" +
+			"double as the signing sequence, so who signs first is decided by which\n" +
+			"index each person is bound to. `--title` overrides the template's title.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

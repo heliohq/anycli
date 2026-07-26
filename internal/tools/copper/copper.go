@@ -137,8 +137,41 @@ func (s *Service) stderr() io.Writer {
 // read-only helper groups.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "copper",
-		Short:         "Copper CRM built-in service",
+		Use:   "copper",
+		Short: "Copper CRM built-in service",
+		Long: "Wraps the Copper Developer API v1 as the connected user. Copper is a sales\n" +
+			"CRM, and the record types are `person` (contacts), `company`, `lead`,\n" +
+			"`opportunity` (deals) and `task` (follow-ups), each with the same\n" +
+			"list/get/create/update/delete verb set. `activity` logs the interactions\n" +
+			"against them.\n" +
+			"\n" +
+			"Listing is a SEARCH, not a GET. Every `list` posts a filter body to\n" +
+			"`/{resource}/search`, so an empty result usually means the filter was wrong\n" +
+			"rather than that the CRM is empty. `--name`, `--email`, `--assignee-id`,\n" +
+			"`--page` and `--page-size` cover the common cases; anything else — tags,\n" +
+			"custom fields, date ranges, sorting — goes in `--json-body`, which is merged\n" +
+			"field by field over the typed flags.\n" +
+			"\n" +
+			"Writes take the record payload as `--json-body` and nothing else. There are no\n" +
+			"typed field flags anywhere, because Copper's schema is large and partly\n" +
+			"configured per account.\n" +
+			"\n" +
+			"That configuration is why `lookup` exists. `pipeline_id`,\n" +
+			"`pipeline_stage_id`, `customer_source_id`, `loss_reason_id`, contact types and\n" +
+			"activity types are all numeric ids drawn from account-specific tables, and\n" +
+			"Copper rejects an id that is not in them. Resolve the ids from `lookup` before\n" +
+			"building any create or update body — they cannot be guessed and are not\n" +
+			"consistent between Copper accounts.\n" +
+			"\n" +
+			"Records reference each other by numeric id and carry no names for the\n" +
+			"referenced object, so reading a deal's pipeline or a task's owner means a\n" +
+			"second call. `user list` and `user get` resolve assignee ids to people.\n" +
+			"\n" +
+			"Copper allows 600 requests per minute per token. A 429 is a real limit, not a\n" +
+			"transient failure — back off rather than retry immediately.\n" +
+			"\n" +
+			"Command output is Copper's raw JSON regardless of `--json`, which only\n" +
+			"switches the ERROR channel to a structured envelope.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

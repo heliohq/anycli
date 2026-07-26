@@ -14,7 +14,18 @@ const defaultInsightsMetrics = "page_impressions,page_post_engagements,page_fans
 
 func (s *Service) newInsightsCmd(token string) *cobra.Command {
 	var metrics, period, since, until string
-	cmd := &cobra.Command{Use: "insights", Short: "Read Page insights (metrics over a period)", Args: cobra.NoArgs}
+	cmd := &cobra.Command{
+		Use:   "insights",
+		Short: "Read Page insights (metrics over a period)",
+		Long: "Page-level only — there is no per-post insight command here. Without\n" +
+			"`--metrics` it asks for page_impressions, page_post_engagements and\n" +
+			"page_fans; naming metrics REPLACES that set, and they are Graph's exact\n" +
+			"strings, so one unknown name fails the whole request. `--period` is day\n" +
+			"(default), week, days_28, month or lifetime, and not every metric supports\n" +
+			"every period. `--since` and `--until` are UNIX timestamps, not dates.\n" +
+			"Reading insights needs ANALYZE on the Page.",
+		Args: cobra.NoArgs,
+	}
 	cmd.Annotations = readOnly
 	pageID := pageFlag(cmd)
 	cmd.Flags().StringVar(&metrics, "metrics", "", "comma-separated Graph metrics (default: impressions/engagement/fans)")

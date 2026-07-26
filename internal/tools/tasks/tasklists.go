@@ -17,8 +17,13 @@ func (s *Service) newListsListCmd(token string) *cobra.Command {
 	var max int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List task lists (tasklists.list)",
+		Use:   "list",
+		Short: "List task lists (tasklists.list)",
+		Long: "Every task list on the account, each with the id that `--list` takes\n" +
+			"everywhere else and the title the user sees. The primary list also answers\n" +
+			"to the alias `@default`, which is what the task verbs use when `--list` is\n" +
+			"omitted. Titles are not unique, so two lists can share a name and only the\n" +
+			"id tells them apart.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -63,8 +68,12 @@ func (s *Service) newListsListCmd(token string) *cobra.Command {
 
 func (s *Service) newListsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <list-id>",
-		Short:       "Show one task list (tasklists.get)",
+		Use:   "get <list-id>",
+		Short: "Show one task list (tasklists.get)",
+		Long: "Returns a single list's title and last-updated time. It does NOT include\n" +
+			"the list's tasks or even a count of them — `list --list <list-id>` is the\n" +
+			"only way to see what a list holds, and therefore the only way to know what\n" +
+			"a `lists delete` would take with it.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -88,8 +97,12 @@ func (s *Service) newListsGetCmd(token string) *cobra.Command {
 func (s *Service) newListsCreateCmd(token string) *cobra.Command {
 	var title string
 	cmd := &cobra.Command{
-		Use:         "create --title T",
-		Short:       "Create a task list (tasklists.insert)",
+		Use:   "create --title T",
+		Short: "Create a task list (tasklists.insert)",
+		Long: "Creates an empty list; `--title` is the only field a task list has. Titles\n" +
+			"are not checked for uniqueness, so calling this twice yields two lists with\n" +
+			"the same name and different ids. The returned id is what `--list` takes on\n" +
+			"every task verb.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -116,8 +129,11 @@ func (s *Service) newListsCreateCmd(token string) *cobra.Command {
 func (s *Service) newListsUpdateCmd(token string) *cobra.Command {
 	var title string
 	cmd := &cobra.Command{
-		Use:         "update <list-id> --title T",
-		Short:       "Rename a task list (tasklists.patch; title is the only writable field)",
+		Use:   "update <list-id> --title T",
+		Short: "Rename a task list (tasklists.patch; title is the only writable field)",
+		Long: "A rename and nothing else: `title` is the only writable field on a task\n" +
+			"list, so ordering, colour and sharing cannot be changed through the API.\n" +
+			"The list id is unaffected, so existing `--list` references keep working.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -143,8 +159,12 @@ func (s *Service) newListsUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newListsDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <list-id>",
-		Short:       "Delete a task list and every task in it (tasklists.delete) — irreversible; assigned-task originals in Docs/Chat are deleted too",
+		Use:   "delete <list-id>",
+		Short: "Delete a task list and every task in it (tasklists.delete) — irreversible; assigned-task originals in Docs/Chat are deleted too",
+		Long: "Destroys the list AND every task inside it, irreversibly — including the\n" +
+			"Docs or Chat originals behind any assigned tasks it holds. The API gives no\n" +
+			"warning and no count, so `list --list <list-id>` is the only way to see\n" +
+			"what would be lost. Google refuses to delete the account's primary list.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

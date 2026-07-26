@@ -134,8 +134,36 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "outreach",
-		Short:         "Outreach sales-engagement built-in service (JSON:API v2)",
+		Use:   "outreach",
+		Short: "Outreach sales-engagement built-in service (JSON:API v2)",
+		Long: "Sales engagement over Outreach API v2. The central write is enrolling a\n" +
+			"prospect in a sequence; most of the read surface exists to find the three\n" +
+			"ids that write needs. \"Enrollment\" is the human word for Outreach's\n" +
+			"`sequenceState`, so `enrollment pause <id>` takes a sequenceState id, not\n" +
+			"a prospect id.\n" +
+			"\n" +
+			"Responses are FLATTENED out of JSON:API — there is no envelope to unwrap.\n" +
+			"A resource is `{\"id\",\"type\", ...attributes}` with relationship ids hoisted\n" +
+			"to `<name>_id` or `<name>_ids`: `account_id`, `owner_id`, `stage_id`. A\n" +
+			"list is `{\"items\":[...],\"next_cursor\":...,\"count\":...}`; page by feeding\n" +
+			"`next_cursor` back as --cursor, size with --limit, and add --count only\n" +
+			"when the total is genuinely needed.\n" +
+			"\n" +
+			"Every list also takes --sort (prefix `-` for descending) and --fields, a\n" +
+			"comma-separated sparse fieldset — the cheap way to stop a wide resource\n" +
+			"like prospect from filling the context.\n" +
+			"\n" +
+			"Ids are numeric and validated locally, so a non-numeric argument fails\n" +
+			"before any request leaves. --q full-text search exists on `prospect list`\n" +
+			"and `account list` and nowhere else; every other resource filters on its\n" +
+			"named flags. --attr key=value sets any attribute without a dedicated flag\n" +
+			"and parses the value as JSON when it is valid, so `--attr score=42` sends\n" +
+			"a number and `--attr tags='[\"a\",\"b\"]'` an array.\n" +
+			"\n" +
+			"OAuth scopes are per resource and not additive: a 403 mentioning\n" +
+			"unauthorizedOauthScope means this connection was never granted that\n" +
+			"resource, not that the object is missing. A 429 carries its reset time in\n" +
+			"the error body.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -18,8 +18,14 @@ func (s *Service) newFormListCmd(token string) *cobra.Command {
 	var page, pageSize int
 	var isPublic bool
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List/search forms (GET /forms)",
+		Use:   "list",
+		Short: "List/search forms (GET /forms)",
+		Long: "--search matches the form TITLE as a substring; it does not look inside\n" +
+			"questions or match ids. --page-size defaults to 10 and caps at 200, and\n" +
+			"paging is not drained for you — read `total_items` and `page_count` off\n" +
+			"the envelope and advance --page. --sort-by (created_at|last_updated_at)\n" +
+			"and --order-by (asc|desc) are case-exact and rejected locally on a miss.\n" +
+			"Items carry metadata only; the `fields[]` dictionary needs `form get`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -77,8 +83,14 @@ func (s *Service) newFormListCmd(token string) *cobra.Command {
 // needs to interpret a response's answers array. Output JSON.
 func (s *Service) newFormGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <form_id>",
-		Short:       "Retrieve a form definition (GET /forms/{id})",
+		Use:   "get <form_id>",
+		Short: "Retrieve a form definition (GET /forms/{id})",
+		Long: "Returns the whole form definition, including the `fields[]` dictionary of\n" +
+			"ids, refs, types and choice labels — the only way to attach a question\n" +
+			"title to an answer coming out of `response list`. Fetch it once per form\n" +
+			"and reuse it; the definition changes only when someone edits the form.\n" +
+			"It is also the correct starting point for `form update`, which overwrites\n" +
+			"whatever it is not sent.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -98,8 +110,14 @@ func (s *Service) newFormGetCmd(token string) *cobra.Command {
 func (s *Service) newFormCreateCmd(token string) *cobra.Command {
 	var definition string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a form (POST /forms)",
+		Use:   "create",
+		Short: "Create a form (POST /forms)",
+		Long: "--definition is a complete form-definition JSON object, inline or `@file`;\n" +
+			"there is no flag-per-field shortcut for a title or a question. The created\n" +
+			"form comes back in full, including the assigned `id` that every other\n" +
+			"command in the tool takes. Where it lands is decided by the definition's\n" +
+			"`workspace` href — resolve one with `workspace list` first if the form\n" +
+			"must not go to the default workspace.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -124,8 +142,13 @@ func (s *Service) newFormCreateCmd(token string) *cobra.Command {
 func (s *Service) newFormUpdateCmd(token string) *cobra.Command {
 	var definition string
 	cmd := &cobra.Command{
-		Use:         "update <form_id>",
-		Short:       "Overwrite a form (PUT /forms/{id}); the only way to edit fields/questions",
+		Use:   "update <form_id>",
+		Short: "Overwrite a form (PUT /forms/{id}); the only way to edit fields/questions",
+		Long: "A PUT of the COMPLETE definition, not a merge: anything absent from\n" +
+			"--definition is dropped from the form. Read the current definition with\n" +
+			"`form get`, edit that object, and send the whole thing back. This is the\n" +
+			"only path that reaches fields and questions — `form patch` cannot touch\n" +
+			"them. The change is live for respondents as soon as the call returns.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -153,8 +176,15 @@ func (s *Service) newFormUpdateCmd(token string) *cobra.Command {
 func (s *Service) newFormPatchCmd(token string) *cobra.Command {
 	var patch string
 	cmd := &cobra.Command{
-		Use:         "patch <form_id>",
-		Short:       "Patch form metadata (PATCH /forms/{id}); metadata-only JSON-Patch, use 'form update' to change questions",
+		Use:   "patch <form_id>",
+		Short: "Patch form metadata (PATCH /forms/{id}); metadata-only JSON-Patch, use 'form update' to change questions",
+		Long: "The API restricts this JSON-Patch array to metadata paths — `/title`,\n" +
+			"`/theme`, `/workspace` and `/settings/*` — so no operation here can reach\n" +
+			"a field or a question; those go through `form update`. --patch is the\n" +
+			"operations array itself, inline or `@file`, e.g.\n" +
+			"`[{\"op\":\"replace\",\"path\":\"/title\",\"value\":\"New title\"}]`. The API answers\n" +
+			"204 with no body, so success prints a local receipt rather than the\n" +
+			"patched form — re-read it with `form get` to confirm.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -176,8 +206,13 @@ func (s *Service) newFormPatchCmd(token string) *cobra.Command {
 // 204 No Content; a client-side receipt is emitted. Output JSON.
 func (s *Service) newFormDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <form_id>",
-		Short:       "Delete a form (DELETE /forms/{id})",
+		Use:   "delete <form_id>",
+		Short: "Delete a form (DELETE /forms/{id})",
+		Long: "The form's collected responses go with it. The API answers 204 with no\n" +
+			"body, so success prints a local receipt `{\"deleted\":true,\"form_id\":…}`\n" +
+			"rather than anything from Typeform, and nothing in this tool restores\n" +
+			"either the form or its responses — export what is needed with\n" +
+			"`response list` first.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

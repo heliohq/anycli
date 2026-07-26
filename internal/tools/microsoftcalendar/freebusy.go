@@ -30,7 +30,15 @@ func (s *Service) newFreebusyCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "freebusy",
 		Short: "Compute your own busy windows in a time range (from /me/calendarView)",
-		Args:  cobra.NoArgs,
+		Long: "Covers the connected account only — it cannot see whether other attendees\n" +
+			"are free, so it answers \"when am I open\", not \"when can we all meet\".\n" +
+			"The whole `--start`/`--end` window is paged out of the calendar view and\n" +
+			"overlapping or touching intervals are merged, so the result is a\n" +
+			"deduplicated busy list rather than one row per event. Cancelled events\n" +
+			"and anything marked free are dropped; tentative, out-of-office and\n" +
+			"working-elsewhere all count as BUSY. Under `--json` the shape is\n" +
+			"{start, end, busy:[{start,end}]}.",
+		Args: cobra.NoArgs,
 		// GET /me/calendarView (paged) + local merge — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

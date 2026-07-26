@@ -19,8 +19,12 @@ func (s *Service) newMessageCmd(token, base string) *cobra.Command {
 func (s *Service) newMessageListCmd(token, base string) *cobra.Command {
 	var page pageFlags
 	cmd := &cobra.Command{
-		Use:         "list <ticket-id>",
-		Short:       "List a ticket's messages (GET /tickets/{id}/messages)",
+		Use:   "list <ticket-id>",
+		Short: "List a ticket's messages (GET /tickets/{id}/messages)",
+		Long: "The actual conversation, which the ticket object does not carry.\n" +
+			"Cursor-paged, so a long thread needs --cursor from `meta.next_cursor`\n" +
+			"rather than a single read, and --order-by created_datetime:desc puts the\n" +
+			"latest first when only the current state matters.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -43,8 +47,20 @@ func (s *Service) newMessageCreateCmd(token, base string) *cobra.Command {
 	var sourceTo []string
 	var fromAgent bool
 	cmd := &cobra.Command{
-		Use:         "create <ticket-id>",
-		Short:       "Post a reply to a ticket (POST /tickets/{id}/messages)",
+		Use:   "create <ticket-id>",
+		Short: "Post a reply to a ticket (POST /tickets/{id}/messages)",
+		Long: "--from-agent decides the VOICE and is off by default, so omitting it files\n" +
+			"the message as something the CUSTOMER said — which silently falsifies the\n" +
+			"thread and any reporting built on it. Pass it for an agent reply and set\n" +
+			"--sender-email to that agent.\n" +
+			"\n" +
+			"--channel defaults to api, which records the message on the ticket without\n" +
+			"any routing configuration. email, phone and sms send it out through a\n" +
+			"connected integration and require --source-from plus one or more\n" +
+			"--source-to; for email the from address must already be a Gorgias email\n" +
+			"integration or the API refuses. internal-note keeps the message off the\n" +
+			"customer-facing thread. --via is derived from the channel and rarely needs\n" +
+			"setting by hand.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

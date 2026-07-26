@@ -16,8 +16,14 @@ const unitsPath = "/users/countapiunits.html"
 // debits the shared account balance.
 func (s *Service) newUnitsCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "units",
-		Short:       "Remaining Semrush API-unit balance (free check)",
+		Use:   "units",
+		Short: "Remaining Semrush API-unit balance (free check)",
+		Long: "Costs 0 units and touches no report endpoint, so it is always safe to run\n" +
+			"first. Emits `{\"api_units_remaining\": <n>}` for the whole subscription —\n" +
+			"the balance is shared across every key on the account and is spent by any\n" +
+			"other Semrush integration too, so a number that dropped since the last\n" +
+			"check is not necessarily this tool's doing. ERROR 130 here means the plan\n" +
+			"has no API add-on at all, which no `--limit` can work around.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -26,8 +26,14 @@ func (s *Service) newTicketCreateCmd(token string) *cobra.Command {
 	var ticketTypeID, attributesJSON, bodyJSON string
 	var contactIDs []string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a ticket (POST /tickets)",
+		Use:   "create",
+		Short: "Create a ticket (POST /tickets)",
+		Long: "There are deliberately no --title or --body flags: ticket fields are\n" +
+			"defined per ticket type, so content goes in --attributes-json keyed by\n" +
+			"that type's attribute names, including Intercom's built-in\n" +
+			"`_default_title_` and `_default_description_`. Read `ticket type-list`\n" +
+			"first for both the --ticket-type-id and the attribute names that type\n" +
+			"accepts. --contact-id is repeatable to attach more than one person.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -68,8 +74,13 @@ func (s *Service) newTicketSearchCmd(token string) *cobra.Command {
 	var sf searchFlags
 	var updatedSince string
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search tickets (POST /tickets/search)",
+		Use:   "search",
+		Short: "Search tickets (POST /tickets/search)",
+		Long: "The only convenience filter is --updated-since, compiled to `updated_at >`\n" +
+			"a Unix timestamp in seconds. Filtering by state, ticket type, assignee or\n" +
+			"any attribute means building a raw --query object, and --query may not be\n" +
+			"combined with --updated-since. A call with neither is rejected rather than\n" +
+			"returning every ticket.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -96,8 +107,12 @@ func (s *Service) newTicketSearchCmd(token string) *cobra.Command {
 func (s *Service) newTicketGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one ticket (GET /tickets/{id})",
+		Use:   "get",
+		Short: "Get one ticket (GET /tickets/{id})",
+		Long: "Takes a ticket id — the id returned by `ticket create` or `ticket search`,\n" +
+			"which is not the id of the conversation a ticket was raised from. The\n" +
+			"response carries the ticket's parts and its type-specific attributes under\n" +
+			"`ticket_attributes`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -117,8 +132,15 @@ func (s *Service) newTicketUpdateCmd(token string) *cobra.Command {
 	var id, state, assigneeID, adminID, attributesJSON, bodyJSON string
 	var open bool
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a ticket state/assignment/attributes (PUT /tickets/{id})",
+		Use:   "update",
+		Short: "Update a ticket state/assignment/attributes (PUT /tickets/{id})",
+		Long: "Only the flags passed are sent, so an update never clears a field it was\n" +
+			"not given. --assignee-id takes an admin id or a team id, the same two id\n" +
+			"spaces `conversation assign` accepts. Unlike the conversation verbs there\n" +
+			"is NO /me fallback here — --admin-id is sent only when given, so a\n" +
+			"reassignment that Intercom expects to be attributed needs it passed\n" +
+			"explicitly. --attributes-json replaces the named ticket attributes, keyed\n" +
+			"by the ticket type's own schema.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -170,8 +192,13 @@ func (s *Service) newTicketUpdateCmd(token string) *cobra.Command {
 func (s *Service) newTicketReplyCmd(token string) *cobra.Command {
 	var id, body, adminID, messageType string
 	cmd := &cobra.Command{
-		Use:         "reply",
-		Short:       "Reply to a ticket as an admin (POST /tickets/{id}/reply)",
+		Use:   "reply",
+		Short: "Reply to a ticket as an admin (POST /tickets/{id}/reply)",
+		Long: "--message-type defaults to `comment`, and a comment is CUSTOMER-VISIBLE.\n" +
+			"The internal equivalent is --message-type note. On conversations these are\n" +
+			"two separate verbs precisely so they cannot be confused; here one flag\n" +
+			"carries both and the default is the public one, so an internal remark must\n" +
+			"set it explicitly. --body accepts HTML, and there is no edit or unsend.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -203,8 +230,12 @@ func (s *Service) newTicketReplyCmd(token string) *cobra.Command {
 
 func (s *Service) newTicketTypeListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "type-list",
-		Short:       "List ticket types (GET /ticket_types)",
+		Use:   "type-list",
+		Short: "List ticket types (GET /ticket_types)",
+		Long: "The prerequisite for `ticket create`: it returns each type's id plus the\n" +
+			"attribute schema that type defines, which is what --attributes-json has to\n" +
+			"be keyed by. Ticket attributes are per-type, so a payload that works for\n" +
+			"one type will be rejected by another.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

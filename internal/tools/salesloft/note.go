@@ -22,8 +22,14 @@ func (s *Service) newNoteListCmd(token string) *cobra.Command {
 	var assocType string
 	var assocIDs []string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List notes (GET /v2/notes); filter by --associated-with-type / --associated-with-id",
+		Use:   "list",
+		Short: "List notes (GET /v2/notes); filter by --associated-with-type / --associated-with-id",
+		Long: "Notes hang off a person or an account, so this is normally filtered:\n" +
+			"`--associated-with-type person|account` plus a repeatable\n" +
+			"`--associated-with-id`. Unfiltered it returns the whole team's recent\n" +
+			"notes across every record, which is rarely the question being asked and\n" +
+			"is expensive against the shared rate budget. Each note carries its\n" +
+			"author and creation time.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -55,8 +61,15 @@ func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 	var assocID int
 	var skipActivities bool
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a note on a person or account (POST /v2/notes)",
+		Use:   "create",
+		Short: "Create a note on a person or account (POST /v2/notes)",
+		Long: "`--content`, `--associated-with-type` (`person` or `account`) and\n" +
+			"`--associated-with-id` are all required. The note is attributed to the\n" +
+			"connected user and is visible to the whole team on that record.\n" +
+			"Salesloft also records an activity for it by default, which is what puts\n" +
+			"the note in the record's timeline and in `activity list`;\n" +
+			"`--skip-activities` writes the note without that trace. Notes cannot be\n" +
+			"edited or removed through this tool.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

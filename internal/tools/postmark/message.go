@@ -25,8 +25,14 @@ func (s *Service) newMessageListOutboundCmd(token string) *cobra.Command {
 	var count, offset int
 	var recipient, fromEmail, tag, subject, status, stream string
 	cmd := &cobra.Command{
-		Use:         "list-outbound",
-		Short:       "Search sent messages (GET /messages/outbound)",
+		Use:   "list-outbound",
+		Short: "Search sent messages (GET /messages/outbound)",
+		Long: "Rows are summaries: recipients, headers, body and delivery events all live\n" +
+			"on `message get-outbound`. `--status` accepts queued, sent or processed, and\n" +
+			"`--stream` narrows to one message stream, which is how broadcast traffic is\n" +
+			"separated from transactional. `--count` defaults to 100 and Postmark caps it\n" +
+			"at 500; page with `--offset`. Nothing older than the ~45-day retention\n" +
+			"window is findable, whatever the filters say.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -54,8 +60,13 @@ func (s *Service) newMessageListOutboundCmd(token string) *cobra.Command {
 
 func (s *Service) newMessageGetOutboundCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get-outbound <message-id>",
-		Short:       "Get one outbound message's detail and events (GET /messages/outbound/{id}/details)",
+		Use:   "get-outbound <message-id>",
+		Short: "Get one outbound message's detail and events (GET /messages/outbound/{id}/details)",
+		Long: "Takes the `MessageID` GUID that `email send` returned or that\n" +
+			"`message list-outbound` lists. Adds the full recipient set, headers, body\n" +
+			"and the timestamped event trail — Delivered, Bounced, Opened, LinkClicked,\n" +
+			"SpamComplaint — which is the ONLY way to tell an accepted send from a\n" +
+			"delivered one. Past the ~45-day retention window the id stops resolving.",
 		Args:        requireArgs(1, "get-outbound requires a <message-id>"),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,8 +79,13 @@ func (s *Service) newMessageListInboundCmd(token string) *cobra.Command {
 	var count, offset int
 	var recipient, fromEmail, subject, status string
 	cmd := &cobra.Command{
-		Use:         "list-inbound",
-		Short:       "Search inbound messages (GET /messages/inbound)",
+		Use:   "list-inbound",
+		Short: "Search inbound messages (GET /messages/inbound)",
+		Long: "Returns nothing unless the server has inbound enabled — `server get` shows\n" +
+			"its `InboundAddress` and `InboundDomain`. `--status` accepts blocked,\n" +
+			"processed, queued, failed or scheduled; blocked and failed are where a\n" +
+			"message that never reached the inbound webhook shows up. There is no tag or\n" +
+			"stream filter here, unlike the outbound search.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -93,8 +109,12 @@ func (s *Service) newMessageListInboundCmd(token string) *cobra.Command {
 
 func (s *Service) newMessageGetInboundCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get-inbound <message-id>",
-		Short:       "Get one inbound message's detail (GET /messages/inbound/{id}/details)",
+		Use:   "get-inbound <message-id>",
+		Short: "Get one inbound message's detail (GET /messages/inbound/{id}/details)",
+		Long: "Inbound ids are their own space: an id from `message list-outbound` will not\n" +
+			"resolve here. Returns the parsed message — sender, recipients, headers and\n" +
+			"bodies — together with the processing status, which is where a blocked or\n" +
+			"failed inbound message explains itself.",
 		Args:        requireArgs(1, "get-inbound requires a <message-id>"),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

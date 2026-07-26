@@ -26,8 +26,13 @@ func (s *Service) newMetaCmd(credential string) *cobra.Command {
 func (s *Service) newMetaLocationsCmd(credential string) *cobra.Command {
 	var search string
 	cmd := &cobra.Command{
-		Use:         "locations",
-		Short:       "List Google SERP locations (name + location_code)",
+		Use:   "locations",
+		Short: "List Google SERP locations (name + location_code)",
+		Long: "Free, unlike almost everything else here. --search filters the list\n" +
+			"case-insensitively AFTER the full list is fetched, so narrowing costs\n" +
+			"nothing extra. Resolve the identifier here rather than guessing: a wrong\n" +
+			"--location still charges the paid command and answers for the wrong\n" +
+			"market.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -42,8 +47,11 @@ func (s *Service) newMetaLocationsCmd(credential string) *cobra.Command {
 func (s *Service) newMetaLanguagesCmd(credential string) *cobra.Command {
 	var search string
 	cmd := &cobra.Command{
-		Use:         "languages",
-		Short:       "List Google SERP languages (name + language_code)",
+		Use:   "languages",
+		Short: "List Google SERP languages (name + language_code)",
+		Long: "Free, and filtered client-side by --search after the whole list is fetched.\n" +
+			"`language_code` is the short form the paid commands' --language expects,\n" +
+			"and it is not always the obvious two letters for a regional variant.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

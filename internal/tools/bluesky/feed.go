@@ -32,8 +32,12 @@ func (s *Service) newTimelineCmd(sess *session) *cobra.Command {
 	var limit int
 	var cursor string
 	cmd := &cobra.Command{
-		Use:         "timeline",
-		Short:       "Read the home timeline (one page)",
+		Use:   "timeline",
+		Short: "Read the home timeline (one page)",
+		Long: "The connected account's own home feed — posts from the accounts it\n" +
+			"follows, assembled by Bluesky, not a global firehose and not filtered by\n" +
+			"topic. --limit is 1-100, default 25; continue with the returned\n" +
+			"--cursor.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -53,8 +57,13 @@ func (s *Service) newFeedCmd(sess *session) *cobra.Command {
 	var actor, cursor string
 	var limit int
 	author := &cobra.Command{
-		Use:         "author",
-		Short:       "Read an actor's posts (one page)",
+		Use:   "author",
+		Short: "Read an actor's posts (one page)",
+		Long: "--actor is a handle or DID, and any public account is readable whether or\n" +
+			"not the connected account follows it. Returns that account's own posts\n" +
+			"and reposts, newest first. When the question is what one account has\n" +
+			"been saying, this is complete where `search posts` is not. --limit is\n" +
+			"1-100, default 25; continue with --cursor.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

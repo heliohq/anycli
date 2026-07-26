@@ -14,8 +14,19 @@ import (
 func (s *Service) newUserGetCmd(rc *reqCtx) *cobra.Command {
 	var ids, logins []string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get users (self when no --id/--login is given)",
+		Use:   "get",
+		Short: "Get users (self when no --id/--login is given)",
+		Long: "With neither --id nor --login this returns the connected account itself,\n" +
+			"which is the cheapest way to learn its own numeric id. Both flags are\n" +
+			"repeatable and may be mixed to look up several people in one call.\n" +
+			"\n" +
+			"The response SHAPE depends on how many were asked for: one filter (or\n" +
+			"none) emits a bare user object, while two or more emit the {\"data\":[…]}\n" +
+			"list envelope. A login that matches nothing emits `null`.\n" +
+			"\n" +
+			"This is the resolver for the rest of the tool — --broadcaster-id,\n" +
+			"--user-id and --game-id all want numeric ids, and the `id` field here is\n" +
+			"where a login turns into one.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -45,8 +56,13 @@ func (s *Service) newUserGetCmd(rc *reqCtx) *cobra.Command {
 func (s *Service) newChannelGetCmd(rc *reqCtx) *cobra.Command {
 	var broadcasterID string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get channel information (self by default)",
+		Use:   "get",
+		Short: "Get channel information (self by default)",
+		Long: "Returns the channel's title, category, language, tags and delay — its\n" +
+			"configuration, not its live state. Whether the channel is actually\n" +
+			"broadcasting right now is `stream list --user-login <name>`, where an\n" +
+			"offline channel simply does not appear. Needs no scope, so it works on any\n" +
+			"channel; --broadcaster-id targets one other than the connected account's.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -89,8 +105,21 @@ func (s *Service) newChannelUpdateCmd(rc *reqCtx) *cobra.Command {
 		delay         int
 	)
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update channel information (title, category, language, tags)",
+		Use:   "update",
+		Short: "Update channel information (title, category, language, tags)",
+		Long: "A partial update: only the flags actually passed are sent, so changing the\n" +
+			"title leaves the category alone and there is no need to re-send the whole\n" +
+			"channel. At least one of --title, --game-id, --language, --tags or --delay\n" +
+			"is required.\n" +
+			"\n" +
+			"--tags REPLACES the entire tag set rather than appending, so every tag\n" +
+			"worth keeping has to be listed again. Passing --game-id with an empty\n" +
+			"string clears the category. --delay is Partners-only.\n" +
+			"\n" +
+			"Helix answers with 204 and no body, so the printed {\"updated\":true} is a\n" +
+			"receipt that the call succeeded and NOT the resulting channel state —\n" +
+			"re-read with `channel get` to confirm. Requires the\n" +
+			"channel:manage:broadcast scope.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

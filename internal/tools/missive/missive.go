@@ -135,8 +135,33 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "missive",
-		Short:         "Missive shared-inbox built-in service",
+		Use:   "missive",
+		Short: "Missive shared-inbox built-in service",
+		Long: "A collaborative shared inbox: a team works email, SMS and chat out of\n" +
+			"shared accounts, with internal notes threaded next to customer messages.\n" +
+			"That split governs everything here — `posts create` writes a note only the\n" +
+			"team sees, `drafts create` writes to the customer.\n" +
+			"\n" +
+			"There is no send verb. A send is a draft whose body carries\n" +
+			"`\"send\":true`; without it the draft is left for a person to finish.\n" +
+			"\n" +
+			"Write bodies are verbatim passthrough and the caller supplies the whole\n" +
+			"envelope: posts wrap under `posts`, drafts under `drafts`, a conversation\n" +
+			"update under `conversations`, contacts under a `contacts` ARRAY. Nothing\n" +
+			"here adds the wrapper. Pass it inline with --body or from a path with\n" +
+			"--file (- for stdin). A write answering 201 with an empty body is\n" +
+			"normalized to `{\"ok\":true}`.\n" +
+			"\n" +
+			"Lists are normalized to `{\"items\":[...]}` plus one of two cursors, and the\n" +
+			"two are not interchangeable. Conversations and their message, comment and\n" +
+			"post sub-lists carry `next_until`, a timestamp fed back through --until;\n" +
+			"contacts and contact books carry `next_offset`, fed back through --offset.\n" +
+			"A cursor page can return MORE items than --limit asked for, so page until\n" +
+			"the cursor is null and never on the item count.\n" +
+			"\n" +
+			"Ids are opaque strings with no derivable form: a conversation id comes\n" +
+			"only from `conversations list`, a contact-book id only from\n" +
+			"`contact-books list`. A 429 is retried once, honoring Retry-After.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

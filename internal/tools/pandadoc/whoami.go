@@ -12,8 +12,12 @@ import (
 // identity/whoami endpoint.
 func (s *Service) newWhoamiCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "whoami",
-		Short:       "Show the authenticated PandaDoc member",
+		Use:   "whoami",
+		Short: "Show the authenticated PandaDoc member",
+		Long: "Prints the connected member's email and user id, tab separated; `--json`\n" +
+			"gives the full member record. It is the cheapest connectivity probe: no\n" +
+			"arguments, no writes, and a 401 here means the credential itself is\n" +
+			"rejected rather than one endpoint being out of reach.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

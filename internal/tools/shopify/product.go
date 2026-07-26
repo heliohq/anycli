@@ -33,8 +33,14 @@ const productUpdateMutation = `mutation($input: ProductInput!) {
 // newProductListCmd is `product list`: paginated product query.
 func (c *client) newProductListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List products (cursor-paginated)",
+		Use:   "list",
+		Short: "List products (cursor-paginated)",
+		Long: "Each row carries `id`, `title`, `handle`, `status`, `totalInventory`,\n" +
+			"`vendor`, `productType` and `updatedAt`; variants, description and tags only\n" +
+			"come from `product get`. `--query` takes Shopify product search syntax\n" +
+			"(`status:active`, `vendor:Acme`, `created_at:>2026-01-01`). `--limit`\n" +
+			"defaults to 20 and is clamped to 250 silently, so a larger value returns 250\n" +
+			"rather than failing.",
 		Args:        cobra.NoArgs,
 		Annotations: readAnnotation(),
 	}
@@ -52,8 +58,13 @@ func (c *client) newProductListCmd() *cobra.Command {
 // newProductGetCmd is `product get <id>`: a single product with its variants.
 func (c *client) newProductGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one product by numeric id or gid",
+		Use:   "get <id>",
+		Short: "Get one product by numeric id or gid",
+		Long: "Accepts a bare numeric id or a full `gid://shopify/Product/<n>`. Adds\n" +
+			"`descriptionHtml`, `tags` and the first 50 variants — each with `id`, `sku`,\n" +
+			"`price` and `inventoryQuantity` — to what `product list` returns. A product\n" +
+			"with more than 50 variants is TRUNCATED with no marker in the output; reach\n" +
+			"the rest through `graphql`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readAnnotation(),
 	}
@@ -73,8 +84,14 @@ func (c *client) newProductGetCmd() *cobra.Command {
 func (c *client) newProductCreateCmd() *cobra.Command {
 	var title, status, vendor, productType, descriptionHTML string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a product",
+		Use:   "create",
+		Short: "Create a product",
+		Long: "`--title` is the only required flag. `--status` is checked locally against\n" +
+			"ACTIVE, DRAFT and ARCHIVED; omitting it takes whatever default Shopify\n" +
+			"applies, so pass DRAFT explicitly when the product must not go live. Only\n" +
+			"the scalar fields offered here are settable — variants, prices, images,\n" +
+			"options and inventory all need the `graphql` passthrough — and the response\n" +
+			"is just `id`, `title`, `handle` and `status`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAnnotation(),
 	}
@@ -107,8 +124,13 @@ func (c *client) newProductCreateCmd() *cobra.Command {
 func (c *client) newProductUpdateCmd() *cobra.Command {
 	var title, status, vendor, productType, descriptionHTML string
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update a product's title/status/vendor",
+		Use:   "update <id>",
+		Short: "Update a product's title/status/vendor",
+		Long: "At least one field flag is required; with none it fails as a usage error\n" +
+			"rather than issuing a no-op write. Only the flags actually passed are sent,\n" +
+			"so every other field keeps its value. `--status` is validated locally\n" +
+			"against ACTIVE|DRAFT|ARCHIVED, and flipping it is what publishes or\n" +
+			"unpublishes the product — ACTIVE reaches the storefront immediately.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAnnotation(),
 	}

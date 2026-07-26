@@ -14,8 +14,26 @@ import (
 func (s *Service) newRequestCmd(creds credentials) *cobra.Command {
 	var input string
 	cmd := &cobra.Command{
-		Use:         "request",
-		Short:       "Submit a raw requestJobDescription (credentials injected automatically)",
+		Use:   "request",
+		Short: "Submit a raw requestJobDescription (credentials injected automatically)",
+		Long: "`--input` is the whole job document as a JSON object and must NOT carry a\n" +
+			"`credentials` key — the connected pair is injected, and an input that\n" +
+			"includes one is refused locally before any request goes out. This is the\n" +
+			"only route to report exports, expense and report writes, and\n" +
+			"reconciliation jobs, none of which have typed commands.\n" +
+			"\n" +
+			"Exporting is TWO calls: a `file` job returns the name of a generated file,\n" +
+			"then a second `download` job with that `fileName` returns its contents.\n" +
+			"The first call's reply is that bare name, not the data.\n" +
+			"\n" +
+			"Expensify's templated report exporter takes its Freemarker template as a\n" +
+			"separate form field alongside the job, and only the job document is sent\n" +
+			"here — so a templated export cannot be driven from this command. Read the\n" +
+			"policy or report data and format it locally instead.\n" +
+			"\n" +
+			"Write jobs run immediately against the real workspace and there is no\n" +
+			"dry-run mode, so a create or update job is applied as soon as it is\n" +
+			"accepted.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"}, // create/update/file jobs can mutate
 		RunE: func(cmd *cobra.Command, _ []string) error {

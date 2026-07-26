@@ -10,8 +10,13 @@ import (
 func (s *Service) newQuotaCmd(token string) *cobra.Command {
 	var path string
 	cmd := &cobra.Command{
-		Use:         "quota",
-		Short:       "Remaining Moz API row quota (free check)",
+		Use:   "quota",
+		Short: "Remaining Moz API row quota (free check)",
+		Long: "Costs no quota, so there is no reason to skip it before a large pull.\n" +
+			"--path selects which meter to read and defaults to\n" +
+			"api.limits.data.rows, the balance every data command here draws on; the\n" +
+			"beta and mozscape paths are separate balances, and a healthy number on\n" +
+			"one says nothing about the others.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -31,8 +36,12 @@ func (s *Service) newQuotaCmd(token string) *cobra.Command {
 // (metadata.index.fetch). This call is free.
 func (s *Service) newIndexCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "index",
-		Short:       "Moz link-index freshness metadata (free check)",
+		Use:   "index",
+		Short: "Moz link-index freshness metadata (free check)",
+		Long: "Costs no quota. Reports when Moz last rebuilt its link index, which\n" +
+			"bounds how fresh any link or authority number from this tool can\n" +
+			"possibly be — a backlink won since that date cannot appear yet. Check it\n" +
+			"before concluding that a known link is missing.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

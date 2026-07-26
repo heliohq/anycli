@@ -16,8 +16,19 @@ func (s *Service) newInsightsCmd(token string) *cobra.Command {
 	var account, object, level, datePreset, timeRange, fields string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "insights",
-		Short:       "Ad performance insights (GET /<account|object>/insights)",
+		Use:   "insights",
+		Short: "Ad performance insights (GET /<account|object>/insights)",
+		Long: "Exactly one of --account act_<id> or --object <numeric id> is required;\n" +
+			"--object accepts a campaign, ad set or ad id. --level sets the row\n" +
+			"granularity (account, campaign, adset, ad) and is validated locally.\n" +
+			"\n" +
+			"--date-preset and --time-range are mutually exclusive — Graph rejects both\n" +
+			"— and with neither set the window is last_30d, so an unqualified insights\n" +
+			"call is a 30-day report, not all-time. --time-range is explicit JSON\n" +
+			"carrying `since` and `until` dates. --limit is 1-500, default 100. The\n" +
+			"default fields cover impressions, clicks, spend, reach, CPM, CPC, CTR,\n" +
+			"frequency and actions; conversions are inside `actions` rather than a\n" +
+			"top-level field.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -18,10 +18,26 @@ func (s *Service) newActivityCmd(c *client) *cobra.Command {
 	return group
 }
 
+// The activity Longs, grouped above the constructors that use them because both
+// leaves are built by the shared leafCmd helper.
+const (
+	longActivityList = "One entry per triggered workflow RUN, where `message list` shows what a\n" +
+		"run produced — this is the layer that explains why a step did or did not\n" +
+		"fire. --channels, --templates and --subscriber-ids are comma-separated\n" +
+		"and expand into repeated query params; --transaction-id jumps straight to\n" +
+		"one run. --page is 0-based."
+
+	longActivityGet = "--notification-id is the activity feed's own id from `activity list` — not\n" +
+		"a transaction id and not a message id. This is the per-step detail:\n" +
+		"which step executed, through which provider, and what came back. A\n" +
+		"trigger Novu accepted but never delivered is explained here and nowhere\n" +
+		"else."
+)
+
 func (s *Service) newActivityListCmd(c *client) *cobra.Command {
 	var channels, templates, subscriberIDs, search, transactionID, topicKey string
 	var page, limit int
-	cmd := leafCmd("list", "List activity-feed notifications", readOnly, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("list", "List activity-feed notifications", longActivityList, readOnly, func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
 		// channels / templates / subscriberIds / emails are repeatable array
 		// params; send one entry per comma-separated value.
@@ -53,7 +69,7 @@ func (s *Service) newActivityListCmd(c *client) *cobra.Command {
 
 func (s *Service) newActivityGetCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("get", "Get one activity-feed notification by id", readOnly, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("get", "Get one activity-feed notification by id", longActivityGet, readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("notification-id", id); err != nil {
 			return err
 		}

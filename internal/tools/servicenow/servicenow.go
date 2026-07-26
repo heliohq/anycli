@@ -160,8 +160,41 @@ var (
 // (verify + identity), and api (raw escape hatch).
 func (s *Service) newRoot(base, apiKey string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "servicenow",
-		Short:         "ServiceNow built-in service (Table API: incidents, tasks, CMDB, knowledge)",
+		Use:   "servicenow",
+		Short: "ServiceNow built-in service (Table API: incidents, tasks, CMDB, knowledge)",
+		Long: "Wraps the ServiceNow Table API — one generic surface that reads and writes\n" +
+			"records in ANY table: incident, problem, change_request, task, sys_user,\n" +
+			"kb_knowledge, the cmdb_ci* family, sc_request and whatever else the\n" +
+			"instance defines. `incident` is sugar over exactly the same endpoint, and\n" +
+			"`api` reaches everything under /api/now/ that the Table API does not\n" +
+			"cover.\n" +
+			"\n" +
+			"The connection is instance-scoped: the host is part of the credential, so\n" +
+			"a company's dev, test and production instances are separate connections\n" +
+			"with separate data. What the key may read or write is fixed by the roles\n" +
+			"of the integration user it is bound to inside that instance, so a 403\n" +
+			"means a missing role on their side rather than a malformed request.\n" +
+			"Neither the host nor the key is checked at connect time — `whoami` is the\n" +
+			"first place a wrong one surfaces.\n" +
+			"\n" +
+			"Queries use ServiceNow's ENCODED QUERY syntax, not SQL: `^` is AND, `^OR`\n" +
+			"is OR, and operators are written without spaces —\n" +
+			"`active=true^priority=1^short_descriptionLIKEvpn`. Also available are\n" +
+			"`!=`, `IN`, `>=` and `STARTSWITH`.\n" +
+			"\n" +
+			"Most tables key on the opaque 32-hex sys_id. Task-type records\n" +
+			"additionally carry a human number (INC…, CHG…, PRB…), and only the\n" +
+			"`incident` group accepts one — `table get`, `table update` and `table\n" +
+			"delete` require a sys_id, so a number has to be translated first with\n" +
+			"`table query <table> --query \"number=INC0010001\" --fields sys_id`.\n" +
+			"\n" +
+			"Reference and choice fields such as assigned_to, assignment_group and\n" +
+			"caller_id STORE sys_ids. Write them as sys_ids in --data; read them as\n" +
+			"human labels by adding --display-value all.\n" +
+			"\n" +
+			"The table verbs unwrap ServiceNow's `{result}` envelope: a query prints a\n" +
+			"bare JSON array and get/create/update print a bare object. `api` does not\n" +
+			"unwrap — its output still carries the envelope.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

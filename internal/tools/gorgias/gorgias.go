@@ -157,8 +157,36 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token, base string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "gorgias",
-		Short:         "Gorgias helpdesk built-in service",
+		Use:   "gorgias",
+		Short: "Gorgias helpdesk built-in service",
+		Long: "Gorgias is a helpdesk. Each account is its own per-subdomain instance; the\n" +
+			"subdomain is captured when the connection is made and injected on every\n" +
+			"request, so it is never passed as an argument and one connection reaches\n" +
+			"exactly one helpdesk.\n" +
+			"\n" +
+			"A ticket is one customer conversation, but the ticket object does NOT\n" +
+			"contain the conversation — the reply thread lives in its messages. Reading\n" +
+			"a case properly is therefore two calls: `ticket get <id>` for status,\n" +
+			"assignee, tags and customer, then `message list <id>` for what was\n" +
+			"actually said.\n" +
+			"\n" +
+			"Gorgias' ticket list has no status, assignee or priority filter. Those\n" +
+			"queues are expressed as saved VIEWS, so scoping to \"open and unassigned\"\n" +
+			"means finding the view with `view list` and passing its id to `ticket list\n" +
+			"--view` or reading it with `view items`. There is no ad-hoc filter to\n" +
+			"reach for instead.\n" +
+			"\n" +
+			"Writes are shaped by the channel. `api`, the default, records a message on\n" +
+			"the ticket with no routing setup at all. `email`, `phone` and `sms` carry\n" +
+			"it out through a connected integration and additionally require a source\n" +
+			"object — --source-from plus one or more --source-to — and for email that\n" +
+			"from address must already be an email integration connected to Gorgias or\n" +
+			"the send is rejected. When in doubt, stay on api.\n" +
+			"\n" +
+			"Lists are cursor-paginated as {\"data\":[…],\"meta\":{\"next_cursor\":…}}: pass\n" +
+			"`meta.next_cursor` back as --cursor, and a null cursor means there is no\n" +
+			"further page. --limit is left to Gorgias' own default of 30 unless set.\n" +
+			"Ids are integers, positional on the get-shaped verbs.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

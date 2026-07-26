@@ -26,8 +26,16 @@ func (s *Service) newQueryCmd(c *client) *cobra.Command {
 	var all bool
 	var maxRecords int
 	cmd := &cobra.Command{
-		Use:         "query <soql>",
-		Short:       "Run a SOQL query (follows pagination up to --max-records)",
+		Use:   "query <soql>",
+		Short: "Run a SOQL query (follows pagination up to --max-records)",
+		Long: "Follows `nextRecordsUrl` automatically and merges every page into one\n" +
+			"`{totalSize, done, records}` envelope, so pagination needs no handling by\n" +
+			"the caller. Accumulation stops at `--max-records` (default 2000): when it\n" +
+			"does, `done` is false while `totalSize` still reports the org-side total, so\n" +
+			"a `totalSize` far larger than the number of records means the result was\n" +
+			"TRUNCATED, not that the query was narrow. `--all` switches to queryAll,\n" +
+			"which also returns soft-deleted and archived rows. Take field names from\n" +
+			"`sobject describe`; string literals in SOQL are single-quoted.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -96,8 +104,15 @@ func (s *Service) newSearchCmd(c *client) *cobra.Command {
 	var fields []string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "search <term>",
-		Short:       "Cross-object search (SOSL via parameterizedSearch)",
+		Use:   "search <term>",
+		Short: "Cross-object search (SOSL via parameterizedSearch)",
+		Long: "Matches indexed text across objects, which is the path to take when a\n" +
+			"person's or company's name is known but the object and id are not.\n" +
+			"`--objects Account,Contact` narrows the scan, `--fields` picks the fields\n" +
+			"returned per object, and `--limit` caps the overall result count where 0\n" +
+			"leaves Salesforce's own default in place. Because it reads a search index\n" +
+			"rather than the tables, a record created seconds ago may not match yet, and\n" +
+			"exact filtering on field values belongs in `query`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -125,8 +140,13 @@ func (s *Service) newSearchCmd(c *client) *cobra.Command {
 
 func (s *Service) newWhoamiCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "whoami",
-		Short:       "Show the connected user and org (OpenID userinfo)",
+		Use:   "whoami",
+		Short: "Show the connected user and org (OpenID userinfo)",
+		Long: "Reads the OAuth userinfo endpoint rather than a versioned API resource, so\n" +
+			"it answers even when `--api-version` names a version the org rejects.\n" +
+			"Returns the connected user's id, username and email plus the org id — the\n" +
+			"way to confirm WHICH org and WHICH running user a subsequent write will be\n" +
+			"attributed to, since record ownership and sharing follow that user.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -141,8 +161,13 @@ func (s *Service) newWhoamiCmd(c *client) *cobra.Command {
 
 func (s *Service) newLimitsCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "limits",
-		Short:       "Show org API limits (DailyApiRequests, etc.)",
+		Use:   "limits",
+		Short: "Show org API limits (DailyApiRequests, etc.)",
+		Long: "Returns every governor limit the org exposes as `Max` / `Remaining` pairs.\n" +
+			"`DailyApiRequests` is the one this tool spends: one request per command,\n" +
+			"and one per PAGE for `query`, so a wide `--max-records` pull is worth more\n" +
+			"than it looks. That budget is org-wide and shared with every other\n" +
+			"integration, and REQUEST_LIMIT_EXCEEDED is what exhausting it looks like.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

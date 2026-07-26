@@ -25,8 +25,13 @@ func (s *Service) newSubscriptionStatusGetCmd(c *client) *cobra.Command {
 	var externalID, email, phone string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "status-get",
-		Short:       "Get a user's subscription-group states",
+		Use:   "status-get",
+		Short: "Get a user's subscription-group states",
+		Long: "One of --external-id, --email or --phone is required (--phone in E.164).\n" +
+			"Returns the user's state in each subscription group, paged with --limit\n" +
+			"and --offset. Subscription groups are the double-opt-in layer for email\n" +
+			"and SMS and are separate from a channel-level unsubscribe, so a user\n" +
+			"subscribed here can still be globally unsubscribed.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -71,8 +76,14 @@ func (s *Service) newSubscriptionStatusSetCmd(c *client) *cobra.Command {
 	var groupID, state string
 	var externalIDs, emails []string
 	cmd := &cobra.Command{
-		Use:         "status-set",
-		Short:       "Set a user's subscription-group state (permission-gated)",
+		Use:   "status-set",
+		Short: "Set a user's subscription-group state (permission-gated)",
+		Long: "--subscription-group-id and --state (subscribed or unsubscribed, checked\n" +
+			"locally) are required, plus at least one --external-id or --email; both\n" +
+			"are repeatable, so one call can move a batch. This writes a real consent\n" +
+			"record on live profiles — subscribing someone who did not ask is a\n" +
+			"compliance problem, not just a data change — and the previous state is\n" +
+			"not recoverable from here.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}

@@ -34,8 +34,14 @@ func (s *Service) newCompanyCmd(key string) *cobra.Command {
 func (s *Service) newCompanyEnrichCmd(key string) *cobra.Command {
 	var domain, name string
 	cmd := &cobra.Command{
-		Use:         "enrich",
-		Short:       "Enrich a known company by domain or name (POST /companies/search-and-enrich)",
+		Use:   "enrich",
+		Short: "Enrich a known company by domain or name (POST /companies/search-and-enrich)",
+		Long: "Takes --domain or --name and returns firmographics. There is NO --reveal\n" +
+			"flag here: the request schema has no reveal field, unlike the contact\n" +
+			"verbs, so base firmographics come back by default and the expansions live\n" +
+			"only on `company reveal`. Billed per successful result on the same\n" +
+			"reveal_company meter `company reveal` uses — companies expose no\n" +
+			"per-datapoint contact data to meter separately.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -66,8 +72,14 @@ func (s *Service) newCompanySearchCmd(key string) *cobra.Command {
 	var page, size int
 	var includePartial bool
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Prospect net-new companies by filter (POST /companies/prospecting)",
+		Use:   "search",
+		Short: "Prospect net-new companies by filter (POST /companies/prospecting)",
+		Long: "Returns name-only PREVIEWS carrying Lusha company ids, to be fed into\n" +
+			"`company reveal`. --filters is the same raw prospecting object as `contact\n" +
+			"search`, but only its `companies` branch is read here — include fields such\n" +
+			"as sizes (`[{min,max}]`), revenues, industries, technologies, countries,\n" +
+			"names and domains. Billed per result returned. --page is 0-based; keep\n" +
+			"paging while `meta.has_more` is true.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -102,8 +114,14 @@ func (s *Service) newCompanyRevealCmd(key string) *cobra.Command {
 	var ids []string
 	var reveal string
 	cmd := &cobra.Command{
-		Use:         "reveal",
-		Short:       "Reveal companies by Lusha id (POST /companies/enrich)",
+		Use:   "reveal",
+		Short: "Reveal companies by Lusha id (POST /companies/enrich)",
+		Long: "Takes 1 to 100 --id values from a `company search`. --reveal here is a\n" +
+			"FIRMOGRAPHIC-EXPANSION enum — employeesByDepartment, employeesByLocation,\n" +
+			"employeesBySeniority, competitors, intent — and NOT the emails/phones\n" +
+			"selector the contact verbs take; passing `emails` is rejected as a usage\n" +
+			"error. Omit it for base firmographics only. Billed per successful company\n" +
+			"result rather than per revealed datapoint.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -61,8 +61,16 @@ func (o *queryOptions) toValues() (url.Values, error) {
 func (s *Service) newTableQueryCmd(c *client) *cobra.Command {
 	var o queryOptions
 	cmd := &cobra.Command{
-		Use:         "query <table>",
-		Short:       "List/query records in a table (GET)",
+		Use:   "query <table>",
+		Short: "List/query records in a table (GET)",
+		Long: "--query takes an encoded query, not SQL: `^` for AND, `^OR` for OR,\n" +
+			"operators `=`, `!=`, `LIKE`, `IN`, `>=`, `STARTSWITH`, and no spaces\n" +
+			"anywhere around them. --fields is worth setting on every call — a bare\n" +
+			"incident row carries around a hundred columns, most of them empty sys_ids.\n" +
+			"--limit and --offset page the result, and omitting --limit can return an\n" +
+			"enormous response. --display-value all turns reference and choice fields\n" +
+			"into their human labels instead of sys_ids. Output is a bare JSON array\n" +
+			"with the `{result}` envelope removed.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -84,8 +92,14 @@ func (s *Service) newTableQueryCmd(c *client) *cobra.Command {
 func (s *Service) newTableGetCmd(c *client) *cobra.Command {
 	var o queryOptions
 	cmd := &cobra.Command{
-		Use:         "get <table> <sys_id>",
-		Short:       "Get one record by sys_id (GET)",
+		Use:   "get <table> <sys_id>",
+		Short: "Get one record by sys_id (GET)",
+		Long: "The second argument must be a 32-hex sys_id; a human number such as\n" +
+			"INC0010001 returns a 404 here, and translating one costs a `table query\n" +
+			"<table> --query \"number=INC0010001\" --fields sys_id` first — or use\n" +
+			"`incident get`, which does that lookup itself. --fields and\n" +
+			"--display-value shape the response exactly as they do on a query. Output\n" +
+			"is a bare JSON object.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -107,8 +121,14 @@ func (s *Service) newTableGetCmd(c *client) *cobra.Command {
 func (s *Service) newTableCreateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:         "create <table>",
-		Short:       "Create a record (POST)",
+		Use:   "create <table>",
+		Short: "Create a record (POST)",
+		Long: "--data is the whole record as one JSON object, with reference fields given\n" +
+			"as sys_ids rather than names — an assignment_group written as \"Network\" is\n" +
+			"stored as literal text or rejected, not resolved. Creating a record runs\n" +
+			"the table's business rules, workflows and notification policies, so this\n" +
+			"can page an on-call human. The response is the created record including\n" +
+			"the sys_id it was assigned.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -131,8 +151,14 @@ func (s *Service) newTableCreateCmd(c *client) *cobra.Command {
 func (s *Service) newTableUpdateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:         "update <table> <sys_id>",
-		Short:       "Update a record by sys_id (PATCH)",
+		Use:   "update <table> <sys_id>",
+		Short: "Update a record by sys_id (PATCH)",
+		Long: "A PATCH: only the fields named in --data change and everything else\n" +
+			"survives, so there is no need to send the whole record back. Reference\n" +
+			"fields take sys_ids. Two journal fields behave differently from the rest —\n" +
+			"`work_notes` appends an INTERNAL entry, while `comments` appends a\n" +
+			"customer-visible one that typically notifies the caller, so the choice\n" +
+			"between them is a choice about who gets emailed.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -154,8 +180,14 @@ func (s *Service) newTableUpdateCmd(c *client) *cobra.Command {
 
 func (s *Service) newTableDeleteCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <table> <sys_id>",
-		Short:       "Delete a record by sys_id (DELETE)",
+		Use:   "delete <table> <sys_id>",
+		Short: "Delete a record by sys_id (DELETE)",
+		Long: "A real delete with no undo and no recycle bin reachable from this API;\n" +
+			"whether related records cascade is decided by the table's own reference\n" +
+			"rules. ServiceNow answers 204 with no body, so the command prints its own\n" +
+			"`{\"deleted\":true,\"sys_id\":…}` receipt rather than provider JSON — that\n" +
+			"receipt is not evidence the record existed beforehand. Retiring a record\n" +
+			"rather than destroying it is usually a state change via `table update`.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

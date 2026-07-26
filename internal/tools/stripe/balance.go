@@ -20,8 +20,12 @@ func (s *Service) newBalanceCmd(token string) *cobra.Command {
 // newBalanceGetCmd is GET /v1/balance — the current available/pending balance.
 func (s *Service) newBalanceGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get",
-		Short:       "Retrieve the current account balance",
+		Use:   "get",
+		Short: "Retrieve the current account balance",
+		Long: "The account's own money, split into `available` (payable out now) and\n" +
+			"`pending` (still settling). Both are ARRAYS keyed by currency, so a\n" +
+			"multi-currency account has several entries and no single total exists.\n" +
+			"This is the standing balance, not the movements that produced it.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -39,8 +43,13 @@ func (s *Service) newBalanceGetCmd(token string) *cobra.Command {
 func (s *Service) newBalanceTransactionsCmd(token string) *cobra.Command {
 	var o listOpts
 	cmd := &cobra.Command{
-		Use:         "transactions",
-		Short:       "List balance transactions (settlement activity)",
+		Use:   "transactions",
+		Short: "List balance transactions (settlement activity)",
+		Long: "Every movement through the Stripe balance — charges, refunds, fees, payouts\n" +
+			"and adjustments — each carrying the `fee` and `net` that a charge object\n" +
+			"alone does not show, plus a `source` pointing back at the object that\n" +
+			"caused it. This is the reconciliation surface: `--param payout=po_123`\n" +
+			"breaks a deposit down into what it settled.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {

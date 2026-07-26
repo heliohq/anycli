@@ -118,8 +118,29 @@ var (
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "tally",
-		Short:         "Tally built-in service (forms, submissions, analytics)",
+		Use:   "tally",
+		Short: "Tally built-in service (forms, submissions, analytics)",
+		Long: "Talks to Tally with a personal API key rather than OAuth. The key belongs\n" +
+			"to the user who created it and inherits that person's access across their\n" +
+			"workspaces, so it stops working when they lose access — a 401 here means a\n" +
+			"fresh key is needed, not a retry.\n" +
+			"\n" +
+			"The load-bearing job is reading what respondents submitted: `form list` for\n" +
+			"the form id, `form questions` to learn what each question id means, then\n" +
+			"`submission list --form <id>` for the answers.\n" +
+			"\n" +
+			"Every list returns ONE page shaped `{items, page, limit, total, hasMore}`\n" +
+			"and nothing here follows pagination for you — advance with `--page`, or\n" +
+			"with `--after-id` on submissions. Tally allows on the order of 100 requests\n" +
+			"a minute, so one wide `submission list` page beats a loop of\n" +
+			"`submission get` calls.\n" +
+			"\n" +
+			"Ids are FLAGS everywhere (`--form`, `--submission`, `--webhook`), never\n" +
+			"positional arguments.\n" +
+			"\n" +
+			"Write verbs take a whole JSON body through `--file <path>` or `--stdin`\n" +
+			"and forward it unchanged; the only local check is that the bytes parse as\n" +
+			"JSON, so a wrong shape surfaces as Tally's own 4xx.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

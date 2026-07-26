@@ -24,8 +24,13 @@ func (s *Service) newTasksCreateCmd(token string) *cobra.Command {
 	var body, taskType, dueAt, priority, note string
 	var contactIDs []string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create follow-up tasks against contacts (POST /tasks/bulk_create)",
+		Use:   "create",
+		Short: "Create follow-up tasks against contacts (POST /tasks/bulk_create)",
+		Long: "Apollo's task create is a bulk endpoint: --contact-id is repeatable and\n" +
+			"every target named gets the SAME --type, --due-at, --priority and --note.\n" +
+			"At least one --contact-id is required, since a task hangs off a contact.\n" +
+			"--due-at is an ISO-8601 timestamp, --type is an Apollo task type (`call`,\n" +
+			"`action_item`, `email`) and --priority is `high`, `medium` or `low`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -60,8 +65,11 @@ func (s *Service) newTasksSearchCmd(token string) *cobra.Command {
 	var body string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "List tasks (POST /tasks/search)",
+		Use:   "search",
+		Short: "List tasks (POST /tasks/search)",
+		Long: "There are no typed filters here: status, owner, due-date and type filters\n" +
+			"go through `--body` using Apollo's own task-search field names. Page with\n" +
+			"--page (1-based) and --per-page.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

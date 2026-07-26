@@ -9,8 +9,12 @@ import (
 func (s *Service) newFollowCmd(sess *session) *cobra.Command {
 	var actor string
 	cmd := &cobra.Command{
-		Use:         "follow",
-		Short:       "Follow an actor",
+		Use:   "follow",
+		Short: "Follow an actor",
+		Long: "--actor is a handle or DID and is resolved to a DID before the record is\n" +
+			"written. The `uri` in the response is the follow RECORD's at:// URI, and\n" +
+			"it is the only thing `unfollow` accepts — keep it, because nothing in\n" +
+			"this tool finds an existing follow record from the actor it points at.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -41,8 +45,13 @@ func (s *Service) newFollowCmd(sess *session) *cobra.Command {
 func (s *Service) newUnfollowCmd(sess *session) *cobra.Command {
 	var uri string
 	cmd := &cobra.Command{
-		Use:         "unfollow",
-		Short:       "Unfollow by deleting the follow record (its at:// URI)",
+		Use:   "unfollow",
+		Short: "Unfollow by deleting the follow record (its at:// URI)",
+		Long: "--uri is the at:// URI of the app.bsky.graph.follow RECORD, never the\n" +
+			"followed actor's handle; a URI from any other collection is rejected\n" +
+			"before the call. Only the `follow` that created the record produces that\n" +
+			"URI, so an account followed elsewhere — in the Bluesky app, say — cannot\n" +
+			"be unfollowed from here.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

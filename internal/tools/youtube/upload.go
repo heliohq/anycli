@@ -29,8 +29,22 @@ func (s *Service) newVideosUploadCmd(token string) *cobra.Command {
 	var file, title, description, tags, categoryID, privacy string
 	var madeForKids bool
 	cmd := &cobra.Command{
-		Use:         "upload",
-		Short:       "Upload a video file (resumable protocol, single PUT)",
+		Use:   "upload",
+		Short: "Upload a video file (resumable protocol, single PUT)",
+		Long: "--file and --title are required and --privacy defaults to PRIVATE, so an\n" +
+			"upload does not go public unless that is asked for explicitly.\n" +
+			"--made-for-kids sets the self-declared audience, which YouTube requires\n" +
+			"and which restricts comments and personalised ads on the video.\n" +
+			"\n" +
+			"The resumable protocol is used, but only as a single full-body PUT: there\n" +
+			"is no chunking, no 308 resume and no retry, so a broken connection means\n" +
+			"the entire file is sent again from the start. A 2xx means the video exists\n" +
+			"on the channel; transcoding then continues on YouTube's side and there is\n" +
+			"no status to poll here, so the video may not be watchable for some\n" +
+			"minutes.\n" +
+			"\n" +
+			"Captions and thumbnails cannot be attached from this tool, and metadata is\n" +
+			"changed afterwards with `videos update`.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -97,8 +97,38 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "reddit",
-		Short:         "Reddit built-in service (OAuth 2.0 user token)",
+		Use:   "reddit",
+		Short: "Reddit built-in service (OAuth 2.0 user token)",
+		Long: "Calls the Reddit Data API as the connected account: every read is what\n" +
+			"that account can see, and every write is published under its name.\n" +
+			"\n" +
+			"Reddit's `Listing` and `kind`+`data` envelopes are stripped. Under\n" +
+			"`--json` a listing command emits JSONL — one flat object per line —\n" +
+			"followed by a final `{\"after\":\"t3_…\"}` line ONLY when another page\n" +
+			"exists; feed that value back as `--after`. Single reads and writes emit\n" +
+			"one object.\n" +
+			"\n" +
+			"A `fullname` is Reddit's global id with a type prefix: `t1_` comment,\n" +
+			"`t3_` post, `t4_` message, `t5_` subreddit. `post edit`, `post delete`,\n" +
+			"`comment edit`, `comment delete`, `comment create --parent` and\n" +
+			"`inbox mark-read` all require the fullname and reject a bare id;\n" +
+			"`post get` and `post comments` take either form.\n" +
+			"\n" +
+			"`--limit` is 1-100 on every listing, Reddit's own page ceiling, and\n" +
+			"unset leaves Reddit's default of 25. The rate limit is 100 requests a\n" +
+			"minute per app averaged over ten minutes; a 429 reports the remaining\n" +
+			"and reset values and fails, so back off past the reset rather than\n" +
+			"retrying in a loop.\n" +
+			"\n" +
+			"There is no voting command, deliberately — Reddit's rules require votes\n" +
+			"to be cast by a human. There is also no private-message send, no\n" +
+			"moderation action and no subscribe or unsubscribe: reading the inbox and\n" +
+			"marking it read is the whole message surface.\n" +
+			"\n" +
+			"Each subreddit enforces its own posting rules, and a violation only\n" +
+			"surfaces as an error on the write itself (`NO_SELFS`,\n" +
+			"`SUBREDDIT_NOTALLOWED`, `SUBREDDIT_NOEXIST`). `subreddit rules` is the\n" +
+			"cheap pre-flight.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

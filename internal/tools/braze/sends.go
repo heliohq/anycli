@@ -21,8 +21,13 @@ func (s *Service) newSendsSeriesCmd(c *client) *cobra.Command {
 	var campaignID, sendID, endingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:         "series",
-		Short:       "Get analytics for a tracked send id",
+		Use:   "series",
+		Short: "Get analytics for a tracked send id",
+		Long: "--campaign-id and --send-id are both required. A send id only exists when\n" +
+			"one was supplied at trigger time, so this cannot break down an arbitrary\n" +
+			"past send — a campaign not sent with a tracked send id has only the\n" +
+			"aggregate in `campaigns series`. --length is days back from --ending-at\n" +
+			"(default now) and caps at 100.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}

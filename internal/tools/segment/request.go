@@ -17,8 +17,19 @@ func (s *Service) newRequestCmd(token string) *cobra.Command {
 	var method, path, body, bodyFile string
 	var params []string
 	cmd := &cobra.Command{
-		Use:         "request",
-		Short:       "Make a raw Segment Public API request",
+		Use:   "request",
+		Short: "Make a raw Segment Public API request",
+		Long: "The escape hatch for the Public API's long tail. `--path` is required and is\n" +
+			"normalized to a root-relative path — a full URL is accepted but its query\n" +
+			"string is DROPPED, so query pairs must go through the repeatable\n" +
+			"`--query name=value`. `--body` and `--body-file` are mutually exclusive.\n" +
+			"\n" +
+			"`--method` defaults to GET. A non-GET method here is the only way anything in\n" +
+			"this tool writes, and it writes straight to a live customer data pipeline with\n" +
+			"no dry-run and no undo.\n" +
+			"\n" +
+			"IAM paths are `/users` and `/groups`, NOT `/iam/users` — the `iam` grouping in\n" +
+			"this command tree mirrors Segment's documentation tag and is not a URL prefix.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

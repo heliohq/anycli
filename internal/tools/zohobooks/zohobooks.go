@@ -158,8 +158,37 @@ func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }
 // hang under resource groups and read the persistent --organization-id flag.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "zoho-books",
-		Short:         "Zoho Books built-in service (invoices, contacts, estimates, items, bills, payments, expenses)",
+		Use:   "zoho-books",
+		Short: "Zoho Books built-in service (invoices, contacts, estimates, items, bills, payments, expenses)",
+		Long: "Wraps the Zoho Books REST v3 API and prints the provider JSON verbatim,\n" +
+			"`page_context` included so a list can be walked.\n" +
+			"\n" +
+			"`--organization-id` is required on EVERY command except `org list`. One\n" +
+			"login can own several Books organizations and the id is neither carried\n" +
+			"in the token nor guessable, so omitting it is a usage error rather than\n" +
+			"a default — run `org list` first and reuse the id.\n" +
+			"\n" +
+			"Filters pass straight through to Books. `--filter-by` takes a status\n" +
+			"view verbatim (`Status.Overdue`, `Status.Sent`, `Status.Paid`,\n" +
+			"`Status.Unbilled`), and `--status`, `--customer-id`, `--vendor-id`,\n" +
+			"`--contact-type` and `--search-text` map to the query params of the same\n" +
+			"name. A value Books does not know surfaces as a non-zero `code`, not as\n" +
+			"an empty result. `--per-page` defaults to 200, which is also the\n" +
+			"maximum; keep paging while `page_context.has_more_page` is true.\n" +
+			"\n" +
+			"Create bodies are FLAT: `--data` is one JSON object with `line_items`\n" +
+			"and every other field directly inside it, and there is no\n" +
+			"`{\"data\":[…]}` wrapper — that is Zoho CRM's shape, not Books'. Only\n" +
+			"contacts, invoices, estimates and expenses can be created; nothing here\n" +
+			"updates, deletes, sends or marks anything paid.\n" +
+			"\n" +
+			"Books answers with an integer `code` where 0 is success, so a non-zero\n" +
+			"code is the real error even when the JSON looks well-formed. A 401 means\n" +
+			"the token itself is bad.\n" +
+			"\n" +
+			"The connection is pinned to Zoho's US datacenter (`.com`). An account\n" +
+			"homed in another DC (`.eu`, `.in`, `.com.au`, `.jp`) fails at the token\n" +
+			"layer with an explicit error rather than being retried elsewhere.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -175,66 +204,66 @@ func (s *Service) newRoot(token string) *cobra.Command {
 
 	contact := newGroupCmd("contact", "Look up and capture customers and vendors")
 	contact.AddCommand(
-		s.newListCmd(token, orgID, "contacts", []stringFlag{
+		s.newListCmd(token, orgID, "contacts", longContactList, []stringFlag{
 			{"contact-type", "contact_type", "filter by contact_type: customer|vendor"},
 			{"filter-by", "filter_by", "Books status view, e.g. Status.Active"},
 			{"search-text", "search_text", "free-text search"},
 		}),
-		s.newGetCmd(token, orgID, "contacts"),
-		s.newCreateCmd(token, orgID, "contacts"),
+		s.newGetCmd(token, orgID, "contacts", longContactGet),
+		s.newCreateCmd(token, orgID, "contacts", longContactCreate),
 	)
 	invoice := newGroupCmd("invoice", "Read and create invoices (receivables)")
 	invoice.AddCommand(
-		s.newListCmd(token, orgID, "invoices", []stringFlag{
+		s.newListCmd(token, orgID, "invoices", longInvoiceList, []stringFlag{
 			{"customer-id", "customer_id", "filter by customer id"},
 			{"status", "status", "invoice status, e.g. sent|overdue|paid"},
 			{"filter-by", "filter_by", "Books status view, e.g. Status.Overdue"},
 			{"search-text", "search_text", "free-text search"},
 		}),
-		s.newGetCmd(token, orgID, "invoices"),
-		s.newCreateCmd(token, orgID, "invoices"),
+		s.newGetCmd(token, orgID, "invoices", longInvoiceGet),
+		s.newCreateCmd(token, orgID, "invoices", longInvoiceCreate),
 	)
 	estimate := newGroupCmd("estimate", "Read and create estimates (quotes)")
 	estimate.AddCommand(
-		s.newListCmd(token, orgID, "estimates", []stringFlag{
+		s.newListCmd(token, orgID, "estimates", longEstimateList, []stringFlag{
 			{"customer-id", "customer_id", "filter by customer id"},
 			{"filter-by", "filter_by", "Books status view, e.g. Status.Sent"},
 			{"search-text", "search_text", "free-text search"},
 		}),
-		s.newGetCmd(token, orgID, "estimates"),
-		s.newCreateCmd(token, orgID, "estimates"),
+		s.newGetCmd(token, orgID, "estimates", longEstimateGet),
+		s.newCreateCmd(token, orgID, "estimates", longEstimateCreate),
 	)
 	item := newGroupCmd("item", "Look up items (rates, descriptions) for line items")
 	item.AddCommand(
-		s.newListCmd(token, orgID, "items", []stringFlag{
+		s.newListCmd(token, orgID, "items", longItemList, []stringFlag{
 			{"search-text", "search_text", "free-text search"},
 		}),
-		s.newGetCmd(token, orgID, "items"),
+		s.newGetCmd(token, orgID, "items", longItemGet),
 	)
 	bill := newGroupCmd("bill", "Read bills (payables)")
 	bill.AddCommand(
-		s.newListCmd(token, orgID, "bills", []stringFlag{
+		s.newListCmd(token, orgID, "bills", longBillList, []stringFlag{
 			{"vendor-id", "vendor_id", "filter by vendor id"},
 			{"filter-by", "filter_by", "Books status view, e.g. Status.Overdue"},
 			{"search-text", "search_text", "free-text search"},
 		}),
-		s.newGetCmd(token, orgID, "bills"),
+		s.newGetCmd(token, orgID, "bills", longBillGet),
 	)
 	payment := newGroupCmd("payment", "Read customer payments")
 	payment.AddCommand(
-		s.newListCmd(token, orgID, "customerpayments", []stringFlag{
+		s.newListCmd(token, orgID, "customerpayments", longPaymentList, []stringFlag{
 			{"customer-id", "customer_id", "filter by customer id"},
 		}),
-		s.newGetCmd(token, orgID, "customerpayments"),
+		s.newGetCmd(token, orgID, "customerpayments", longPaymentGet),
 	)
 	expense := newGroupCmd("expense", "Read and record expenses (payables)")
 	expense.AddCommand(
-		s.newListCmd(token, orgID, "expenses", []stringFlag{
+		s.newListCmd(token, orgID, "expenses", longExpenseList, []stringFlag{
 			{"filter-by", "filter_by", "Books status view, e.g. Status.Unbilled"},
 			{"search-text", "search_text", "free-text search"},
 		}),
-		s.newGetCmd(token, orgID, "expenses"),
-		s.newCreateCmd(token, orgID, "expenses"),
+		s.newGetCmd(token, orgID, "expenses", longExpenseGet),
+		s.newCreateCmd(token, orgID, "expenses", longExpenseCreate),
 	)
 
 	root.AddCommand(

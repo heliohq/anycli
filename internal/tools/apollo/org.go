@@ -26,8 +26,14 @@ func (s *Service) newOrgSearchCmd(token string) *cobra.Command {
 	var industries, locations []string
 	var employeesMin, employeesMax, page, perPage int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search for companies by industry/location/size (POST /mixed_companies/search)",
+		Use:   "search",
+		Short: "Search for companies by industry/location/size (POST /mixed_companies/search)",
+		Long: "Returns company records and their Apollo organization ids; `org enrich`\n" +
+			"then fills in firmographics for a known domain. --employees-min and\n" +
+			"--employees-max collapse into one Apollo employee-count range, and a\n" +
+			"missing side is filled in as 1 or 1000000 rather than left open.\n" +
+			"--industry is sent as Apollo's organization keyword tags, so it matches\n" +
+			"the company's tagged keywords rather than a fixed industry taxonomy.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -68,8 +74,13 @@ func (s *Service) newOrgSearchCmd(token string) *cobra.Command {
 func (s *Service) newOrgEnrichCmd(token string) *cobra.Command {
 	var domain string
 	cmd := &cobra.Command{
-		Use:         "enrich",
-		Short:       "Enrich a company by domain (GET /organizations/enrich)",
+		Use:   "enrich",
+		Short: "Enrich a company by domain (GET /organizations/enrich)",
+		Long: "--domain is required and must be a bare domain — no scheme, no `www.`, no\n" +
+			"leading `@`. Returns one company's firmographics and its Apollo\n" +
+			"organization id; it returns no people, so pair it with `people search\n" +
+			"--org-domain` to find contacts there. Being a GET with a single query\n" +
+			"parameter, this command has no `--body` escape hatch.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -93,8 +104,12 @@ func (s *Service) newOrgBulkEnrichCmd(token string) *cobra.Command {
 	var body string
 	var domains []string
 	cmd := &cobra.Command{
-		Use:         "bulk-enrich",
-		Short:       "Enrich multiple companies by domain (POST /organizations/bulk_enrich)",
+		Use:   "bulk-enrich",
+		Short: "Enrich multiple companies by domain (POST /organizations/bulk_enrich)",
+		Long: "--domain is repeatable and each value is a bare domain (no scheme, no\n" +
+			"`www.`). One request enriches the whole list, so it is cheaper than\n" +
+			"looping `org enrich` per domain. Fields the flag set does not name can be\n" +
+			"added through `--body`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

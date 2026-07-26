@@ -53,8 +53,13 @@ func (s *Service) newSiteMetricsCmd(token string) *cobra.Command {
 	var sites []string
 	var scope string
 	cmd := &cobra.Command{
-		Use:         "metrics",
-		Short:       "Domain/Page Authority, spam score, and link counts for a URL (repeat --site for a batch)",
+		Use:   "metrics",
+		Short: "Domain/Page Authority, spam score, and link counts for a URL (repeat --site for a batch)",
+		Long: "Repeating --site switches to Moz's batch method, so several URLs travel\n" +
+			"in ONE request instead of a loop; the quota still scales with the URLs,\n" +
+			"the round trips do not. --scope decides what each string means, and the\n" +
+			"same URL answers very differently under page and root_domain — a page's\n" +
+			"Page Authority is not its site's Domain Authority.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -95,8 +100,13 @@ func (s *Service) newSiteMetricsCmd(token string) *cobra.Command {
 func (s *Service) newSiteBrandAuthorityCmd(token string) *cobra.Command {
 	var site string
 	cmd := &cobra.Command{
-		Use:         "brand-authority",
-		Short:       "Brand Authority score for a domain",
+		Use:   "brand-authority",
+		Short: "Brand Authority score for a domain",
+		Long: "Brand Authority is domain-level only, which is why this command has no\n" +
+			"--scope: a URL with a path is still scored as its domain. It reflects\n" +
+			"how much branded demand a name attracts, a different signal from the\n" +
+			"link-based Domain Authority in `site metrics` — a site can score well on\n" +
+			"one and poorly on the other.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -121,8 +131,13 @@ func (s *Service) newSiteTopPagesCmd(token string) *cobra.Command {
 	var site, scope string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "top-pages",
-		Short:       "Top pages for a site, ranked by authority",
+		Use:   "top-pages",
+		Short: "Top pages for a site, ranked by authority",
+		Long: "Ranked by each page's own authority, which shows where link equity has\n" +
+			"accumulated — not where traffic goes; Moz has no traffic data. Pass\n" +
+			"--scope root_domain or subdomain, since page scope narrows the target to\n" +
+			"a single URL and makes the list pointless. --limit defaults to 25 and\n" +
+			"every returned page bills a row.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

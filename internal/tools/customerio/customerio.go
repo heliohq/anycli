@@ -138,8 +138,33 @@ func (s *Service) stderr() io.Writer {
 // validation on non-runnable commands, a false success for an agent).
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "customerio",
-		Short:         "Customer.io built-in service (App API)",
+		Use:   "customerio",
+		Short: "Customer.io built-in service (App API)",
+		Long: "Wraps Customer.io's App API — the read-and-manage surface: people lookup\n" +
+			"and delivery history, campaign, broadcast, newsletter and transactional\n" +
+			"reporting, manual segments, transactional send, and bulk exports. The\n" +
+			"Track API is deliberately NOT wrapped, so nothing here creates a person,\n" +
+			"records an event or writes a profile attribute; those writes have to\n" +
+			"happen elsewhere before this tool can see their effect.\n" +
+			"\n" +
+			"Auth is a single App API key scoped to one workspace, with its permissions\n" +
+			"frozen at creation. A 403 on one resource therefore means the key was\n" +
+			"minted without that permission, not that the resource is missing, and the\n" +
+			"fix is a new key rather than a re-scope. `workspace list` is the cheapest\n" +
+			"way to confirm which workspace a key actually reaches.\n" +
+			"\n" +
+			"--region defaults to us. An EU-region account needs --region eu on every\n" +
+			"call; there is no auto-detection, and a US call against an EU workspace\n" +
+			"fails rather than redirecting.\n" +
+			"\n" +
+			"Customer.io allows roughly 10 App API requests per second overall, and\n" +
+			"`broadcast trigger` is capped far harder at one request per 10 seconds per\n" +
+			"broadcast — retrying a trigger in a loop will be rejected.\n" +
+			"\n" +
+			"People are addressed by --id plus --id-type, which is `id` by default and\n" +
+			"can be `email` or `cio_id`; the same person has all three and they are not\n" +
+			"interchangeable. List-shaped reads page with --start and --limit, feeding\n" +
+			"the cursor from the previous response back through --start.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -61,7 +61,18 @@ type resource struct {
 
 	filters []filterFlag // list-command query filters
 	fields  []fieldSpec  // create/update body fields
+
+	// longs maps a verb word ("list", "get", "create"/"add", "update",
+	// "delete", "search") to that entity's Long. The op builders below are
+	// generic, so the prose cannot live in them: the id shape, pagination
+	// style, filter semantics and API version a caller has to know differ per
+	// entity even though the command shape does not. Each entity's texts are
+	// declared as package-level consts next to its newXGroup in entities.go.
+	longs map[string]string
 }
+
+// long returns the Long registered for a verb, or "" when the entity has none.
+func (r resource) long(verb string) string { return r.longs[verb] }
 
 // group assembles the resource's cobra group from the requested op builders.
 func (r resource) group(ops ...*cobra.Command) *cobra.Command {
@@ -75,6 +86,7 @@ func (r resource) listCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "list",
 		Short:       "List " + r.word + "s",
+		Long:        r.long("list"),
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -101,6 +113,7 @@ func (r resource) getCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:         "get <id>",
 		Short:       "Get one " + r.word + " by id",
+		Long:        r.long("get"),
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -118,6 +131,7 @@ func (r resource) createCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         verb,
 		Short:       verb + " a " + r.word,
+		Long:        r.long(verb),
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -142,6 +156,7 @@ func (r resource) updateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "update <id>",
 		Short:       "Update a " + r.word,
+		Long:        r.long("update"),
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -161,6 +176,7 @@ func (r resource) deleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:         "delete <id>",
 		Short:       "Delete a " + r.word,
+		Long:        r.long("delete"),
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -174,6 +190,7 @@ func (r resource) searchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "search",
 		Short:       "Search " + r.word + "s by term",
+		Long:        r.long("search"),
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

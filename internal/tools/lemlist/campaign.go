@@ -26,8 +26,14 @@ func (s *Service) newCampaignListCmd(key string) *cobra.Command {
 	var status, sortBy, sortOrder string
 	var offset, limit, page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List campaigns (GET /campaigns)",
+		Use:   "list",
+		Short: "List campaigns (GET /campaigns)",
+		Long: "`--status` filters on `running`, `draft`, `archived`, `ended`, `paused`\n" +
+			"or `errors`, and that status is also what says whether a campaign is\n" +
+			"sending right now. `--sort-by` takes `createdAt` with\n" +
+			"`--sort-order asc|desc`. Paging is offset-based, `--limit` capped at\n" +
+			"100. Rows describe configuration, never results — the numbers come from\n" +
+			"`campaign stats`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -69,8 +75,13 @@ func (s *Service) newCampaignListCmd(key string) *cobra.Command {
 
 func (s *Service) newCampaignGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <campaignId>",
-		Short:       "Get one campaign (GET /campaigns/{id})",
+		Use:   "get <campaignId>",
+		Short: "Get one campaign (GET /campaigns/{id})",
+		Long: "Returns the campaign's CONFIGURATION — sequence steps, schedule, sender\n" +
+			"and settings — and no performance data at all; opens, clicks, replies\n" +
+			"and bounces live in `campaign stats`. Read the step list here before\n" +
+			"`campaign start`, since starting sends exactly what is configured, to\n" +
+			"whoever is already enrolled.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -86,8 +97,14 @@ func (s *Service) newCampaignGetCmd(key string) *cobra.Command {
 func (s *Service) newCampaignStatsCmd(key string) *cobra.Command {
 	var startDate, endDate string
 	cmd := &cobra.Command{
-		Use:         "stats <campaignId>",
-		Short:       "Get campaign open/click/reply/bounce stats (GET /v2/campaigns/{id}/stats)",
+		Use:   "stats <campaignId>",
+		Short: "Get campaign open/click/reply/bounce stats (GET /v2/campaigns/{id}/stats)",
+		Long: "`--start-date` and `--end-date` are both required and checked before the\n" +
+			"call, because Lemlist answers a windowless request with a 400. Both are\n" +
+			"ISO 8601. The counts returned — sent, opened, clicked, replied, bounced\n" +
+			"— cover that window only, so lifetime numbers mean walking consecutive\n" +
+			"windows and adding them up. This is the reporting endpoint;\n" +
+			"`campaign get` returns configuration.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -112,8 +129,13 @@ func (s *Service) newCampaignStatsCmd(key string) *cobra.Command {
 
 func (s *Service) newCampaignStartCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "start <campaignId>",
-		Short:       "Start (resume) a campaign (POST /campaigns/{id}/start)",
+		Use:   "start <campaignId>",
+		Short: "Start (resume) a campaign (POST /campaigns/{id}/start)",
+		Long: "From the moment this succeeds Lemlist works through the sequence and\n" +
+			"mails the enrolled leads on their schedule. There is no dry run, no\n" +
+			"per-step confirmation and no undo beyond `campaign pause`, which stops\n" +
+			"future steps rather than recalling sent ones. Adding leads never starts\n" +
+			"a campaign; a paused campaign sends nothing however many are enrolled.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -128,8 +150,13 @@ func (s *Service) newCampaignStartCmd(key string) *cobra.Command {
 
 func (s *Service) newCampaignPauseCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "pause <campaignId>",
-		Short:       "Pause a campaign (POST /campaigns/{id}/pause)",
+		Use:   "pause <campaignId>",
+		Short: "Pause a campaign (POST /campaigns/{id}/pause)",
+		Long: "Stops further steps going out. Messages already handed to the mail\n" +
+			"server are not recalled, and every lead keeps its position in the\n" +
+			"sequence, so a later `campaign start` resumes rather than restarts.\n" +
+			"Pausing suppresses nobody — a lead who asked not to be contacted needs\n" +
+			"`lead unsubscribe` or `unsubscribe add`.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

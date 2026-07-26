@@ -13,8 +13,15 @@ import (
 
 func (s *Service) newSpreadsheetsGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Show a spreadsheet's title and tab list (no cell data) — run this before touching any tab",
+		Use:   "get <id>",
+		Short: "Show a spreadsheet's title and tab list (no cell data) — run this before touching any tab",
+		Long: "Returns the title, the spreadsheet URL and one entry per tab — title, gid,\n" +
+			"index and grid size — with a field mask that excludes cell data, so it\n" +
+			"stays cheap on a huge file. `rowCount` and `columnCount` are the allocated\n" +
+			"grid CAPACITY, which a new sheet sets to 1000 rows whatever it contains;\n" +
+			"treat them as an upper bound for chunked reads, never as a row count. How\n" +
+			"much data actually exists comes from the length of what `values get`\n" +
+			"returns.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -49,8 +56,13 @@ func (s *Service) newSpreadsheetsCreateCmd(token string) *cobra.Command {
 	var title string
 	var tabs []string
 	cmd := &cobra.Command{
-		Use:         "create --title T [--tab N]...",
-		Short:       "Create a spreadsheet in the user's My Drive root (spreadsheets.create)",
+		Use:   "create --title T [--tab N]...",
+		Short: "Create a spreadsheet in the user's My Drive root (spreadsheets.create)",
+		Long: "The new file lands in the connected account's My Drive root and there is no\n" +
+			"destination flag — filing it into a folder is a Drive operation, not a\n" +
+			"Sheets one. --tab is repeatable and names the initial tabs, replacing the\n" +
+			"single default sheet. The response carries the new id and URL; keep both,\n" +
+			"because nothing in this tool can find the file again by name.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -91,8 +103,16 @@ func (s *Service) newSpreadsheetsCreateCmd(token string) *cobra.Command {
 func (s *Service) newSpreadsheetsBatchUpdateCmd(token string) *cobra.Command {
 	var requestFile string
 	cmd := &cobra.Command{
-		Use:         "batch-update <id> --request-file <json>",
-		Short:       "Apply a raw spreadsheets.batchUpdate request (escape hatch for formatting, sorting, charts, ...)",
+		Use:   "batch-update <id> --request-file <json>",
+		Short: "Apply a raw spreadsheets.batchUpdate request (escape hatch for formatting, sorting, charts, ...)",
+		Long: "--request-file is a path to either a full `{\"requests\":[...]}` body or a\n" +
+			"bare `[...]` array, handed to the Sheets API untouched. Everything the\n" +
+			"safe verbs do not cover lives here: cell formatting, conditional\n" +
+			"formatting, sorting, frozen rows, data validation, charts, pivot tables,\n" +
+			"and row or column deletion that actually closes the gap. Requests apply in\n" +
+			"order inside one atomic call, so a single invalid request rejects the\n" +
+			"whole batch and changes nothing. Requests address tabs by numeric sheetId\n" +
+			"(gid), never by title — read the gids from `spreadsheets get`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

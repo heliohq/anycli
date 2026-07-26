@@ -19,7 +19,14 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search",
 		Short: "Search Notion pages and data sources",
-		Args:  cobra.NoArgs,
+		Long: "Covers pages and data sources INSIDE the workspace only; external\n" +
+			"connectors are not reachable from here. --query is required and matches\n" +
+			"titles, so a phrase buried in a page body will not surface. --type\n" +
+			"page|data_source narrows the object kind. Anything the integration has not\n" +
+			"been granted access to is invisible, so an empty result can mean \"not\n" +
+			"shared\" rather than \"does not exist\". Paginate with --all or the cursor\n" +
+			"flags.",
+		Args: cobra.NoArgs,
 		// POST /search is a documented read-only lookup — never mutates.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
@@ -67,7 +74,18 @@ func (s *Service) newFetchCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fetch <id>",
 		Short: "Fetch a page (markdown), or a database / data source (JSON)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Switches on the id type: a page comes back as MARKDOWN, a database or data\n" +
+			"source as JSON. A URL carrying a `v=` parameter is read as a database view\n" +
+			"and resolves to the database; any other URL is treated as a page. A bare\n" +
+			"uuid is typed by probing the endpoints in turn, and --type\n" +
+			"page|database|data_source skips that when the probe cannot decide.\n" +
+			"`fetch self` is a special form returning the connected integration's\n" +
+			"identity and workspace.\n" +
+			"\n" +
+			"Fetching a database ROW returns its body, which is typically empty, and\n" +
+			"never its column values — a hint is written to stderr when that happens.\n" +
+			"Rows with their fields come from `data-source query`.",
+		Args: cobra.ExactArgs(1),
 		// GET only (page markdown, database, data source, type probes).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}

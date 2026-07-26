@@ -88,8 +88,31 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "mailerlite",
-		Short:         "MailerLite built-in service",
+		Use:   "mailerlite",
+		Short: "MailerLite built-in service",
+		Long: "Wraps the current MailerLite Connect API, not MailerLite Classic. Classic\n" +
+			"accounts speak a different API entirely and their credentials will not\n" +
+			"authenticate here. Auth is one account-wide token with no scopes, so every\n" +
+			"command reaches everything the account can reach.\n" +
+			"\n" +
+			"Two pagination models coexist and the wrong one silently returns page one\n" +
+			"forever. Subscriber-shaped lists — `subscriber list`, `group subscribers`,\n" +
+			"`segment subscribers`, `form subscribers` — are CURSOR paged: read\n" +
+			"`meta.next_cursor` from the response and pass it back as --cursor.\n" +
+			"Everything else is page-numbered with --page starting at 1. Default page\n" +
+			"size is 25 throughout except `subscriber activity`, which is 100.\n" +
+			"\n" +
+			"Segments and automations are read-only. There is no command to create,\n" +
+			"edit or delete either, and no way to start or stop an automation run;\n" +
+			"segment membership follows rules maintained in MailerLite's own UI. Groups\n" +
+			"are the writable alternative — `group assign` and `group unassign` are the\n" +
+			"everyday membership actions.\n" +
+			"\n" +
+			"Subscriber status is one of active, unsubscribed, unconfirmed, bounced or\n" +
+			"junk, and the same vocabulary filters every subscriber-shaped list.\n" +
+			"\n" +
+			"Output is the provider's JSON verbatim: a `{data, meta, links}` envelope\n" +
+			"for lists and `{data}` for a single resource.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

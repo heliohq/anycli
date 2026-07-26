@@ -211,10 +211,11 @@ func listFlagsFrom(cmd *cobra.Command) *listFlags {
 }
 
 // newGetCmd is the generic "get <id>" command shared by every resource.
-func (s *Service) newGetCmd(token string, res resource) *cobra.Command {
+func (s *Service) newGetCmd(token string, res resource, long string) *cobra.Command {
 	return &cobra.Command{
 		Use:         "get <id>",
 		Short:       "Get one " + res.typ + " by id",
+		Long:        long,
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -226,10 +227,11 @@ func (s *Service) newGetCmd(token string, res resource) *cobra.Command {
 // newListCmd is the generic "list" command for resources with no resource-specific
 // filter flags (reference/read-only resources). It exposes only the shared list
 // flags.
-func (s *Service) newListCmd(token string, res resource) *cobra.Command {
+func (s *Service) newListCmd(token string, res resource, long string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "list",
 		Short:       "List " + res.path + " (one page)",
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

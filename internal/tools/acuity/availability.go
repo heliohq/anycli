@@ -21,8 +21,15 @@ func (s *Service) newAvailabilityDatesCmd(token string) *cobra.Command {
 	var month, timezone string
 	var typeID, calendarID int
 	cmd := &cobra.Command{
-		Use:         "dates",
-		Short:       "Days with open slots in a month (GET /availability/dates)",
+		Use:   "dates",
+		Short: "Days with open slots in a month (GET /availability/dates)",
+		Long: "--type-id and --month (YYYY-MM) are both required. The answer is the set of\n" +
+			"DAYS in that month carrying at least one open slot, not the slots\n" +
+			"themselves — those come from `availability times`, one call per day.\n" +
+			"Openness is computed against the appointment type's duration, so a\n" +
+			"different --type-id yields a different set of days. --calendar-id narrows\n" +
+			"to one staff calendar; --timezone takes an IANA name and shifts where the\n" +
+			"day boundaries fall.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -51,8 +58,15 @@ func (s *Service) newAvailabilityTimesCmd(token string) *cobra.Command {
 	var date, timezone string
 	var typeID, calendarID int
 	cmd := &cobra.Command{
-		Use:         "times",
-		Short:       "Open time slots on a date (GET /availability/times)",
+		Use:   "times",
+		Short: "Open time slots on a date (GET /availability/times)",
+		Long: "--type-id and --date (YYYY-MM-DD) are both required. Returns the bookable\n" +
+			"start times for that day with the type's duration and existing bookings\n" +
+			"already accounted for, and its values are exactly what --datetime on\n" +
+			"`appointment create` and `appointment reschedule` should be handed. Slots\n" +
+			"go stale: a time open here can be taken before the booking lands, which\n" +
+			"surfaces as a rejected create rather than a double booking. --timezone\n" +
+			"takes an IANA name and renders the slots in it.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

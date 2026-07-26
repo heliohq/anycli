@@ -18,8 +18,13 @@ func (s *Service) newFieldCmd(token string) *cobra.Command {
 
 func (s *Service) newFieldGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <field-id>",
-		Short:       "Get a field (GET /field/{id}.json)",
+		Use:   "get <field-id>",
+		Short: "Get a field (GET /field/{id}.json)",
+		Long: "Takes a FIELD id from `form fields`, not the id of the form it belongs\n" +
+			"to. Returns that one field's full definition — `type`, `label`,\n" +
+			"`required`, `hidden`, the `options` list for choice fields and any\n" +
+			"conditional logic on it. Reading a whole form's structure is one call\n" +
+			"with `form fields`; this is for drilling into a single question.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -40,9 +45,14 @@ func (s *Service) newFieldCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <form-id>",
 		Short: "Create a field on a form (POST /form/{id}/field.json)",
-		Long: "Create a field on a form. Common --type values: text, textarea, " +
-			"email, number, select, radio, checkbox, datetime, phone, name. " +
-			"Advanced layout/logic stays in the Formstack builder.",
+		Long: "`--type` and `--label` are both required and the type is fixed at\n" +
+			"creation. Common types are `text`, `textarea`, `email`, `number`,\n" +
+			"`select`, `radio`, `checkbox`, `datetime`, `phone` and `name`.\n" +
+			"`--options` only means anything for the choice types and is split on\n" +
+			"commas, so an option whose own text contains a comma cannot be expressed\n" +
+			"here. The field is appended to the form; ordering, layout and conditional\n" +
+			"logic stay in the Formstack builder. Keep the returned `id` — submitted\n" +
+			"answers are keyed by it, not by the label.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -12,8 +12,14 @@ func (s *Service) newDMListCmd(token string) *cobra.Command {
 	var nextToken string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List DM events (one page)",
+		Use:   "list",
+		Short: "List DM events (one page)",
+		Long: "Every DM event visible to the connected account, newest first, across all\n" +
+			"conversations — narrow to one conversation with `dm history`. Events are\n" +
+			"not only messages: filter on `event_type` to skip participants_join and\n" +
+			"participants_leave. --limit is 1-100, default 20; continue with\n" +
+			"--next-token. Attached media comes back as a media_key plus an expansion;\n" +
+			"the bytes themselves need `dm media download`.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -34,8 +40,11 @@ func (s *Service) newDMListCmd(token string) *cobra.Command {
 
 func (s *Service) newDMGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <event-id>",
-		Short:       "Get one DM event",
+		Use:   "get <event-id>",
+		Short: "Get one DM event",
+		Long: "Takes a DM EVENT id, as returned by `dm list` or `dm history` — not a\n" +
+			"conversation id. Attached media comes back as a media_key plus an\n" +
+			"expansion; fetch the bytes with `dm media download`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -56,8 +65,14 @@ func (s *Service) newDMHistoryCmd(token string) *cobra.Command {
 	var conversationID, participantID, nextToken string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "history",
-		Short:       "List events for one DM conversation (one page)",
+		Use:   "history",
+		Short: "List events for one DM conversation (one page)",
+		Long: "Exactly one of --conversation-id or --participant-id. --participant-id is\n" +
+			"the useful form when all you hold is a user id: it addresses the 1:1\n" +
+			"conversation with that user without knowing its id. Conversation ids come\n" +
+			"in two shapes — a group is a single 15-19 digit number, a 1:1 is two user\n" +
+			"ids joined by a hyphen. --limit is 1-100, default 20; continue with\n" +
+			"--next-token.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {

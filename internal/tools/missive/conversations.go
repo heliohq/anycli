@@ -15,9 +15,9 @@ func (s *Service) newConversationsCmd(token string) *cobra.Command {
 	group.AddCommand(
 		s.newConversationsListCmd(token),
 		s.newConversationsGetCmd(token),
-		s.newConversationsSubListCmd(token, "messages", "List messages on a conversation", "delivered_at"),
-		s.newConversationsSubListCmd(token, "comments", "List internal comments on a conversation", "created_at"),
-		s.newConversationsSubListCmd(token, "posts", "List posts on a conversation", "created_at"),
+		s.newConversationsSubListCmd(token, "messages", "List messages on a conversation", longConversationsMessages, "delivered_at"),
+		s.newConversationsSubListCmd(token, "comments", "List internal comments on a conversation", longConversationsComments, "created_at"),
+		s.newConversationsSubListCmd(token, "posts", "List posts on a conversation", longConversationsPosts, "created_at"),
 		s.newConversationsUpdateCmd(token),
 	)
 	return group
@@ -36,8 +36,16 @@ func (s *Service) newConversationsListCmd(token string) *cobra.Command {
 		email, domain, contactOrgName string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List conversations in a mailbox (one mailbox filter required)",
+		Use:   "list",
+		Short: "List conversations in a mailbox (one mailbox filter required)",
+		Long: "A MAILBOX filter is required: one of --inbox, --all, --assigned, --closed,\n" +
+			"--snoozed, --flagged, --trashed, --junked, --drafts, or one of the\n" +
+			"id-taking --shared-label, --team-inbox, --team-all, --team-closed. A bare\n" +
+			"list does not default to the inbox — Missive rejects it with a 400. The\n" +
+			"narrowing filters --email, --domain and --contact-organization are\n" +
+			"mutually exclusive and the combination is refused before any request goes\n" +
+			"out. --limit defaults to 25 and Missive caps it at 50; continue with\n" +
+			"--until from `next_until`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -103,8 +111,13 @@ func (s *Service) newConversationsListCmd(token string) *cobra.Command {
 
 func (s *Service) newConversationsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <conversation-id>",
-		Short:       "Show one conversation",
+		Use:   "get <conversation-id>",
+		Short: "Show one conversation",
+		Long: "Returns the conversation's own state — subject, assignees, shared labels,\n" +
+			"open or closed, last activity — and none of its contents. The thread is\n" +
+			"three separate sub-lists: `conversations messages` for customer traffic,\n" +
+			"`conversations comments` for human internal notes, `conversations posts`\n" +
+			"for integration-written ones.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -117,10 +130,33 @@ func (s *Service) newConversationsGetCmd(token string) *cobra.Command {
 	}
 }
 
+// longConversationsMessages, longConversationsComments and
+// longConversationsPosts sit beside the shared sub-list builder because it is
+// the builder that fixes the 10-item ceiling and the cursor field all three
+// describe.
+const (
+	longConversationsMessages = "The customer-facing traffic on this conversation — email, SMS and chat,\n" +
+		"inbound and outbound alike. Internal team notes are NOT here; they are\n" +
+		"`conversations comments` and `conversations posts`. --limit defaults to 10\n" +
+		"and 10 is also Missive's maximum, so a long thread takes several pages\n" +
+		"through --until, whose cursor here is a delivery timestamp."
+
+	longConversationsComments = "Internal team notes typed by people in Missive; the customer never sees\n" +
+		"them. The cursor is a creation timestamp rather than the delivery timestamp\n" +
+		"`conversations messages` returns, so an --until value cannot be carried\n" +
+		"between the two lists. --limit defaults to 10, which is Missive's maximum."
+
+	longConversationsPosts = "Posts are what integrations write into a conversation, including everything\n" +
+		"`posts create` produced — distinct from the human-typed notes under\n" +
+		"`conversations comments`, which is why an automated summary does not appear\n" +
+		"there. --limit defaults to 10, Missive's maximum, paged with --until on a\n" +
+		"creation timestamp."
+)
+
 // newConversationsSubListCmd builds a cursor-paged thread sub-resource lister
 // (messages / comments / posts). subPath is both the URL segment and the
 // response's top-level key; cursorField is the until cursor for that resource.
-func (s *Service) newConversationsSubListCmd(token, subPath, short, cursorField string) *cobra.Command {
+func (s *Service) newConversationsSubListCmd(token, subPath, short, long, cursorField string) *cobra.Command {
 	var (
 		limit int
 		until string
@@ -128,6 +164,7 @@ func (s *Service) newConversationsSubListCmd(token, subPath, short, cursorField 
 	cmd := &cobra.Command{
 		Use:         subPath + " <conversation-id>",
 		Short:       short,
+		Long:        long,
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -154,8 +191,14 @@ func (s *Service) newConversationsSubListCmd(token, subPath, short, cursorField 
 func (s *Service) newConversationsUpdateCmd(token string) *cobra.Command {
 	var inline, file string
 	cmd := &cobra.Command{
-		Use:         "update <conversation-id>",
-		Short:       "Change conversation state (close/assign/label) via PATCH. Body: {\"conversations\":{...}}",
+		Use:   "update <conversation-id>",
+		Short: "Change conversation state (close/assign/label) via PATCH. Body: {\"conversations\":{...}}",
+		Long: "The body wraps under `conversations` and its field names are verbs:\n" +
+			"`close`, `reopen`, `add_shared_labels`, `remove_shared_labels`,\n" +
+			"`add_assignees`, `remove_assignees`. Labels and assignees are added and\n" +
+			"removed as deltas rather than replaced wholesale, so the current state\n" +
+			"does not have to be read first. Everything this command changes is\n" +
+			"internal team state — nothing is sent to the customer.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

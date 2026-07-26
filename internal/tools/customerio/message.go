@@ -12,8 +12,14 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 	var metric, msgType, start string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "Workspace-wide delivery search (GET /v1/messages)",
+		Use:   "list",
+		Short: "Workspace-wide delivery search (GET /v1/messages)",
+		Long: "Searches deliveries across every recipient, which is the right shape for\n" +
+			"\"how many bounced yesterday\" but the wrong one for \"what did Jane get\" —\n" +
+			"that is `person messages`, one scoped request instead of paging the\n" +
+			"workspace. --metric filters on outcome (sent, delivered, opened, clicked,\n" +
+			"bounced, failed) and --type on channel (email, sms, push); combine them to\n" +
+			"narrow before paging with --start and --limit.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -47,8 +53,12 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 func (s *Service) newMessageGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a single delivery (GET /v1/messages/{id})",
+		Use:   "get",
+		Short: "Get a single delivery (GET /v1/messages/{id})",
+		Long: "Takes a delivery id from `message list` or `person messages` and returns\n" +
+			"that one send in full, including the metrics and failure detail the list\n" +
+			"view summarises. This is the level at which \"it says delivered but they\n" +
+			"never saw it\" gets an answer.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

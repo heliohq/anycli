@@ -27,8 +27,13 @@ type permission struct {
 
 func (s *Service) newPermissionsListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list <file-id>",
-		Short:       "List who a file is shared with (permissions.list)",
+		Use:   "list <file-id>",
+		Short: "List who a file is shared with (permissions.list)",
+		Long: "Every grant on the file, each carrying the permission `id` that\n" +
+			"`permissions update` and `permissions delete` require — those take that\n" +
+			"id, never an email address. A permission of type `anyone` means the file\n" +
+			"is readable by whoever holds the link, which is the entry to look for when\n" +
+			"auditing exposure.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,8 +73,18 @@ func (s *Service) newFilesShareCmd(token string) *cobra.Command {
 	var anyone, noNotify bool
 	var role, message string
 	cmd := &cobra.Command{
-		Use:         "share <file-id> --with a@b[,c@d] --role reader|commenter|writer",
-		Short:       "Share a file (permissions.create). Outward-facing — confirm with the user first; --anyone makes it link-visible.",
+		Use:   "share <file-id> --with a@b[,c@d] --role reader|commenter|writer",
+		Short: "Share a file (permissions.create). Outward-facing — confirm with the user first; --anyone makes it link-visible.",
+		Long: "The point at which the file leaves the connected account's private domain.\n" +
+			"--with takes one or more addresses; --anyone makes it readable by ANYONE\n" +
+			"holding the URL, which is the highest-exposure form because a link travels\n" +
+			"further than the intent behind it. The two are mutually exclusive. --role\n" +
+			"defaults to reader and accepts commenter or writer.\n" +
+			"\n" +
+			"Each recipient is a separate API call, so this is NOT atomic — a failure\n" +
+			"part-way leaves the grants already made in place. Addressed recipients get\n" +
+			"a notification email carrying --message unless --no-notify is passed; an\n" +
+			"`anyone` grant never notifies anyone.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -135,8 +150,13 @@ func (s *Service) newFilesShareCmd(token string) *cobra.Command {
 func (s *Service) newPermissionsUpdateCmd(token string) *cobra.Command {
 	var role string
 	cmd := &cobra.Command{
-		Use:         "update <file-id> <permission-id> --role reader|commenter|writer",
-		Short:       "Change a permission's role. Escalation (e.g. reader→writer) widens exposure — confirm with the user first.",
+		Use:   "update <file-id> <permission-id> --role reader|commenter|writer",
+		Short: "Change a permission's role. Escalation (e.g. reader→writer) widens exposure — confirm with the user first.",
+		Long: "Takes the file id and the PERMISSION id from `permissions list`, not an\n" +
+			"email address. Raising a role — reader to writer — lets that grantee change\n" +
+			"or delete the file's contents; lowering it narrows exposure and takes\n" +
+			"effect immediately. Neither direction sends any notification, so someone\n" +
+			"who loses write access simply finds it gone.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -168,8 +188,12 @@ func (s *Service) newPermissionsUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newPermissionsDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <file-id> <permission-id>",
-		Short:       "Revoke a permission (permissions.delete). Convergent — safe to run without confirmation.",
+		Use:   "delete <file-id> <permission-id>",
+		Short: "Revoke a permission (permissions.delete). Convergent — safe to run without confirmation.",
+		Long: "Takes the file id and the permission id from `permissions list`. Revocation\n" +
+			"is immediate and silent — nothing emails the person who lost access.\n" +
+			"Deleting the `anyone` permission is what turns a link-shared file private\n" +
+			"again, and is the narrowing counterpart to `files share --anyone`.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

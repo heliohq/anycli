@@ -25,8 +25,18 @@ func (s *Service) newDomainOverviewCmd(token string) *cobra.Command {
 	var target, date, country, mode, protocol string
 	var cheap bool
 	cmd := &cobra.Command{
-		Use:         "overview",
-		Short:       "Domain Rating + backlink + traffic/keyword metrics for a target",
+		Use:   "overview",
+		Short: "Domain Rating + backlink + traffic/keyword metrics for a target",
+		Long: "One command, THREE separate Ahrefs calls: domain-rating, backlinks-stats\n" +
+			"and metrics, merged into a single object keyed by endpoint so the source\n" +
+			"of each figure stays visible. That means it bills roughly three times the\n" +
+			"minimum. --cheap collapses it to the domain-rating call alone, which is\n" +
+			"the right choice when only the DR number matters.\n" +
+			"\n" +
+			"--target is required. --date defaults to today UTC, so a historical\n" +
+			"snapshot needs it set explicitly. --country slices only the metrics\n" +
+			"portion, and --mode / --protocol apply to the backlinks-stats and metrics\n" +
+			"calls but not to domain-rating.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

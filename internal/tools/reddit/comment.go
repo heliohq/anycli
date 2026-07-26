@@ -20,8 +20,15 @@ func (s *Service) newCommentCmd(token string) *cobra.Command {
 func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 	var parent, text string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Reply to a post or comment (--parent is its fullname)",
+		Use:   "create",
+		Short: "Reply to a post or comment (--parent is its fullname)",
+		Long: "The reply command for both levels: `--parent` takes the FULLNAME of what\n" +
+			"is being replied to — `t3_…` for a top-level reply to a post, `t1_…` to\n" +
+			"answer another comment — and a bare id is rejected before anything is\n" +
+			"sent. `--text` is Reddit markdown. The comment is public immediately\n" +
+			"under the connected account, and the response carries its own\n" +
+			"`fullname` and `permalink`, which are what a later edit or delete\n" +
+			"needs.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -54,8 +61,12 @@ func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 func (s *Service) newCommentEditCmd(token string) *cobra.Command {
 	var text string
 	cmd := &cobra.Command{
-		Use:         "edit <fullname>",
-		Short:       "Edit your own comment (t1_ fullname)",
+		Use:   "edit <fullname>",
+		Short: "Edit your own comment (t1_ fullname)",
+		Long: "Takes the comment's `t1_` fullname and replaces the body with `--text` in\n" +
+			"full; there is no partial edit. Only the connected account's own\n" +
+			"comments can be edited, and Reddit marks the result as edited for\n" +
+			"everyone who reads it.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -74,8 +85,11 @@ func (s *Service) newCommentEditCmd(token string) *cobra.Command {
 
 func (s *Service) newCommentDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <fullname>",
-		Short:       "Delete your own comment (t1_ fullname)",
+		Use:   "delete <fullname>",
+		Short: "Delete your own comment (t1_ fullname)",
+		Long: "Takes the `t1_` fullname; immediate and not reversible. Replies beneath\n" +
+			"the comment survive, re-parented under a deletion placeholder, so\n" +
+			"removing a comment does not remove the conversation hanging off it.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

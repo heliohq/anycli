@@ -21,8 +21,15 @@ func (s *Service) newSessionListCmd(key string) *cobra.Command {
 	var uid, email string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List a user's recent session replay URLs (GET /v2/sessions)",
+		Use:   "list",
+		Short: "List a user's recent session replay URLs (GET /v2/sessions)",
+		Long: "The investigation entry point. At least one of `--uid` or `--email` is\n" +
+			"required, checked locally, and both are forwarded as independent query\n" +
+			"parameters — pass the single strongest identifier rather than both.\n" +
+			"Each result carries `fs_url`, which opens the replay in FullStory, and\n" +
+			"`id` in `deviceId:sessionId` form, which is what `event create\n" +
+			"--session-id` takes. `--limit` at 0 leaves FullStory's own default. This\n" +
+			"works on a Standard key, unlike the `user` reads.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

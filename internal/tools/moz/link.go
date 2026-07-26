@@ -14,11 +14,33 @@ func (s *Service) newLinkCmd(token string) *cobra.Command {
 	return cmd
 }
 
+// longLinkList, longLinkDomains and longLinkAnchors are the three link Longs.
+// They live next to the shared builder because it is the builder that fixes the
+// target_query shape and the per-row quota cost all three describe; what
+// differs is what one row means in each.
+const (
+	longLinkList = "One row per inbound LINK, so a single site that links a thousand times\n" +
+		"consumes a thousand rows of quota — when the question is who links rather\n" +
+		"than how often, `link domains` answers it far more cheaply. Each row\n" +
+		"carries the source page, its anchor text and its authority. --limit\n" +
+		"defaults to 25."
+
+	longLinkDomains = "One row per linking ROOT DOMAIN rather than per link, which makes this\n" +
+		"both the cheap read and the honest measure of link diversity: a hundred\n" +
+		"links from one site collapse to one row here. --limit defaults to 25."
+
+	longLinkAnchors = "Anchor phrases aggregated across the target's inbound links, one row per\n" +
+		"phrase with its link and domain counts. This is where an over-optimised\n" +
+		"or spam-looking anchor profile becomes visible, which the raw per-link\n" +
+		"output of `link list` buries. --limit defaults to 25."
+)
+
 // newLinkListCmd lists inbound links to a target (data.site.link.list).
 func (s *Service) newLinkListCmd(token string) *cobra.Command {
 	return s.newTargetListCmd(token, targetListSpec{
 		use:    "list",
 		short:  "Inbound links pointing at a target",
+		long:   longLinkList,
 		method: "data.site.link.list",
 	})
 }
@@ -29,6 +51,7 @@ func (s *Service) newLinkDomainsCmd(token string) *cobra.Command {
 	return s.newTargetListCmd(token, targetListSpec{
 		use:    "domains",
 		short:  "Linking root domains for a target",
+		long:   longLinkDomains,
 		method: "data.site.linking-domain.list",
 	})
 }
@@ -39,6 +62,7 @@ func (s *Service) newLinkAnchorsCmd(token string) *cobra.Command {
 	return s.newTargetListCmd(token, targetListSpec{
 		use:    "anchors",
 		short:  "Anchor-text profile for a target",
+		long:   longLinkAnchors,
 		method: "data.site.anchor-text.list",
 	})
 }
@@ -49,6 +73,7 @@ func (s *Service) newLinkAnchorsCmd(token string) *cobra.Command {
 type targetListSpec struct {
 	use    string
 	short  string
+	long   string
 	method string
 }
 
@@ -59,6 +84,7 @@ func (s *Service) newTargetListCmd(token string, spec targetListSpec) *cobra.Com
 	cmd := &cobra.Command{
 		Use:         spec.use,
 		Short:       spec.short,
+		Long:        spec.long,
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

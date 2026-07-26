@@ -32,7 +32,13 @@ func (s *Service) newLeadListSubCmd(token string) *cobra.Command {
 		Use:         "list",
 		Annotations: readOnly,
 		Short:       "List/search leads (POST /leads/list)",
-		Args:        cobra.NoArgs,
+		Long: "A POST rather than a GET, because its filter body is complex — and that is\n" +
+			"why --limit and --starting-after ride the BODY here instead of the query\n" +
+			"string as they do on every other list in this tool. --campaign, --list-id\n" +
+			"and --search cover the common cuts, with --search matching name, email\n" +
+			"and company. Anything richer goes in --data as the raw filter body, over\n" +
+			"which the typed flags win.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -65,7 +71,11 @@ func (s *Service) newLeadGetCmd(token string) *cobra.Command {
 		Use:         "get",
 		Annotations: readOnly,
 		Short:       "Get a lead (GET /leads/{id})",
-		Args:        cobra.NoArgs,
+		Long: "--id is the lead's own id, from `lead list` — there is no lookup by email\n" +
+			"address here, and `lead update-interest` is the only command in the group\n" +
+			"keyed on one. Returns the lead with its custom variables, which are what\n" +
+			"the campaign sequence's merge tags render from.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/leads/"+url.PathEscape(id), nil)
 		},
@@ -81,7 +91,13 @@ func (s *Service) newLeadCreateCmd(token string) *cobra.Command {
 		Use:         "create",
 		Annotations: writeAction,
 		Short:       "Create a single lead (POST /leads)",
-		Args:        cobra.NoArgs,
+		Long: "The single-lead path; `lead add` is the bulk one and takes up to 1000.\n" +
+			"--email plus one of --campaign or --list-id is the useful minimum, and\n" +
+			"--first-name, --last-name and --company-name fill merge fields the\n" +
+			"sequence renders. Any other field goes through --data, over which the\n" +
+			"typed flags win. Creating a lead directly in an ACTIVE campaign enrols it\n" +
+			"in the sequence, so outreach follows without a further command.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -112,7 +128,11 @@ func (s *Service) newLeadUpdateCmd(token string) *cobra.Command {
 		Use:         "update",
 		Annotations: writeAction,
 		Short:       "Update a lead (PATCH /leads/{id}). --data is the raw JSON body",
-		Args:        cobra.NoArgs,
+		Long: "--id is required and --data is the raw patch body; there are no per-field\n" +
+			"flags, so read the lead with `lead get` first. Custom variables written\n" +
+			"here are what the sequence's merge tags render, so a misspelled variable\n" +
+			"name surfaces as an empty field in a real email rather than as an error.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -133,7 +153,11 @@ func (s *Service) newLeadDeleteCmd(token string) *cobra.Command {
 		Use:         "delete",
 		Annotations: writeAction,
 		Short:       "Delete a lead (DELETE /leads/{id})",
-		Args:        cobra.NoArgs,
+		Long: "--id is required. This removes the record rather than stopping outreach to\n" +
+			"the person — `lead update-interest` or pausing the campaign keeps the\n" +
+			"history. Nothing here restores a deleted lead, and re-adding the same\n" +
+			"address starts the sequence again from step one.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.send(cmd, token, http.MethodDelete, "/leads/"+url.PathEscape(id), nil)
 		},
@@ -152,7 +176,13 @@ func (s *Service) newLeadAddCmd(token string) *cobra.Command {
 		Use:         "add",
 		Annotations: writeAction,
 		Short:       "Bulk-add leads to a campaign or list (POST /leads/add)",
-		Args:        cobra.NoArgs,
+		Long: "The bulk path, up to 1000 leads per call. The `leads` array is required\n" +
+			"and has NO flag — it must come through --data, e.g.\n" +
+			"`{\"leads\":[{\"email\":\"a@b.com\"}]}` — while --campaign-id and --list-id\n" +
+			"are conveniences merged over that body. Adding into a campaign that is\n" +
+			"already active starts sending to every one of them at the next schedule\n" +
+			"window, so stage into a lead list first when that is not intended.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -176,7 +206,12 @@ func (s *Service) newLeadMoveCmd(token string) *cobra.Command {
 		Use:         "move",
 		Annotations: writeAction,
 		Short:       "Move leads between campaigns/lists (POST /leads/move; returns a background job)",
-		Args:        cobra.NoArgs,
+		Long: "Returns a background JOB, not a result: nothing has moved when this\n" +
+			"returns, so poll `job get --id <job-id>` before assuming the leads\n" +
+			"landed. --to-campaign-id or --to-list-id names the destination, and which\n" +
+			"leads move comes from --data (an ids array, or a filter). Moving leads\n" +
+			"INTO an active campaign starts sending to them.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -200,7 +235,13 @@ func (s *Service) newLeadInterestCmd(token string) *cobra.Command {
 		Use:         "update-interest",
 		Annotations: writeAction,
 		Short:       "Set a lead's interest status (POST /leads/update-interest-status)",
-		Args:        cobra.NoArgs,
+		Long: "Keyed on --lead-email, not a lead id — the one command in this group\n" +
+			"addressed by address. --interest-value is a required numeric code (1 for\n" +
+			"interested, -1 for not interested, plus whatever else the workspace\n" +
+			"configures), never a free-text label. --campaign-id scopes it when the\n" +
+			"same address sits in several campaigns; without it the scope is whatever\n" +
+			"the provider picks.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{
 				"lead_email":     leadEmail,

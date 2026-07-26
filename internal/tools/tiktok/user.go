@@ -16,8 +16,15 @@ func (s *Service) newUserCmd(token string) *cobra.Command {
 func (s *Service) newUserInfoCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:         "info",
-		Short:       "Show the connected TikTok creator",
+		Use:   "info",
+		Short: "Show the connected TikTok creator",
+		Long: "`--fields` defaults to `open_id,union_id,avatar_url,display_name`, which is\n" +
+			"what the basic scope covers. `follower_count`, `following_count`,\n" +
+			"`likes_count`, `video_count` and `bio_description` must be named\n" +
+			"explicitly AND need the profile/stats scopes granted when the account\n" +
+			"connected; without them the call fails outright rather than returning the\n" +
+			"field empty. `open_id` is the creator's stable id inside this app,\n" +
+			"`union_id` the one shared across the developer's apps.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

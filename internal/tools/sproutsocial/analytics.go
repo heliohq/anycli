@@ -80,19 +80,41 @@ func registerFilterFlags(cmd *cobra.Command, q *queryFlags) {
 func (s *Service) newAnalyticsCmd(token string) *cobra.Command {
 	cmd := newGroupCmd("analytics", "Read profile and post analytics (POST filter endpoints)")
 	cmd.AddCommand(
-		s.newAnalyticsPostCmd(token, "profiles", "analytics/profiles", "Profile-level analytics (POST /v1/{cid}/analytics/profiles)"),
-		s.newAnalyticsPostCmd(token, "posts", "analytics/posts", "Post-level analytics (POST /v1/{cid}/analytics/posts)"),
+		s.newAnalyticsPostCmd(token, "profiles", "analytics/profiles", "Profile-level analytics (POST /v1/{cid}/analytics/profiles)", longAnalyticsProfiles),
+		s.newAnalyticsPostCmd(token, "posts", "analytics/posts", "Post-level analytics (POST /v1/{cid}/analytics/posts)", longAnalyticsPosts),
 	)
 	return cmd
 }
 
+// longAnalyticsProfiles and longAnalyticsPosts are the two analytics Longs.
+// They live beside the shared builder because it is the builder that fixes the
+// filter-body contract and the index paging both of them describe; only the
+// grain of a row differs.
+const (
+	longAnalyticsProfiles = "Aggregates by social PROFILE — one row per connected account rather than per\n" +
+		"post — so the result set is bounded by how many profiles the customer has,\n" +
+		"not by the date window. `--metric` is repeatable and names the Sprout\n" +
+		"metrics to return; omitting it takes the endpoint's defaults. Index-paged:\n" +
+		"`--page` is 1-based, `--limit` sizes it, and `paging.total_pages` says when\n" +
+		"to stop. Profile ids come from `metadata profiles`."
+
+	longAnalyticsPosts = "One row per published post, so the result set grows with the date window —\n" +
+		"bound `created_time` in a `--filter` before widening anything else.\n" +
+		"`--metric` is repeatable and `--fields` trims each row (post text,\n" +
+		"permalink) to keep pages small. Index-paged through `--page` / `--limit`\n" +
+		"against `paging.total_pages`, not the cursor `messages list` uses. Covers\n" +
+		"posts Sprout published or is tracking; it is not a general search of a\n" +
+		"network."
+)
+
 // newAnalyticsPostCmd builds one analytics verb. Analytics uses index-based
 // paging (--page / --limit) and accepts --metric (repeatable).
-func (s *Service) newAnalyticsPostCmd(token, use, resource, short string) *cobra.Command {
+func (s *Service) newAnalyticsPostCmd(token, use, resource, short, long string) *cobra.Command {
 	var q queryFlags
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -129,8 +151,14 @@ func (s *Service) newMessagesCmd(token string) *cobra.Command {
 func (s *Service) newMessagesListCmd(token string) *cobra.Command {
 	var q queryFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List inbox messages (POST /v1/{cid}/messages)",
+		Use:   "list",
+		Short: "List inbox messages (POST /v1/{cid}/messages)",
+		Long: "At least one `--filter` is required, and a time-bounded one is the usual\n" +
+			"entry point (`created_time.in(2026-01-01...2026-01-02)`). `--limit` defaults\n" +
+			"to 50 and Sprout caps it at 100. Paging is CURSOR-based — feed\n" +
+			"`paging.next_cursor` back through `--page-cursor`; the `--page` flag that\n" +
+			"analytics uses does not exist here. This reads the shared inbox only:\n" +
+			"nothing in this tool replies to, assigns or closes a message.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -166,8 +194,13 @@ func (s *Service) newCasesCmd(token string) *cobra.Command {
 func (s *Service) newCasesFilterCmd(token string) *cobra.Command {
 	var q queryFlags
 	cmd := &cobra.Command{
-		Use:         "filter",
-		Short:       "Filter support cases (POST /v1/{cid}/cases/filter)",
+		Use:   "filter",
+		Short: "Filter support cases (POST /v1/{cid}/cases/filter)",
+		Long: "Cases are distinct objects from inbox messages — a case id is not a message\n" +
+			"id and the two filter vocabularies do not overlap. At least one `--filter`\n" +
+			"is required. `--limit` defaults to 50 with a Sprout cap of 100, and paging\n" +
+			"is `--page-cursor` fed from `paging.next_cursor`. Read-only: no case can be\n" +
+			"opened, assigned or resolved from here.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

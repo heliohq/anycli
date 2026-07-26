@@ -23,8 +23,13 @@ var validRatings = map[string]bool{"like": true, "dislike": true, "none": true}
 func (s *Service) newVideosGetCmd(token string) *cobra.Command {
 	var id, part string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one or more videos' metadata + statistics",
+		Use:   "get",
+		Short: "Get one or more videos' metadata + statistics",
+		Long: "--id is required and takes a comma-separated list, so several videos come\n" +
+			"back in ONE unit rather than one call each — batch instead of looping.\n" +
+			"Statistics are lifetime totals; a video whose owner hides likes returns an\n" +
+			"empty count, printed as a dash. Works on any public video, not just the\n" +
+			"connected channel's.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -61,8 +66,15 @@ func (s *Service) newVideosMineCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:         "mine",
-		Short:       "List the connected channel's own uploads (via the uploads playlist, not search)",
+		Use:   "mine",
+		Short: "List the connected channel's own uploads (via the uploads playlist, not search)",
+		Long: "Resolves the channel's uploads playlist and pages it, which costs one or\n" +
+			"two quota units against `search`'s hundred, returns every upload rather\n" +
+			"than search's ~500 cap, and is immediately consistent — a video published\n" +
+			"a minute ago is here, where search may not show it for hours. This is\n" +
+			"always the right way to answer \"what have I published\". Two requests are\n" +
+			"made per call: one to find the uploads playlist, one to page it. --max is\n" +
+			"capped at 50 and defaults to 5; continue with --page.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -126,8 +138,15 @@ func (s *Service) uploadsPlaylistID(ctx context.Context, token string) (string, 
 func (s *Service) newVideosUpdateCmd(token string) *cobra.Command {
 	var id, title, description, tags, categoryID, privacy string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a video's title / description / tags / category / privacy",
+		Use:   "update",
+		Short: "Update a video's title / description / tags / category / privacy",
+		Long: "The API replaces a whole part on update, which would wipe every field left\n" +
+			"unset, so this reads the current video first and merges the given flags\n" +
+			"over it — one extra request, in exchange for title and categoryId\n" +
+			"surviving a description-only change. --tags REPLACES the entire tag list\n" +
+			"rather than appending, so read the current tags before setting them.\n" +
+			"--privacy is public, unlisted or private and takes effect immediately on a\n" +
+			"live video. At least one field flag is required.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -228,8 +247,12 @@ func (s *Service) fetchVideoForUpdate(ctx context.Context, token, id, parts stri
 func (s *Service) newVideosRateCmd(token string) *cobra.Command {
 	var id, rating string
 	cmd := &cobra.Command{
-		Use:         "rate",
-		Short:       "Like, dislike or clear your rating on a video",
+		Use:   "rate",
+		Short: "Like, dislike or clear your rating on a video",
+		Long: "Rates as the connected account, on any video, not just the channel's own.\n" +
+			"--rating none clears an existing rating rather than setting a neutral one.\n" +
+			"The API returns no body, so the printed receipt confirms the call\n" +
+			"succeeded, not what the rating was before.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

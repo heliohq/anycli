@@ -11,8 +11,14 @@ import (
 
 func (s *Service) newFoldersListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List mail folders with unread/total counts (GET /me/mailFolders)",
+		Use:   "list",
+		Short: "List mail folders with unread/total counts (GET /me/mailFolders)",
+		Long: "Returns folder ids alongside EXACT `unreadItemCount` and `totalItemCount`,\n" +
+			"which is far cheaper than counting a `messages list` result and is the right\n" +
+			"way to answer \"how many unread\". Fetches the top 100 folders in one call,\n" +
+			"with no paging flag, and returns only top-level folders — nested child\n" +
+			"folders are not expanded. The ids feed `messages list --folder` and\n" +
+			"`messages move --folder`, both of which also accept well-known names.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

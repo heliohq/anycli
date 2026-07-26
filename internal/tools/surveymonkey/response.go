@@ -45,8 +45,15 @@ func (s *Service) newResponseListCmd(token string) *cobra.Command {
 	var page, perPage int
 	var filters responseFilterFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List response metadata for a survey (ids/hrefs; no answers; free-plan usable)",
+		Use:   "list",
+		Short: "List response metadata for a survey (ids/hrefs; no answers; free-plan usable)",
+		Long: "`--survey` is required. Deliberately carries no answer content, which is\n" +
+			"why it works without the paid permission that `response bulk` needs. Its\n" +
+			"real use beyond ids is COUNTING: apply `--status` (completed, partial,\n" +
+			"overquota, disqualified) or the `--start-created-at` / `--end-created-at` /\n" +
+			"`--start-modified-at` / `--end-modified-at` timestamps\n" +
+			"(YYYY-MM-DDTHH:MM:SS) and read `total` from the envelope for the filtered\n" +
+			"count, without paging through anything.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -78,8 +85,17 @@ func (s *Service) newResponseBulkCmd(token string) *cobra.Command {
 	var page, perPage int
 	var filters responseFilterFlags
 	cmd := &cobra.Command{
-		Use:         "bulk",
-		Short:       "Read full responses with answers for a survey (needs paid responses_read_detail)",
+		Use:   "bulk",
+		Short: "Read full responses with answers for a survey (needs paid responses_read_detail)",
+		Long: "`--survey` is required. This is the command for analysing what people\n" +
+			"actually said: one page returns many complete responses, so it beats\n" +
+			"looping `response get` by a wide margin. It takes the same `--status` and\n" +
+			"date filters as `response list`, plus `--page` / `--per-page`.\n" +
+			"\n" +
+			"It needs the paid `responses_read_detail` permission and fails on a free\n" +
+			"plan with an explicit message — treat that as final rather than retrying.\n" +
+			"Answers arrive as question and answer-option ids, so pair it with\n" +
+			"`survey details`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -106,8 +122,13 @@ func (s *Service) newResponseBulkCmd(token string) *cobra.Command {
 func (s *Service) newResponseGetCmd(token string) *cobra.Command {
 	var survey, id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Read one full response with answers (needs paid responses_read_detail)",
+		Use:   "get",
+		Short: "Read one full response with answers (needs paid responses_read_detail)",
+		Long: "Both `--survey` and `--id` are required; a response id does not address\n" +
+			"anything on its own. Same paid `responses_read_detail` gate as\n" +
+			"`response bulk`, and no filters or paging. Worth calling only for one\n" +
+			"already-identified respondent — for a whole survey `response bulk` returns\n" +
+			"the same content many at a time.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

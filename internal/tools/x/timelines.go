@@ -12,10 +12,10 @@ import (
 func (s *Service) newTimelineCmd(token, connectedUserID string) *cobra.Command {
 	cmd := &cobra.Command{Use: "timeline", Short: "Post timelines"}
 	cmd.AddCommand(
-		s.newTimelineLeafCmd(token, connectedUserID, "user", "Posts by a user", func(id string) string {
+		s.newTimelineLeafCmd(token, connectedUserID, "user", "Posts by a user", longTimelineUser, func(id string) string {
 			return "/2/users/" + url.PathEscape(id) + "/tweets"
 		}),
-		s.newTimelineLeafCmd(token, connectedUserID, "mentions", "Posts mentioning a user", func(id string) string {
+		s.newTimelineLeafCmd(token, connectedUserID, "mentions", "Posts mentioning a user", longTimelineMentions, func(id string) string {
 			return "/2/users/" + url.PathEscape(id) + "/mentions"
 		}),
 		s.newHomeTimelineCmd(token, connectedUserID),
@@ -23,13 +23,31 @@ func (s *Service) newTimelineCmd(token, connectedUserID string) *cobra.Command {
 	return cmd
 }
 
-func (s *Service) newTimelineLeafCmd(token, connectedUserID, use, short string, pathFor func(string) string) *cobra.Command {
+// longTimelineUser and longTimelineMentions are the two per-user timeline
+// Longs. They sit next to the shared builder because it is the builder that
+// fixes the 5-100 limit range and the --user-id default both describe.
+const (
+	longTimelineUser = "Defaults to the connected account; pass --user-id for someone else. X caps\n" +
+		"this endpoint at roughly the account's 3200 most recent posts — anything\n" +
+		"older is unreachable here and has to be fetched by id with `post get`.\n" +
+		"Reposts and replies made by the account are included. --limit is 5-100,\n" +
+		"default 10; continue with --next-token or poll with --since-id."
+
+	longTimelineMentions = "The incremental way to find new engagement: keep the newest id returned and\n" +
+		"pass it as --since-id next time, which makes polling exact and far cheaper\n" +
+		"than re-running `post search`. Defaults to the connected account; pass\n" +
+		"--user-id for another account. X serves roughly the 800 most recent\n" +
+		"mentions here. --limit is 5-100, default 10; continue with --next-token."
+)
+
+func (s *Service) newTimelineLeafCmd(token, connectedUserID, use, short, long string, pathFor func(string) string) *cobra.Command {
 	userID := connectedUserID
 	var nextToken, sinceID string
 	var limit int
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short + " (one page)",
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -64,8 +82,13 @@ func (s *Service) newHomeTimelineCmd(token, connectedUserID string) *cobra.Comma
 	var nextToken, sinceID string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "home",
-		Short:       "Reverse-chronological home timeline for the connected user (one page)",
+		Use:   "home",
+		Short: "Reverse-chronological home timeline for the connected user (one page)",
+		Long: "Always the connected account — there is no --user-id on this command. It\n" +
+			"is the feed of accounts that account follows (X's \"Following\" tab); the\n" +
+			"ranked \"For You\" feed is not exposed by the API. --limit is 1-100,\n" +
+			"default 10 — a floor of 1, unlike the 5 on `timeline user` and\n" +
+			"`timeline mentions`; continue with --next-token or poll with --since-id.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {

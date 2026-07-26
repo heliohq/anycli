@@ -19,8 +19,14 @@ type channel struct {
 func (s *Service) newChannelListCmd(token string) *cobra.Command {
 	var org string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List channels connected to an organization",
+		Use:   "list",
+		Short: "List channels connected to an organization",
+		Long: "A channel is one connected social profile — a specific X, LinkedIn,\n" +
+			"Instagram or Facebook account — and channels belong to a workspace, so\n" +
+			"`--org` is required. Each entry gives `id`, `name` and `service`: the `id`\n" +
+			"is what `post create --channel` takes, and the `service` decides which\n" +
+			"per-service keys a post's `--metadata-json` may carry. A profile\n" +
+			"disconnected in Buffer simply does not appear.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

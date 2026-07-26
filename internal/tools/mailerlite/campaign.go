@@ -14,11 +14,11 @@ func (s *Service) newCampaignCmd(token string) *cobra.Command {
 	cmd.AddCommand(
 		s.newCampaignListCmd(token),
 		s.newCampaignGetCmd(token),
-		s.newCampaignDataCmd(token, "create", "Create a campaign (POST /campaigns)", http.MethodPost, ""),
-		s.newCampaignDataCmd(token, "update", "Update a campaign (PUT /campaigns/{id})", http.MethodPut, ""),
-		s.newCampaignDataCmd(token, "schedule", "Schedule a campaign (POST /campaigns/{id}/schedule)", http.MethodPost, "/schedule"),
-		s.newCampaignActionCmd(token, "cancel", "Cancel a scheduled campaign (POST /campaigns/{id}/cancel)", http.MethodPost, "/cancel"),
-		s.newCampaignActionCmd(token, "delete", "Delete a campaign (DELETE /campaigns/{id})", http.MethodDelete, ""),
+		s.newCampaignDataCmd(token, "create", "Create a campaign (POST /campaigns)", longCampaignCreate, http.MethodPost, ""),
+		s.newCampaignDataCmd(token, "update", "Update a campaign (PUT /campaigns/{id})", longCampaignUpdate, http.MethodPut, ""),
+		s.newCampaignDataCmd(token, "schedule", "Schedule a campaign (POST /campaigns/{id}/schedule)", longCampaignSchedule, http.MethodPost, "/schedule"),
+		s.newCampaignActionCmd(token, "cancel", "Cancel a scheduled campaign (POST /campaigns/{id}/cancel)", longCampaignCancel, http.MethodPost, "/cancel"),
+		s.newCampaignActionCmd(token, "delete", "Delete a campaign (DELETE /campaigns/{id})", longCampaignDelete, http.MethodDelete, ""),
 		s.newCampaignReportCmd(token),
 	)
 	return cmd
@@ -28,8 +28,11 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	var status, campaignType string
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List campaigns (GET /campaigns)",
+		Use:   "list",
+		Short: "List campaigns (GET /campaigns)",
+		Long: "Page-numbered with --page. --status is sent, draft or ready — `ready`\n" +
+			"means scheduled and still cancellable, which is the only window `campaign\n" +
+			"cancel` works in. --type is regular, ab, resend or rss.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -57,8 +60,12 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 
 func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get a campaign (GET /campaigns/{id})",
+		Use:   "get <id>",
+		Short: "Get a campaign (GET /campaigns/{id})",
+		Long: "Returns the whole campaign including its nested email blocks and delivery\n" +
+			"configuration. Since `campaign create` and `campaign update` take raw\n" +
+			"JSON, reading an existing campaign here is the practical way to learn the\n" +
+			"exact payload shape those flags expect.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -71,11 +78,46 @@ func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 	}
 }
 
+// longCampaignCreate, longCampaignUpdate and longCampaignSchedule are the
+// raw-body Longs, and longCampaignCancel / longCampaignDelete the bodyless
+// ones. They live next to the two shared builders because it is the builder
+// that fixes the --data contract and the id argument they describe.
+const (
+	longCampaignCreate = "--data is the entire campaign as one JSON object — name, type, the\n" +
+		"`emails` array carrying subject, from address and content, and the groups\n" +
+		"to send to — because the payload nests email blocks that do not reduce to\n" +
+		"flat flags. Reading an existing campaign with `campaign get` is the\n" +
+		"practical way to learn the exact shape. Creating only produces a DRAFT:\n" +
+		"nothing is sent until `campaign schedule` runs."
+
+	longCampaignUpdate = "--data names the fields to change on an existing campaign, as one JSON\n" +
+		"object in the same shape `campaign create` takes. Only a campaign that has\n" +
+		"not gone out yet can be edited — a sent campaign is immutable, and\n" +
+		"changing its content means creating a new one."
+
+	longCampaignSchedule = "This is the command that actually sends. --data carries the delivery\n" +
+		"configuration: `{\"delivery\":\"instant\"}` goes out immediately to every\n" +
+		"subscriber the campaign targets, while a future send carries its own date,\n" +
+		"time and timezone fields. An instant delivery cannot be called back —\n" +
+		"`campaign cancel` only reaches a send that is still pending. Confirm the\n" +
+		"audience with `campaign get` before running this."
+
+	longCampaignCancel = "Only reaches a campaign that is scheduled and still waiting; a send\n" +
+		"already in flight or completed cannot be recalled. Cancelling returns the\n" +
+		"campaign to an editable state rather than deleting it, so it can be fixed\n" +
+		"and scheduled again."
+
+	longCampaignDelete = "Removes the campaign along with its reporting, so `campaign report` and\n" +
+		"the aggregate metrics for that send are gone too. Deleting a sent campaign\n" +
+		"does not unsend it — the mail is already delivered; only the record\n" +
+		"disappears. To stop a pending send instead, use `campaign cancel`."
+)
+
 // newCampaignDataCmd builds a write command whose body is supplied as raw JSON
 // via --data (the campaign create/update/schedule payloads carry nested email
 // blocks and delivery config that resist flat flags). create takes no id; the
 // others take an id and append suffix to the path.
-func (s *Service) newCampaignDataCmd(token, use, short, method, suffix string) *cobra.Command {
+func (s *Service) newCampaignDataCmd(token, use, short, long, method, suffix string) *cobra.Command {
 	var data string
 	takesID := use != "create"
 	args := cobra.NoArgs
@@ -85,6 +127,7 @@ func (s *Service) newCampaignDataCmd(token, use, short, method, suffix string) *
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Annotations: writeAction,
 		Args:        args,
 		RunE: func(cmd *cobra.Command, cmdArgs []string) error {
@@ -113,10 +156,11 @@ func (s *Service) newCampaignDataCmd(token, use, short, method, suffix string) *
 
 // newCampaignActionCmd builds a bodyless action (cancel/delete) keyed on the
 // campaign id.
-func (s *Service) newCampaignActionCmd(token, use, short, method, suffix string) *cobra.Command {
+func (s *Service) newCampaignActionCmd(token, use, short, long, method, suffix string) *cobra.Command {
 	return &cobra.Command{
 		Use:         use + " <id>",
 		Short:       short,
+		Long:        long,
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -132,8 +176,12 @@ func (s *Service) newCampaignActionCmd(token, use, short, method, suffix string)
 func (s *Service) newCampaignReportCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:         "report <id>",
-		Short:       "Campaign subscriber-activity report (GET /campaigns/{id}/reports/subscriber-activity)",
+		Use:   "report <id>",
+		Short: "Campaign subscriber-activity report (GET /campaigns/{id}/reports/subscriber-activity)",
+		Long: "Per-subscriber engagement — who opened and who clicked — rather than the\n" +
+			"aggregate totals `campaign get` carries. Page-numbered at 25 per page by\n" +
+			"default, so a large send runs to many pages; raise --limit before walking\n" +
+			"them.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -16,8 +16,13 @@ import (
 func (s *Service) newNoteListCmd(token string) *cobra.Command {
 	var record string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List notes (optionally filtered to a record)",
+		Use:   "list",
+		Short: "List notes (optionally filtered to a record)",
+		Long: "Without --record this lists every note in the workspace; --record\n" +
+			"<object>:<record_id> narrows it to one record's notes. --limit and\n" +
+			"--offset go in as query params and nothing pages automatically. There is\n" +
+			"no text search over notes, so finding one by content means reading the\n" +
+			"page.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -51,8 +56,11 @@ func (s *Service) newNoteListCmd(token string) *cobra.Command {
 // newNoteGetCmd is `note get <note_id>` (GET /v2/notes/{note_id}).
 func (s *Service) newNoteGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <note_id>",
-		Short:       "Get one note by id",
+		Use:   "get <note_id>",
+		Short: "Get one note by id",
+		Long: "Takes the note's id, not the parent record's. The response carries a\n" +
+			"`format` field saying whether the content is markdown or plaintext —\n" +
+			"check it before rendering, since both forms come back in the same field.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 	}
@@ -73,8 +81,13 @@ func (s *Service) newNoteGetCmd(token string) *cobra.Command {
 func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 	var parent, title, markdown, plaintext string
 	cmd := &cobra.Command{
-		Use:         "create --parent <object>:<id> --title <t> (--markdown <md> | --plaintext <txt>)",
-		Short:       "Create a note on a record",
+		Use:   "create --parent <object>:<id> --title <t> (--markdown <md> | --plaintext <txt>)",
+		Short: "Create a note on a record",
+		Long: "--parent is `<object>:<record_id>` and --title is required and always\n" +
+			"plaintext. Exactly one of --markdown or --plaintext supplies the body and\n" +
+			"decides the stored format; passing both, or neither, is a usage error.\n" +
+			"Notes are visible to the whole workspace, and there is no note update\n" +
+			"command — correcting one means `note delete` and writing it again.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}
@@ -118,8 +131,12 @@ func (s *Service) newNoteCreateCmd(token string) *cobra.Command {
 // newNoteDeleteCmd is `note delete <note_id>` (DELETE /v2/notes/{note_id}).
 func (s *Service) newNoteDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <note_id>",
-		Short:       "Delete one note by id",
+		Use:   "delete <note_id>",
+		Short: "Delete one note by id",
+		Long: "Takes the note id. Since the tool has no note update, delete-and-recreate\n" +
+			"is the only way to correct a note, and the original content is not\n" +
+			"recoverable afterwards — read it with `note get` first if any of it is\n" +
+			"worth keeping.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 	}
@@ -142,8 +159,13 @@ func (s *Service) newNoteDeleteCmd(token string) *cobra.Command {
 func (s *Service) newTaskListCmd(token string) *cobra.Command {
 	var record string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List tasks (optionally filtered to a linked record)",
+		Use:   "list",
+		Short: "List tasks (optionally filtered to a linked record)",
+		Long: "Without --record this lists every task in the workspace; --record\n" +
+			"<object>:<record_id> narrows it to the tasks linked to one record. --limit\n" +
+			"and --offset are query params. There is no assignee or completion filter\n" +
+			"here, so \"my open tasks\" means filtering the returned `assignees` and\n" +
+			"`is_completed` yourself.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -177,8 +199,11 @@ func (s *Service) newTaskListCmd(token string) *cobra.Command {
 // newTaskGetCmd is `task get <task_id>` (GET /v2/tasks/{task_id}).
 func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <task_id>",
-		Short:       "Get one task by id",
+		Use:   "get <task_id>",
+		Short: "Get one task by id",
+		Long: "Takes the task id. `assignees` and `linked_records` come back as arrays\n" +
+			"even though this tool can only ever set one of each, and `deadline_at` is\n" +
+			"null when the task has no deadline rather than absent.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 	}
@@ -201,8 +226,14 @@ func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 	var content, deadline, assignee, record string
 	cmd := &cobra.Command{
-		Use:         "create --content <txt>",
-		Short:       "Create a follow-up task",
+		Use:   "create --content <txt>",
+		Short: "Create a follow-up task",
+		Long: "--content is required and is always stored as plaintext; markdown is not an\n" +
+			"option on tasks. --deadline is an ISO-8601 timestamp and is sent as null\n" +
+			"when omitted. --assignee takes a WORKSPACE MEMBER id from `member list`,\n" +
+			"not a people-record id, and --record links the task to a\n" +
+			"`<object>:<record_id>`. Only one assignee and one linked record can be set\n" +
+			"from here.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}
@@ -256,8 +287,14 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 	var completed, deadline, assignee, record string
 	cmd := &cobra.Command{
-		Use:         "update <task_id>",
-		Short:       "Update a task (completion, deadline, assignee or linked record)",
+		Use:   "update <task_id>",
+		Short: "Update a task (completion, deadline, assignee or linked record)",
+		Long: "At least one of --completed, --deadline, --assignee or --record is\n" +
+			"required. --completed takes the literal string true or false, not a bare\n" +
+			"flag. --assignee and --record REPLACE the task's assignee and\n" +
+			"linked-record lists rather than adding to them, so each holds only the\n" +
+			"single value set here. A task's content is not editable — recreate the\n" +
+			"task to change its text.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 	}
@@ -313,8 +350,11 @@ func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 // newTaskDeleteCmd is `task delete <task_id>` (DELETE /v2/tasks/{task_id}).
 func (s *Service) newTaskDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <task_id>",
-		Short:       "Delete one task by id",
+		Use:   "delete <task_id>",
+		Short: "Delete one task by id",
+		Long: "Takes the task id. Finishing a task is `task update --completed true`,\n" +
+			"which keeps the record that the work happened; deleting removes it\n" +
+			"outright and nothing here restores it.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 	}
@@ -336,8 +376,12 @@ func (s *Service) newTaskDeleteCmd(token string) *cobra.Command {
 func (s *Service) newThreadListCmd(token string) *cobra.Command {
 	var record string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List comment threads (optionally filtered to a record)",
+		Use:   "list",
+		Short: "List comment threads (optionally filtered to a record)",
+		Long: "Threads are the containers comments live in. Without --record this lists\n" +
+			"every thread in the workspace; --record <object>:<record_id> narrows it to\n" +
+			"one record. --limit and --offset are query params. This is how to find the\n" +
+			"thread id that `comment create --thread` replies into.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -371,8 +415,11 @@ func (s *Service) newThreadListCmd(token string) *cobra.Command {
 // newThreadGetCmd is `thread get <thread_id>` (GET /v2/threads/{thread_id}).
 func (s *Service) newThreadGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <thread_id>",
-		Short:       "Get one thread (with its comments) by id",
+		Use:   "get <thread_id>",
+		Short: "Get one thread (with its comments) by id",
+		Long: "Returns the thread WITH its comments, which makes it the only way to read a\n" +
+			"conversation in order: `comment get` returns one comment at a time and\n" +
+			"there is no comment list command.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 	}
@@ -398,8 +445,15 @@ func (s *Service) newThreadGetCmd(token string) *cobra.Command {
 func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 	var thread, record, content, author string
 	cmd := &cobra.Command{
-		Use:         "create (--thread <id> | --record <object>:<id>) --content <txt>",
-		Short:       "Add a comment to a thread or record",
+		Use:   "create (--thread <id> | --record <object>:<id>) --content <txt>",
+		Short: "Add a comment to a thread or record",
+		Long: "Exactly one of --thread, which replies into an existing conversation, or\n" +
+			"--record `<object>:<record_id>`, which starts a new thread. --content is\n" +
+			"required and is always sent as plaintext — markdown is not honoured here,\n" +
+			"unlike on notes. The author defaults to the workspace member the token is\n" +
+			"tied to; a token with no member fails fast asking for --author\n" +
+			"<member_id>, which `member list` resolves. Comments are visible to the\n" +
+			"whole workspace.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}
@@ -453,8 +507,11 @@ func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 // newCommentGetCmd is `comment get <comment_id>` (GET /v2/comments/{comment_id}).
 func (s *Service) newCommentGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <comment_id>",
-		Short:       "Get one comment by id",
+		Use:   "get <comment_id>",
+		Short: "Get one comment by id",
+		Long: "Returns that one comment. There is no comment list command, so reading a\n" +
+			"conversation means `thread get <thread_id>`, which returns the thread with\n" +
+			"all of its comments at once.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 	}
@@ -473,8 +530,11 @@ func (s *Service) newCommentGetCmd(token string) *cobra.Command {
 // (DELETE /v2/comments/{comment_id}).
 func (s *Service) newCommentDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <comment_id>",
-		Short:       "Delete one comment by id",
+		Use:   "delete <comment_id>",
+		Short: "Delete one comment by id",
+		Long: "Takes the comment id. There is no comment update, so a correction is a\n" +
+			"delete followed by a new comment — under a new id, and after everyone in\n" +
+			"the workspace may already have seen the original.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 	}

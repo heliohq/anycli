@@ -22,6 +22,20 @@ type resourceSpec struct {
 	singular string
 	plural   string
 	verbs    verbSet
+	longs    verbLongs
+}
+
+// verbLongs carries the per-resource `Long` for each verb a family exposes.
+// The verb constructors below are shared by all six families, so the prose
+// that separates `invoice create` from `expense create` has to travel on the
+// spec; the texts themselves live in longs.go.
+type verbLongs struct {
+	list   string
+	get    string
+	create string
+	update string
+	del    string
+	send   string
 }
 
 // verbSet flags which subcommands a resource exposes. FreshBooks does not offer
@@ -43,17 +57,23 @@ type verbSet struct {
 // out of scope.
 var resourceSpecs = []resourceSpec{
 	{use: "client", short: "Manage clients", pathSeg: "users/clients", singular: "client", plural: "clients",
-		verbs: verbSet{list: true, get: true, create: true, update: true}},
+		verbs: verbSet{list: true, get: true, create: true, update: true},
+		longs: verbLongs{list: longClientList, get: longClientGet, create: longClientCreate, update: longClientUpdate}},
 	{use: "invoice", short: "Manage invoices", pathSeg: "invoices/invoices", singular: "invoice", plural: "invoices",
-		verbs: verbSet{list: true, get: true, create: true, update: true, del: true, send: true}},
+		verbs: verbSet{list: true, get: true, create: true, update: true, del: true, send: true},
+		longs: verbLongs{list: longInvoiceList, get: longInvoiceGet, create: longInvoiceCreate, update: longInvoiceUpdate, del: longInvoiceDelete, send: longInvoiceSend}},
 	{use: "expense", short: "Manage expenses", pathSeg: "expenses/expenses", singular: "expense", plural: "expenses",
-		verbs: verbSet{list: true, get: true, create: true, update: true}},
+		verbs: verbSet{list: true, get: true, create: true, update: true},
+		longs: verbLongs{list: longExpenseList, get: longExpenseGet, create: longExpenseCreate, update: longExpenseUpdate}},
 	{use: "estimate", short: "Manage estimates", pathSeg: "estimates/estimates", singular: "estimate", plural: "estimates",
-		verbs: verbSet{list: true, get: true, create: true}},
+		verbs: verbSet{list: true, get: true, create: true},
+		longs: verbLongs{list: longEstimateList, get: longEstimateGet, create: longEstimateCreate}},
 	{use: "payment", short: "Manage payments", pathSeg: "payments/payments", singular: "payment", plural: "payments",
-		verbs: verbSet{list: true, get: true, create: true}},
+		verbs: verbSet{list: true, get: true, create: true},
+		longs: verbLongs{list: longPaymentList, get: longPaymentGet, create: longPaymentCreate}},
 	{use: "item", short: "Read billable items", pathSeg: "items/items", singular: "item", plural: "items",
-		verbs: verbSet{list: true, get: true}},
+		verbs: verbSet{list: true, get: true},
+		longs: verbLongs{list: longItemList, get: longItemGet}},
 }
 
 // newResourceGroup builds the runnable command group for one resource family.
@@ -109,6 +129,7 @@ func (s *Service) newListCmd(token string, spec resourceSpec) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "list",
 		Short:       "List " + spec.plural,
+		Long:        spec.longs.list,
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -155,6 +176,7 @@ func (s *Service) newGetCmd(token string, spec resourceSpec) *cobra.Command {
 	return &cobra.Command{
 		Use:         "get <id>",
 		Short:       "Get one " + spec.singular,
+		Long:        spec.longs.get,
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -180,6 +202,7 @@ func (s *Service) newCreateCmd(token string, spec resourceSpec) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "create",
 		Short:       "Create a " + spec.singular,
+		Long:        spec.longs.create,
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -212,6 +235,7 @@ func (s *Service) newUpdateCmd(token string, spec resourceSpec) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "update <id>",
 		Short:       "Update a " + spec.singular,
+		Long:        spec.longs.update,
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -245,6 +269,7 @@ func (s *Service) newDeleteCmd(token string, spec resourceSpec) *cobra.Command {
 	return &cobra.Command{
 		Use:         "delete <id>",
 		Short:       "Delete a " + spec.singular,
+		Long:        spec.longs.del,
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -273,6 +298,7 @@ func (s *Service) newSendCmd(token string, spec resourceSpec) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "send <id>",
 		Short:       "Email a " + spec.singular + " to its client",
+		Long:        spec.longs.send,
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {

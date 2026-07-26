@@ -20,8 +20,11 @@ func (s *Service) newTeamCmd(token string) *cobra.Command {
 
 func (s *Service) newTeamListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List teams (GET /teams)",
+		Use:   "list",
+		Short: "List teams (GET /teams)",
+		Long: "Teams are assignment targets: their ids go into `conversation assign\n" +
+			"--assignee-id` and `ticket update --assignee-id`, which accept an admin id\n" +
+			"or a team id through the same flag. Unpaginated.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -38,8 +41,12 @@ func (s *Service) newTeamListCmd(token string) *cobra.Command {
 func (s *Service) newTeamGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one team (GET /teams/{id})",
+		Use:   "get",
+		Short: "Get one team (GET /teams/{id})",
+		Long: "Takes a team id from `team list` — an admin id passed here will not\n" +
+			"resolve, since the two are separate id spaces. The response carries the\n" +
+			"team's member admin ids, which is the way to find who is actually behind a\n" +
+			"team assignment.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

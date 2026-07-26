@@ -14,8 +14,14 @@ import (
 // the credential works and reveals which user the key acts as.
 func (s *Service) newWhoamiCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "whoami",
-		Short:       "Verify the API key and echo the integration user's identity",
+		Use:   "whoami",
+		Short: "Verify the API key and echo the integration user's identity",
+		Long: "The cheapest way to prove that the instance URL and the API key are both\n" +
+			"correct, since neither is verified when the connection is made — a wrong\n" +
+			"host or a revoked key surfaces here rather than at connect time. It also\n" +
+			"names the integration user the key acts as, and that user's roles are what\n" +
+			"decide every permission, so an unexpected 403 elsewhere is usually\n" +
+			"explained by the identity this returns. Reads a single sys_user row.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

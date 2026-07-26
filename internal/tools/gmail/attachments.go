@@ -26,8 +26,16 @@ func (s *Service) newMessagesAttachmentsCmd(token string) *cobra.Command {
 	var indexes []int
 	var saveDir string
 	cmd := &cobra.Command{
-		Use:         "attachments <message-id>",
-		Short:       "Download message attachments (all parts by default; select with --name / --index)",
+		Use:   "attachments <message-id>",
+		Short: "Download message attachments (all parts by default; select with --name / --index)",
+		Long: "Re-fetches the message before downloading, deliberately: Gmail regenerates\n" +
+			"`attachmentId`s on every read, so an id captured from an earlier\n" +
+			"`messages get` is usually already invalid. `--name` matches a filename\n" +
+			"exactly and `--index` is 1-based over the inventory `messages get` prints;\n" +
+			"a selector that matches nothing fails rather than downloading nothing.\n" +
+			"Files are written into `--save`, which defaults to the CURRENT directory,\n" +
+			"and names repeated within one run are suffixed `-1`, `-2` instead of\n" +
+			"overwriting each other.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

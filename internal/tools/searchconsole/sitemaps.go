@@ -31,8 +31,13 @@ func (s *Service) sitemapPath(site, feed string) string {
 func (s *Service) newSitemapsListCmd(token string) *cobra.Command {
 	var site string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List sitemaps for a property (errors, warnings, last downloaded)",
+		Use:   "list",
+		Short: "List sitemaps for a property (errors, warnings, last downloaded)",
+		Long: "`--site` is required. Each submitted sitemap comes back with its `path`,\n" +
+			"error and warning counts, the time Google last downloaded it and the\n" +
+			"indexed-URL counts per content type. This is where a sitemap's real\n" +
+			"state appears: `sitemaps submit` only confirms that the submission was\n" +
+			"accepted, never that Google could fetch or parse the feed.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -69,8 +74,13 @@ func (s *Service) newSitemapsListCmd(token string) *cobra.Command {
 func (s *Service) newSitemapsGetCmd(token string) *cobra.Command {
 	var site, sitemap string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one sitemap's status detail",
+		Use:   "get",
+		Short: "Get one sitemap's status detail",
+		Long: "`--site` and `--sitemap` are both required, and `--sitemap` is the FULL\n" +
+			"feed URL exactly as `sitemaps list` prints it, not a path fragment.\n" +
+			"Returns that one feed's detail — warnings, errors, last download time\n" +
+			"and per-type URL counts — which is how you find out, some time after a\n" +
+			"submit, whether Google actually read the file.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -92,8 +102,15 @@ func (s *Service) newSitemapsGetCmd(token string) *cobra.Command {
 func (s *Service) newSitemapsSubmitCmd(token string) *cobra.Command {
 	var site, sitemap string
 	cmd := &cobra.Command{
-		Use:         "submit",
-		Short:       "Submit (or resubmit) a sitemap for a property",
+		Use:   "submit",
+		Short: "Submit (or resubmit) a sitemap for a property",
+		Long: "Tells Google to crawl a sitemap on the user's live property.\n" +
+			"`--sitemap` is the full feed URL and the file must already be reachable\n" +
+			"— Google fetches it asynchronously, so acceptance here says nothing\n" +
+			"about whether it parsed. The API answers with an empty body, so this\n" +
+			"prints a synthesized `{\"ok\":true,…}` and the exit status is the real\n" +
+			"signal; read the outcome later with `sitemaps get`. Resubmitting an\n" +
+			"already-known sitemap is allowed and simply re-queues it.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -114,8 +131,15 @@ func (s *Service) newSitemapsSubmitCmd(token string) *cobra.Command {
 func (s *Service) newSitemapsDeleteCmd(token string) *cobra.Command {
 	var site, sitemap string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a sitemap from a property",
+		Use:   "delete",
+		Short: "Delete a sitemap from a property",
+		Long: "Removes the sitemap from the property's submitted list. It does not\n" +
+			"delete the file, and it does not deindex anything the sitemap once\n" +
+			"listed — those URLs stay in Google's index. `--site` and `--sitemap`\n" +
+			"are both required, the latter the full feed URL. The API answers with\n" +
+			"an empty body, so this prints a synthesized `{\"ok\":true,…}` and the\n" +
+			"exit status is the real signal. Re-adding it later is a plain\n" +
+			"`sitemaps submit`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -15,8 +15,13 @@ import (
 
 func (s *Service) newPagesGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <presentation-id-or-url> <page-object-id>",
-		Short:       "Show one page's full element tree (locate element object ids for edits)",
+		Use:   "get <presentation-id-or-url> <page-object-id>",
+		Short: "Show one page's full element tree (locate element object ids for edits)",
+		Long: "Takes a page object id — a slide id from `presentations get`, or a layout,\n" +
+			"master or notes page id. Unlike the deck outline this prints the page's\n" +
+			"complete element tree, including images, tables, groups and shapes that hold\n" +
+			"no text, so it is the way to find the object id `text insert`, `text delete`\n" +
+			"and `elements delete` need for a non-text element.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -53,8 +58,16 @@ type savedThumbnail struct {
 func (s *Service) newPagesThumbnailCmd(token string) *cobra.Command {
 	var saveDir, size string
 	cmd := &cobra.Command{
-		Use:         "thumbnail <presentation-id-or-url> <page-object-id>",
-		Short:       "Render a page to a PNG on disk (getThumbnail contentUrl is short-lived, so download it here)",
+		Use:   "thumbnail <presentation-id-or-url> <page-object-id>",
+		Short: "Render a page to a PNG on disk (getThumbnail contentUrl is short-lived, so download it here)",
+		Long: "The API answers with a short-lived signed `contentUrl` that expires quickly\n" +
+			"and costs an expensive read to re-mint, so the PNG is fetched immediately and\n" +
+			"written to `<save-dir>/<page-object-id>.png` — the path, not a URL, is what\n" +
+			"gets printed. --save defaults to the working directory and is created if\n" +
+			"missing. --size is LARGE (default), MEDIUM or SMALL; those are relative, and\n" +
+			"the pixel dimensions that come back depend on the deck's aspect ratio. One\n" +
+			"page per call, and this is the only rendering path on this scope — there is\n" +
+			"no PDF or PPTX export — so verifying a whole deck means one call per slide.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

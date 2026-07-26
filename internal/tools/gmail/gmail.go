@@ -92,8 +92,30 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "gmail",
-		Short:         "Gmail built-in service",
+		Use:   "gmail",
+		Short: "Gmail built-in service",
+		Long: "Output defaults to a compact human summary, one line per row. `--json`\n" +
+			"switches every command to the structured payload, and that is the form to\n" +
+			"ask for whenever the result will be parsed rather than read.\n" +
+			"\n" +
+			"`--query` on `messages list` and `threads list` takes Gmail's own search\n" +
+			"syntax verbatim (`is:unread newer_than:7d from:alice has:attachment`) and\n" +
+			"is the only filtering there is; no command has typed search flags.\n" +
+			"\n" +
+			"A thread is the conversation and a message is one mail inside it. Reading\n" +
+			"a conversation with `threads get` is ONE request where looping\n" +
+			"`messages get` over its ids is one per message, so prefer the thread read\n" +
+			"whenever more than a single mail is wanted.\n" +
+			"\n" +
+			"Writes land in a real mailbox under the user's own name and take effect at\n" +
+			"once: `messages send`, `messages reply`, `messages forward` and\n" +
+			"`drafts send` have no undo window and no scheduling. `messages trash` is\n" +
+			"the one destructive verb with a way back (`messages untrash`), and Gmail\n" +
+			"purges trashed mail after 30 days.\n" +
+			"\n" +
+			"A 403 carrying a scope hint means the connection was authorized before\n" +
+			"that scope was needed. Retrying cannot clear it — the connection has to be\n" +
+			"re-authorized, which re-grants everything at once.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

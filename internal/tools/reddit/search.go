@@ -13,8 +13,14 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var query, subreddit, sort, timeRange, after string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search posts (optionally within one subreddit)",
+		Use:   "search",
+		Short: "Search posts (optionally within one subreddit)",
+		Long: "Matches POSTS only — Reddit's index does not cover comment bodies, so\n" +
+			"finding a discussion means searching posts and then opening one with\n" +
+			"`post comments`. There is no date-range filter either; the closest is\n" +
+			"`--sort new` with `--time`, paging through `--after`. `--query` is\n" +
+			"required, `--subreddit` restricts the search to one community, `--sort`\n" +
+			"is `relevance|hot|top|new|comments` and `--limit` is 1-100.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

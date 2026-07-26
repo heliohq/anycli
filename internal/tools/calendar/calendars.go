@@ -27,7 +27,12 @@ func (s *Service) newCalendarsListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List the calendars the user is subscribed to (calendarList.list)",
-		Args:  cobra.NoArgs,
+		Long: "The only source of calendar ids, each calendar's IANA time zone, and the\n" +
+			"caller's `accessRole` on it — reader, writer or owner, which decides\n" +
+			"whether a write will be accepted at all. This is the subscription list,\n" +
+			"so a calendar that was shared but never added does not appear. --max\n" +
+			"defaults to 100; continue with --page-token.",
+		Args: cobra.NoArgs,
 		// GET /users/me/calendarList — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -72,7 +77,12 @@ func (s *Service) newCalendarsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <calendar-id>",
 		Short: "Show one calendar list entry (calendarList.get)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Takes the calendar id positionally and returns the caller's OWN view of\n" +
+			"it — the time zone and access role as this account sees them, not the\n" +
+			"calendar's global settings, so two people can legitimately read\n" +
+			"different values for one calendar. Use it when the id is already known\n" +
+			"and paging `calendars list` would be wasteful.",
+		Args: cobra.ExactArgs(1),
 		// GET /users/me/calendarList/{id} — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

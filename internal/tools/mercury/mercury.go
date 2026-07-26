@@ -137,8 +137,29 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "mercury",
-		Short:         "Mercury built-in service (banking accounts, transactions, recipients, treasury, cards)",
+		Use:   "mercury",
+		Short: "Mercury built-in service (banking accounts, transactions, recipients, treasury, cards)",
+		Long: "Read-only. Every command is a GET: sending money, internal transfers and\n" +
+			"creating or editing recipients are not exposed, so nothing here moves a\n" +
+			"dollar or changes a payee.\n" +
+			"\n" +
+			"Work starts at `account list`. The bank-account id it returns is\n" +
+			"REQUIRED by `transaction list`, `transaction get` and `card list`, none\n" +
+			"of which defaults to a single account even when the organization has\n" +
+			"only one.\n" +
+			"\n" +
+			"Two pagination styles coexist. Accounts, recipients and treasury page by\n" +
+			"CURSOR — --start-after and --end-before take an id of that resource —\n" +
+			"while `transaction list` is the one offset-paged command. --offset on a\n" +
+			"cursor-paged list silently does nothing.\n" +
+			"\n" +
+			"Output is always JSON: list verbs emit {\"data\":[...]} with whatever\n" +
+			"pagination metadata Mercury returned, get verbs emit {\"data\":{...}}, and\n" +
+			"the objects inside carry Mercury's own field names unrenamed. --json\n" +
+			"changes only the ERROR envelope on stderr; stdout is JSON either way.\n" +
+			"\n" +
+			"Exit 1 means the request reached Mercury and failed; exit 2 means it was\n" +
+			"rejected locally and never left.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

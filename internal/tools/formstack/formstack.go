@@ -61,8 +61,28 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "formstack",
-		Short:         "Formstack built-in service",
+		Use:   "formstack",
+		Short: "Formstack built-in service",
+		Long: "Wraps the Formstack v2 (classic) API and prints each response verbatim;\n" +
+			"`--json` is accepted for uniformity but the output is JSON either way.\n" +
+			"\n" +
+			"The model is three layers and reads bottom-up: a form owns fields (its\n" +
+			"questions, each with a numeric field id) and submissions (the answers). A\n" +
+			"submission's values are keyed by FIELD ID, never by label, so the working\n" +
+			"sequence is `form list --search` to find the form, `form fields <form-id>`\n" +
+			"to learn that \"Email\" is 12345, then `submission list`, `--search\n" +
+			"12345=…` or `submission create --field 12345=…`.\n" +
+			"\n" +
+			"Those ids are separate numeric spaces and mixing them is the standing\n" +
+			"mistake here. `form fields`, `field create`, `submission list`,\n" +
+			"`submission create`, `webhook list` and `webhook create` all take a FORM\n" +
+			"id; `field get`, `submission get`, `webhook get` and `webhook delete` take\n" +
+			"the child record's own id.\n" +
+			"\n" +
+			"The token carries the authorizing user's own in-app Formstack\n" +
+			"permissions, and nothing was scoped at connect time. A form that is not\n" +
+			"visible, or an action that comes back forbidden, means that user lacks the\n" +
+			"permission in Formstack — reconnecting grants nothing extra.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

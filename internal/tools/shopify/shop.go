@@ -20,8 +20,13 @@ const shopInfoQuery = `query {
 // newShopInfoCmd is `shop info`: GET-equivalent store identity read.
 func (c *client) newShopInfoCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "info",
-		Short:       "Show store identity, currency, timezone, and plan",
+		Use:   "info",
+		Short: "Show store identity, currency, timezone, and plan",
+		Long: "One query for `name`, `myshopifyDomain`, `primaryDomain`, `email`,\n" +
+			"`currencyCode`, `ianaTimezone` and `plan.displayName`. The cheapest call in\n" +
+			"the tool and the one that confirms which store the credential points at.\n" +
+			"`currencyCode` is the shop currency every money amount elsewhere is reported\n" +
+			"in, and `ianaTimezone` is the zone date filters are interpreted against.",
 		Args:        cobra.NoArgs,
 		Annotations: readAnnotation(),
 	}

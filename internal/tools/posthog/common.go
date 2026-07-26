@@ -73,12 +73,13 @@ func readFileOrStdin(cmd *cobra.Command, path string) ([]byte, error) {
 
 // newProjectListCmd builds a project-scoped list command keyed on a path
 // suffix (e.g. "/insights/"), auto-wiring --project and the paging flags.
-func (s *Service) newProjectListCmd(token, use, short, suffix string, withSearch bool) *cobra.Command {
+func (s *Service) newProjectListCmd(token, use, short, long, suffix string, withSearch bool) *cobra.Command {
 	var project string
 	var lp listParams
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -99,11 +100,12 @@ func (s *Service) newProjectListCmd(token, use, short, suffix string, withSearch
 
 // newProjectGetCmd builds a project-scoped get-by-id command keyed on a path
 // prefix (e.g. "/insights/"), auto-wiring --project and --id.
-func (s *Service) newProjectGetCmd(token, use, short, prefix string) *cobra.Command {
+func (s *Service) newProjectGetCmd(token, use, short, long, prefix string) *cobra.Command {
 	var project, id string
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

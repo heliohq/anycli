@@ -32,8 +32,12 @@ func (s *Service) batchUpdate(ctx context.Context, token, id string, requests ..
 func (s *Service) newTabsAddCmd(token string) *cobra.Command {
 	var title string
 	cmd := &cobra.Command{
-		Use:         "add <id> --title T",
-		Short:       "Add a new tab (batchUpdate: AddSheet)",
+		Use:   "add <id> --title T",
+		Short: "Add a new tab (batchUpdate: AddSheet)",
+		Long: "Sheets rejects a --title another tab in the same spreadsheet already holds.\n" +
+			"The tab is appended after the existing ones at the default grid size;\n" +
+			"placing it at a specific index, or presetting row and column counts, needs\n" +
+			"an AddSheet request through `spreadsheets batch-update`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -64,8 +68,13 @@ func (s *Service) newTabsAddCmd(token string) *cobra.Command {
 func (s *Service) newTabsRenameCmd(token string) *cobra.Command {
 	var tab, title string
 	cmd := &cobra.Command{
-		Use:         "rename <id> --tab <name|gid> --title T",
-		Short:       "Rename a tab (batchUpdate: UpdateSheetProperties)",
+		Use:   "rename <id> --tab <name|gid> --title T",
+		Short: "Rename a tab (batchUpdate: UpdateSheetProperties)",
+		Long: "--tab names the target by title or numeric gid, --title is the new name.\n" +
+			"Formulas inside the spreadsheet survive: Sheets rewrites A1 references to\n" +
+			"the tab automatically. Anything outside it that hardcodes the old title\n" +
+			"does not — including ranges an earlier command in the same run computed.\n" +
+			"The gid never changes, which is why it is the stable handle.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -102,8 +111,13 @@ func (s *Service) newTabsRenameCmd(token string) *cobra.Command {
 func (s *Service) newTabsDuplicateCmd(token string) *cobra.Command {
 	var tab, title string
 	cmd := &cobra.Command{
-		Use:         "duplicate <id> --tab <name|gid> [--title T]",
-		Short:       "Duplicate a tab within the spreadsheet (batchUpdate: DuplicateSheet)",
+		Use:   "duplicate <id> --tab <name|gid> [--title T]",
+		Short: "Duplicate a tab within the spreadsheet (batchUpdate: DuplicateSheet)",
+		Long: "Copies values and formatting into the SAME spreadsheet — crossing files is\n" +
+			"`tabs copy-to`. --title names the copy and Sheets chooses one when it is\n" +
+			"omitted. The new tab gets a fresh gid, printed on success, and formulas in\n" +
+			"the copy that named the source tab still point at the source rather than\n" +
+			"at the duplicate.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -140,8 +154,14 @@ func (s *Service) newTabsDuplicateCmd(token string) *cobra.Command {
 func (s *Service) newTabsCopyToCmd(token string) *cobra.Command {
 	var tab, dest string
 	cmd := &cobra.Command{
-		Use:         "copy-to <id> --tab <name|gid> --dest <spreadsheetId>",
-		Short:       "Copy a tab into another spreadsheet (spreadsheets.sheets.copyTo)",
+		Use:   "copy-to <id> --tab <name|gid> --dest <spreadsheetId>",
+		Short: "Copy a tab into another spreadsheet (spreadsheets.sheets.copyTo)",
+		Long: "--dest takes the destination spreadsheet id or URL, and the connected\n" +
+			"account needs write access there as well as read access on the source.\n" +
+			"Values and formatting come across; formulas that referenced OTHER tabs of\n" +
+			"the source spreadsheet do not, because those tabs do not exist in the\n" +
+			"destination. The copy arrives with a name derived from the original and a\n" +
+			"new gid, both reported on success.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -185,8 +205,13 @@ func (s *Service) newTabsCopyToCmd(token string) *cobra.Command {
 func (s *Service) newTabsDeleteCmd(token string) *cobra.Command {
 	var tab string
 	cmd := &cobra.Command{
-		Use:         "delete <id> --tab <name|gid>",
-		Short:       "Delete a tab — irreversible; cross-tab formula references become #REF! (batchUpdate: DeleteSheet)",
+		Use:   "delete <id> --tab <name|gid>",
+		Short: "Delete a tab — irreversible; cross-tab formula references become #REF! (batchUpdate: DeleteSheet)",
+		Long: "Version history can bring the data back but not the structure: formulas in\n" +
+			"other tabs that referenced this one become #REF! and stay broken. --tab\n" +
+			"resolves a title first and a numeric gid second, and when two tabs share a\n" +
+			"title the command refuses and demands the gid. Sheets will not let the\n" +
+			"last remaining tab be deleted.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

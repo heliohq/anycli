@@ -19,7 +19,12 @@ func (s *Service) newOnpageCheckCmd(credential string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: "Instant on-page audit of a single URL",
-		Args:  cobra.NoArgs,
+		Long: "Fetches the page live and returns its status, timings, meta tags, headings,\n" +
+			"content counts and the issues DataForSEO flags on it. --url must be\n" +
+			"absolute, scheme included. This is the instant-page endpoint: it fetches\n" +
+			"exactly one URL and follows no links, so auditing a site means calling it\n" +
+			"per page — a real crawl is not wrapped here.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			task := map[string]any{"url": url}
 			return s.do(cmd.Context(), credential, http.MethodPost, "/on_page/instant_pages", task)

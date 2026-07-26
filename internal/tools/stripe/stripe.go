@@ -133,12 +133,111 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
+// The generic list/get resource groups are all built by newListGetGroup, so
+// their prose cannot live at the constructor. It lives here instead, one pair
+// per resource, in the order the root registers them.
+const (
+	longChargeList = "A charge is the settled record of money that actually moved, one per\n" +
+		"successful payment — including payments made through a PaymentIntent, which\n" +
+		"is why this, not `payment-intent list`, answers what was collected. Filter\n" +
+		"with `--param customer=cus_123` or a `created` range."
+
+	longChargeGet = "Takes a `ch_` id. `refunded` and `amount_refunded` say whether money has\n" +
+		"already been returned on this payment — read them before `refund create` so\n" +
+		"a second refund is not issued by accident. `balance_transaction` links to\n" +
+		"the fee and net that `balance transactions` reports."
+
+	longPaymentIntentList = "A PaymentIntent is the INTENT to collect and may be incomplete, awaiting\n" +
+		"customer action, or abandoned; `charge list` is what actually settled. This\n" +
+		"surface is read-only here — nothing in this tool confirms, captures or\n" +
+		"cancels an intent. Filter with `--param customer=cus_123`."
+
+	longPaymentIntentGet = "Takes a `pi_` id. `status` carries the whole story — succeeded,\n" +
+		"requires_payment_method, requires_action, canceled — and `latest_charge` is\n" +
+		"the bridge to the settled charge. Read-only: this tool never advances an\n" +
+		"intent's state."
+
+	longPayoutList = "Payouts move money from the Stripe balance to the connected bank account —\n" +
+		"the settlement side, not customer payments. Filter with\n" +
+		"`--param status=paid|pending|failed|in_transit` or an `arrival_date` range\n" +
+		"when reconciling a missing deposit."
+
+	longPayoutGet = "Takes a `po_` id. `status` and `failure_code` explain a deposit that never\n" +
+		"landed. Which transactions the payout was composed of is a different read:\n" +
+		"`balance transactions --param payout=po_123`."
+
+	longProductList = "Products are what is sold and carry NO amounts — money lives on prices, so\n" +
+		"this list alone cannot answer what anything costs. `--param active=true`\n" +
+		"hides archived products."
+
+	longProductGet = "Takes a `prod_` id and returns the product's own fields. Its prices are a\n" +
+		"separate read: `price list --param product=prod_123`."
+
+	longPriceList = "Prices carry the amounts and the billing intervals, and one product can have\n" +
+		"many. `--param product=prod_123` scopes to a single product and\n" +
+		"`--param active=true` hides retired prices. `unit_amount` is in the smallest\n" +
+		"currency unit."
+
+	longPriceGet = "Takes a `price_` id. `unit_amount` is in cents for a decimal currency; a\n" +
+		"`recurring` object describes the subscription billing interval, and its\n" +
+		"absence means the price is one-off."
+
+	longDisputeList = "Disputes are chargebacks a cardholder raised, and each carries a deadline:\n" +
+		"`evidence_details.due_by` is when Stripe stops accepting a response. Filter\n" +
+		"with `--param charge=ch_123` or a `created` range. Submitting evidence is\n" +
+		"not possible from this tool — this is triage only."
+
+	longDisputeGet = "Takes a `dp_` id. `status`, `reason` and `evidence_details.due_by` are the\n" +
+		"triage fields. The disputed amount has already been withheld from the\n" +
+		"balance, so this is money at risk rather than money still held."
+
+	longEventList = "The audit trail of what changed in this account and when, each entry\n" +
+		"carrying the affected object under `data.object` as it looked at the time.\n" +
+		"Filter with `--param type=charge.refunded` or a `created` range. Stripe\n" +
+		"keeps events for roughly 30 days, so older history has to be reconstructed\n" +
+		"from the objects themselves."
+
+	longEventGet = "Takes an `evt_` id and returns the same payload a webhook would have\n" +
+		"delivered, object snapshot included. Reading it here neither acknowledges\n" +
+		"nor re-delivers any webhook."
+)
+
 // newRoot builds the grouped-by-resource cobra tree. search / get are
 // top-level (cross-resource); everything else hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "stripe",
-		Short:         "Stripe built-in service (read-mostly finance/revenue-ops)",
+		Use:   "stripe",
+		Short: "Stripe built-in service (read-mostly finance/revenue-ops)",
+		Long: "Stripe as a finance, revenue-ops and support colleague rather than a\n" +
+			"checkout integration: reporting, plus a few scoped support mutations —\n" +
+			"issue a refund, draft and send an invoice, cancel a subscription, maintain\n" +
+			"a customer. Nothing here confirms or captures a payment, tokenizes a card,\n" +
+			"or touches the webhook bus.\n" +
+			"\n" +
+			"AMOUNTS ARE IN THE SMALLEST CURRENCY UNIT. `--param amount=500` is $5.00\n" +
+			"and `--param amount=5` is five cents. Zero-decimal currencies such as JPY\n" +
+			"are the exception and take the whole number.\n" +
+			"\n" +
+			"--param is the universal escape hatch and maps 1:1 onto Stripe's own\n" +
+			"fields: a query filter on a list (`--param customer=cus_123`), a form\n" +
+			"field on a write (`--param amount=500`), with bracket notation passed\n" +
+			"through untouched (`--param metadata[order]=A17`). Every parameter Stripe\n" +
+			"documents for an endpoint is therefore reachable without a dedicated\n" +
+			"flag.\n" +
+			"\n" +
+			"Lists are cursor-paginated, never numbered: --limit is 1-100 and Stripe\n" +
+			"defaults to 10 when it is omitted, and paging forward means passing the\n" +
+			"last item's id to --starting-after while `has_more` stays true. The search\n" +
+			"commands are the exception — they page with --page from the previous\n" +
+			"response's `next_page`, and their index lags writes by up to a minute.\n" +
+			"\n" +
+			"--idempotency-key on any create or refund makes a retry safe; without one,\n" +
+			"a repeated call issues a second refund or a second customer. Real money\n" +
+			"moves, and a refund cannot be reversed.\n" +
+			"\n" +
+			"Responses are Stripe's JSON verbatim under a pinned API version, so shapes\n" +
+			"do not drift. `get <path>` is the raw read passthrough for any endpoint\n" +
+			"without a dedicated verb; there is no write equivalent.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -148,17 +247,17 @@ func (s *Service) newRoot(token string) *cobra.Command {
 
 	root.AddCommand(
 		s.newBalanceCmd(token),
-		s.newListGetGroup(token, "charge", "Inspect payments (charges)", "/charges"),
-		s.newListGetGroup(token, "payment-intent", "Inspect payment intents (read-only)", "/payment_intents"),
+		s.newListGetGroup(token, "charge", "Inspect payments (charges)", "/charges", longChargeList, longChargeGet),
+		s.newListGetGroup(token, "payment-intent", "Inspect payment intents (read-only)", "/payment_intents", longPaymentIntentList, longPaymentIntentGet),
 		s.newCustomerCmd(token),
 		s.newInvoiceCmd(token),
 		s.newSubscriptionCmd(token),
 		s.newRefundCmd(token),
-		s.newListGetGroup(token, "payout", "Settlement reporting (payouts)", "/payouts"),
-		s.newListGetGroup(token, "product", "Catalog lookups (products)", "/products"),
-		s.newListGetGroup(token, "price", "Catalog lookups (prices)", "/prices"),
-		s.newListGetGroup(token, "dispute", "Chargeback triage (disputes)", "/disputes"),
-		s.newListGetGroup(token, "event", "Audit trail (events)", "/events"),
+		s.newListGetGroup(token, "payout", "Settlement reporting (payouts)", "/payouts", longPayoutList, longPayoutGet),
+		s.newListGetGroup(token, "product", "Catalog lookups (products)", "/products", longProductList, longProductGet),
+		s.newListGetGroup(token, "price", "Catalog lookups (prices)", "/prices", longPriceList, longPriceGet),
+		s.newListGetGroup(token, "dispute", "Chargeback triage (disputes)", "/disputes", longDisputeList, longDisputeGet),
+		s.newListGetGroup(token, "event", "Audit trail (events)", "/events", longEventList, longEventGet),
 		s.newSearchCmd(token),
 		s.newGetCmd(token),
 	)

@@ -129,8 +129,33 @@ func (s *Service) stderr() io.Writer {
 // core action); everything else hangs under a resource group.
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "courier",
-		Short:         "Courier built-in service (notification infrastructure)",
+		Use:   "courier",
+		Short: "Courier built-in service (notification infrastructure)",
+		Long: "Notification infrastructure. `send` dispatches one notification and Courier\n" +
+			"fans it out over whichever channels the workspace has configured — email,\n" +
+			"SMS, push, Slack. Everything else reads, tracks, or discovers who to send\n" +
+			"to.\n" +
+			"\n" +
+			"`send` answers 202 with a `requestId`, which means Courier ACCEPTED the\n" +
+			"request, not that anything was delivered. The outcome comes from\n" +
+			"`message get <requestId>` for the current status or\n" +
+			"`message history <requestId>` for the enqueued → sent → delivered/error\n" +
+			"trail. For a single-recipient send the requestId is also the message id.\n" +
+			"\n" +
+			"A recipient is named in one of three ways, and they differ in more than\n" +
+			"syntax: a person (--user-id / --email / --phone), a list people are\n" +
+			"explicitly subscribed to, or an audience Courier computes from a filter at\n" +
+			"send time. A list or audience send still returns a single requestId\n" +
+			"covering the whole fan-out.\n" +
+			"\n" +
+			"Pagination is by cursor and nothing takes a page size. Read\n" +
+			"`paging.cursor` from a response and pass it back as --cursor while\n" +
+			"`paging.more` is true.\n" +
+			"\n" +
+			"The writes are `send`, `message cancel`, `list subscribe`,\n" +
+			"`list unsubscribe` and `automation invoke`. Nothing here creates a\n" +
+			"template, a list, an audience or a brand — those are configured in Courier\n" +
+			"itself, and this tool only resolves and uses their ids.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

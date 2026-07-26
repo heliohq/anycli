@@ -32,8 +32,15 @@ func (s *Service) newScheduleCreateCmd(key string) *cobra.Command {
 		endingAt    string
 	)
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create schedules for one or more recipients",
+		Use:   "create",
+		Short: "Create schedules for one or more recipients",
+		Long: "--workflow and at least one --recipient are required; an empty audience is\n" +
+			"refused. --scheduled-at is a one-time ISO-8601 run time and --repeats is a\n" +
+			"JSON array of recurrence rules — a schedule carrying neither never fires.\n" +
+			"--ending-at bounds a recurring one. --data is the same payload the\n" +
+			"workflow renders as at trigger time. One call creates one schedule PER\n" +
+			"recipient, and the ids returned are what `schedule update` and `schedule\n" +
+			"delete` take, so keep them.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -102,8 +109,12 @@ func (s *Service) newScheduleListCmd(key string) *cobra.Command {
 		before   string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List schedules",
+		Use:   "list",
+		Short: "List schedules",
+		Long: "--workflow is required: schedules are listed per workflow key and there is\n" +
+			"no account-wide listing. --tenant narrows further. Paged with --page-size\n" +
+			"and --after. This is the only way to recover schedule ids that were not\n" +
+			"kept from `schedule create`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -138,8 +149,13 @@ func (s *Service) newScheduleUpdateCmd(key string) *cobra.Command {
 		endingAt    string
 	)
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update existing schedules by id",
+		Use:   "update",
+		Short: "Update existing schedules by id",
+		Long: "--schedule-id is repeatable and at least one is required; every id passed\n" +
+			"receives the same change in a single call. The fields replace rather than\n" +
+			"merge, so setting --scheduled-at on a recurring schedule redefines when it\n" +
+			"runs. Recipients cannot be changed here — a schedule for a different\n" +
+			"audience has to be created fresh and the old one deleted.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -192,8 +208,12 @@ func (s *Service) newScheduleUpdateCmd(key string) *cobra.Command {
 func (s *Service) newScheduleDeleteCmd(key string) *cobra.Command {
 	var scheduleID []string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete schedules by id",
+		Use:   "delete",
+		Short: "Delete schedules by id",
+		Long: "--schedule-id is repeatable and at least one is required; every id passed\n" +
+			"is deleted in one call. This stops FUTURE runs only — a run the schedule\n" +
+			"already started is a workflow run and is stopped, if at all, with\n" +
+			"`workflow cancel`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

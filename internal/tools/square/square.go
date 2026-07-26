@@ -149,8 +149,32 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "square",
-		Short:         "Square built-in service (Connect v2 REST)",
+		Use:   "square",
+		Short: "Square built-in service (Connect v2 REST)",
+		Long: "Reads and writes one seller's Square account through the Connect v2 REST API,\n" +
+			"with the API version pinned by this build rather than chosen per call.\n" +
+			"\n" +
+			"Square is LOCATION-scoped. Most reads and writes hang off a `location_id`, so\n" +
+			"`location list` is the discovery primitive that comes first — `invoice list`\n" +
+			"will not even run without one.\n" +
+			"\n" +
+			"Several READS are POST: `order search`, `customer search`, `catalog search`,\n" +
+			"`invoice search` and `inventory get` all post a request body and mutate\n" +
+			"nothing. The verb is Square's choice, not a signal. Each takes its query as\n" +
+			"raw JSON through a required `--body`, and there are no typed filter flags for\n" +
+			"them.\n" +
+			"\n" +
+			"Money is always an object of integer MINOR units plus a currency:\n" +
+			"`{\"amount\":1250,\"currency\":\"USD\"}` is $12.50. Nothing in the API is a decimal\n" +
+			"amount.\n" +
+			"\n" +
+			"Writes expect an `idempotency_key` — a UUID the caller generates — inside the\n" +
+			"body. Square does not generate one, so a retried create without it produces a\n" +
+			"second record.\n" +
+			"\n" +
+			"Output is the provider's JSON verbatim, so pagination `cursor` values and\n" +
+			"Square's `errors[]` array both arrive intact. Paged reads resume with\n" +
+			"`--cursor` from the previous response; nothing auto-follows.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

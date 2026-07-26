@@ -135,8 +135,27 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "pinterest",
-		Short:         "Pinterest built-in service (account, boards, pins)",
+		Use:   "pinterest",
+		Short: "Pinterest built-in service (account, boards, pins)",
+		Long: "One connection is one Pinterest account. The token is scoped to whichever\n" +
+			"account authorized it, so no command takes an account selector and\n" +
+			"`account get` is the only way to confirm whose profile is being written to.\n" +
+			"\n" +
+			"Paging is an explicit cursor, never automatic. `board list`, `board pins`,\n" +
+			"`board sections` and `pin list` take `--page-size` and `--bookmark`, and\n" +
+			"each response carries the `bookmark` for the next page; feed it back to\n" +
+			"walk further. Pinterest stops returning one when the collection is\n" +
+			"exhausted. Nothing here follows the cursor on its own, so a full walk is a\n" +
+			"deliberate sequence of calls.\n" +
+			"\n" +
+			"A 401 means the token expired or was revoked: reconnect the connection\n" +
+			"rather than retrying, because the same call cannot start working. A 429 is\n" +
+			"Pinterest's rate limit — back off; repeated writes against one object in a\n" +
+			"short window trip it as readily as high volume does.\n" +
+			"\n" +
+			"Writes land on a real, public profile the moment they return. `pin create`\n" +
+			"publishes; `board delete` and `pin delete` are irreversible and have no\n" +
+			"trash or undo state behind them.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

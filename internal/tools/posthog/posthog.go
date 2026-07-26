@@ -109,8 +109,34 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "posthog",
-		Short:         "PostHog built-in service",
+		Use:   "posthog",
+		Short: "PostHog built-in service",
+		Long: "Calls the PostHog REST API as the connected account. An OAuth access token\n" +
+			"and a personal API key behave identically here.\n" +
+			"\n" +
+			"PostHog Cloud is split into a US and an EU region and a token is valid in\n" +
+			"exactly one of them. The region is resolved per invocation by probing US\n" +
+			"then EU, so no host is ever passed; `whoami` reports the one that\n" +
+			"answered.\n" +
+			"\n" +
+			"Analytics data lives under a project, so every command except `whoami` and\n" +
+			"`project list` requires --project <id> and fails with a usage error\n" +
+			"without it. Discover the id with `project list`; it is the numeric project\n" +
+			"id, never the project name.\n" +
+			"\n" +
+			"The write surface is deliberately narrow. Only `flag create`,\n" +
+			"`flag update`, `flag toggle` and `annotation create` change anything;\n" +
+			"everything else reads. Nothing here creates an insight or a dashboard, so\n" +
+			"an answer the team has not already saved a chart for comes from\n" +
+			"`query run`.\n" +
+			"\n" +
+			"Lists pass PostHog's `{\"count\",\"next\",\"previous\",\"results\"}` envelope\n" +
+			"through untouched and page by offset, not cursor: `--limit` with\n" +
+			"`--offset`, where `--limit 0` means PostHog's own default. Errors pass\n" +
+			"through the provider's `{\"type\",\"code\",\"detail\"}` body verbatim.\n" +
+			"\n" +
+			"Rate limits are organization-wide, so a 429 will not clear by retrying in\n" +
+			"a tight loop. Back off, or narrow the query.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

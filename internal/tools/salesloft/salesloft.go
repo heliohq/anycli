@@ -152,8 +152,39 @@ func (s *Service) stderr() io.Writer {
 // everything else hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "salesloft",
-		Short:         "Salesloft built-in service (people, cadences, tasks, activity)",
+		Use:   "salesloft",
+		Short: "Salesloft built-in service (people, cadences, tasks, activity)",
+		Long: "Speaks Salesloft REST v2 as the connected user and passes Salesloft's\n" +
+			"envelope through verbatim: a `data` object for a single resource, a\n" +
+			"`data` array plus `metadata.paging` (`current_page`, `next_page`,\n" +
+			"`total_pages`, `total_count`) for a list.\n" +
+			"\n" +
+			"Every list command shares the same controls: `--page` and `--per-page`\n" +
+			"(100 is the ceiling and a larger value is rejected before the call),\n" +
+			"`--updated-since` for Salesloft's `updated_at[gte]`, `--sort-by` with\n" +
+			"`--sort-direction`, and a repeatable `--filter key=value` sent verbatim\n" +
+			"for any documented filter that has no named flag — an array filter is\n" +
+			"written `--filter \"person_stage_id[]=7\"`.\n" +
+			"\n" +
+			"The rate budget is 600 cost per minute shared by the ENTIRE Salesloft\n" +
+			"team rather than by this connection, and deep pages cost more than early\n" +
+			"ones. For \"what changed since last time\", poll\n" +
+			"`--updated-since <last run> --sort-by updated_at --sort-direction ASC`\n" +
+			"instead of re-walking a list.\n" +
+			"\n" +
+			"Ids are bare integers. They are not interchangeable across resources: a\n" +
+			"user id is a rep on the team, a person id is a prospect, and passing one\n" +
+			"where the other belongs resolves to the wrong record rather than\n" +
+			"failing.\n" +
+			"\n" +
+			"Writes are partial. Create and update send only the fields actually\n" +
+			"passed, so an update leaves everything else untouched and no named flag\n" +
+			"can clear a field back to empty. `--body` takes a raw JSON object whose\n" +
+			"keys override the named flags, and is the only way to write fields\n" +
+			"without one — custom fields among them.\n" +
+			"\n" +
+			"Nothing here deletes. No resource has a delete verb, so a mistaken\n" +
+			"record is corrected by update or cleaned up inside Salesloft.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

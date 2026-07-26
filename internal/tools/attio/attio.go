@@ -138,7 +138,37 @@ func (s *Service) stderr() io.Writer {
 // list, entry, note, task, thread, comment, member).
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "attio",
+		Use: "attio",
+		Long: "Attio is data-model-first: a workspace holds OBJECTS (people and companies\n" +
+			"always, deals/users/workspaces optionally, plus custom objects), each\n" +
+			"object holds RECORDS, and LISTS overlay records as pipelines with per-list\n" +
+			"ENTRIES. Notes, tasks, threads and comments attach to records.\n" +
+			"\n" +
+			"Schemas are PER-WORKSPACE. Object slugs, attribute slugs, select options\n" +
+			"and status stages are all customisable, so none can be assumed from\n" +
+			"another workspace or from memory — discover them with `object list`,\n" +
+			"`attribute list`, `attribute options` and `attribute statuses` before\n" +
+			"building any write, because a slug that does not exist here is a 400. The\n" +
+			"tool reads the schema but cannot change it: objects and attributes are not\n" +
+			"creatable, only records, entries, notes, tasks and comments.\n" +
+			"\n" +
+			"Attribute values are structured arrays of typed value objects, which is\n" +
+			"why every write takes raw JSON through --values rather than a flag per\n" +
+			"attribute.\n" +
+			"\n" +
+			"Wherever one resource points at a record — `note --parent`,\n" +
+			"`task --record`, `thread --record`, `comment --record` — the shape is\n" +
+			"`<object>:<record_id>` such as `people:abc-123`, and a missing colon is a\n" +
+			"usage error. Workspace-member ids are a separate id space from records in\n" +
+			"the people object.\n" +
+			"\n" +
+			"Pagination is per-endpoint and nothing drains it for you: `record query`\n" +
+			"and `entry query` take --limit/--offset in the request body, the\n" +
+			"list-style reads take them as query params, and `record search` takes\n" +
+			"--limit only.\n" +
+			"\n" +
+			"--json emits Attio's `{\"data\": …}` response verbatim for chaining; without\n" +
+			"it each command prints a compact one-line-per-item summary.",
 		Short:         "Attio CRM built-in service (records, lists, notes, tasks)",
 		SilenceUsage:  true,
 		SilenceErrors: true,

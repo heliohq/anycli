@@ -17,7 +17,15 @@ func (s *Service) newQuoteCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Price a hypothetical transfer (POST /v3/quotes, unauthenticated)",
-		Args:  cobra.NoArgs,
+		Long: "Despite the POST and the name, this commits nothing: it creates no\n" +
+			"transfer, touches no balance and is not tied to a profile. It is the only\n" +
+			"rate path in the tool — \"what does USD to EUR cost right now\" is answered\n" +
+			"here, with the mid-market rate plus the fee options Wise would charge.\n" +
+			"Give exactly one of `--source-amount` (the amount to send) or\n" +
+			"`--target-amount` (the amount to arrive); passing both, or neither, is\n" +
+			"rejected before the call. A quote is a snapshot — the rate moves, so\n" +
+			"re-quote rather than reusing an old number.",
+		Args: cobra.NoArgs,
 		// Non-committal pricing: the unauthenticated quote creates no persistent
 		// resource and moves no money, so it is read-only from the caller's view.
 		Annotations: map[string]string{"anycli.side_effect": "false"},

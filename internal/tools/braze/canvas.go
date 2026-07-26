@@ -26,8 +26,12 @@ func (s *Service) newCanvasListCmd(c *client) *cobra.Command {
 	var page int
 	var includeArchived bool
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List Canvases (id + name), paginated",
+		Use:   "list",
+		Short: "List Canvases (id + name), paginated",
+		Long: "A Canvas is a multi-step journey; campaigns are single sends, and the two\n" +
+			"have separate id spaces, so a campaign id will not work on any `canvas`\n" +
+			"command. --page is 0-INDEXED and archived Canvases are hidden unless\n" +
+			"--include-archived is passed.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -54,8 +58,12 @@ func (s *Service) newCanvasListCmd(c *client) *cobra.Command {
 func (s *Service) newCanvasDetailsCmd(c *client) *cobra.Command {
 	var canvasID string
 	cmd := &cobra.Command{
-		Use:         "details",
-		Short:       "Get a Canvas's configuration and metadata",
+		Use:   "details",
+		Short: "Get a Canvas's configuration and metadata",
+		Long: "--canvas-id is required and is the API identifier from `canvas list`.\n" +
+			"Returns the journey's structure — its steps, their channels and the\n" +
+			"variants — which is how to find the step names that appear in `canvas\n" +
+			"series` output.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -79,8 +87,13 @@ func (s *Service) newCanvasSeriesCmd(c *client) *cobra.Command {
 	var canvasID, endingAt, startingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:         "series",
-		Short:       "Get a Canvas's analytics time-series",
+		Use:   "series",
+		Short: "Get a Canvas's analytics time-series",
+		Long: "--canvas-id AND --ending-at are both required here — unlike the campaign\n" +
+			"and KPI series, this endpoint has no implicit \"now\". --length caps at 14\n" +
+			"days, far shorter than the 100 elsewhere, so a longer history means\n" +
+			"several calls walking --ending-at backwards. Results break down per step;\n" +
+			"`canvas summary` is the rollup.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -117,8 +130,12 @@ func (s *Service) newCanvasSummaryCmd(c *client) *cobra.Command {
 	var canvasID, endingAt, startingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:         "summary",
-		Short:       "Get rollup analytics for a Canvas",
+		Use:   "summary",
+		Short: "Get rollup analytics for a Canvas",
+		Long: "The whole-Canvas rollup for the window, where `canvas series` breaks the\n" +
+			"same period down per step and per day. --canvas-id and --ending-at are\n" +
+			"both required and --length caps at 14 days. Use this for \"how did the\n" +
+			"journey do\" and the series for \"where did people fall out\".",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -155,8 +172,14 @@ func (s *Service) newCanvasSummaryCmd(c *client) *cobra.Command {
 func (s *Service) newCanvasTriggerCmd(c *client) *cobra.Command {
 	var canvasID, bodyFlag string
 	cmd := &cobra.Command{
-		Use:         "trigger",
-		Short:       "Send an API-triggered Canvas (permission-gated)",
+		Use:   "trigger",
+		Short: "Send an API-triggered Canvas (permission-gated)",
+		Long: "Only works on a Canvas whose entry step is API-triggered. --canvas-id is\n" +
+			"set into the body for you; recipients, canvas_entry_properties, broadcast\n" +
+			"and audience come from --body as raw Braze JSON. Entering a user starts\n" +
+			"the whole journey, including every downstream delay and message, so this\n" +
+			"commits to more than one send. The trigger families are rate-limited far\n" +
+			"below the account default.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}

@@ -120,8 +120,38 @@ func (s *Service) emitJSON(body []byte) error {
 // newRoot builds the resource-grouped cobra tree.
 func (s *Service) newRoot(key, region string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "recurly",
-		Short:         "Recurly subscription-billing built-in service (V3 REST API)",
+		Use:   "recurly",
+		Short: "Recurly subscription-billing built-in service (V3 REST API)",
+		Long: "Calls the Recurly V3 REST API against one Recurly site with that site's\n" +
+			"private API key, pinned to a fixed API version. Whether the connection lands\n" +
+			"on the US or the EU data center is fixed by the credential, not by any flag —\n" +
+			"`site list` confirms which site and subdomain is actually reachable.\n" +
+			"\n" +
+			"Recurly ids are opaque strings, but every id argument also accepts a\n" +
+			"human-friendly alias, so a prior lookup is usually unnecessary:\n" +
+			"`code-<account_code>` for an account, `number-<invoice_number>` for an\n" +
+			"invoice, `uuid-<subscription_uuid>` for a subscription, and `code-<plan_code>`\n" +
+			"or `code-<coupon_code>` for catalog objects. Pass them verbatim where an\n" +
+			"`<id>` is expected.\n" +
+			"\n" +
+			"The shape is one customer (`account`) owning subscriptions, which generate\n" +
+			"invoices, which are paid by transactions. Chasing a billing problem runs down\n" +
+			"that chain: `account balance` says money is owed, `invoice list --account`\n" +
+			"says which invoice, `transaction list` says which attempt failed and why.\n" +
+			"\n" +
+			"Every account-scoped collection (`subscription`, `invoice`, `transaction`,\n" +
+			"`line-item`) takes `--account code-<code>` to narrow to one customer, which\n" +
+			"is nearly always cheaper than filtering a site-wide list.\n" +
+			"\n" +
+			"`list` leaves return the envelope `{\"data\":[...],\"has_more\":bool,\"next\":\"<cursor>\"}`\n" +
+			"— page by re-running with `--cursor <next>` until `has_more` is false. Recurly\n" +
+			"caps `--limit` at 200 and this is not checked locally, so an oversized value\n" +
+			"comes back as an API error. `get` leaves pass the Recurly resource through\n" +
+			"unchanged.\n" +
+			"\n" +
+			"Writes are curated deliberately. Refunds beyond `subscription terminate\n" +
+			"--refund`, and account redaction, are not exposed at all, so there is no path\n" +
+			"here to move money back to a customer outside a termination.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

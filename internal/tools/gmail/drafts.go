@@ -31,8 +31,14 @@ func draftPayload(o *composeOptions) (map[string]any, error) {
 func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 	var o composeOptions
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a draft (same parameters as messages send)",
+		Use:   "create",
+		Short: "Create a draft (same parameters as messages send)",
+		Long: "The whole MIME message is assembled up front, so `--to` and `--subject` are\n" +
+			"required here exactly as they are for a send, along with one of `--body` /\n" +
+			"`--body-file`. Nothing leaves the mailbox: the draft shows up in the user's\n" +
+			"Gmail, where a person can read and edit it, and `drafts send <id>` is the\n" +
+			"separate act that mails it. The response carries the draft id the other\n" +
+			"`drafts` commands take.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -55,8 +61,14 @@ func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 func (s *Service) newDraftsUpdateCmd(token string) *cobra.Command {
 	var o composeOptions
 	cmd := &cobra.Command{
-		Use:         "update <draft-id>",
-		Short:       "Replace a draft's content (same parameters as messages send)",
+		Use:   "update <draft-id>",
+		Short: "Replace a draft's content (same parameters as messages send)",
+		Long: "This REPLACES the draft wholesale with a freshly built message, so every\n" +
+			"flag has to be supplied again — `--to`, `--subject`, the body and any\n" +
+			"`--attach` — and anything left out is dropped from the draft. There is no\n" +
+			"field-level edit, so read the current content with `drafts get` first when\n" +
+			"only part of it should change. Edits a human made in Gmail are overwritten\n" +
+			"too.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -80,8 +92,12 @@ func (s *Service) newDraftsListCmd(token string) *cobra.Command {
 	var pageToken string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List drafts",
+		Use:   "list",
+		Short: "List drafts",
+		Long: "Ids only: each row is a draft id and the message id behind it, with no\n" +
+			"recipient or subject, so choosing between drafts means `drafts get` on\n" +
+			"each. `--max` defaults to 10 and paging is the previous call's\n" +
+			"`nextPageToken` handed back as `--page-token`.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -130,8 +146,12 @@ func (s *Service) newDraftsListCmd(token string) *cobra.Command {
 func (s *Service) newDraftsGetCmd(token string) *cobra.Command {
 	var bodyKind string
 	cmd := &cobra.Command{
-		Use:         "get <draft-id>",
-		Short:       "Show a draft",
+		Use:   "get <draft-id>",
+		Short: "Show a draft",
+		Long: "Renders the stored message — recipients, subject and body — through the same\n" +
+			"view as `messages get`, with `--body` choosing the text or html variant.\n" +
+			"This is how to see what `drafts send` is about to put in someone's inbox,\n" +
+			"including any edit a human made in Gmail since the draft was written.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -171,8 +191,12 @@ func (s *Service) newDraftsGetCmd(token string) *cobra.Command {
 
 func (s *Service) newDraftsSendCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "send <draft-id>",
-		Short:       "Send an existing draft",
+		Use:   "send <draft-id>",
+		Short: "Send an existing draft",
+		Long: "Sends the draft as it stands NOW, which is not necessarily what was written\n" +
+			"into it — a human may have edited it in Gmail — so `drafts get` first when\n" +
+			"that matters. The draft ceases to exist and the response carries the new\n" +
+			"message and thread ids. Immediate and irreversible once it returns.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -199,8 +223,12 @@ func (s *Service) newDraftsSendCmd(token string) *cobra.Command {
 
 func (s *Service) newDraftsDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <draft-id>",
-		Short:       "Delete a draft",
+		Use:   "delete <draft-id>",
+		Short: "Delete a draft",
+		Long: "Permanent: a deleted draft does not pass through the trash, so\n" +
+			"`messages untrash` cannot bring it back and nothing else here can either.\n" +
+			"It removes only the draft — a message already mailed with `drafts send` is\n" +
+			"a sent message and is untouched.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

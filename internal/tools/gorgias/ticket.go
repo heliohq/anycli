@@ -23,8 +23,16 @@ func (s *Service) newTicketListCmd(token, base string) *cobra.Command {
 	var view, customer, externalID string
 	var trashed bool
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List tickets (GET /tickets)",
+		Use:   "list",
+		Short: "List tickets (GET /tickets)",
+		Long: "The available filters are --view, --customer, --external-id and --trashed,\n" +
+			"and that is the whole set: Gorgias exposes NO status, assignee or priority\n" +
+			"filter here. A question like \"which tickets are open and unassigned\" is\n" +
+			"answered by locating the matching saved view with `view list` and passing\n" +
+			"its id to --view. --external-id looks a ticket up by its id in a foreign\n" +
+			"system rather than Gorgias'. --order-by takes an attribute and direction\n" +
+			"together, such as created_datetime:desc. Cursor-paged: continue with\n" +
+			"--cursor from `meta.next_cursor`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -59,8 +67,13 @@ func (s *Service) newTicketListCmd(token, base string) *cobra.Command {
 
 func (s *Service) newTicketGetCmd(token, base string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <ticket-id>",
-		Short:       "Retrieve a ticket (GET /tickets/{id})",
+		Use:   "get <ticket-id>",
+		Short: "Retrieve a ticket (GET /tickets/{id})",
+		Long: "Returns the ticket's state — status, assignee, priority, tags, customer,\n" +
+			"channel — and NOT the conversation. Nothing anyone actually wrote is in\n" +
+			"this response; that is `message list <ticket-id>`, a separate call. Run\n" +
+			"this before `ticket update --tag`, since that flag replaces the whole tag\n" +
+			"set and the current tags are only visible here.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -78,8 +91,17 @@ func (s *Service) newTicketCreateCmd(token, base string) *cobra.Command {
 	var sourceTo []string
 	var fromAgent bool
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Open a ticket with an initial message (POST /tickets)",
+		Use:   "create",
+		Short: "Open a ticket with an initial message (POST /tickets)",
+		Long: "Creates the ticket and its first message together; --body is required.\n" +
+			"That first message is attributed to the CUSTOMER by default, which is\n" +
+			"right for logging an inbound request but wrong for reaching out — pass\n" +
+			"--from-agent for an outbound ticket, or the thread will read as though the\n" +
+			"customer said it. The customer is matched or created from\n" +
+			"--customer-email. --channel defaults to api and needs no routing; email,\n" +
+			"phone and sms additionally require --source-from and --source-to, with the\n" +
+			"email from-address having to be an integration already connected to\n" +
+			"Gorgias.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -130,8 +152,14 @@ func (s *Service) newTicketUpdateCmd(token, base string) *cobra.Command {
 	var status, priority, subject, assignee string
 	var tags []string
 	cmd := &cobra.Command{
-		Use:         "update <ticket-id>",
-		Short:       "Update a ticket's status, assignee, priority, or tags (PUT /tickets/{id})",
+		Use:   "update <ticket-id>",
+		Short: "Update a ticket's status, assignee, priority, or tags (PUT /tickets/{id})",
+		Long: "--tag is repeatable and REPLACES the ticket's entire tag set rather than\n" +
+			"adding to it, so keeping the existing tags means reading them with `ticket\n" +
+			"get` and passing every one again. Tags are named, not numeric. --assignee\n" +
+			"is the opposite: a numeric user id from `user list`, never an email or a\n" +
+			"name. --status is open or closed, --priority critical, high, normal or\n" +
+			"low. At least one flag is required; fields not passed are left alone.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

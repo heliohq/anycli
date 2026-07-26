@@ -19,8 +19,11 @@ func (s *Service) newContactBooksCmd(token string) *cobra.Command {
 func (s *Service) newContactBooksListCmd(token string) *cobra.Command {
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List contact books",
+		Use:   "list",
+		Short: "List contact books",
+		Long: "Contact books are the containers `contacts list --contact-book` demands, so\n" +
+			"this is the first call before any contact work. Offset-paged: --limit\n" +
+			"defaults to 50 with a Missive ceiling of 200, continued through --offset.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

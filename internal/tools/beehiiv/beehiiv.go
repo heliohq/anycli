@@ -138,8 +138,31 @@ func (s *Service) stderr() io.Writer {
 // point (list/get, unscoped); every other group requires --publication-id.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "beehiiv",
-		Short:         "beehiiv built-in service (publications, posts, subscribers)",
+		Use:   "beehiiv",
+		Short: "beehiiv built-in service (publications, posts, subscribers)",
+		Long: "Speaks the beehiiv v2 API and prints its JSON envelope verbatim.\n" +
+			"\n" +
+			"Almost everything is publication-scoped: one workspace can hold several\n" +
+			"publications, and posts, subscribers, segments, tiers and automations\n" +
+			"each belong to exactly one. `--publication-id` is therefore required on\n" +
+			"every command except `publication list`, and a value not beginning with\n" +
+			"`pub_` is rejected before any request goes out — a usage error rather\n" +
+			"than a silent 404. Start from `publication list`.\n" +
+			"\n" +
+			"`--expand` is repeatable and its accepted values differ per resource:\n" +
+			"posts take `stats`, `free_web_content` and `recipients`; subscriptions\n" +
+			"take `stats`, `custom_fields`, `referrals` and `tags`. Anything not\n" +
+			"expanded is absent from the response rather than empty, so a missing\n" +
+			"field usually means a missing `--expand`.\n" +
+			"\n" +
+			"The only writes are `subscription create` and `subscription update`.\n" +
+			"Posts cannot be authored or sent through the API at all — that is\n" +
+			"app-only — so `post` here is a reporting surface.\n" +
+			"\n" +
+			"Before writing a subscriber, read the reference lists: `tier list` for\n" +
+			"tier names, `custom-field list` for field names, `automation list` for\n" +
+			"automation ids. Those names are per publication and beehiiv rejects one\n" +
+			"it does not know.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

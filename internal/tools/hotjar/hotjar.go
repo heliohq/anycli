@@ -111,8 +111,31 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(creds clientCreds) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "hotjar",
-		Short:         "Hotjar built-in service (survey responses export + user lookup)",
+		Use:   "hotjar",
+		Short: "Hotjar built-in service (survey responses export + user lookup)",
+		Long: "Authenticates with the account's own API client id and secret, minted by an\n" +
+			"Admin under Hotjar Settings → API and exchanged for a short-lived bearer on\n" +
+			"each invocation. Hotjar expires those keys after one year and they cannot be\n" +
+			"extended, so a connection that worked for months and now reports a rejected\n" +
+			"credential has most likely aged out.\n" +
+			"\n" +
+			"Feature access is PLAN-GATED: response export needs Ask Scale and user\n" +
+			"lookup needs at least Observe Scale. Hotjar answers 403 for an\n" +
+			"under-provisioned plan and the tool reports that as a rejected credential,\n" +
+			"so a perfectly valid key can look broken. A 429 is the API's rate limit and\n" +
+			"is retryable as-is, not a credential problem.\n" +
+			"\n" +
+			"Two id spaces that are not interchangeable: the `survey` commands take a\n" +
+			"`--site` id, `user lookup` takes an `--org` id. Both come from Hotjar's\n" +
+			"Sites & Organizations page.\n" +
+			"\n" +
+			"`survey list` and `survey responses` return `{\"results\": [...],\n" +
+			"\"next_cursor\": \"...\"}`. Feed a non-null `next_cursor` back through\n" +
+			"`--cursor`; null means the last page. `--limit` is not bounded locally and 0\n" +
+			"leaves the page size to Hotjar's default.\n" +
+			"\n" +
+			"Every command is read-only, and the provider's JSON is printed verbatim —\n" +
+			"`--json` is accepted for uniformity and changes nothing.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

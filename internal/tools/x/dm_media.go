@@ -23,8 +23,15 @@ func (s *Service) newDMMediaCmd(token string) *cobra.Command {
 func (s *Service) newDMMediaDownloadCmd(token string) *cobra.Command {
 	var eventID, mediaKey, resourceID, output string
 	cmd := &cobra.Command{
-		Use:         "download",
-		Short:       "Download legacy DM media as raw bytes to a file",
+		Use:   "download",
+		Short: "Download legacy DM media as raw bytes to a file",
+		Long: "All three inputs come from a DM event's media expansion: --event-id is the\n" +
+			"event carrying the attachment, --media-key is the value from\n" +
+			"attachments.media_keys, and --resource-id is the last path segment of the\n" +
+			"expanded media URL, including its extension. Use this rather than fetching\n" +
+			"that URL directly — DM media is not publicly readable and the request\n" +
+			"needs the connection's token. Stdout gets the written path and byte count\n" +
+			"as JSON; the bytes go to --output.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {

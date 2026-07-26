@@ -27,7 +27,11 @@ func (s *Service) newBacklinksSummaryCmd(credential string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "summary",
 		Short: "Aggregate backlink metrics for a domain or URL",
-		Args:  cobra.NoArgs,
+		Long: "Totals for the whole profile: backlinks, referring domains, rank, and the\n" +
+			"spam-signal counts. There is no --limit because the endpoint caps its own\n" +
+			"internal arrays. One call, so this is the cheap orientation before the\n" +
+			"three detail commands.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			task := map[string]any{"target": target}
 			return s.do(cmd.Context(), credential, http.MethodPost, "/backlinks/summary/live", task)
@@ -48,7 +52,11 @@ func (s *Service) newBacklinksListCmd(credential string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "Individual backlinks pointing at a domain or URL",
-		Args:  cobra.NoArgs,
+		Long: "One row per LINK, with the source page, its anchor text and whether it is\n" +
+			"dofollow. --limit defaults to 100 and tops out at 1000, and no offset flag\n" +
+			"exists, so a large profile cannot be paged through from here —\n" +
+			"`backlinks referring-domains` is the shape that summarizes it instead.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			task := map[string]any{"target": target}
 			if limit > 0 {
@@ -73,7 +81,11 @@ func (s *Service) newBacklinksReferringDomainsCmd(credential string) *cobra.Comm
 	cmd := &cobra.Command{
 		Use:   "referring-domains",
 		Short: "Domains referring to a target",
-		Args:  cobra.NoArgs,
+		Long: "One row per linking DOMAIN rather than per link, which collapses a site that\n" +
+			"links a thousand times into a single entry. That makes it both cheaper to\n" +
+			"read and the right shape for judging link diversity. --limit defaults to\n" +
+			"100, maximum 1000.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			task := map[string]any{"target": target}
 			if limit > 0 {
@@ -98,7 +110,11 @@ func (s *Service) newBacklinksAnchorsCmd(credential string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "anchors",
 		Short: "Anchor-text distribution for a target",
-		Args:  cobra.NoArgs,
+		Long: "What other sites actually call the target, aggregated by anchor text. A\n" +
+			"profile dominated by one exact-match commercial anchor is the classic\n" +
+			"manipulation signal, which is what makes this worth a call beyond raw link\n" +
+			"counts. --limit defaults to 100, maximum 1000.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			task := map[string]any{"target": target}
 			if limit > 0 {

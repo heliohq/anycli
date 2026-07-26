@@ -156,8 +156,25 @@ func (s *Service) stderr() io.Writer {
 // per-invocation App API Key (auth) and App ID (request scope).
 func (s *Service) newRoot(key, appID string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "onesignal",
-		Short:         "OneSignal built-in service (push / email / SMS messaging)",
+		Use:   "onesignal",
+		Short: "OneSignal built-in service (push / email / SMS messaging)",
+		Long: "Acts on exactly one OneSignal app. The connection carries both the App API\n" +
+			"Key and the App ID, and the App ID is injected into every request — there\n" +
+			"is no `--app-id`, and reaching a different app means connecting that app as\n" +
+			"its own account. The credential is an APP key: creating apps or rotating\n" +
+			"keys needs an Organization API Key and is outside this tool.\n" +
+			"\n" +
+			"A message goes to exactly ONE targeting method — a segment, subscription\n" +
+			"ids, email addresses, phone numbers or a filter expression. Two of them\n" +
+			"together are rejected locally, exit 2, before anything is sent.\n" +
+			"\n" +
+			"Segments are saved audiences. `segment list` is where a valid\n" +
+			"`--segment` value comes from, and note the asymmetry: a send targets a\n" +
+			"segment by NAME while `segment delete` takes its id.\n" +
+			"\n" +
+			"Every command prints OneSignal's JSON verbatim. Exit 2 is a usage error\n" +
+			"caught before any HTTP request; exit 1 is an API or transport failure,\n" +
+			"which is also how a revoked App API Key surfaces.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

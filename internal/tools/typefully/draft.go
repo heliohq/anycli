@@ -25,8 +25,12 @@ func (s *Service) newDraftListCmd(token string) *cobra.Command {
 	var socialSet, status, tag, orderBy string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List/filter drafts (GET /v2/social-sets/{id}/drafts)",
+		Use:   "list",
+		Short: "List/filter drafts (GET /v2/social-sets/{id}/drafts)",
+		Long: "--status narrows to draft, scheduled, published or error. --tag takes a tag\n" +
+			"ID from `tag list`, not the tag's name. Paging is --limit with --offset,\n" +
+			"not a cursor, so a stable ordering matters — --order-by is passed to\n" +
+			"Typefully untouched.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -60,8 +64,14 @@ func (s *Service) newDraftGetCmd(token string) *cobra.Command {
 	var socialSet, id string
 	var excludeMarkers bool
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Read one draft's full content + status/publish_state (GET /v2/social-sets/{id}/drafts/{draft_id})",
+		Use:   "get",
+		Short: "Read one draft's full content + status/publish_state (GET /v2/social-sets/{id}/drafts/{draft_id})",
+		Long: "The polling target after a `--publish-at now` create: `publish_state` walks\n" +
+			"null → in_progress → finished, and only once it is finished do `status`\n" +
+			"and the per-platform `*_published_url` fields mean anything.\n" +
+			"--exclude-comment-markers strips the inline reviewer-comment anchors out\n" +
+			"of the returned text, which is what to pass when the content is being\n" +
+			"reused verbatim somewhere else.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -90,12 +100,15 @@ func (s *Service) newDraftCreateCmd(token string) *cobra.Command {
 		Use:         "create",
 		Short:       "Create + optionally schedule/publish a draft (POST /v2/social-sets/{id}/drafts)",
 		Annotations: writeAction,
-		Long: "Create a draft. Provide EITHER --data '<raw json>' (full platforms body, " +
-			"the honest path for platform-specific/nested content) OR the thin " +
-			"convenience flags (--text repeatable builds a thread, --platform " +
-			"repeatable defaults to x, --publish-at now|next-free-slot|<iso8601>, " +
-			"--media-id attaches media to the first post). --data and the typed " +
-			"flags are mutually exclusive.",
+		Long: "Takes EITHER --data with a full v2 JSON body OR the thin typed flags, never\n" +
+			"both — mixing them is a usage error and nothing is sent. Typed: --text is\n" +
+			"repeatable and each occurrence becomes one post of a thread, --platform is\n" +
+			"repeatable and defaults to x, --media-id attaches to the FIRST post only,\n" +
+			"and --publish-at takes now, next-free-slot or an ISO-8601 datetime with a\n" +
+			"timezone. Omit --publish-at to save a plain draft. The typed flags send\n" +
+			"identical text to every platform named; per-platform wording, titles and\n" +
+			"`rules` need --data. `--publish-at now` returns before anything is\n" +
+			"published — the 201 is an accepted job, not a post.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			typed := len(texts) > 0 || len(platforms) > 0 || len(mediaIDs) > 0 || publishAt != ""
@@ -161,8 +174,13 @@ func buildDraftBody(texts, platforms, mediaIDs []string, publishAt string) map[s
 func (s *Service) newDraftUpdateCmd(token string) *cobra.Command {
 	var socialSet, id, data string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Edit / reschedule / publish an existing draft (PATCH /v2/social-sets/{id}/drafts/{draft_id})",
+		Use:   "update",
+		Short: "Edit / reschedule / publish an existing draft (PATCH /v2/social-sets/{id}/drafts/{draft_id})",
+		Long: "--data is a raw JSON patch body and is required; there are no typed\n" +
+			"shortcuts here, so rescheduling is `{\"publish_at\":\"2026-08-01T09:00:00Z\"}`\n" +
+			"and publishing an existing draft immediately is `{\"publish_at\":\"now\"}`,\n" +
+			"which is as asynchronous here as it is on create — poll `draft get`\n" +
+			"afterwards.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -188,8 +206,12 @@ func (s *Service) newDraftUpdateCmd(token string) *cobra.Command {
 func (s *Service) newDraftDeleteCmd(token string) *cobra.Command {
 	var socialSet, id string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a draft (DELETE /v2/social-sets/{id}/drafts/{draft_id})",
+		Use:   "delete",
+		Short: "Delete a draft (DELETE /v2/social-sets/{id}/drafts/{draft_id})",
+		Long: "Removes the draft whether or not it is scheduled; a scheduled one simply\n" +
+			"never posts. It retracts NOTHING already published — a post that went out\n" +
+			"has to be deleted on the platform itself. The printed body is a local\n" +
+			"confirmation, not Typefully's response.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

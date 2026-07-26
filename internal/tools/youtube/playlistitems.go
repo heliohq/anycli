@@ -17,8 +17,13 @@ func (s *Service) newPlaylistItemsListCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List the videos in a playlist",
+		Use:   "list",
+		Short: "List the videos in a playlist",
+		Long: "Each row carries TWO ids and they are not interchangeable: the video id,\n" +
+			"and the playlistItem id that identifies this particular membership.\n" +
+			"`playlist-items remove` needs the latter, so this call is the mandatory\n" +
+			"first step before removing anything. --max is capped at 50 and defaults to\n" +
+			"5; continue with --page.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -53,8 +58,13 @@ func (s *Service) newPlaylistItemsAddCmd(token string) *cobra.Command {
 	var playlist, video string
 	var position int
 	cmd := &cobra.Command{
-		Use:         "add",
-		Short:       "Add a video to a playlist",
+		Use:   "add",
+		Short: "Add a video to a playlist",
+		Long: "Appends by default; --position inserts at a zero-based index instead. The\n" +
+			"same video may be added more than once and each addition becomes a\n" +
+			"separate playlistItem with its own id, so this is not idempotent — running\n" +
+			"it twice leaves two entries. The new playlistItem id is printed and is\n" +
+			"what a later removal needs.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -93,8 +103,13 @@ func (s *Service) newPlaylistItemsAddCmd(token string) *cobra.Command {
 func (s *Service) newPlaylistItemsRemoveCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "remove",
-		Short:       "Remove an item from a playlist (by playlistItem id, not video id)",
+		Use:   "remove",
+		Short: "Remove an item from a playlist (by playlistItem id, not video id)",
+		Long: "--id is the playlistItem id from `playlist-items list`, NOT the video id —\n" +
+			"the same video can sit in a playlist several times, each occurrence with\n" +
+			"its own id, so there is no unambiguous \"remove this video\" operation.\n" +
+			"Passing a video id fails rather than removing anything. The video itself\n" +
+			"is untouched.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

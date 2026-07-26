@@ -22,7 +22,11 @@ func (s *Service) newJobListCmd(token string) *cobra.Command {
 		Use:         "list",
 		Annotations: readOnly,
 		Short:       "List background jobs (GET /background-jobs)",
-		Args:        cobra.NoArgs,
+		Long: "--status (running, for instance) and --type filter; cursor-paged with\n" +
+			"--limit and --starting-after. This is how a job id is recovered when it\n" +
+			"was not kept from the command that created it — the usual reason a bulk\n" +
+			"`lead move` looks like it silently did nothing.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.applyQuery(q)
@@ -43,7 +47,11 @@ func (s *Service) newJobGetCmd(token string) *cobra.Command {
 		Use:         "get",
 		Annotations: readOnly,
 		Short:       "Get a background job (GET /background-jobs/{id})",
-		Args:        cobra.NoArgs,
+		Long: "--id comes from whatever returned the job, in practice `lead move`. A bulk\n" +
+			"operation is not finished when its own command returns, so poll here\n" +
+			"until the status stops being running before assuming the leads landed\n" +
+			"where they were sent.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/background-jobs/"+url.PathEscape(id), nil)
 		},

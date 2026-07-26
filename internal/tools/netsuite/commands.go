@@ -42,7 +42,19 @@ func (s *Service) newQueryCmd(creds tbaCreds) *cobra.Command {
 		Use:         "query",
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		Short:       "Run a SuiteQL query (joined/aggregate reads across records)",
-		Args:        cobra.NoArgs,
+		Long: "--q takes a SuiteQL SELECT; the endpoint accepts no other verb, so\n" +
+			"changing data always means a `record` subcommand. SuiteQL addresses\n" +
+			"tables and columns by their DATABASE names, which are generally\n" +
+			"lowercase (companyname, tranid) and differ from the camelCase field\n" +
+			"names `record get` returns — a column copied from a record response\n" +
+			"will often not resolve.\n" +
+			"\n" +
+			"The response carries `items` plus `hasMore`, `count`, `totalResults`\n" +
+			"and `links`, where a rel:next link means another page exists. --limit\n" +
+			"and --offset are applied by NetSuite around the statement, so a\n" +
+			"statement's own FETCH FIRST ... ROWS ONLY and --limit are two\n" +
+			"independent caps and the smaller one wins.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if strings.TrimSpace(q) == "" {
 				return &usageError{msg: "netsuite query: --q (SuiteQL statement) is required"}
@@ -74,7 +86,13 @@ func (s *Service) newMetadataCmd(creds tbaCreds) *cobra.Command {
 		Use:         "metadata",
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		Short:       "Discover record types and field schemas (metadata catalog)",
-		Args:        cobra.NoArgs,
+		Long: "Without --type this returns the entire record-type catalog, which is\n" +
+			"large; --type narrows it to one type's schema and is the usual call.\n" +
+			"This is where an exact type name and its field names come from, so it\n" +
+			"is the fix for a rejected --type or a create body NetSuite says carries\n" +
+			"unknown fields. The payload is JSON Schema, not a record — field names\n" +
+			"and requiredness, no data.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			path := "/record/v1/metadata-catalog"
 			if t := strings.TrimSpace(recordType); t != "" {
@@ -117,7 +135,13 @@ func (s *Service) newRecordGetCmd(creds tbaCreds) *cobra.Command {
 		Use:         "get",
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		Short:       "Get one record by internal id",
-		Args:        cobra.NoArgs,
+		Long: "--type and --id are both required, and --id is NetSuite's INTERNAL id —\n" +
+			"not a tranId, document number or customer-facing entity id, which have\n" +
+			"to be resolved through `query` first. The response holds the record's\n" +
+			"own fields; sublists such as line items and addresses arrive as links\n" +
+			"rather than expanded data, so a line-level question is a SuiteQL\n" +
+			"question.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			t, err := requireType(recordType)
 			if err != nil {
@@ -146,7 +170,12 @@ func (s *Service) newRecordListCmd(creds tbaCreds) *cobra.Command {
 		Use:         "list",
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		Short:       "List record ids of a type (paginated)",
-		Args:        cobra.NoArgs,
+		Long: "Returns ids and links, NOT record contents, so reading fields costs one\n" +
+			"`record get` per row — which is why anything about several records\n" +
+			"belongs in `query` instead. There is no filter flag: narrowing by any\n" +
+			"field means SuiteQL. --limit and --offset page it, and --limit 0 leaves\n" +
+			"NetSuite's own default page size in place.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			t, err := requireType(recordType)
 			if err != nil {
@@ -185,7 +214,14 @@ func (s *Service) newRecordCreateCmd(creds tbaCreds) *cobra.Command {
 		Use:         "create",
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		Short:       "Create a record",
-		Args:        cobra.NoArgs,
+		Long: "--body is the record's fields as JSON and is checked here only for\n" +
+			"syntax; which fields are required varies by type and by the account's\n" +
+			"configuration (a customer on a OneWorld account needs `subsidiary`), and\n" +
+			"`metadata --type` is what lists them. NetSuite answers with an empty\n" +
+			"body and the new record's URL in a Location header, so the printed id\n" +
+			"is reconstructed from that header rather than read from a returned\n" +
+			"record. The record is live immediately; there is no draft state.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			t, err := requireType(recordType)
 			if err != nil {
@@ -213,7 +249,12 @@ func (s *Service) newRecordUpdateCmd(creds tbaCreds) *cobra.Command {
 		Use:         "update",
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		Short:       "Update a record (PATCH by internal id)",
-		Args:        cobra.NoArgs,
+		Long: "A PATCH: fields absent from --body are left alone, so send only what is\n" +
+			"changing. No version or If-Match check is sent with the request, which\n" +
+			"means a concurrent edit by a person or another integration is\n" +
+			"overwritten silently — re-read with `record get` immediately before\n" +
+			"writing when that matters.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			t, err := requireType(recordType)
 			if err != nil {
@@ -246,7 +287,13 @@ func (s *Service) newRecordDeleteCmd(creds tbaCreds) *cobra.Command {
 		Use:         "delete",
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		Short:       "Delete a record by internal id",
-		Args:        cobra.NoArgs,
+		Long: "Immediate and permanent — NetSuite has no recycle bin behind this call.\n" +
+			"It refuses rather than cascading when other records reference the\n" +
+			"target, so the common failure is a dependency error and not a\n" +
+			"permissions one. Many posted transactions cannot be deleted at all once\n" +
+			"their accounting period is closed; those are voided inside NetSuite\n" +
+			"instead, which this tool cannot do.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			t, err := requireType(recordType)
 			if err != nil {

@@ -25,8 +25,13 @@ var sysIDRe = regexp.MustCompile(`^[0-9a-fA-F]{32}$`)
 func (s *Service) newIncidentListCmd(c *client) *cobra.Command {
 	var o queryOptions
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List incidents (query sugar over the incident table)",
+		Use:   "list",
+		Short: "List incidents (query sugar over the incident table)",
+		Long: "Identical to `table query incident` — same encoded-query syntax, same\n" +
+			"--fields, --limit, --offset and --display-value, one less argument to\n" +
+			"type. Incidents are heavy records, so --fields\n" +
+			"number,short_description,state,assigned_to keeps the response readable\n" +
+			"where an unfiltered call does not.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -48,8 +53,14 @@ func (s *Service) newIncidentListCmd(c *client) *cobra.Command {
 func (s *Service) newIncidentGetCmd(c *client) *cobra.Command {
 	var o queryOptions
 	cmd := &cobra.Command{
-		Use:         "get <number|sys_id>",
-		Short:       "Get one incident by INC number or sys_id",
+		Use:   "get <number|sys_id>",
+		Short: "Get one incident by INC number or sys_id",
+		Long: "Takes either form: a 32-hex value is used directly as a sys_id, and\n" +
+			"anything else is treated as the human INC number and translated by an\n" +
+			"extra lookup request. That translation is why this is the command to use\n" +
+			"when a person named an incident — the generic `table get` accepts only the\n" +
+			"sys_id. A number with no match fails as a usage error rather than an empty\n" +
+			"result.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -75,8 +86,14 @@ func (s *Service) newIncidentGetCmd(c *client) *cobra.Command {
 func (s *Service) newIncidentCreateCmd(c *client) *cobra.Command {
 	var shortDescription, data string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create an incident",
+		Use:   "create",
+		Short: "Create an incident",
+		Long: "At least one of --short-description or --data is required. Everything\n" +
+			"beyond the summary line — urgency, impact, caller_id, assignment_group,\n" +
+			"category — goes in --data as a JSON object, with reference fields written\n" +
+			"as sys_ids. Creating an incident triggers the instance's assignment rules\n" +
+			"and notifications, so it can page whoever is on call for the resulting\n" +
+			"group.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -109,8 +126,14 @@ func (s *Service) newIncidentCreateCmd(c *client) *cobra.Command {
 func (s *Service) newIncidentUpdateCmd(c *client) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:         "update <number|sys_id>",
-		Short:       "Update an incident by INC number or sys_id",
+		Use:   "update <number|sys_id>",
+		Short: "Update an incident by INC number or sys_id",
+		Long: "Accepts an INC number or a sys_id and PATCHes only the fields --data\n" +
+			"names. Reassigning means writing assigned_to or assignment_group as\n" +
+			"sys_ids, not names. `work_notes` adds an internal note while `comments`\n" +
+			"adds a customer-visible one that usually emails the caller — pick\n" +
+			"deliberately. Marking an incident resolved belongs in `incident resolve`,\n" +
+			"which sets the state and close fields together.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -137,8 +160,15 @@ func (s *Service) newIncidentUpdateCmd(c *client) *cobra.Command {
 func (s *Service) newIncidentResolveCmd(c *client) *cobra.Command {
 	var closeNotes, code string
 	cmd := &cobra.Command{
-		Use:         "resolve <number|sys_id>",
-		Short:       "Resolve an incident (sets state=Resolved with close notes)",
+		Use:   "resolve <number|sys_id>",
+		Short: "Resolve an incident (sets state=Resolved with close notes)",
+		Long: "Sets state to 6, Resolved, and --close-notes is required because resolving\n" +
+			"without a stated resolution is rejected. --code writes close_code, whose\n" +
+			"valid values are the instance's own choice list (\"Solved (Permanently)\"\n" +
+			"and similar), so a value that instance does not define will not stick.\n" +
+			"Resolved is not Closed: the record stays open to the caller for rebuttal,\n" +
+			"and moving it further is a separate `incident update`. Resolving notifies\n" +
+			"the caller on most instances.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

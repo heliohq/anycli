@@ -21,8 +21,12 @@ type timelinePage struct {
 
 func (rt *runContext) newWhoamiCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:         "whoami",
-		Short:       "Show the connected account (verify_credentials)",
+		Use:   "whoami",
+		Short: "Show the connected account (verify_credentials)",
+		Long: "Returns the connected identity — handle, display name, follower and status\n" +
+			"counts, and its numeric id on this instance. It is the cheapest check of\n" +
+			"WHICH account a post, boost or follow will be attributed to, and the only\n" +
+			"way to learn that account's own id without a handle lookup.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -77,8 +81,13 @@ func (rt *runContext) listStatuses(ctx context.Context, path string, query url.V
 
 func (rt *runContext) newTimelineHomeCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "home",
-		Short:       "Read the home timeline",
+		Use:   "home",
+		Short: "Read the home timeline",
+		Long: "Statuses from the accounts this account follows, plus its own, newest\n" +
+			"first — what the user sees on opening Mastodon. It is the only timeline\n" +
+			"shaped by who this account follows; `timeline public` is everyone and\n" +
+			"`timeline tag` is a subject. Pages with `--limit` (default 20) and\n" +
+			"`--cursor`, which only ever walks backwards in time.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -91,8 +100,13 @@ func (rt *runContext) newTimelineHomeCmd() *cobra.Command {
 
 func (rt *runContext) newTimelinePublicCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "public",
-		Short:       "Read the public (federated) or local timeline",
+		Use:   "public",
+		Short: "Read the public (federated) or local timeline",
+		Long: "The firehose: every public status this instance has seen from anywhere it\n" +
+			"federates with, which on a large instance is an unfiltered torrent of\n" +
+			"strangers. `--local` narrows it to statuses authored ON this instance,\n" +
+			"which is the version that says something about this particular community.\n" +
+			"Neither form is filtered by subject — that is `timeline tag` or `search`.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -110,8 +124,14 @@ func (rt *runContext) newTimelinePublicCmd() *cobra.Command {
 
 func (rt *runContext) newTimelineTagCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "tag <hashtag>",
-		Short:       "Read a hashtag timeline",
+		Use:   "tag <hashtag>",
+		Short: "Read a hashtag timeline",
+		Long: "A leading `#` on the argument is stripped, so `tag mastodon` and\n" +
+			"`tag '#mastodon'` are the same request. Coverage is bounded by federation:\n" +
+			"only statuses this instance has actually received appear, so a hashtag\n" +
+			"busy on servers this one does not follow will look quiet here. Public\n" +
+			"statuses only — unlisted and followers-only posts never reach a hashtag\n" +
+			"timeline.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -126,8 +146,14 @@ func (rt *runContext) newTimelineTagCmd() *cobra.Command {
 
 func (rt *runContext) newAccountGetCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <acct|id>",
-		Short:       "Look up an account by @handle or numeric id",
+		Use:   "get <acct|id>",
+		Short: "Look up an account by @handle or numeric id",
+		Long: "Takes `@user@instance` or a numeric id. A handle costs one extra lookup\n" +
+			"call to resolve, but it is the portable identifier — the numeric id it\n" +
+			"resolves to is valid only on THIS instance and means something else\n" +
+			"entirely on another. Returns the profile: bio, follower and following\n" +
+			"counts, status count, and the bot and locked flags, where `locked` is what\n" +
+			"turns a `follow` into a pending request.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -150,8 +176,12 @@ func (rt *runContext) newAccountGetCmd() *cobra.Command {
 
 func (rt *runContext) newAccountPostsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "posts <acct|id>",
-		Short:       "Read an account's recent posts",
+		Use:   "posts <acct|id>",
+		Short: "Read an account's recent posts",
+		Long: "Takes `@user@instance` or a numeric id and returns that account's statuses,\n" +
+			"newest first. What comes back is what THIS instance holds: for a remote\n" +
+			"account it may start only from when someone here first followed them, so a\n" +
+			"prolific poster can look sparse. Pages with `--limit` and `--cursor`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -169,8 +199,15 @@ func (rt *runContext) newAccountPostsCmd() *cobra.Command {
 
 func (rt *runContext) newSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search accounts, hashtags, or statuses",
+		Use:   "search",
+		Short: "Search accounts, hashtags, or statuses",
+		Long: "`--q` is required. Without `--type` the response carries accounts, hashtags\n" +
+			"and statuses together, each capped by `--limit` (default 20 per kind).\n" +
+			"Full-text status search is the weak one: most instances index only the\n" +
+			"connected account's own posts, favourites and mentions, so an empty\n" +
+			"`statuses` array does NOT mean nobody wrote about the term. Passing a full\n" +
+			"`@user@instance` handle as `--q` makes the instance fetch an account it has\n" +
+			"never seen, which is how to reach a stranger on a distant server.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -237,8 +274,14 @@ func (rt *runContext) emitSearch(body []byte) error {
 
 func (rt *runContext) newNotificationsListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "Read notifications (mentions, follows, boosts, favourites)",
+		Use:   "list",
+		Short: "Read notifications (mentions, follows, boosts, favourites)",
+		Long: "One stream of everything that happened TO the connected account — mentions,\n" +
+			"follows, favourites, boosts, poll results — newest first, each entry\n" +
+			"carrying its `type`, the account responsible and the status involved where\n" +
+			"there is one. It is far cheaper than scanning timelines for engagement.\n" +
+			"Nothing here marks anything as read, so the same items return until\n" +
+			"`--cursor` moves past them.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

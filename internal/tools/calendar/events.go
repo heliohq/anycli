@@ -58,7 +58,14 @@ func (s *Service) newEventsListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List events (native full-text --query; RFC3339 --from/--to time window)",
-		Args:  cobra.NoArgs,
+		Long: "--query is Google's own full-text q, matching title, description,\n" +
+			"location and attendee fields on one calendar at a time. A recurring\n" +
+			"event comes back as a single base entry unless --single-events expands\n" +
+			"it into occurrences, and --order-by startTime is rejected without that\n" +
+			"flag (--order-by updated works either way). --max defaults to 10, so a\n" +
+			"full day usually needs a larger value or --page-token, and the response\n" +
+			"carries no total — counting means paging to the end.",
+		Args: cobra.NoArgs,
 		// GET /calendars/{cal}/events — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -137,7 +144,13 @@ func (s *Service) newEventsGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <event-id>",
 		Short: "Show one event",
-		Args:  cobra.ExactArgs(1),
+		Long: "Takes the event id positionally and reads it from --calendar, which\n" +
+			"defaults to primary — an id from another calendar returns not-found\n" +
+			"rather than resolving on its own. Pair it with --json before editing\n" +
+			"anything: the default summary shows only id, start, title and any Meet\n" +
+			"link, while the attendee list, response statuses, description and\n" +
+			"recurrence rules exist only in the full resource.",
+		Args: cobra.ExactArgs(1),
 		// GET /calendars/{cal}/events/{id} — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -166,7 +179,12 @@ func (s *Service) newEventsInstancesCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "instances <event-id>",
 		Short: "List the concrete instances of a recurring event (query one before editing a single occurrence)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Expands ONE recurring event into its concrete occurrences, each carrying\n" +
+			"its own event id. That per-occurrence id is what `events update` and\n" +
+			"`events delete` need to touch a single meeting instead of the entire\n" +
+			"series. Bound the expansion with --from/--to, since an open-ended series\n" +
+			"generates occurrences indefinitely; --max defaults to 25.",
+		Args: cobra.ExactArgs(1),
 		// GET /calendars/{cal}/events/{id}/instances — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

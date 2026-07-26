@@ -9,8 +9,11 @@ import (
 
 func (s *Service) newCampaignListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List campaigns (GET /v1/campaigns)",
+		Use:   "list",
+		Short: "List campaigns (GET /v1/campaigns)",
+		Long: "Returns the workspace's campaigns in one unpaginated response — there are\n" +
+			"no --start or --limit flags. This is where campaign ids come from for\n" +
+			"`campaign get`, `campaign metrics` and `export deliveries --campaign`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -26,8 +29,12 @@ func (s *Service) newCampaignListCmd(key string) *cobra.Command {
 func (s *Service) newCampaignGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a campaign (GET /v1/campaigns/{id})",
+		Use:   "get",
+		Short: "Get a campaign (GET /v1/campaigns/{id})",
+		Long: "The campaign's configuration — trigger conditions, state and actions — not\n" +
+			"its performance, which is `campaign metrics`. The action ids in this\n" +
+			"response are what `export deliveries --action` narrows on when a campaign\n" +
+			"has several steps and only one is in question.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -48,8 +55,14 @@ func (s *Service) newCampaignMetricsCmd(key string) *cobra.Command {
 	var links, journey bool
 	var m metricsParams
 	cmd := &cobra.Command{
-		Use:         "metrics",
-		Short:       "Campaign performance metrics (GET /v1/campaigns/{id}/metrics, /metrics/links, or /journey_metrics)",
+		Use:   "metrics",
+		Short: "Campaign performance metrics (GET /v1/campaigns/{id}/metrics, /metrics/links, or /journey_metrics)",
+		Long: "Three different reports behind one command, and --links and --journey are\n" +
+			"mutually exclusive: bare, it is the delivery funnel; --links breaks clicks\n" +
+			"down per URL; --journey reports how people moved through the campaign\n" +
+			"rather than how the messages performed. --period is hours, days, weeks or\n" +
+			"months and --steps is how many of them to return; leaving both unset takes\n" +
+			"Customer.io's own default window rather than all history.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

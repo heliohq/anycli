@@ -90,8 +90,33 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "adyen",
-		Short:         "Adyen built-in service (Management API v3, X-API-Key)",
+		Use:   "adyen",
+		Short: "Adyen built-in service (Management API v3, X-API-Key)",
+		Long: "Management API v3 only: this inspects configuration — the API\n" +
+			"credential's own identity, merchant and company accounts,\n" +
+			"payment-method settings, webhooks, stores and terminals. It MOVES NO\n" +
+			"MONEY. Charging, refunding, capturing and payment links are Checkout\n" +
+			"operations and no command here performs them.\n" +
+			"\n" +
+			"Payments also cannot be enumerated. Adyen exposes no REST list of\n" +
+			"transactions for a classic merchant account — reconciliation runs on\n" +
+			"webhooks and downloadable reports — so work from a pspReference that\n" +
+			"arrived by some other route rather than expecting to search for one.\n" +
+			"\n" +
+			"Every call goes to the LIVE account (management-live.adyen.com). There\n" +
+			"is no test or sandbox switch on the connected tool.\n" +
+			"\n" +
+			"A 403 is a missing role, not a bad key. Adyen credentials carry granular\n" +
+			"per-endpoint roles and `management whoami` succeeds with any of them, so\n" +
+			"a key can be perfectly valid and still be refused by a later command;\n" +
+			"the error carries Adyen's errorCode, typically 010. It is fixed by\n" +
+			"granting that role to the SAME credential in the Adyen Customer Area —\n" +
+			"a newly issued key with the same roles fails identically. Only a 401 is\n" +
+			"an authentication failure.\n" +
+			"\n" +
+			"List endpoints wrap results in `data` alongside `itemsTotal` and\n" +
+			"`pagesTotal`. Paging is offset-based: --page-size (Adyen caps it at 100)\n" +
+			"and 1-based --page, both unset by default so Adyen applies its own.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

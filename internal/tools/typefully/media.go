@@ -24,8 +24,15 @@ func (s *Service) newMediaCmd(token string) *cobra.Command {
 func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 	var socialSet, file string
 	cmd := &cobra.Command{
-		Use:         "upload",
-		Short:       "Upload a media file (POST /v2/social-sets/{id}/media/upload, then PUT bytes)",
+		Use:   "upload",
+		Short: "Upload a media file (POST /v2/social-sets/{id}/media/upload, then PUT bytes)",
+		Long: "Two round trips inside one command: it asks Typefully for a presigned URL,\n" +
+			"then PUTs the bytes straight to that URL. The whole file is read into\n" +
+			"memory first and the content type is inferred from the extension, so an\n" +
+			"extensionless file is uploaded as application/octet-stream. It prints\n" +
+			"`media_id`, which `draft create --media-id` attaches to the first post of\n" +
+			"a thread. Upload finishing is not processing finishing — that is\n" +
+			"`media status`.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -66,8 +73,12 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 func (s *Service) newMediaStatusCmd(token string) *cobra.Command {
 	var socialSet, id string
 	cmd := &cobra.Command{
-		Use:         "status",
-		Short:       "Get media processing status (GET /v2/social-sets/{id}/media/{media_id})",
+		Use:   "status",
+		Short: "Get media processing status (GET /v2/social-sets/{id}/media/{media_id})",
+		Long: "Reports whether the uploaded file has finished processing on Typefully's\n" +
+			"side. Video and large images are not usable in a published post until it\n" +
+			"has, so this is the check between `media upload` and a draft that has to\n" +
+			"go out immediately.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

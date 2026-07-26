@@ -22,8 +22,18 @@ func (s *Service) newDocumentsGetCmd(token string) *cobra.Command {
 	var format, tab, suggestions string
 	var allTabs bool
 	cmd := &cobra.Command{
-		Use:         "get <doc|url>",
-		Short:       "Fetch a document (default: rendered as markdown; --format text|json for alternatives)",
+		Use:   "get <doc|url>",
+		Short: "Fetch a document (default: rendered as markdown; --format text|json for alternatives)",
+		Long: "--format defaults to `md`, the structured document rendered to markdown;\n" +
+			"`text` drops formatting and `json` returns the raw API response (the same\n" +
+			"as the global --json). Tables and nested lists DO render on read, even\n" +
+			"though neither can be written back.\n" +
+			"\n" +
+			"--all-tabs pulls every tab's content and --tab <id> renders one tab; both\n" +
+			"set includeTabsContent, and with neither only the first tab comes back — a\n" +
+			"multi-tab document read without them looks truncated. --suggestions takes\n" +
+			"`inline`, `preview-accept` or `preview-reject` to control how tracked\n" +
+			"suggestions are rendered.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -74,8 +84,17 @@ func (s *Service) newDocumentsGetCmd(token string) *cobra.Command {
 func (s *Service) newDocumentsCreateCmd(token string) *cobra.Command {
 	var title, bodyFile string
 	cmd := &cobra.Command{
-		Use:         "create --title T [--body-file <md>]",
-		Short:       "Create a document; --body-file writes markdown into the new document",
+		Use:   "create --title T [--body-file <md>]",
+		Short: "Create a document; --body-file writes markdown into the new document",
+		Long: "--title is required. --body-file is optional markdown written into the new\n" +
+			"document, and the pair is NOT atomic: the document is created by one call\n" +
+			"and the body by a second, so a body failure leaves an empty document that\n" +
+			"already exists. Its URL is printed alongside the error — recover with\n" +
+			"`documents append`, never a second `create`.\n" +
+			"\n" +
+			"Markdown here is the write subset: tables and images degrade to literal\n" +
+			"text with a warning on stderr, and nested list items flatten to a single\n" +
+			"level. Without --json the command prints the new title, id and URL.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -127,8 +146,15 @@ func (s *Service) reportCreated(cmd *cobra.Command, body []byte, created apiDocu
 func (s *Service) newDocumentsAppendCmd(token string) *cobra.Command {
 	var text, bodyFile, tab string
 	cmd := &cobra.Command{
-		Use:         "append <doc|url> (--text S | --body-file <md>)",
-		Short:       "Append text or markdown to the end of a document (no index required)",
+		Use:   "append <doc|url> (--text S | --body-file <md>)",
+		Short: "Append text or markdown to the end of a document (no index required)",
+		Long: "Exactly one of --text or --body-file is required, and both only ADD —\n" +
+			"existing content is never touched. --text is index-free: it inserts at the\n" +
+			"end of the segment with no prior read, which makes it the safe choice\n" +
+			"while a document may be edited concurrently. --body-file reads the\n" +
+			"document first to find its end index, so an edit landing between that read\n" +
+			"and the write can misplace the content. --tab targets one tab id and\n" +
+			"defaults to the first.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -245,8 +271,15 @@ func (s *Service) newDocumentsReplaceAllCmd(token string) *cobra.Command {
 	var find, replace string
 	var matchCase bool
 	cmd := &cobra.Command{
-		Use:         "replace-all <doc|url> --find X --replace Y",
-		Short:       "Replace every occurrence of a string (reports occurrencesChanged)",
+		Use:   "replace-all <doc|url> --find X --replace Y",
+		Short: "Replace every occurrence of a string (reports occurrencesChanged)",
+		Long: "It replaces EVERY occurrence in the document, not the first: a --find\n" +
+			"string that appears forty times changes forty places. The command reports\n" +
+			"`occurrencesChanged`, and that number is the thing to relay — it is the\n" +
+			"only signal that the match was broader than intended. --find is required\n" +
+			"and an empty --replace deletes the matches. Matching is case-insensitive\n" +
+			"unless --match-case is set. The API offers no undo, so read the document\n" +
+			"before running it.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -284,8 +317,18 @@ func (s *Service) newDocumentsReplaceAllCmd(token string) *cobra.Command {
 func (s *Service) newDocumentsBatchUpdateCmd(token string) *cobra.Command {
 	var requestsFile string
 	cmd := &cobra.Command{
-		Use:         "batch-update <doc|url> --requests-file <req.json>",
-		Short:       "Escape hatch: apply raw Docs API batchUpdate requests verbatim",
+		Use:   "batch-update <doc|url> --requests-file <req.json>",
+		Short: "Escape hatch: apply raw Docs API batchUpdate requests verbatim",
+		Long: "This is the path for everything the markdown subset will not write: real\n" +
+			"tables, inline images, nested lists, styling with no flag. --requests-file\n" +
+			"takes either a bare JSON array of Docs API Request objects or an object\n" +
+			"with a `requests` array, and the contents are forwarded VERBATIM — index\n" +
+			"arithmetic is the caller's job here, unlike everywhere else in this tool.\n" +
+			"\n" +
+			"Nothing inspects the requests, so treat every invocation as overwrite-tier\n" +
+			"no matter what it contains. A 400 names the offending request, usually a\n" +
+			"malformed shape or an out-of-range index; fix the file rather than\n" +
+			"retrying it.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

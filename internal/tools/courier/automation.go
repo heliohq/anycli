@@ -13,8 +13,15 @@ import (
 func (s *Service) newAutomationInvokeCmd(key string) *cobra.Command {
 	var automation, recipient, template, brand, data, profile string
 	cmd := &cobra.Command{
-		Use:         "invoke",
-		Short:       "Trigger an ad-hoc automation run",
+		Use:   "invoke",
+		Short: "Trigger an ad-hoc automation run",
+		Long: "--automation is a required JSON object holding the whole definition — a\n" +
+			"`steps` array of actions such as send, delay, update-profile and cancel —\n" +
+			"which runs immediately and is never saved as a named automation.\n" +
+			"--recipient, --template, --brand, --data and --profile are optional\n" +
+			"top-level fields the steps interpolate. Reach for this when the sequence\n" +
+			"needs delays or conditions; one immediate notification is cheaper through\n" +
+			"`send`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -121,8 +121,36 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "calendly",
-		Short:         "Calendly built-in service",
+		Use:   "calendly",
+		Short: "Calendly built-in service",
+		Long: "Scheduling aide over one connected Calendly account: read availability and\n" +
+			"booked meetings, share booking links, see who booked and what they\n" +
+			"answered, cancel, mark no-shows, and — on paid plans — book a slot\n" +
+			"directly. It does not configure event types, webhooks or organization\n" +
+			"settings.\n" +
+			"\n" +
+			"Calendly identifies every resource by a full URI\n" +
+			"(`https://api.calendly.com/event_types/BBBB`), not a bare id. Flags and\n" +
+			"arguments here take either form and expand a bare UUID to the canonical\n" +
+			"URI; `invitee no-show` is the one exception and demands the full URI.\n" +
+			"Wherever a user is expected the literal `me` works and is the default, so\n" +
+			"most commands resolve `/users/me` on the way through — passing a known user\n" +
+			"URI saves that round trip.\n" +
+			"\n" +
+			"There is NO reschedule endpoint in the API. Rescheduling means sending the\n" +
+			"invitee the `reschedule_url` that `event invitees` returns, or cancelling\n" +
+			"and sharing a fresh booking link.\n" +
+			"\n" +
+			"List commands use cursor pagination: `--count` sets the page size and\n" +
+			"`--page-token` takes `pagination.next_page_token` from the previous\n" +
+			"response. Nothing auto-pages, so ignoring the cursor means seeing only the\n" +
+			"first page.\n" +
+			"\n" +
+			"Availability windows are capped per request and the caps DIFFER by command\n" +
+			"(`availability slots` about a week, `availability busy` seven days). The\n" +
+			"tool never trims a range, so an over-long window returns a Calendly\n" +
+			"validation error rather than a truncated answer — take the bound from that\n" +
+			"command's own help.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

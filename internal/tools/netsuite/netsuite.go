@@ -133,8 +133,30 @@ func (s *Service) emitJSON(body []byte) error {
 // resource group (get/list/create/update/delete).
 func (s *Service) newRoot(creds tbaCreds) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "netsuite",
-		Short:         "NetSuite built-in service (SuiteTalk REST + SuiteQL, Token-Based Auth)",
+		Use:   "netsuite",
+		Short: "NetSuite built-in service (SuiteTalk REST + SuiteQL, Token-Based Auth)",
+		Long: "Two read paths and one write path. `query` runs SuiteQL and answers\n" +
+			"QUESTIONS — joins, filters, aggregates across records — and is the right\n" +
+			"choice whenever an answer spans more than one record. `record get` and\n" +
+			"`record list` fetch a known record or walk one type by internal id.\n" +
+			"`record create`, `record update` and `record delete` are the only ways\n" +
+			"to change anything: SuiteQL is SELECT-only.\n" +
+			"\n" +
+			"Record type names are exact and case-sensitive — salesOrder, vendorBill,\n" +
+			"customer, invoice — and wrong case is rejected as an unknown type. When\n" +
+			"a type or field name is uncertain, `metadata` is the cheap way to settle\n" +
+			"it instead of learning from failed writes.\n" +
+			"\n" +
+			"Governance limits are per NetSuite ACCOUNT rather than per credential,\n" +
+			"so a large scan competes with the customer's own integrations and can\n" +
+			"return 429. Nothing here retries or sleeps: back off, page with\n" +
+			"--limit/--offset, and space heavy queries out. `retry_after` appears in\n" +
+			"the error envelope only when NetSuite actually sent a Retry-After\n" +
+			"header.\n" +
+			"\n" +
+			"Exit 1 means the request reached NetSuite and failed, including a 401\n" +
+			"credential rejection and a 429. Exit 2 means it was rejected locally —\n" +
+			"missing flag, malformed --body — and never left.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -15,8 +15,11 @@ func (s *Service) newTemplateCmd(cred credential) *cobra.Command {
 
 func (s *Service) newTemplateListCmd(cred credential) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List all templates (GET /api/templates)",
+		Use:   "list",
+		Short: "List all templates (GET /api/templates)",
+		Long: "Returns the project's message templates with their ids. Templates are\n" +
+			"read-only through this tool — there is no create, update or preview\n" +
+			"command, and authoring stays in Iterable.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -39,8 +42,13 @@ func (s *Service) newEmailCmd(cred credential) *cobra.Command {
 func (s *Service) newEmailSendCmd(cred credential) *cobra.Command {
 	var body string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send an existing campaign/template email to a user (POST /api/email/target)",
+		Use:   "send",
+		Short: "Send an existing campaign/template email to a user (POST /api/email/target)",
+		Long: "This sends a real email to a real address immediately; there is no preview\n" +
+			"or test mode. --body is required and pairs an EXISTING campaign with a\n" +
+			"recipient (`campaignId` from `campaign list`, plus `recipientEmail`) —\n" +
+			"subject and body cannot be supplied here, they come from the campaign's\n" +
+			"template. Per-send merge values go under `dataFields`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -69,8 +77,11 @@ func (s *Service) newCatalogCmd(cred credential) *cobra.Command {
 
 func (s *Service) newCatalogListCmd(cred credential) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List all catalogs (GET /api/catalogs)",
+		Use:   "list",
+		Short: "List all catalogs (GET /api/catalogs)",
+		Long: "Returns the project's catalogs — the product or content data sets\n" +
+			"templates draw recommendations from. Only the catalogs themselves are\n" +
+			"listed; there is no command here for reading or writing catalog items.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

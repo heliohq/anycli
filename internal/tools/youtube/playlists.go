@@ -19,8 +19,13 @@ func (s *Service) newPlaylistsListCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List playlists (your own with --mine, or a channel's with --channel)",
+		Use:   "list",
+		Short: "List playlists (your own with --mine, or a channel's with --channel)",
+		Long: "Exactly one of --mine or --channel is required — there is no unfiltered\n" +
+			"listing. --channel reaches another channel's public playlists only, while\n" +
+			"--mine also returns private and unlisted ones. The item count comes from\n" +
+			"the contentDetails part, which the default --part already requests. --max\n" +
+			"is capped at 50 and defaults to 5.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -59,8 +64,12 @@ func (s *Service) newPlaylistsListCmd(token string) *cobra.Command {
 func (s *Service) newPlaylistsCreateCmd(token string) *cobra.Command {
 	var title, description, privacy string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a playlist",
+		Use:   "create",
+		Short: "Create a playlist",
+		Long: "--title is required. Unlike `videos upload`, --privacy has no local\n" +
+			"default here: leaving it unset takes YouTube's own, so pass it explicitly\n" +
+			"when the playlist must not be public. The new playlist id is printed and\n" +
+			"is what `playlist-items add --playlist` needs.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -102,8 +111,13 @@ func (s *Service) newPlaylistsCreateCmd(token string) *cobra.Command {
 func (s *Service) newPlaylistsUpdateCmd(token string) *cobra.Command {
 	var id, title, description, privacy string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a playlist's title / description / privacy",
+		Use:   "update",
+		Short: "Update a playlist's title / description / privacy",
+		Long: "The API replaces the whole snippet on update, which would drop the title\n" +
+			"on a description-only change, so the current snippet is read and merged\n" +
+			"first — one extra request per call. At least one of --title, --description\n" +
+			"or --privacy is required. Reordering or changing membership is not here:\n" +
+			"that is `playlist-items add` and `playlist-items remove`.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -155,8 +169,12 @@ func (s *Service) newPlaylistsUpdateCmd(token string) *cobra.Command {
 func (s *Service) newPlaylistsDeleteCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a playlist",
+		Use:   "delete",
+		Short: "Delete a playlist",
+		Long: "Permanent and immediate; anyone holding the playlist link loses it. The\n" +
+			"videos themselves are untouched — a playlist is only a collection — so\n" +
+			"removing one video from a curated list is `playlist-items remove`, not\n" +
+			"this.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

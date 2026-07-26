@@ -23,8 +23,13 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	var flags edgeListFlags
 	var status string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List campaigns in an ad account (GET /act_<id>/campaigns)",
+		Use:   "list",
+		Short: "List campaigns in an ad account (GET /act_<id>/campaigns)",
+		Long: "--account act_<id> is required. --status filters on Meta's EFFECTIVE\n" +
+			"status, the computed one, so an object inside a paused parent reads paused\n" +
+			"here regardless of how it is configured. --limit is 1-500, default 50, and\n" +
+			"--after takes `paging.cursors.after` from the previous page. The default\n" +
+			"fields include both budget fields plus `budget_remaining`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -44,8 +49,12 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:         "get <campaign_id>",
-		Short:       "Get one campaign",
+		Use:   "get <campaign_id>",
+		Short: "Get one campaign",
+		Long: "Takes a bare numeric campaign id — not an `act_` account id — and needs no\n" +
+			"--account, since a Graph object node is addressable on its own. --fields\n" +
+			"defaults to the same curated set `campaign list` returns; anything else\n" +
+			"must be named explicitly, because Graph returns only what is asked for.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -59,8 +68,15 @@ func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 func (s *Service) newCampaignCreateCmd(token string) *cobra.Command {
 	var account, name, objective, status, special string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a campaign (POST /act_<id>/campaigns)",
+		Use:   "create",
+		Short: "Create a campaign (POST /act_<id>/campaigns)",
+		Long: "--account, --name and --objective are all required, and --objective takes\n" +
+			"one of Meta's outcome objectives such as OUTCOME_TRAFFIC, OUTCOME_SALES or\n" +
+			"OUTCOME_LEADS. --status defaults to PAUSED so nothing can spend before the\n" +
+			"campaign is reviewed. --special-ad-categories is required by Meta on every\n" +
+			"campaign create and defaults to an empty JSON array; a campaign about\n" +
+			"housing, employment or credit must declare its category here. A campaign\n" +
+			"on its own spends nothing — it needs an ad set and an ad beneath it.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -100,8 +116,13 @@ func (s *Service) newCampaignUpdateCmd(token string) *cobra.Command {
 	form := updateForm{}
 	var name string
 	cmd := &cobra.Command{
-		Use:         "update <campaign_id>",
-		Short:       "Update a campaign's status, budget, or name (POST /<campaign_id>)",
+		Use:   "update <campaign_id>",
+		Short: "Update a campaign's status, budget, or name (POST /<campaign_id>)",
+		Long: "Takes a bare numeric campaign id, and at least one of --status,\n" +
+			"--daily-budget, --lifetime-budget or --name must be set. --status is\n" +
+			"ACTIVE, PAUSED or ARCHIVED, and moving to ACTIVE releases spend\n" +
+			"immediately. Budgets are INTEGERS in the ad account currency's minor unit:\n" +
+			"--daily-budget 5000 is 50.00 in a USD account, not 5000 dollars.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -177,8 +177,38 @@ func (s *Service) newRoot(apiKey, baseURL string) *cobra.Command {
 	c := &client{apiKey: apiKey, baseURL: baseURL, hc: s.HC, out: s.stdout()}
 
 	root := &cobra.Command{
-		Use:           "braze",
-		Short:         "Braze customer-engagement built-in service",
+		Use:   "braze",
+		Short: "Braze customer-engagement built-in service",
+		Long: "The REST API key IS the guardrail. Endpoint permissions are fixed when the\n" +
+			"key is created and cannot be edited afterwards, so a 403 here means the\n" +
+			"key is alive but was never granted this endpoint — the fix is a new,\n" +
+			"broader-scoped key, not a retry. A 401 is a different failure: the key is\n" +
+			"invalid or revoked.\n" +
+			"\n" +
+			"Braze is regional and every workspace lives on exactly one cluster REST\n" +
+			"host, which is captured with the key at connect time. There is no default\n" +
+			"host and no flag to change it.\n" +
+			"\n" +
+			"Analytics commands are day-window time series: --length counts days back\n" +
+			"from --ending-at, which defaults to now. Most cap --length at 100, but the\n" +
+			"Canvas commands cap at 14 and additionally REQUIRE --ending-at — take the\n" +
+			"bound from the command's own help rather than assuming one.\n" +
+			"\n" +
+			"The large versioned payloads — the `messages` object, trigger properties,\n" +
+			"attribute and event arrays — are passed through as raw JSON on --body,\n" +
+			"--attributes and friends. Nothing here re-models them, so they must match\n" +
+			"Braze's own request schema.\n" +
+			"\n" +
+			"A 429 is transient and Braze sends no Retry-After; the error carries\n" +
+			"`rate_limit_reset`, a UTC epoch-seconds timestamp for when the window\n" +
+			"reopens. The account-wide default is generous, but the send families\n" +
+			"(`messages send`, `campaigns trigger`, `canvas trigger`) and `users track`\n" +
+			"are far tighter.\n" +
+			"\n" +
+			"Destructive and identity operations — user delete, alias and merge, bulk\n" +
+			"import, catalog and Preference Center writes, and creating templates or\n" +
+			"Content Blocks — are deliberately absent. Content commands here are\n" +
+			"read-only.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

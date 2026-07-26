@@ -184,8 +184,29 @@ func (s *Service) clock() time.Time {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "search-console",
-		Short:         "Google Search Console built-in service",
+		Use:   "search-console",
+		Short: "Google Search Console built-in service",
+		Long: "Reads a site's Google Search performance, inspects whether a page is\n" +
+			"indexed, and manages its sitemaps.\n" +
+			"\n" +
+			"Every command except `sites list` needs `--site`, and a property exists\n" +
+			"in exactly one of two forms: a URL prefix including its trailing slash\n" +
+			"(`https://example.com/`) or a domain property (`sc-domain:example.com`).\n" +
+			"They are not interchangeable — asking for the prefix form of a property\n" +
+			"registered as a domain property fails with 403 or 404 — so copy the\n" +
+			"exact string out of `sites list` and pass it verbatim; escaping is\n" +
+			"handled here.\n" +
+			"\n" +
+			"Search data runs roughly two to three days behind and reaches back about\n" +
+			"16 months. More recent days are missing rather than zero, and older ones\n" +
+			"are gone for good.\n" +
+			"\n" +
+			"A 403 is not transient: either the connection predates the `webmasters`\n" +
+			"scope or the account has no access to that property. Retrying does not\n" +
+			"help; re-consent or property access does.\n" +
+			"\n" +
+			"The only writes are `sitemaps submit` and `sitemaps delete`, and both\n" +
+			"act on the user's live property.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

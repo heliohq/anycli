@@ -15,8 +15,12 @@ func (s *Service) newRepostCmd(token, userID string) *cobra.Command {
 
 func (s *Service) newRepostCreateCmd(token, userID string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "create <post-id>",
-		Short:       "Repost a post",
+		Use:   "create <post-id>",
+		Short: "Repost a post",
+		Long: "Reposts verbatim as the connected account, with no text of its own; to add\n" +
+			"a comment use `post quote`, which creates a real post instead. The response\n" +
+			"reports the resulting `retweeted` state rather than whether this call\n" +
+			"changed anything, so a repeat is harmless but tells you nothing.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -37,8 +41,11 @@ func (s *Service) newRepostCreateCmd(token, userID string) *cobra.Command {
 
 func (s *Service) newRepostDeleteCmd(token, userID string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <post-id>",
-		Short:       "Undo a repost",
+		Use:   "delete <post-id>",
+		Short: "Undo a repost",
+		Long: "Takes the ORIGINAL post's id, not the id of your repost of it. The response\n" +
+			"reports the resulting `retweeted` state, so calling it on a post that was\n" +
+			"never reposted is not an error.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {

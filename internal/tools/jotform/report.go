@@ -15,8 +15,13 @@ func (s *Service) newReportCmd(key string) *cobra.Command {
 func (s *Service) newReportListCmd(key string) *cobra.Command {
 	var form string
 	cmd := &cobra.Command{
-		Use:         "list [--form <formID>]",
-		Short:       "List reports account-wide (GET /user/reports) or for one form (GET /form/{id}/reports)",
+		Use:   "list [--form <formID>]",
+		Short: "List reports account-wide (GET /user/reports) or for one form (GET /form/{id}/reports)",
+		Long: "A Jotform report is a shareable read-only view of a form's results — a table,\n" +
+			"calendar or card wall — with its own public URL that can be handed out without\n" +
+			"granting access to the account. The rows carry that URL, the report type and\n" +
+			"the form it belongs to. Listing is all this tool does; creating, updating or\n" +
+			"deleting a report is not exposed.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

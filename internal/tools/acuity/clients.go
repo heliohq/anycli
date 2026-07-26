@@ -21,8 +21,14 @@ func (s *Service) newClientCmd(token string) *cobra.Command {
 func (s *Service) newClientListCmd(token string) *cobra.Command {
 	var search string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List / search clients (GET /clients)",
+		Use:   "list",
+		Short: "List / search clients (GET /clients)",
+		Long: "--search is one string matched across a client's name, email and phone;\n" +
+			"there is no per-field filter and no pagination flag on this endpoint. This\n" +
+			"is the account's address book — the client details stored on a single\n" +
+			"booking are edited with `appointment update` instead. Run it before\n" +
+			"`client update` or `client delete`, both of which identify a client by\n" +
+			"name and will act on whichever record matches.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -42,8 +48,13 @@ func (s *Service) newClientListCmd(token string) *cobra.Command {
 func (s *Service) newClientCreateCmd(token string) *cobra.Command {
 	var firstName, lastName, email, phone, notes string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a client (POST /clients)",
+		Use:   "create",
+		Short: "Create a client (POST /clients)",
+		Long: "--first-name and --last-name are required and together become the client's\n" +
+			"identity for `client update` and `client delete`, neither of which has an\n" +
+			"id-based path — so two clients sharing a name are afterwards separable\n" +
+			"only by phone. Creating a client books nothing; `appointment create`\n" +
+			"carries its own client fields and does not need a record here first.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -74,9 +85,12 @@ func (s *Service) newClientUpdateCmd(token string) *cobra.Command {
 		Use:         "update",
 		Short:       "Update a client, identified by name (PUT /clients)",
 		Annotations: writeAction,
-		Long: "Update a client. Acuity keys the update on the client's name: --first-name and " +
-			"--last-name identify the client (sent as query params) and the updated values are " +
-			"sent in the body. --phone/--email/--notes set the new values.",
+		Long: "Keyed on the NAME, not an id: --first-name and --last-name select which\n" +
+			"client to change and are echoed back into the body unchanged, so this\n" +
+			"command cannot rename anyone. --email, --phone and --notes carry the new\n" +
+			"values and only the ones passed are sent. Duplicate names cannot be\n" +
+			"disambiguated here — unlike `client delete` there is no --phone selector,\n" +
+			"so confirm with `client list --search` first.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Identity in the query string; new values (with the identity echoed,
@@ -108,8 +122,13 @@ func (s *Service) newClientUpdateCmd(token string) *cobra.Command {
 func (s *Service) newClientDeleteCmd(token string) *cobra.Command {
 	var firstName, lastName, phone string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a client, identified by name (DELETE /clients)",
+		Use:   "delete",
+		Short: "Delete a client, identified by name (DELETE /clients)",
+		Long: "Keyed on the NAME: --first-name and --last-name are required and --phone\n" +
+			"disambiguates duplicates. With duplicate names and no --phone, whichever\n" +
+			"record Acuity matches is the one removed, so confirm the target with\n" +
+			"`client list --search` first. There is no id-based delete and nothing in\n" +
+			"this tool restores a deleted client.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

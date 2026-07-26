@@ -132,8 +132,31 @@ func (s *Service) stderr() io.Writer {
 // identity); every other command hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "acuity",
-		Short:         "Acuity Scheduling built-in service",
+		Use:   "acuity",
+		Short: "Acuity Scheduling built-in service",
+		Long: "Booking is id-driven, never name-driven. --type-id comes from `type list`,\n" +
+			"which also carries each type's duration, and --calendar-id from `calendar\n" +
+			"list`; a name passed where an id is expected fails. Intake answers are\n" +
+			"numeric too — `--field <id>=<value>` takes the field id from `form list`.\n" +
+			"\n" +
+			"The order that works is `type list`, then `calendar list`, then\n" +
+			"`availability dates` for the month, `availability times` for the day, and\n" +
+			"only then `appointment create` with a datetime copied from that list. A\n" +
+			"client-mode create for a time Acuity did not offer is rejected.\n" +
+			"\n" +
+			"Times are passed through verbatim and Acuity parses them in the BUSINESS\n" +
+			"timezone, so a bare \"9am\" means 9am to the business rather than to the\n" +
+			"caller. ISO-8601 with an explicit offset (2026-07-15T09:00:00-0400) is the\n" +
+			"unambiguous form; `me` reports the business timezone.\n" +
+			"\n" +
+			"--admin on a write turns off Acuity's own validation — availability,\n" +
+			"required attributes, cancellation windows — and on `appointment create` it\n" +
+			"additionally requires --calendar-id. It is the escape hatch for a booking\n" +
+			"taken by phone, not a default.\n" +
+			"\n" +
+			"Every write reaches a real client: create, update, reschedule and cancel\n" +
+			"all send an email or SMS the moment the call returns, unless --no-email is\n" +
+			"passed. Output is the provider's JSON verbatim on every command.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -23,8 +23,14 @@ func (s *Service) newCustomerListCmd(token string) *cobra.Command {
 	var firstName, lastName, mailbox, modifiedSince, query string
 	var page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List/search customers (GET /customers)",
+		Use:   "list",
+		Short: "List/search customers (GET /customers)",
+		Long: "--first-name and --last-name are exact-field filters; --query takes Help\n" +
+			"Scout's search string verbatim and is how to find somebody by address\n" +
+			"(`email:person@example.com`). --mailbox restricts to customers seen in one\n" +
+			"inbox and --modified-since to those touched after an ISO-8601 timestamp.\n" +
+			"Page with --page. The ids returned here are what --customer-id takes on\n" +
+			"`conversation create` and `thread reply`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -54,8 +60,12 @@ func (s *Service) newCustomerListCmd(token string) *cobra.Command {
 // newCustomerGetCmd — GET /customers/{id}.
 func (s *Service) newCustomerGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one customer (GET /customers/{id})",
+		Use:   "get <id>",
+		Short: "Get one customer (GET /customers/{id})",
+		Long: "Takes the numeric customer id, not an email address — resolve one with\n" +
+			"`customer list --query \"email:person@example.com\"`. Customers and staff\n" +
+			"users are separate directories with separate id spaces, so a `user list`\n" +
+			"id does not resolve here.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -74,8 +84,14 @@ func (s *Service) newCustomerGetCmd(token string) *cobra.Command {
 func (s *Service) newCustomerCreateCmd(token string) *cobra.Command {
 	var firstName, lastName, email, organization, jobTitle string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a customer (POST /customers)",
+		Use:   "create",
+		Short: "Create a customer (POST /customers)",
+		Long: "At least one field is required. --email is stored as a single work-type\n" +
+			"address; additional addresses, phones and social handles cannot be set\n" +
+			"here and `customer update` does not reach them either. The response is an\n" +
+			"id/status receipt, and that id is what --customer-id takes elsewhere.\n" +
+			"Creating a customer opens no conversation — `conversation create` does\n" +
+			"that and can take the email directly.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -115,8 +131,14 @@ func (s *Service) newCustomerCreateCmd(token string) *cobra.Command {
 func (s *Service) newCustomerUpdateCmd(token string) *cobra.Command {
 	var firstName, lastName, organization, jobTitle string
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Partially update a customer's core fields (PATCH /customers/{id})",
+		Use:   "update <id>",
+		Short: "Partially update a customer's core fields (PATCH /customers/{id})",
+		Long: "A PARTIAL update: only --first-name, --last-name, --organization and\n" +
+			"--job-title are reachable, each compiled into a JSON-Patch replace op, and\n" +
+			"an omitted flag leaves its field untouched. Emails, phones and custom\n" +
+			"fields are not editable from here. An empty value counts as unset rather\n" +
+			"than as a clear, so no field can be blanked with this command. The answer\n" +
+			"is an \"updated\" receipt with no body.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

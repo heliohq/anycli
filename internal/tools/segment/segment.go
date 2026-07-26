@@ -145,8 +145,35 @@ func (s *Service) stderr() io.Writer {
 // non-GET --method.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "segment",
-		Short:         "Twilio Segment Public API (management & observability)",
+		Use:   "segment",
+		Short: "Twilio Segment Public API (management & observability)",
+		Long: "Wraps the Segment Public API — the workspace management and observability\n" +
+			"plane. It does NOT emit analytics events: there is no track, identify or page\n" +
+			"here, and the Tracking API and its write keys are out of scope entirely.\n" +
+			"\n" +
+			"One connection is one workspace, because Public API tokens are\n" +
+			"workspace-scoped; `workspace get` names which one.\n" +
+			"\n" +
+			"The wiring is source -> destination, with a warehouse as a separate SQL sink\n" +
+			"loaded on a sync schedule. A source ingests events and a destination receives\n" +
+			"them, but neither list shows the edge between them — `source\n" +
+			"connected-destinations` is the only read that does.\n" +
+			"\n" +
+			"Every first-class leaf is read-only. Mutations are reachable ONLY through\n" +
+			"`request` with an explicit non-GET `--method`, and they land on a live\n" +
+			"customer data pipeline with no dry-run.\n" +
+			"\n" +
+			"List commands take `--count` (1-1000, and Segment applies its own default of\n" +
+			"200 when it is omitted) plus `--cursor`. Read `pagination.next` from the\n" +
+			"response and pass it back; there is no auto-follow flag anywhere.\n" +
+			"\n" +
+			"Output is Segment's `{\"data\":..., \"pagination\":...}` envelope verbatim, with\n" +
+			"nothing reshaped.\n" +
+			"\n" +
+			"This connection reaches the US host only, so an EU-resident workspace's token\n" +
+			"cannot authenticate here at all. And the Public API itself requires a Team or\n" +
+			"Business workspace — a 401 or 403 on EVERY call points at one of those two\n" +
+			"facts rather than at an expired token, and retrying will not help.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -156,8 +156,38 @@ func (s *Service) stderr() io.Writer {
 // passthrough escape hatch.
 func (s *Service) newRoot(token, store string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "shopify",
-		Short:         "Shopify store admin (GraphQL Admin API)",
+		Use:   "shopify",
+		Short: "Shopify store admin (GraphQL Admin API)",
+		Long: "Every command is one POST to the GraphQL Admin API. The REST Admin API is\n" +
+			"legacy and not reachable from here, and `graphql` is the escape hatch for\n" +
+			"everything the modelled verbs leave out — fulfillments, metafields, price\n" +
+			"rules, draft orders, media.\n" +
+			"\n" +
+			"A connection is one store: the account key IS the {shop}.myshopify.com host,\n" +
+			"so switching accounts switches stores, not users.\n" +
+			"\n" +
+			"Ids are Shopify GIDs (`gid://shopify/<Type>/<n>`). The modelled `get` and\n" +
+			"`update` verbs also take a bare numeric id and expand it to the right type;\n" +
+			"`graphql` does NOT, so pass full GIDs there.\n" +
+			"\n" +
+			"Shopify rejects a write with HTTP 200 and a `userErrors` array. The modelled\n" +
+			"verbs treat a non-empty one as a failure and exit non-zero with the messages,\n" +
+			"so a write that printed an object really did apply. `graphql` does not check\n" +
+			"it — there, a failed mutation still exits 0.\n" +
+			"\n" +
+			"`product list`, `order list` and `customer list` take `--limit` (default 20,\n" +
+			"silently clamped to 250) and `--query`, a Shopify search-syntax filter, and\n" +
+			"return `{\"<resource>\": [...], \"page_info\": {\"has_next_page\": ...,\n" +
+			"\"end_cursor\": ...}}`. Feed `end_cursor` back through `--after`; nothing\n" +
+			"auto-follows pages.\n" +
+			"\n" +
+			"Customer and order PII — name, email, phone, address — is gated by Shopify's\n" +
+			"Protected Customer Data approval. Without it those fields come back null on\n" +
+			"a call that otherwise succeeds, so a blank email is an app-permission\n" +
+			"symptom, not an empty record.\n" +
+			"\n" +
+			"`--api-version` defaults to " + DefaultAPIVersion + " and is only worth setting to pin a\n" +
+			"field to a particular quarterly release.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

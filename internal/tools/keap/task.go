@@ -22,8 +22,11 @@ func (s *Service) newTaskCmd(token string) *cobra.Command {
 func (s *Service) newTaskListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List tasks (GET /v2/tasks)",
+		Use:   "list",
+		Short: "List tasks (GET /v2/tasks)",
+		Long: "Returns tasks across the whole account, not just the authorizing user's —\n" +
+			"narrow with the shared `--filter` and `--order-by` params. The ids in\n" +
+			"`assigned_to_user_id` are Keap user ids, the same ones `user list` returns.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -40,8 +43,10 @@ func (s *Service) newTaskListCmd(token string) *cobra.Command {
 
 func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <task-id>",
-		Short:       "Get a task (GET /v2/tasks/{id})",
+		Use:   "get <task-id>",
+		Short: "Get a task (GET /v2/tasks/{id})",
+		Long: "Takes the numeric task id. Unlike the other get verbs this one has no\n" +
+			"`--fields` flag, so the full task record always comes back.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -107,8 +112,13 @@ func (f *taskBodyFlags) build() (map[string]any, error) {
 func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 	var f *taskBodyFlags
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a task (POST /v2/tasks)",
+		Use:   "create",
+		Short: "Create a task (POST /v2/tasks)",
+		Long: "`--assigned-to-user-id` is required and is checked locally before the\n" +
+			"request — resolve one with `user list` or `user me`. `--due-time` takes an\n" +
+			"ISO-8601 timestamp. `--contact-id` links the task to a contact, and\n" +
+			"`--priority` and `--type` are forwarded to Keap unvalidated, so they must\n" +
+			"already be values that account accepts.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -133,8 +143,12 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 	var f *taskBodyFlags
 	cmd := &cobra.Command{
-		Use:         "update <task-id>",
-		Short:       "Update a task (PATCH /v2/tasks/{id})",
+		Use:   "update <task-id>",
+		Short: "Update a task (PATCH /v2/tasks/{id})",
+		Long: "Every create flag is available, so this is also how a task is reassigned\n" +
+			"(`--assigned-to-user-id`) or rescheduled (`--due-time`); at least one field\n" +
+			"is required. There is no separate complete verb — mark a task done by\n" +
+			"sending Keap's own completion field through `--json-body`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -158,8 +172,10 @@ func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newTaskDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <task-id>",
-		Short:       "Delete a task (DELETE /v2/tasks/{id})",
+		Use:   "delete <task-id>",
+		Short: "Delete a task (DELETE /v2/tasks/{id})",
+		Long: "Irreversible. Deleting is not completing — a task that was actually done\n" +
+			"should be closed with `task update` so it stays on the record.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

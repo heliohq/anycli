@@ -33,10 +33,11 @@ func (s *Service) list(cmd *cobra.Command, token, path string, pf *pageFlags, ex
 }
 
 // newListCmd builds a paginated `list` subcommand for a fixed collection path.
-func (s *Service) newListCmd(token, short, path string) *cobra.Command {
+func (s *Service) newListCmd(token, short, long, path string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "list",
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -48,10 +49,11 @@ func (s *Service) newListCmd(token, short, path string) *cobra.Command {
 }
 
 // newGetByIDCmd builds a `get <id>` subcommand that GETs collection/{id}.
-func (s *Service) newGetByIDCmd(token, short, collection string) *cobra.Command {
+func (s *Service) newGetByIDCmd(token, short, long, collection string) *cobra.Command {
 	return &cobra.Command{
 		Use:         "get <id>",
 		Short:       short,
+		Long:        long,
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -66,8 +68,18 @@ func (s *Service) newGetByIDCmd(token, short, collection string) *cobra.Command 
 func (s *Service) newGetCmd(token string) *cobra.Command {
 	var params []string
 	cmd := &cobra.Command{
-		Use:         "get <path>",
-		Short:       "Make a raw Ramp GET request (e.g. /developer/v1/transactions)",
+		Use:   "get <path>",
+		Short: "Make a raw Ramp GET request (e.g. /developer/v1/transactions)",
+		Long: "The escape hatch for everything the typed commands cannot express: Ramp's\n" +
+			"own query parameters (`--param state=CLEARED`, `--param from_date=…`,\n" +
+			"repeatable) and any read endpoint without a verb here. The path is\n" +
+			"RELATIVE and carries its own version prefix — `/developer/v1/transactions`\n" +
+			"— and an absolute URL is rejected, because the host and the credential are\n" +
+			"injected rather than chosen by the caller.\n" +
+			"\n" +
+			"No pagination handling happens on this path: the response is emitted\n" +
+			"exactly as Ramp sends it, `page.next` included, and there is no `--all`.\n" +
+			"Continue by passing the next cursor yourself as `--param start=<cursor>`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -123,29 +135,35 @@ func parseParams(vals []string) (url.Values, error) {
 // --- transaction ---
 
 func (s *Service) newTransactionListCmd(token string) *cobra.Command {
-	return s.newListCmd(token, "List card transactions", "/developer/v1/transactions")
+	return s.newListCmd(token, "List card transactions", longTransactionList, "/developer/v1/transactions")
 }
 
 func (s *Service) newTransactionGetCmd(token string) *cobra.Command {
-	return s.newGetByIDCmd(token, "Get one transaction by id", "/developer/v1/transactions")
+	return s.newGetByIDCmd(token, "Get one transaction by id", longTransactionGet, "/developer/v1/transactions")
 }
 
 // --- reimbursement ---
 
 func (s *Service) newReimbursementListCmd(token string) *cobra.Command {
-	return s.newListCmd(token, "List reimbursements", "/developer/v1/reimbursements")
+	return s.newListCmd(token, "List reimbursements", longReimbursementList, "/developer/v1/reimbursements")
 }
 
 func (s *Service) newReimbursementGetCmd(token string) *cobra.Command {
-	return s.newGetByIDCmd(token, "Get one reimbursement by id", "/developer/v1/reimbursements")
+	return s.newGetByIDCmd(token, "Get one reimbursement by id", longReimbursementGet, "/developer/v1/reimbursements")
 }
 
 // --- card (virtual / physical; Ramp has no plain /cards list) ---
 
 func (s *Service) newCardVirtualCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "virtual [id]",
-		Short:       "List virtual cards, or get one by id",
+		Use:   "virtual [id]",
+		Short: "List virtual cards, or get one by id",
+		Long: "With no argument this pages virtual cards; with an `[id]` it fetches that\n" +
+			"one card and the pagination flags are ignored. Ramp has NO combined cards\n" +
+			"endpoint, so a complete card inventory is this plus `card physical` —\n" +
+			"running only one of them silently under-reports. Virtual cards are the\n" +
+			"ones issued per vendor or subscription, so this is usually where a\n" +
+			"recurring charge's card lives.",
 		Args:        cobra.MaximumNArgs(1),
 		Annotations: readOnly,
 	}
@@ -161,8 +179,13 @@ func (s *Service) newCardVirtualCmd(token string) *cobra.Command {
 
 func (s *Service) newCardPhysicalCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "physical [id]",
-		Short:       "List physical cards, or get one by id",
+		Use:   "physical [id]",
+		Short: "List physical cards, or get one by id",
+		Long: "With no argument this pages physical cards; with an `[id]` it fetches that\n" +
+			"one card and the pagination flags are ignored. It is the other half of the\n" +
+			"inventory `card virtual` returns — Ramp exposes no combined list, so both\n" +
+			"have to be asked. Each card names its cardholder by user id, which\n" +
+			"`user get` resolves.",
 		Args:        cobra.MaximumNArgs(1),
 		Annotations: readOnly,
 	}
@@ -179,39 +202,43 @@ func (s *Service) newCardPhysicalCmd(token string) *cobra.Command {
 // --- user ---
 
 func (s *Service) newUserListCmd(token string) *cobra.Command {
-	return s.newListCmd(token, "List users", "/developer/v1/users")
+	return s.newListCmd(token, "List users", longUserList, "/developer/v1/users")
 }
 
 func (s *Service) newUserGetCmd(token string) *cobra.Command {
-	return s.newGetByIDCmd(token, "Get one user by id", "/developer/v1/users")
+	return s.newGetByIDCmd(token, "Get one user by id", longUserGet, "/developer/v1/users")
 }
 
 // --- department ---
 
 func (s *Service) newDepartmentListCmd(token string) *cobra.Command {
-	return s.newListCmd(token, "List departments", "/developer/v1/departments")
+	return s.newListCmd(token, "List departments", longDepartmentList, "/developer/v1/departments")
 }
 
 func (s *Service) newDepartmentGetCmd(token string) *cobra.Command {
-	return s.newGetByIDCmd(token, "Get one department by id", "/developer/v1/departments")
+	return s.newGetByIDCmd(token, "Get one department by id", longDepartmentGet, "/developer/v1/departments")
 }
 
 // --- location ---
 
 func (s *Service) newLocationListCmd(token string) *cobra.Command {
-	return s.newListCmd(token, "List locations", "/developer/v1/locations")
+	return s.newListCmd(token, "List locations", longLocationList, "/developer/v1/locations")
 }
 
 func (s *Service) newLocationGetCmd(token string) *cobra.Command {
-	return s.newGetByIDCmd(token, "Get one location by id", "/developer/v1/locations")
+	return s.newGetByIDCmd(token, "Get one location by id", longLocationGet, "/developer/v1/locations")
 }
 
 // --- business ---
 
 func (s *Service) newBusinessInfoCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "info",
-		Short:       "Get connected-business info (name, entity, id)",
+		Use:   "info",
+		Short: "Get connected-business info (name, entity, id)",
+		Long: "Names the business the token belongs to, which is the only way to confirm\n" +
+			"which entity a ledger read is about — no other command states it. It takes\n" +
+			"no parameters and returns a single object, so it is also the cheapest\n" +
+			"proof that the connection still works.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -222,8 +249,12 @@ func (s *Service) newBusinessInfoCmd(token string) *cobra.Command {
 
 func (s *Service) newBusinessBalanceCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "balance",
-		Short:       "Get the connected business's balance",
+		Use:   "balance",
+		Short: "Get the connected business's balance",
+		Long: "A point-in-time figure with no history behind it: there is no balance-over-\n" +
+			"time endpoint here, so a trend can only be built by sampling this\n" +
+			"repeatedly. It reports the business's available and total funds, not the\n" +
+			"sum of `transaction list`, which counts card spend instead.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

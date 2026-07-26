@@ -133,8 +133,29 @@ func (s *Service) stderr() io.Writer {
 // silently printing help with exit 0 (a false success for an agent).
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "buffer",
-		Short:         "Buffer built-in service (social publishing via the Buffer GraphQL API)",
+		Use:   "buffer",
+		Short: "Buffer built-in service (social publishing via the Buffer GraphQL API)",
+		Long: "Drafts, schedules and publishes social posts across the channels connected\n" +
+			"to one Buffer account.\n" +
+			"\n" +
+			"The hierarchy is account → organizations (workspaces) → channels → posts\n" +
+			"and ideas. Almost everything is ORGANIZATION-scoped: `channel list`,\n" +
+			"`post list` and `idea create` all require `--org`, and holding a channel id\n" +
+			"is not enough to reach them — `account get` or `org list` resolves the\n" +
+			"organization id first. Ids are opaque and not interchangeable between\n" +
+			"`--org`, `--channel` and `--id`.\n" +
+			"\n" +
+			"`post list` returns a Relay page — `posts` plus a `pageInfo` carrying\n" +
+			"`endCursor` and `hasNextPage` — and paging means feeding that `endCursor`\n" +
+			"back as `--after`. Nothing here auto-pages.\n" +
+			"\n" +
+			"Writes reach real social accounts. A queued post goes out on the channel's\n" +
+			"own schedule with no further confirmation step, so `--draft` is the way to\n" +
+			"stage text that must not publish yet.\n" +
+			"\n" +
+			"Buffer's GraphQL API is in public beta. Failures always surface explicitly —\n" +
+			"an HTTP error, a top-level `errors` array, or a `MutationError` arm — never\n" +
+			"as a silently empty result.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

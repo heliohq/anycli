@@ -26,8 +26,15 @@ func (s *Service) newLeadListSubCmd(key string) *cobra.Command {
 	var leadsListID, email, firstName, lastName, company, query string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List leads (GET /leads)",
+		Use:   "list",
+		Short: "List leads (GET /leads)",
+		Long: "Leads are Hunter's own saved prospect records; reading and writing them\n" +
+			"costs no credits. Filters combine: `--email`, `--first-name`,\n" +
+			"`--last-name` and `--company` match on those fields, while `--query` is\n" +
+			"a full-text search across the record. `--leads-list-id` scopes to one\n" +
+			"list from `lead-list list`. `--limit` is 1-1000, default 20; continue\n" +
+			"with `--offset`. This is also the only lookup by email — `lead get`\n" +
+			"needs the numeric id.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -65,8 +72,12 @@ func (s *Service) newLeadListSubCmd(key string) *cobra.Command {
 func (s *Service) newLeadGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one lead (GET /leads/{id})",
+		Use:   "get",
+		Short: "Get one lead (GET /leads/{id})",
+		Long: "`--id` is a required flag, not a positional argument, and takes the\n" +
+			"numeric lead id from `lead list`. Returns the full record, custom\n" +
+			"attributes included. An address is not an id: start from\n" +
+			"`lead list --email <address>` when that is all you have.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -85,8 +96,17 @@ func (s *Service) newLeadGetCmd(key string) *cobra.Command {
 func (s *Service) newLeadCreateCmd(key string) *cobra.Command {
 	var email, firstName, lastName, position, company, website, countryCode, linkedinURL, phoneNumber, twitter, leadsListID, attributes string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a lead (POST /leads)",
+		Use:   "create",
+		Short: "Create a lead (POST /leads)",
+		Long: "`--email` is required and is the lead's identity. The common fields have\n" +
+			"their own flags (`--first-name`, `--last-name`, `--position`,\n" +
+			"`--company`, `--website`, `--linkedin-url`, `--phone-number`,\n" +
+			"`--twitter`, `--country-code`), and `--attributes` takes a raw JSON\n" +
+			"object for everything else, custom attributes included — explicit flags\n" +
+			"overwrite overlapping `--attributes` keys. `--leads-list-id` files the\n" +
+			"lead into a list at creation; adding it to one later is a `lead update`.\n" +
+			"This only stores data on the Hunter account: nobody is emailed and no\n" +
+			"sequence starts.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -109,8 +129,13 @@ func (s *Service) newLeadCreateCmd(key string) *cobra.Command {
 func (s *Service) newLeadUpdateCmd(key string) *cobra.Command {
 	var id, email, firstName, lastName, position, company, website, countryCode, linkedinURL, phoneNumber, twitter, leadsListID, attributes string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a lead (PUT /leads/{id})",
+		Use:   "update",
+		Short: "Update a lead (PUT /leads/{id})",
+		Long: "`--id` is required. Only the flags actually passed go into the request,\n" +
+			"so unmentioned fields keep their values and there is no way to clear one\n" +
+			"back to empty from here. `--attributes` merges the same way as on\n" +
+			"create, with explicit flags winning. Moving a lead between lists is\n" +
+			"`--leads-list-id` on this command — no separate add-to-list verb exists.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -134,8 +159,13 @@ func (s *Service) newLeadUpdateCmd(key string) *cobra.Command {
 func (s *Service) newLeadDeleteCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a lead (DELETE /leads/{id})",
+		Use:   "delete",
+		Short: "Delete a lead (DELETE /leads/{id})",
+		Long: "`--id` is required, and the lead leaves the account entirely rather than\n" +
+			"just the list it sits in. Hunter answers 204 with no body, so this\n" +
+			"prints `{\"deleted\":true}` as the receipt — that line plus exit 0 is the\n" +
+			"whole confirmation. To keep the record but take it out of a list, set a\n" +
+			"different `--leads-list-id` with `lead update` instead.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

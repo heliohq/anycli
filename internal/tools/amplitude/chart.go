@@ -20,8 +20,15 @@ type chartEnvelope struct {
 func (s *Service) newChartCmd(authHeader string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "chart",
-		Short:       "Results behind a saved chart as CSV (GET /api/3/chart/:id/csv)",
+		Use:   "chart",
+		Short: "Results behind a saved chart as CSV (GET /api/3/chart/:id/csv)",
+		Long: "`--id` is the id of a chart an analyst already built in the Amplitude UI —\n" +
+			"the last path segment of its URL. Its events, segments and date range are\n" +
+			"baked into the saved chart and nothing here can override them, which makes\n" +
+			"this the way to reproduce a number the team already trusts rather than to\n" +
+			"ask a new question. The response is CSV wrapped as\n" +
+			"`{format, chart_id, data}` so stdout stays JSON; `data` still has to be\n" +
+			"parsed as CSV.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

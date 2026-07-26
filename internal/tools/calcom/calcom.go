@@ -130,8 +130,31 @@ func (s *Service) stderr() io.Writer {
 // booking / schedule groups plus the top-level `me` profile command.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "calcom",
-		Short:         "Cal.com scheduling built-in service",
+		Use:   "calcom",
+		Short: "Cal.com scheduling built-in service",
+		Long: "Booking a meeting is a three-step flow and the ids are not\n" +
+			"interchangeable. An `event-type` is a bookable meeting TYPE the connected\n" +
+			"user offers (\"30-min intro\") and is addressed by a numeric\n" +
+			"`--event-type-id`. A `slot` is an open time for one event type inside a\n" +
+			"bounded range. A `booking` is a scheduled meeting and is addressed by its\n" +
+			"string `--uid`. A booking is created from an event-type id and then only\n" +
+			"ever referenced by its uid.\n" +
+			"\n" +
+			"Time is always explicit: `--start` on `booking create` and `booking\n" +
+			"reschedule` is an ISO-8601 instant and should be sent in UTC, because\n" +
+			"Cal.com takes it as given — a local wall-clock string with no offset lands\n" +
+			"the meeting at the wrong hour. The attendee's own `--attendee-tz` is a\n" +
+			"separate IANA zone used for their notifications. Nothing here guesses a\n" +
+			"time zone.\n" +
+			"\n" +
+			"Cal.com wraps every response in a status/data envelope; the envelope is\n" +
+			"unwrapped for you, so what is printed is the `data` payload. A non-2xx\n" +
+			"surfaces Cal.com's error body as-is: exit 1 for API failures, exit 2 for\n" +
+			"usage and flag errors.\n" +
+			"\n" +
+			"Writes take effect on the real calendar immediately. `booking create` and\n" +
+			"`booking reschedule` send calendar invitations to the attendee, and\n" +
+			"`booking cancel` notifies them; there is no draft or hold state.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

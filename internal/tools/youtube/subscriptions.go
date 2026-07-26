@@ -15,8 +15,13 @@ func (s *Service) newSubscriptionsListCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List the channels an account subscribes to",
+		Use:   "list",
+		Short: "List the channels an account subscribes to",
+		Long: "Exactly one of --mine or --channel is required. --channel only works where\n" +
+			"that channel has made its subscriptions public, which most have not, so it\n" +
+			"commonly returns an empty list rather than an error. Subscribing and\n" +
+			"unsubscribing are not exposed — this is read-only. --max is capped at 50\n" +
+			"and defaults to 5.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

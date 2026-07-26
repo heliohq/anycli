@@ -97,8 +97,28 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "tasks",
-		Short:         "Google Tasks built-in service (personal task lists)",
+		Use:   "tasks",
+		Short: "Google Tasks built-in service (personal task lists)",
+		Long: "The account owner's PRIVATE Google to-dos — the same lists that appear in\n" +
+			"the Gmail sidebar, in Google Calendar and in the Tasks mobile app. Anything\n" +
+			"written here shows up on their phone.\n" +
+			"\n" +
+			"`--list` defaults to `@default`, the primary list, so a quick capture needs\n" +
+			"no list argument. Task ids are scoped to their list: the same id passed\n" +
+			"with the wrong `--list` does not resolve.\n" +
+			"\n" +
+			"There is NO text search. The Tasks API has no query language, so the filter\n" +
+			"surface is exactly the date windows and boolean toggles it exposes, and\n" +
+			"finding \"the todo about X\" means listing with `--json` and reading.\n" +
+			"\n" +
+			"Due is a DATE, not a time: the API keeps only the date part of any due\n" +
+			"value and drops the time, so \"tomorrow at 3pm\" cannot be represented here\n" +
+			"at all — that is a calendar event. `--json` echoes what actually landed.\n" +
+			"\n" +
+			"Output is a human-readable summary by default; `--json` returns the API\n" +
+			"body. `list` returns 20 tasks by default and 100 at most, continuing with\n" +
+			"`--page-token`; an account may hold up to 2000 lists and a task up to 2000\n" +
+			"subtasks.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

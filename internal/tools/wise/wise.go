@@ -139,8 +139,33 @@ func (s *Service) baseURL() string {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "wise",
-		Short:         "Wise built-in service (read / monitor + non-committal pricing)",
+		Use:   "wise",
+		Short: "Wise built-in service (read / monitor + non-committal pricing)",
+		Long: "Reads and monitors a Wise account and prices hypothetical transfers. It\n" +
+			"CANNOT move money: there is no verb that creates, funds or approves a\n" +
+			"transfer, and none can be added — funding is gated behind strong customer\n" +
+			"authentication that an API token does not satisfy. A payout is a human\n" +
+			"action in the Wise app; `quote create` only quotes it.\n" +
+			"\n" +
+			"A profile is one identity under the token — a person may hold both a\n" +
+			"personal and a business profile, each with its own balances and\n" +
+			"transfers. Start at `profile list` and carry the numeric id: `balance\n" +
+			"list`, `balance get` and `activity list` refuse to run without\n" +
+			"`--profile`; `transfer list` and `recipient list` treat it as an optional\n" +
+			"filter; `transfer get`, `quote create` and `currency list` ignore profiles\n" +
+			"entirely.\n" +
+			"\n" +
+			"Paging differs per command and is not uniform: `activity list` is\n" +
+			"cursor-based, `transfer list` is offset/limit, and the rest return\n" +
+			"everything in one response.\n" +
+			"\n" +
+			"Every command prints the provider's JSON verbatim. Amounts come back as\n" +
+			"exact decimals with the currency alongside — report them as returned and\n" +
+			"never round or convert them locally.\n" +
+			"\n" +
+			"`--base-url` switches to Wise's sandbox host. A sandbox token is not valid\n" +
+			"against production or the reverse, so leave it alone unless the user is\n" +
+			"explicitly testing.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

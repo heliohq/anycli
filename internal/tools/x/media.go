@@ -36,8 +36,21 @@ func (s *Service) newMediaCmd(token string) *cobra.Command {
 func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 	var file, category string
 	cmd := &cobra.Command{
-		Use:         "upload",
-		Short:       "Upload one image, GIF, or video and wait until it is ready to attach",
+		Use:   "upload",
+		Short: "Upload one image, GIF, or video and wait until it is ready to attach",
+		Long: "Prints the media id to hand to `post create --media-id`, `post quote\n" +
+			"--media-id` or `dm send --media-id`. Accepts JPEG, PNG, WebP and GIF\n" +
+			"images and .mp4, .webm, .mov or .ts video, with ceilings of 15 MB for a\n" +
+			"GIF and 512 MB for video. Small images (JPEG/PNG/WebP up to 5 MB) take the\n" +
+			"one-shot path; everything else is uploaded in 4 MiB segments with progress\n" +
+			"on stderr and then polled for up to 5 minutes.\n" +
+			"\n" +
+			"--category defaults to a tweet_* value derived from the file type, so\n" +
+			"media destined for a DM must set it explicitly (dm_image, dm_video,\n" +
+			"dm_gif) — `dm send` will not accept a tweet_image id.\n" +
+			"\n" +
+			"If the 5-minute wait expires the media id is still valid: poll\n" +
+			"`media status` and attach it once the state is succeeded.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -86,8 +99,12 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 
 func (s *Service) newMediaStatusCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "status <media-id>",
-		Short:       "Get media upload processing status",
+		Use:   "status <media-id>",
+		Short: "Get media upload processing status",
+		Long: "Rarely needed on its own — `media upload` already waits for the media to\n" +
+			"become attachable. This is the escape hatch after that wait times out:\n" +
+			"attach the id once `processing_info.state` is succeeded, or read\n" +
+			"`processing_info.error` if it is failed.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -107,7 +124,10 @@ func (s *Service) newMediaStatusCmd(token string) *cobra.Command {
 func (s *Service) newMediaMetadataCmd(token string) *cobra.Command {
 	var altText string
 	cmd := &cobra.Command{
-		Use:         "metadata <media-id>",
+		Use: "metadata <media-id>",
+		Long: "Alt text is capped at 1000 characters. Order matters: set it after\n" +
+			"`media upload` and BEFORE the media is attached to a post — X ignores\n" +
+			"metadata written against media that is already published.",
 		Short:       "Set media alt text",
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(true),

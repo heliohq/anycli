@@ -53,8 +53,40 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(token, userID string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "x",
-		Short:         "X built-in service",
+		Use:   "x",
+		Short: "X built-in service",
+		Long: "Calls X API v2 as the connected account (OAuth 2.0 user context): every\n" +
+			"read is scoped to what that account can see, and every write is attributed\n" +
+			"to it.\n" +
+			"\n" +
+			"X has no separate \"comment\" entity. A comment IS a reply, and a reply IS a\n" +
+			"full post — it has its own id and can be liked, reposted, quoted and\n" +
+			"replied to. Everything comment-shaped therefore lives under `post`: write\n" +
+			"with `post reply`, read with `post replies`, moderate with `post hide`.\n" +
+			"\n" +
+			"Every post in one reply tree shares a single conversation id, and a\n" +
+			"conversation read returns the whole tree rather than direct children only.\n" +
+			"Rebuild nesting from each item's `referenced_tweets` entry of type\n" +
+			"`replied_to`.\n" +
+			"\n" +
+			"For \"what engagement did I get\", poll `timeline mentions` with `--since-id`\n" +
+			"set to the newest id from the previous call instead of re-running\n" +
+			"`post search`. It is the cheapest read path and the only exact one; search\n" +
+			"reaches back 7 days at most.\n" +
+			"\n" +
+			"Reads return one page — feed the returned pagination token back through\n" +
+			"`--next-token`. `--since-id` exists only on `post search`, `post replies`,\n" +
+			"`timeline user`, `timeline mentions` and `timeline home`. `--limit` bounds\n" +
+			"differ per command (`post search` rejects pages below 10, `timeline home`\n" +
+			"accepts 1), so take the range from that command's own help.\n" +
+			"\n" +
+			"Post and user ids are numeric strings, validated locally before any request\n" +
+			"goes out. An @handle is accepted by `user get --username` and nowhere else;\n" +
+			"resolve handles there first.\n" +
+			"\n" +
+			"Writes take effect immediately and publicly. There is no draft, scheduling\n" +
+			"or undo state — reversal is a separate explicit call (`post delete`,\n" +
+			"`like delete`, `repost delete`, `follow delete`).",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -17,8 +17,15 @@ func itoa(n int) string { return strconv.Itoa(n) }
 func (s *Service) newSenderLsCmd(apiKey string) *cobra.Command {
 	var ip, domain string
 	cmd := &cobra.Command{
-		Use:         "ls",
-		Short:       "List verified senders (GET /senders)",
+		Use:   "ls",
+		Short: "List verified senders (GET /senders)",
+		Long: "Run this before any send. Brevo blocks mail from an unverified sender, so\n" +
+			"the addresses and ids here are the only ones `email send` and\n" +
+			"`campaign create` will accept; anything else is a 400 from Brevo rather\n" +
+			"than a local error. Prefer the numeric id with `--sender-id`, which wins\n" +
+			"over `--sender-email` wherever both exist. `--ip` and `--domain` narrow\n" +
+			"the list. There is no verb here to add or verify a sender — that happens\n" +
+			"in Brevo.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -46,8 +53,12 @@ func (s *Service) newSenderLsCmd(apiKey string) *cobra.Command {
 // the api_key verification endpoint (a bad key returns 401 unauthorized).
 func (s *Service) newAccountGetCmd(apiKey string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get account identity, plan, and credits (GET /account)",
+		Use:   "get",
+		Short: "Get account identity, plan, and credits (GET /account)",
+		Long: "Names the Brevo account behind the key and reports its plan and remaining\n" +
+			"CREDITS — worth reading before a campaign, since a bulk send that outruns\n" +
+			"the credit balance fails at Brevo. Also the cheapest key check: a bad key\n" +
+			"returns 401 here. Takes no flags.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

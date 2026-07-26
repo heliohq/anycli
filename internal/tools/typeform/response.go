@@ -29,8 +29,22 @@ func (s *Service) newResponseListCmd(token string) *cobra.Command {
 	var responseType, fields, answeredFields, includedIDs, excludedIDs []string
 	var pageSize int
 	cmd := &cobra.Command{
-		Use:         "list <form_id>",
-		Short:       "List a form's responses (GET /forms/{id}/responses)",
+		Use:   "list <form_id>",
+		Short: "List a form's responses (GET /forms/{id}/responses)",
+		Long: "Items are passed through untransformed: each answer carries\n" +
+			"`field.{id,ref,type}` and a typed value, never the question text, so join\n" +
+			"them against `form get`'s `fields[]` before reporting anything.\n" +
+			"--page-size defaults to 25 and caps at 1000.\n" +
+			"\n" +
+			"Which timestamp --since/--until filter on depends on --response-type:\n" +
+			"`submitted_at` for completed (the default), `staged_at` for partial,\n" +
+			"`landed_at` for started. A date window over partials without\n" +
+			"--response-type partial silently filters the wrong timestamp.\n" +
+			"--after/--before are opaque token cursors and the API rejects either one\n" +
+			"combined with --sort — use cursors or a sort, not both. Submissions from\n" +
+			"roughly the last half hour may not be queryable yet, so an empty recent\n" +
+			"window is not evidence of no responses; wire `webhook set` for delivery\n" +
+			"that has to be timely.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

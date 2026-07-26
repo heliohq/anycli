@@ -84,8 +84,32 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "hunter",
-		Short:         "Hunter.io built-in service",
+		Use:   "hunter",
+		Short: "Hunter.io built-in service",
+		Long: "Speaks the Hunter v2 API with the account's API key in a header. The key\n" +
+			"carries no scopes, so anything the plan allows is available, and quota is\n" +
+			"per Hunter ACCOUNT rather than per key — a second key cut from the same\n" +
+			"account draws on the same pool. Responses are Hunter's JSON verbatim,\n" +
+			"payload under `data`.\n" +
+			"\n" +
+			"Three commands cost credits: `domain-search` (one search credit per 1-10\n" +
+			"addresses returned), `email-finder` (one search credit per call, found or\n" +
+			"not) and `email-verifier` (one verification credit). `account`,\n" +
+			"`email-count`, `domain-finder` and every `lead` and `lead-list` command\n" +
+			"are free. Plans are small — a free one is around 25 searches a month — so\n" +
+			"do the exploring with the free commands and spend the paid ones once each\n" +
+			"where possible.\n" +
+			"\n" +
+			"Hunter's status codes read backwards from most APIs. 403 is the\n" +
+			"per-second rate limit and is worth retrying shortly; 429 is the monthly\n" +
+			"quota being spent, and nothing will succeed until the `reset_date` that\n" +
+			"`account` reports. Only 401 means the key itself is bad. A 404 from the\n" +
+			"`enrich` commands is Hunter having no record for that person or company,\n" +
+			"which is an ordinary outcome rather than a failure.\n" +
+			"\n" +
+			"Nearly everything keys off a DOMAIN, not a company name. Where\n" +
+			"`--company` is accepted it is a fuzzier match; `domain-finder` turns a\n" +
+			"name into a domain for free and is the reliable first step.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -122,8 +122,33 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 // their own groups.
 func (s *Service) newRoot(c creds) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "google-ads",
-		Short:         "Google Ads built-in service (GAQL-driven reporting + light management)",
+		Use:   "google-ads",
+		Short: "Google Ads built-in service (GAQL-driven reporting + light management)",
+		Long: "Reporting-first. Everything readable goes through GAQL (Google Ads Query\n" +
+			"Language), and the write surface is deliberately three guarded verbs — there\n" +
+			"is no create or delete anywhere in this tool. It steers an existing account;\n" +
+			"it does not build one.\n" +
+			"\n" +
+			"Every command except `accounts list` needs `--customer-id`, so start there.\n" +
+			"Ids are digits; the hyphenated form copied from the UI (123-456-7890) is\n" +
+			"accepted and stripped, and anything non-numeric fails locally before a\n" +
+			"request goes out. A manager (MCC) user adds `--login-customer-id <mcc-id>`,\n" +
+			"normalized the same way, to operate through the manager account.\n" +
+			"\n" +
+			"MONEY IS MICROS. `metrics.cost_micros` and every budget amount are\n" +
+			"millionths of the account currency — 5000000 micros is 5.00. Divide by\n" +
+			"1000000 before showing a figure to a human, and multiply before setting one.\n" +
+			"\n" +
+			"GAQL SELECTS fields; it computes nothing. There is no arithmetic, no ratio\n" +
+			"and no aggregate expression in the language, so pull the raw metrics and do\n" +
+			"the maths afterwards.\n" +
+			"\n" +
+			"Errors surface Google's nested `error.details[].errors[]` verbatim. The\n" +
+			"`errorCode` is the actionable part: a QueryError means fix the GAQL, a\n" +
+			"QuotaError means back off (and usually means the developer token is on\n" +
+			"Explorer/Test access, a workspace-level limit nothing here can raise), a 401\n" +
+			"means reconnect, and a 403 is usually a customer id this account cannot\n" +
+			"reach or a missing manager header.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

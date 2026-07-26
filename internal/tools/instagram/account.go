@@ -14,8 +14,13 @@ const accountFields = "user_id,username,name,biography,followers_count,follows_c
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get the connected Instagram professional account (GET /me)",
+		Use:   "get",
+		Short: "Get the connected Instagram professional account (GET /me)",
+		Long: "The identity read: username, account type and the follower and media counts.\n" +
+			"It confirms which professional account the credential belongs to, which no\n" +
+			"other command reveals since every path is implicitly `/me`. `--fields`\n" +
+			"replaces the default profile projection, so request `followers_count` and its\n" +
+			"neighbours by name if a narrower or wider set is wanted.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -20,8 +20,18 @@ func (s *Service) newQueryCmd(token string) *cobra.Command {
 func (s *Service) newQueryRunCmd(token string) *cobra.Command {
 	var project, hogql, queryJSON string
 	cmd := &cobra.Command{
-		Use:         "run",
-		Short:       "Run a HogQL or raw-node query (POST /api/projects/<id>/query/)",
+		Use:   "run",
+		Short: "Run a HogQL or raw-node query (POST /api/projects/<id>/query/)",
+		Long: "An HTTP POST, but a read: it computes and mutates nothing. Exactly one of\n" +
+			"--hogql (a SQL string wrapped as a HogQLQuery node) or --query-json (a raw\n" +
+			"query node from a file, or - for stdin, for kinds such as TrendsQuery and\n" +
+			"FunnelsQuery) is required; passing both is a usage error. HogQL selects\n" +
+			"from `events` and filters on `timestamp`, `event`, `properties.<key>` and\n" +
+			"`person.properties.<key>`. PostHog applies a default row limit around 100\n" +
+			"and caps an explicit LIMIT well below a full export, so this is the\n" +
+			"analysis path, not the extraction path. An empty result usually means a\n" +
+			"misspelled name rather than absent data — confirm against\n" +
+			"`event-definition list` and `property-definition list`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

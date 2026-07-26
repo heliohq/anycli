@@ -36,8 +36,13 @@ func (s *Service) newDocumentListCmd(authz string) *cobra.Command {
 	var q, status, template, folder, order string
 	var count, page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List documents (filter by query, status, template, folder)",
+		Use:   "list",
+		Short: "List documents (filter by query, status, template, folder)",
+		Long: "--q matches the document NAME only; it does not search the document's\n" +
+			"contents. --status takes a full PandaDoc status string such as\n" +
+			"`document.draft`, `document.sent` or `document.completed`, not a bare\n" +
+			"word. Paging is `--count` per page plus a 1-based `--page`, and neither is\n" +
+			"sent unless set, so PandaDoc's own defaults apply.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -78,8 +83,24 @@ func (s *Service) newDocumentCreateCmd(authz string) *cobra.Command {
 	var recipients, tokens, fields, metadata []string
 	var noWait bool
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a document from a template",
+		Use:   "create",
+		Short: "Create a document from a template",
+		Long: "PandaDoc returns a new document as `document.uploaded` and finishes\n" +
+			"processing it in the background; it is NOT sendable until that flips to\n" +
+			"`document.draft`. This command polls for the flip — every 2 seconds, up to\n" +
+			"30 times, so roughly 60 seconds — meaning a following `document send`\n" +
+			"succeeds. `--no-wait` returns the uploaded document immediately and\n" +
+			"sending that is an error rather than something to retry. If the poll cap\n" +
+			"is reached the document id is printed and the command fails: the document\n" +
+			"exists, so resume with `document status <id>`.\n" +
+			"\n" +
+			"--template and at least one --recipient are required. --recipient is\n" +
+			"`email[:role[:first[:last]]]` and repeatable; the role must match a role\n" +
+			"the template defines, so read `template details` first. --token name=value\n" +
+			"fills template variables, --field name=value fills merge fields (each\n" +
+			"wrapped as a value object) and signature fields cannot be pre-filled.\n" +
+			"--body / --body-file send a raw create payload instead and are mutually\n" +
+			"exclusive with every structured flag.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -224,8 +245,13 @@ func (s *Service) waitForDraft(ctx context.Context, authz string, created []byte
 
 func (s *Service) newDocumentStatusCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "status <id>",
-		Short:       "Show a document's status",
+		Use:   "status <id>",
+		Short: "Show a document's status",
+		Long: "Reads the document record — the same GET that `document create` polls. Use\n" +
+			"it to resume after a `--no-wait` create or a create whose draft wait timed\n" +
+			"out: sending is only valid from `document.draft`, and a finished signature\n" +
+			"run reads `document.completed`. For recipients, field values and dates use\n" +
+			"`document details` instead.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -243,8 +269,13 @@ func (s *Service) newDocumentStatusCmd(authz string) *cobra.Command {
 
 func (s *Service) newDocumentDetailsCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "details <id>",
-		Short:       "Show a document's full details (recipients, fields, tokens, dates)",
+		Use:   "details <id>",
+		Short: "Show a document's full details (recipients, fields, tokens, dates)",
+		Long: "Hits a different endpoint than `document status` and returns per-recipient\n" +
+			"signing state plus the resolved token and field values. This is how to\n" +
+			"find out WHO is still outstanding on a partially signed document. The\n" +
+			"concise rendering only shows the summary line, so add `--json` to read the\n" +
+			"recipient list.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -264,8 +295,15 @@ func (s *Service) newDocumentSendCmd(authz string) *cobra.Command {
 	var subject, message string
 	var silent bool
 	cmd := &cobra.Command{
-		Use:         "send <id>",
-		Short:       "Send a document for signature",
+		Use:   "send <id>",
+		Short: "Send a document for signature",
+		Long: "Sending emails the recipients and starts a legally binding signature run.\n" +
+			"It takes effect immediately and there is no unsend. The document must\n" +
+			"already be `document.draft`; sending one still in `document.uploaded`\n" +
+			"surfaces PandaDoc's error as-is. --subject and --message set the\n" +
+			"notification email. --silent moves the document to sent WITHOUT emailing\n" +
+			"anyone, which is the path to take when the signing link from `document\n" +
+			"link` will be delivered some other way.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -299,8 +337,12 @@ func (s *Service) newDocumentLinkCmd(authz string) *cobra.Command {
 	var email string
 	var lifetime int
 	cmd := &cobra.Command{
-		Use:         "link <id>",
-		Short:       "Create a shareable signing session link for a recipient",
+		Use:   "link <id>",
+		Short: "Create a shareable signing session link for a recipient",
+		Long: "--recipient is required and must be an email already attached to the\n" +
+			"document as a recipient. Prints the signing URL and its expiry. --lifetime\n" +
+			"sets validity in seconds and defaults provider-side to 3600. A session is\n" +
+			"per recipient: a document with three signers needs three links.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -336,8 +378,14 @@ func (s *Service) newDocumentDownloadCmd(authz string) *cobra.Command {
 	var out string
 	var protected bool
 	cmd := &cobra.Command{
-		Use:         "download <id>",
-		Short:       "Download a document's PDF to a file",
+		Use:   "download <id>",
+		Short: "Download a document's PDF to a file",
+		Long: "Writes the PDF bytes to the required --out path instead of printing them;\n" +
+			"under `--json` the command prints a path/bytes receipt rather than the\n" +
+			"file. Plain download returns the working copy, while --protected returns\n" +
+			"the certified copy with its signature certificate — that is the one to\n" +
+			"archive once a document is completed. An existing --out file is\n" +
+			"overwritten without warning.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -367,8 +415,12 @@ func (s *Service) newDocumentDownloadCmd(authz string) *cobra.Command {
 
 func (s *Service) newDocumentDeleteCmd(authz string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <id>",
-		Short:       "Delete a document",
+		Use:   "delete <id>",
+		Short: "Delete a document",
+		Long: "Removes the document from the PandaDoc account. There is no restore\n" +
+			"command and no trash to recover from, so a sent or completed document\n" +
+			"deleted here is unreachable through this tool afterwards — this is for\n" +
+			"drafts.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -127,8 +127,30 @@ func (s *Service) stderr() io.Writer {
 // (cross-resource); lead/contact/opportunity/task/activity are resource groups.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "close",
-		Short:         "Close CRM built-in service",
+		Use:   "close",
+		Short: "Close CRM built-in service",
+		Long: "Close is a sales CRM built around the LEAD, which is the company or\n" +
+			"account rather than a person. Contacts are the people on a lead,\n" +
+			"opportunities are the deals on a lead, activities are the interaction\n" +
+			"history logged against a lead, and tasks are follow-up reminders. Almost\n" +
+			"every write therefore carries a `lead_id`.\n" +
+			"\n" +
+			"`list` is a flat paginated dump and cannot filter. `search` is the finder:\n" +
+			"anything of the form \"find the record where…\" is an Advanced Filtering\n" +
+			"query posted through `search --data`, and paging `list` to look for one\n" +
+			"company is the wrong shape.\n" +
+			"\n" +
+			"Writes take a raw JSON body through --data, given inline or as @file.json.\n" +
+			"That is deliberate — Close custom fields are per-organization\n" +
+			"`custom.<field_id>` keys with no flag equivalent, so they can only be set\n" +
+			"in the body. Status and pipeline values are per-org ids too, not names;\n" +
+			"read one off an existing record rather than guessing.\n" +
+			"\n" +
+			"List endpoints are offset-paginated with --limit and --skip and answer\n" +
+			"{\"data\":[…],\"has_more\":bool} — keep going while `has_more` is true.\n" +
+			"\n" +
+			"Everything written here lands in a shared CRM the whole team sees, and\n" +
+			"deletes have no undo.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -137,9 +159,9 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "output JSON (always on; accepted for uniformity)")
 
 	root.AddCommand(
-		s.newResourceCmd(token, "lead", "/lead/", "Manage leads (companies/accounts)"),
-		s.newResourceCmd(token, "contact", "/contact/", "Manage contacts (people on a lead)"),
-		s.newResourceCmd(token, "opportunity", "/opportunity/", "Manage opportunities (deals)"),
+		s.newResourceCmd(token, "lead", "/lead/", "Manage leads (companies/accounts)", leadLongs),
+		s.newResourceCmd(token, "contact", "/contact/", "Manage contacts (people on a lead)", contactLongs),
+		s.newResourceCmd(token, "opportunity", "/opportunity/", "Manage opportunities (deals)", opportunityLongs),
 		s.newTaskCmd(token),
 		s.newActivityCmd(token),
 		s.newSearchCmd(token),

@@ -133,8 +133,26 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "help-scout",
-		Short:         "Help Scout built-in service (shared-inbox support)",
+		Use:   "help-scout",
+		Short: "Help Scout built-in service (shared-inbox support)",
+		Long: "A conversation lives in one inbox — the API still calls it a mailbox, and\n" +
+			"--mailbox everywhere takes the numeric id from `inbox list`, never a name.\n" +
+			"Its content is a list of threads: customer messages, staff replies that go\n" +
+			"out by email, and internal notes that never leave the account. Answering\n" +
+			"the customer is `thread reply`; recording team-only context is `thread\n" +
+			"note`, and the two differ by one command.\n" +
+			"\n" +
+			"Reads return Help Scout's HAL JSON verbatim, so `_embedded`, `page` and\n" +
+			"`_links` stay visible and paging is a matter of passing --page. Writes do\n" +
+			"NOT return the resource: create, reply and note answer\n" +
+			"`{\"id\":\"<new-id>\",\"status\":\"created\"}`, and update, tag, snooze and\n" +
+			"unsnooze answer a bare status receipt. Re-read with `conversation get`\n" +
+			"when the updated object is actually needed.\n" +
+			"\n" +
+			"Four numeric id spaces run through the tool and none of them are\n" +
+			"interchangeable: conversation ids, inbox ids from `inbox list`, staff user\n" +
+			"ids from `user list` for every --assign-to, and customer ids from\n" +
+			"`customer list` for every --customer-id.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -98,8 +98,25 @@ var readOnly = map[string]string{"anycli.side_effect": "false"}
 
 func (s *Service) newRoot(clientID, clientSecret string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "snov",
-		Short:         "Snov.io built-in service",
+		Use:   "snov",
+		Short: "Snov.io built-in service",
+		Long: "Snov's API is a paid-plan feature: on a free trial the credential exchange\n" +
+			"itself fails, so every command errors rather than returning empty results.\n" +
+			"A 4xx on that exchange means the stored client id/secret are wrong or\n" +
+			"revoked and cannot be retried into working.\n" +
+			"\n" +
+			"Cost is the thing to plan around. `email find domain`, `email find\n" +
+			"by-name`, `email verify` and `enrich by-email` all SPEND account credits.\n" +
+			"`account balance` and `email count` are free, which makes them the right\n" +
+			"pre-checks: count a domain before searching it, and read the balance\n" +
+			"before a batch.\n" +
+			"\n" +
+			"The finder and the verifier are asynchronous on Snov's side. Each command\n" +
+			"starts the task and polls until it finishes, so what is printed is the\n" +
+			"completed result and a raw task hash never surfaces. The wait is capped at\n" +
+			"60 seconds unless `--timeout` raises it, and a poll runs every 2 seconds\n" +
+			"against Snov's roughly 60-requests-per-minute ceiling — so a handful of\n" +
+			"concurrent long searches is enough to rate-limit the account.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

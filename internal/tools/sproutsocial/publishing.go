@@ -29,8 +29,18 @@ func (s *Service) newPublishingCreateCmd(token string) *cobra.Command {
 	var groupID, text, body string
 	var profileIDs []string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a draft post (POST /v1/{cid}/publishing/posts)",
+		Use:   "create",
+		Short: "Create a draft post (POST /v1/{cid}/publishing/posts)",
+		Long: "Creates a DRAFT and nothing else: `is_draft` is pinned true, so no flag here\n" +
+			"publishes, schedules or queues a post — that happens in the Sprout app.\n" +
+			"`--group-id` and at least one `--profile-id` are required, both numeric ids\n" +
+			"from `metadata groups` and `metadata profiles`, and `--text` carries the\n" +
+			"copy.\n" +
+			"\n" +
+			"`--body` replaces the assembled request with a verbatim JSON object and is\n" +
+			"the only route to media, tags and delivery fields the flags do not expose.\n" +
+			"The required-flag checks and the pinned `is_draft` do not apply to it, so a\n" +
+			"`--body` request is entirely the caller's to get right.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -102,8 +112,12 @@ func coerceID(v string) any {
 // newPublishingGetCmd retrieves one draft post by its publishing_post_id.
 func (s *Service) newPublishingGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <publishing_post_id>",
-		Short:       "Get a draft post (GET /v1/{cid}/publishing/posts/{id})",
+		Use:   "get <publishing_post_id>",
+		Short: "Get a draft post (GET /v1/{cid}/publishing/posts/{id})",
+		Long: "Takes the `publishing_post_id` from a `publishing create` response. There is\n" +
+			"no verb that lists drafts, so an id that was not kept cannot be recovered\n" +
+			"here. It reads the draft, not a live post — once someone publishes it in\n" +
+			"the Sprout app, its performance is an `analytics posts` question.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

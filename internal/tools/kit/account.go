@@ -11,8 +11,12 @@ func (s *Service) accountCmd(token string) *cobra.Command {
 	group := newGroupCmd("account", "Account identity and stats")
 
 	get := &cobra.Command{
-		Use:         "get",
-		Short:       "Show the authenticated account (whoami + plan)",
+		Use:   "get",
+		Short: "Show the authenticated account (whoami + plan)",
+		Long: "Identifies the creator account every command writes to, along with its\n" +
+			"plan — which is what gates several Kit features, so a capability that\n" +
+			"appears missing may be a plan limit rather than an API gap. Cheapest check\n" +
+			"that the credential still works.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -26,8 +30,13 @@ func (s *Service) accountCmd(token string) *cobra.Command {
 
 	var growth, email bool
 	stats := &cobra.Command{
-		Use:         "stats",
-		Short:       "Show growth or email stats",
+		Use:   "stats",
+		Short: "Show growth or email stats",
+		Long: "Exactly one of --growth or --email is required; they are two different\n" +
+			"endpoints, not two views of one. --growth reports how the subscriber list\n" +
+			"has changed over time, --email the account-wide send, open and click\n" +
+			"rates. Neither breaks down by newsletter — the numbers for a single send\n" +
+			"are `broadcast stats <id>`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

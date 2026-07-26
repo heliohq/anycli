@@ -17,8 +17,14 @@ import (
 // events"; use `events-names` for discovery (design §1).
 func (s *Service) newLexiconListCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List authored Lexicon schemas (GET /projects/{id}/schemas)",
+		Use:   "list",
+		Short: "List authored Lexicon schemas (GET /projects/{id}/schemas)",
+		Long: "Only events and properties with an AUTHORED schema appear — this is a\n" +
+			"documentation overlay, not discovery. A project that never wrote schemas\n" +
+			"returns a partial or empty list while events fire normally, so an empty\n" +
+			"result says nothing about whether the project has data. Take the real\n" +
+			"inventory from `events-names` and use this for the descriptions and types\n" +
+			"layered on top. Runs on the App API, so it does not spend Query API budget.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -37,8 +43,13 @@ func (s *Service) newLexiconListCmd(c *client) *cobra.Command {
 // surfaces here as a distinct 401 (credential error kind).
 func (s *Service) newMeCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "me",
-		Short:       "Runtime identity/auth probe (GET /me)",
+		Use:   "me",
+		Short: "Runtime identity/auth probe (GET /me)",
+		Long: "Returns the Service Account's own identity and the projects it can reach,\n" +
+			"which is how to confirm a credential works and which region it landed in.\n" +
+			"It runs on the App API rather than the Query API, so it costs nothing\n" +
+			"against the 60-queries-per-hour budget — the right first call after a\n" +
+			"connect or after an unexplained 401.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -61,8 +72,13 @@ func (s *Service) newExportCmd(c *client) *cobra.Command {
 		Use:         "export",
 		Short:       "Bounded raw event export as JSONL (GET /export on the export host)",
 		Annotations: readOnly,
-		Long: "Streams raw events line-delimited (JSONL) for a date window. " +
-			"The window is required because the export is unbounded by default and can be very large.",
+		Long: "Streams raw events as line-delimited JSON — one event object per line, NOT\n" +
+			"a single JSON document — straight to stdout without buffering, so parse it\n" +
+			"per line. `--from` and `--to` are required precisely because the export is\n" +
+			"otherwise unbounded and a wide window can run to gigabytes; narrow it\n" +
+			"further with `--event` (repeatable), `--where` and `--limit`. It rides\n" +
+			"Mixpanel's separate export host, which carries its own rate limits rather\n" +
+			"than the Query API's 60 per hour.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			v := c.projectValues()

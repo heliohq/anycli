@@ -168,7 +168,19 @@ func (s *Service) newEventsCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create an event (add --attendee to invite; --meet for a Meet link)",
-		Args:  cobra.NoArgs,
+		Long: "--summary, --from and --to are required. Every --attendee is invited the\n" +
+			"moment the call succeeds, and --send-updates none suppresses only the\n" +
+			"notification email — the event still lands on their calendars, so there\n" +
+			"is no quiet invite. --meet mints a fresh Google Meet conference and\n" +
+			"returns its link.\n" +
+			"\n" +
+			"--recurrence takes raw RFC 5545 RRULE lines, repeatable and passed\n" +
+			"through verbatim. Google rejects a recurring timed event that carries\n" +
+			"only a UTC offset, so when --recurrence is set the calendar's own IANA\n" +
+			"zone is fetched and stamped on start/end — one extra API call, avoided\n" +
+			"by passing --timezone. --reminder minutes REPLACE the calendar's default\n" +
+			"reminders rather than adding to them.",
+		Args: cobra.NoArgs,
 		// POST /calendars/{cal}/events — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -231,7 +243,17 @@ func (s *Service) newEventsUpdateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <event-id>",
 		Short: "Patch an event (only the flags you pass are changed — never a full replace)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Field-level patch, with one exception that bites: --attendee REPLACES\n" +
+			"the whole attendee list instead of adding to it, so passing one address\n" +
+			"on a meeting with five guests uninvites the other four. Read the current\n" +
+			"list with `events get --json` and pass every address that should remain.\n" +
+			"--reminder behaves the same way.\n" +
+			"\n" +
+			"The id decides the blast radius: the base recurring event's id rewrites\n" +
+			"the entire series, while an id from `events instances` moves one\n" +
+			"occurrence. --send-updates defaults to all; none still applies the\n" +
+			"change and merely leaves guests holding a stale invite.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /calendars/{cal}/events/{id} — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -300,7 +322,13 @@ func (s *Service) newEventsDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <event-id>",
 		Short: "Delete an event (Google keeps it in the trash for 30 days)",
-		Args:  cobra.ExactArgs(1),
+		Long: "What this removes depends on who the caller is: the organizer cancels\n" +
+			"the event for everyone on it, while an invited guest only drops their\n" +
+			"own copy. Passing the base id of a recurring event deletes EVERY\n" +
+			"occurrence — one occurrence needs its instance id from\n" +
+			"`events instances`. --send-updates defaults to all, so guests receive\n" +
+			"the cancellation.",
+		Args: cobra.ExactArgs(1),
 		// DELETE /calendars/{cal}/events/{id} — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -328,7 +356,14 @@ func (s *Service) newEventsRespondCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "respond <event-id>",
 		Short: "RSVP as yourself (accepted|declined|tentative); the organizer is always notified",
-		Args:  cobra.ExactArgs(1),
+		Long: "--status is required: accepted, declined or tentative. The event is read,\n" +
+			"the connected account's own attendee entry is flipped, and the full\n" +
+			"attendee array is written back, so the command fails outright when that\n" +
+			"account is not on the guest list — an organizer who never added\n" +
+			"themselves as an attendee has nothing to respond to. Notification is\n" +
+			"always sent; there is no quiet RSVP. --comment rides along to the\n" +
+			"organizer.",
+		Args: cobra.ExactArgs(1),
 		// GET then PATCH /calendars/{cal}/events/{id} (read-modify-write of the
 		// attendees array) — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},

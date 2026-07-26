@@ -122,8 +122,34 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "contacts",
-		Short:         "Google Contacts built-in service (read-only)",
+		Use:   "contacts",
+		Short: "Google Contacts built-in service (read-only)",
+		Long: "Read-only. Nothing here creates, edits, labels or deletes a contact, and\n" +
+			"no other write path substitutes — changing the address book is something\n" +
+			"the person does in Google Contacts.\n" +
+			"\n" +
+			"Two separate stores sit behind this tool. My Contacts are people the\n" +
+			"user deliberately saved (`list`, `search`); Other Contacts are addresses\n" +
+			"Gmail auto-collected from correspondence (`other list`,\n" +
+			"`other search`), and the API gives those a narrower field set — names,\n" +
+			"emails and phones, never organizations. `resolve` queries both in one\n" +
+			"call and tags every match with its source, which makes it the right\n" +
+			"first move for \"what is X's address\".\n" +
+			"\n" +
+			"Search matches PREFIX PHRASES, not substrings: \"foo name\" is found by\n" +
+			"f, foo, foo n or nam, but not by \"oo n\". After a miss, retry with a\n" +
+			"SHORTER prefix such as the surname alone — never a fragment from the\n" +
+			"middle of a word, and never the identical query twice.\n" +
+			"\n" +
+			"The People API's search index is a lazy cache, so each search command\n" +
+			"sends a priming request and waits about a second before the real query;\n" +
+			"searching is inherently slower than listing. Propagation is\n" +
+			"minute-scale, so a contact saved moments ago can be genuinely\n" +
+			"unfindable by search while `list --sort last-modified` already shows it.\n" +
+			"\n" +
+			"Output defaults to one line per contact; --json returns the API payload.\n" +
+			"A 401 or 403 usually means the token was never granted the scope the\n" +
+			"command needs.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -28,10 +28,16 @@ func (s *Service) newSubmissionListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list <form-id>",
 		Short: "List a form's submissions (GET /form/{id}/submission.json)",
-		Long: "List a form's submissions. --since/--until map to min_time/max_time " +
-			"(YYYY-MM-DD [HH:MM:SS], US/Eastern per the API). --search field=value " +
-			"is repeatable and maps to paired search_field_N/search_value_N params. " +
-			"Response values are inlined (data=true) unless --no-data is set.",
+		Long: "`--since` and `--until` take `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS` and\n" +
+			"Formstack reads them in US/Eastern, not UTC — a window that looks short\n" +
+			"by a few hours is almost always that assumption rather than missing data.\n" +
+			"`--search field=value` is repeatable and matches exactly; the `field`\n" +
+			"part must be a numeric field id from `form fields`, and a label there\n" +
+			"matches nothing rather than erroring. Answers are inlined by default, so\n" +
+			"`--no-data` is the light call when only counts and timestamps matter.\n" +
+			"`--per-page` caps at 100 (default 25) and `--sort` is `ASC` or `DESC` on\n" +
+			"submission time. An encrypted form returns unreadable values unless\n" +
+			"`--encryption-password` is passed.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -93,8 +99,13 @@ func (s *Service) newSubmissionListCmd(token string) *cobra.Command {
 func (s *Service) newSubmissionGetCmd(token string) *cobra.Command {
 	var encryptionPassword string
 	cmd := &cobra.Command{
-		Use:         "get <submission-id>",
-		Short:       "Get a submission (GET /submission/{id}.json)",
+		Use:   "get <submission-id>",
+		Short: "Get a submission (GET /submission/{id}.json)",
+		Long: "Takes a SUBMISSION id, not a form id, and there is no search from here —\n" +
+			"the id comes from `submission list`. Values arrive keyed by numeric field\n" +
+			"id, so `form fields` on the parent form is what makes them readable. An\n" +
+			"encrypted form needs the same `--encryption-password` the list command\n" +
+			"takes.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -119,8 +130,14 @@ func (s *Service) newSubmissionCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <form-id>",
 		Short: "Create a submission (POST /form/{id}/submission.json)",
-		Long: "Create a submission. --field id=value is repeatable and maps to the " +
-			"API's field_<id>=<value> body params.",
+		Long: "Records a response on the form as though a respondent had filled it in.\n" +
+			"`--field id=value` is repeatable and required at least once, and `id` is\n" +
+			"the numeric field id from `form fields`: a label there is accepted by the\n" +
+			"CLI and then ignored by Formstack, which surfaces as a submission with\n" +
+			"blanks rather than an error. Choice-field values have to match one of\n" +
+			"that field's `options` exactly. `--read` marks the submission read so it\n" +
+			"does not sit in the account as new. Answers cannot be edited afterwards —\n" +
+			"correcting one means `submission delete` and a fresh create.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -150,8 +167,13 @@ func (s *Service) newSubmissionCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newSubmissionDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <submission-id>",
-		Short:       "Delete a submission (DELETE /submission/{id}.json)",
+		Use:   "delete <submission-id>",
+		Short: "Delete a submission (DELETE /submission/{id}.json)",
+		Long: "Removes one respondent's answers, addressed by submission id. Nothing\n" +
+			"here restores it and the form's `submissions` count drops accordingly.\n" +
+			"Because answers cannot be edited in place, a correction is this command\n" +
+			"followed by `submission create` — which loses the original's timestamp\n" +
+			"and id.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

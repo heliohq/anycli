@@ -28,8 +28,15 @@ func (s *Service) newPropertyListCmd(token string) *cobra.Command {
 	var pageSize int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List accessible accounts and their GA4 properties (accountSummaries)",
+		Use:   "list",
+		Short: "List accessible accounts and their GA4 properties (accountSummaries)",
+		Long: "The discovery step for everything under `report`: it prints one line per\n" +
+			"property as `properties/<id>  <name>  (account: ...)`, and that id is what\n" +
+			"the report verbs take. It reads the Admin API rather than the Data API, so\n" +
+			"it answers even for a property that has never served a report.\n" +
+			"`--page-size` falls back to the provider default of 50, and a\n" +
+			"`next page token:` line appears when more accounts remain — pass it back as\n" +
+			"`--page-token`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -13,7 +13,14 @@ func (s *Service) newGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <form-id>",
 		Short: "Show a form: structure, publishSettings, responderUri, linkedSheetId (forms.get)",
-		Args:  cobra.ExactArgs(1),
+		Long: "The summary prints the title, published and accepting flags, `responderUri`,\n" +
+			"any linked spreadsheet, and every item with its ITEM ID — those ids are\n" +
+			"what `batch-update`'s updateItem, deleteItem and moveItem address, and what\n" +
+			"`responses get` keys its answers by. `--json` returns the whole Form\n" +
+			"resource, including each question's type and options. A form reported with\n" +
+			"no `publishSettings` at all is unpublished or a legacy form. Unlike the\n" +
+			"publish and responders verbs, this works on any form the account can open.",
+		Args: cobra.ExactArgs(1),
 		// GET /forms/{id} — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

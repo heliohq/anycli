@@ -22,7 +22,14 @@ func (s *Service) newCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create --title T [--document-title D]",
 		Short: "Create an UNPUBLISHED form (title only; add questions with batch-update)",
-		Args:  cobra.NoArgs,
+		Long: "The API accepts only a title at creation — no questions, no description, no\n" +
+			"settings — so a new form is an empty shell that `batch-update` then fills.\n" +
+			"It is created unpublished and collects nothing until `publish`, which makes\n" +
+			"a form built by mistake harmless. `--title` is what respondents see;\n" +
+			"`--document-title` is the Drive file name and defaults to the title. Prints\n" +
+			"the formId and its edit link — that id is the input to every other command\n" +
+			"here.",
+		Args: cobra.NoArgs,
 		// POST /forms — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

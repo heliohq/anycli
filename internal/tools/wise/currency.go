@@ -11,8 +11,12 @@ import (
 // GET /v1/currencies
 func (s *Service) newCurrencyListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List supported currencies (GET /v1/currencies)",
+		Use:   "list",
+		Short: "List supported currencies (GET /v1/currencies)",
+		Long: "Static reference data, not account data: the currency codes and names Wise\n" +
+			"supports, independent of the token's profiles or what the account holds.\n" +
+			"Check a code here before spending a call on `quote create` with a\n" +
+			"currency Wise may not support.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {

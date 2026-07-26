@@ -13,8 +13,14 @@ func (s *Service) newStatsCmd(token string, region *string) *cobra.Command {
 	var startDate, endDate, aggregatedBy string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "stats",
-		Short:       "Aggregated email stats (GET /v3/stats)",
+		Use:   "stats",
+		Short: "Aggregated email stats (GET /v3/stats)",
+		Long: "--start-date is required and both dates are YYYY-MM-DD; leaving\n" +
+			"--end-date unset runs the window to today. --aggregated-by is day, week\n" +
+			"or month, and --limit/--offset page the resulting buckets, not\n" +
+			"individual messages. These are account-wide totals — there is no\n" +
+			"category, subuser or per-message breakdown on this command, so the fate\n" +
+			"of one `mail send` is not visible here.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

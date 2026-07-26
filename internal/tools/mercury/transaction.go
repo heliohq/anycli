@@ -15,8 +15,20 @@ func (s *Service) newTransactionListCmd(token string) *cobra.Command {
 	var account, order, start, end, search, status string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List an account's transactions (GET /account/{id}/transactions)",
+		Use:   "list",
+		Short: "List an account's transactions (GET /account/{id}/transactions)",
+		Long: "--account is the BANK account id from `account list`. Amounts are SIGNED\n" +
+			"— a debit is negative, a credit positive — and there is no separate\n" +
+			"direction field to consult. --status filters to pending, sent,\n" +
+			"cancelled, failed, reversed or blocked, and a pending transaction has\n" +
+			"not settled, so its amount can still change. --search matches the\n" +
+			"description or the counterparty name.\n" +
+			"\n" +
+			"With --start and --end unset, Mercury returns a recent window rather\n" +
+			"than all history, so any question about an older period must pass them\n" +
+			"(YYYY-MM-DD or ISO 8601). This is the only offset-paged command here:\n" +
+			"--limit is 1-1000 defaulting to 1000, --offset skips, and the response's\n" +
+			"`total` is how to tell whether more remain.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -69,8 +81,13 @@ func (s *Service) newTransactionListCmd(token string) *cobra.Command {
 func (s *Service) newTransactionGetCmd(token string) *cobra.Command {
 	var account string
 	cmd := &cobra.Command{
-		Use:         "get <transaction-id>",
-		Short:       "Get one transaction by id (GET /account/{id}/transaction/{txId})",
+		Use:   "get <transaction-id>",
+		Short: "Get one transaction by id (GET /account/{id}/transaction/{txId})",
+		Long: "A transaction id does not resolve on its own — --account must name the\n" +
+			"account holding it, so an id quoted from somewhere else is unusable\n" +
+			"until its account is known. The fields match a `transaction list`\n" +
+			"entry, which makes this worth calling only when the id did not come\n" +
+			"from a listing.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -10,8 +10,13 @@ import (
 // newMeCmd is `reddit me`: the identity of the connected account.
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "me",
-		Short:       "Show the connected Reddit account",
+		Use:   "me",
+		Short: "Show the connected Reddit account",
+		Long: "The connected account: username, id, link and comment karma, and account\n" +
+			"age. The username is what `user posts` and `user comments` take to\n" +
+			"review this account's own history. Karma and age are what strict\n" +
+			"subreddits gate participation on, so this is worth reading before a\n" +
+			"first post somewhere unfamiliar.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

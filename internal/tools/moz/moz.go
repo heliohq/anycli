@@ -156,8 +156,29 @@ func (s *Service) stderr() io.Writer {
 // top-level.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "moz",
-		Short:         "Moz built-in service (JSON-RPC SEO data API)",
+		Use:   "moz",
+		Short: "Moz built-in service (JSON-RPC SEO data API)",
+		Long: "Every returned ROW debits the account's shared monthly quota, so cost\n" +
+			"tracks results rather than calls. `quota` and `index` are free;\n" +
+			"single-object fetches (`site metrics`, `keyword metrics`,\n" +
+			"`keyword intent`, `ranking-keywords count`) cost about one row; the list\n" +
+			"commands cost one row per row returned, which is why they all default to\n" +
+			"--limit 25. Reading the balance with `quota` first costs nothing.\n" +
+			"\n" +
+			"--scope accepts Moz's own values page, subdomain and root_domain, and\n" +
+			"nothing else — not `domain`, not `url`. A wrong value is rejected\n" +
+			"locally before any quota is spent; omitting it lets the API apply its\n" +
+			"own default.\n" +
+			"\n" +
+			"Moz is a single JSON-RPC endpoint rather than a REST surface: the\n" +
+			"operation is a `method` name inside the body. `call` reaches any method\n" +
+			"these subcommands do not wrap, so a missing typed command is never a\n" +
+			"dead end.\n" +
+			"\n" +
+			"Output is Moz's `result` object verbatim, one JSON object per call.\n" +
+			"Exit 1 means the call was made and failed — a JSON-RPC error such as a\n" +
+			"URL absent from Moz's index, or a non-2xx. Exit 2 means the invocation\n" +
+			"was rejected locally, reached Moz never, and cost nothing.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

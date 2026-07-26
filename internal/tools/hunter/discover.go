@@ -14,8 +14,16 @@ func (s *Service) newDiscoverCmd(key string) *cobra.Command {
 	var query, filters string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "discover",
-		Short:       "Search for companies (POST /discover)",
+		Use:   "discover",
+		Short: "Search for companies (POST /discover)",
+		Long: "Finds COMPANIES, not people — the way in when no target domain exists\n" +
+			"yet. `--query` is natural language (\"SaaS companies in France with\n" +
+			"50-100 employees\"); `--filters` is a raw JSON object merged into the\n" +
+			"request body verbatim, so any structured filter Hunter documents can be\n" +
+			"passed through, and the two combine. Which premium filters actually\n" +
+			"resolve depends on the plan — nothing is validated locally, so an\n" +
+			"unsupported filter surfaces as Hunter's own error. Page with `--limit`\n" +
+			"and `--offset`, then feed each result's domain to `domain-search`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

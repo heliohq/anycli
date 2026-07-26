@@ -17,8 +17,13 @@ func (s *Service) newSubsListCmd(token string) *cobra.Command {
 	var after string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List subscribed subreddits",
+		Use:   "list",
+		Short: "List subscribed subreddits",
+		Long: "The subreddits the connected account subscribes to, one page per call\n" +
+			"with `--limit` 1-100 and `--after` to continue. Subscription is not\n" +
+			"permission: being subscribed says nothing about whether the account may\n" +
+			"post there, which the subreddit's rules and the account's karma decide.\n" +
+			"There is no subscribe or unsubscribe command in this tool.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

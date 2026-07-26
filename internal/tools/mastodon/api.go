@@ -21,8 +21,19 @@ func (rt *runContext) newAPICmd() *cobra.Command {
 	var body string
 	var queries, headers []string
 	cmd := &cobra.Command{
-		Use:         "api <method> <path>",
-		Short:       "Make a raw Mastodon API request",
+		Use:   "api <method> <path>",
+		Short: "Make a raw Mastodon API request",
+		Long: "The escape hatch for endpoints with no verb here — bookmarks, lists,\n" +
+			"filters, polls, scheduled statuses, admin. Method and path are positional\n" +
+			"(`api GET /api/v1/bookmarks`), with `--body` for a JSON payload and\n" +
+			"repeatable `--query key=value` and `--header name:value`. The\n" +
+			"`Authorization` header is injected and cannot be overridden.\n" +
+			"\n" +
+			"Responses come back exactly as the instance sent them, WITHOUT the\n" +
+			"plain-text `content_text` and summary reshaping the first-class commands\n" +
+			"apply — expect raw HTML in status content. Instances run different\n" +
+			"Mastodon versions and forks, so an endpoint present on one server can 404\n" +
+			"on another.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

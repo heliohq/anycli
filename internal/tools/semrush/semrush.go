@@ -156,8 +156,36 @@ func (s *Service) stderr() io.Writer {
 // top-level balance check.
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "semrush",
-		Short:         "Semrush built-in service (v3 SEO API)",
+		Use:   "semrush",
+		Short: "Semrush built-in service (v3 SEO API)",
+		Long: "Competitive SEO research over Semrush's v3 API: what a domain ranks for,\n" +
+			"what it buys in paid search, keyword economics, and who links to it.\n" +
+			"\n" +
+			"Every returned line debits a shared account API-unit balance, which any\n" +
+			"other integration on the same subscription also spends. `--limit` therefore\n" +
+			"defaults to 10 on every report, against Semrush's own server default of\n" +
+			"10,000 lines. Reports run roughly 10-50 units per line: `keyword difficulty`\n" +
+			"is the priciest at 50, `keyword related` and `keyword questions` 40. Read\n" +
+			"the balance first with `units`, which is free.\n" +
+			"\n" +
+			"`--database` picks one regional database and defaults to `us`. Backlink\n" +
+			"reports and the `--all-databases` forms of `domain overview` /\n" +
+			"`keyword overview` are global: they take no database and the envelope omits\n" +
+			"the field. Backlink reports take `--target-type` instead — `root_domain`\n" +
+			"(default; the domain and its subdomains), `domain` (that host only) or\n" +
+			"`url` (one page) — so passing a full URL WITHOUT `--target-type url` still\n" +
+			"reports on the whole root domain.\n" +
+			"\n" +
+			"Semrush answers in semicolon-CSV; the tool parses it into JSON rows keyed by\n" +
+			"snake_cased header names with numbers coerced, wrapped as `report`,\n" +
+			"`database`, `row_count`, `rows`. A query that matches nothing SUCCEEDS with\n" +
+			"`row_count` 0, an empty `rows` array and a `note` — that is an answer, not\n" +
+			"an error.\n" +
+			"\n" +
+			"The credential must be a v3 API key, which needs a Business plan plus the\n" +
+			"paid API-units add-on; a v4 key is rejected with ERROR 120. ERROR 132 means\n" +
+			"the balance is exhausted and ERROR 130 that the plan carries no API add-on —\n" +
+			"in both cases the account, not the query, is the problem.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -18,8 +18,13 @@ func (s *Service) newDMConversationCreateCmd(token string) *cobra.Command {
 	var participantIDs []string
 	var text, mediaID string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a group DM conversation with its first message",
+		Use:   "create",
+		Short: "Create a group DM conversation with its first message",
+		Long: "Groups only: 2 to 49 --participant-id values, excluding yourself. X has no\n" +
+			"empty-conversation state, which is why the first message is part of\n" +
+			"creation — pass --text and/or --media-id, where the media id must have\n" +
+			"been uploaded with a dm_* --category. For a 1:1 conversation there is\n" +
+			"nothing to create: send straight to `dm send --participant-id <user-id>`.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -60,8 +65,15 @@ func (s *Service) newDMConversationCreateCmd(token string) *cobra.Command {
 func (s *Service) newDMSendCmd(token string) *cobra.Command {
 	var conversationID, participantID, text, mediaID string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a message by conversation id or participant id",
+		Use:   "send",
+		Short: "Send a message by conversation id or participant id",
+		Long: "Exactly one of --conversation-id or --participant-id, and at least one of\n" +
+			"--text or --media-id. --participant-id sends into the 1:1 conversation\n" +
+			"with that user and creates it if it does not exist yet, so nothing has to\n" +
+			"be created first (`dm conversation create` is for groups only). A media id\n" +
+			"must have been uploaded with --category dm_image (or dm_video / dm_gif); a\n" +
+			"tweet_* id is rejected. This is the legacy DM API, not XChat: accounts\n" +
+			"that restrict who may message them reject the send with an error.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -100,8 +112,11 @@ func (s *Service) newDMSendCmd(token string) *cobra.Command {
 
 func (s *Service) newDMDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <event-id>",
-		Short:       "Delete a DM event sent by the connected user",
+		Use:   "delete <event-id>",
+		Short: "Delete a DM event sent by the connected user",
+		Long: "Takes a DM EVENT id from `dm list` or `dm history`, not a conversation id.\n" +
+			"Only events the connected account sent can be removed; anything else\n" +
+			"errors. There is no undo, and no call that deletes a whole conversation.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {

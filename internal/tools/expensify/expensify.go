@@ -105,8 +105,27 @@ func parseCredentials(raw string) (credentials, error) {
 
 func (s *Service) newRoot(creds credentials) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "expensify",
-		Short:         "Expensify built-in service",
+		Use:   "expensify",
+		Short: "Expensify built-in service",
+		Long: "Expensify has ONE endpoint. Every operation, read or write, is a POST\n" +
+			"carrying a job document `{type, inputSettings, …}`, and the top-level\n" +
+			"`type` is one of get, create, update, file, download or reconciliation.\n" +
+			"`policy list` and `policy get` are pre-built get jobs; everything else\n" +
+			"goes through `request` as a raw job body.\n" +
+			"\n" +
+			"A HTTP 200 does NOT mean success. Expensify puts the real status in a\n" +
+			"`responseCode` inside the body, and a `responseCode` of 400 or above is\n" +
+			"turned into a command failure here, with 401 and 403 additionally marking\n" +
+			"the credential pair rejected. Some jobs answer with a bare non-JSON body,\n" +
+			"such as a generated file name; that has no `responseCode` and is emitted\n" +
+			"verbatim as success.\n" +
+			"\n" +
+			"Expensify rate-limits the endpoint at roughly 5 requests per 10 seconds\n" +
+			"and 20 per minute, answering 429 above that. Pace a batch instead of\n" +
+			"firing jobs in parallel.\n" +
+			"\n" +
+			"Output is always the provider's response; `--json` changes nothing and\n" +
+			"exists only for uniformity across tools.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

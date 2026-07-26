@@ -11,7 +11,12 @@ func (s *Service) newInventoryGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "Batch-retrieve inventory counts (POST /v2/inventory/counts/batch-retrieve)",
-		Args:  cobra.NoArgs,
+		Long: "POST and batched, but a read. `--body` is required and pairs\n" +
+			"`catalog_object_ids` with `location_ids`: stock is counted PER location, so\n" +
+			"omitting the location filter aggregates across every site the seller runs. The\n" +
+			"ids must be ITEM_VARIATION ids — an ITEM id returns nothing, because Square\n" +
+			"tracks stock on variations rather than items.",
+		Args: cobra.NoArgs,
 		// Square models this read as a POST batch-retrieve; it never mutates stock.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

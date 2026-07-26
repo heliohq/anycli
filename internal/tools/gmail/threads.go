@@ -14,8 +14,14 @@ func (s *Service) newThreadsListCmd(token string) *cobra.Command {
 	var query, pageToken string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List threads (native Gmail search syntax via --query)",
+		Use:   "list",
+		Short: "List threads (native Gmail search syntax via --query)",
+		Long: "One row stands for a whole conversation, and each carries a snippet, which\n" +
+			"makes this a cheaper survey than `messages list` whenever the gist of the\n" +
+			"subject is enough to decide what to open. `--query` takes the same Gmail\n" +
+			"search syntax. `--max` defaults to 10 and the `nextPageToken` goes back in\n" +
+			"as `--page-token`. The ids returned address conversations and belong to\n" +
+			"`threads get`, not to the `messages` commands.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -65,8 +71,14 @@ func (s *Service) newThreadsListCmd(token string) *cobra.Command {
 func (s *Service) newThreadsGetCmd(token string) *cobra.Command {
 	var bodyKind string
 	cmd := &cobra.Command{
-		Use:         "get <thread-id>",
-		Short:       "Show a whole conversation, messages in order",
+		Use:   "get <thread-id>",
+		Short: "Show a whole conversation, messages in order",
+		Long: "Fetches every message in the conversation in ONE request, which is the\n" +
+			"single biggest saving in this tool against looping `messages get` per id,\n" +
+			"and it is what to read before `messages reply` so the reply answers the\n" +
+			"latest state. `--body` picks the `text` or `html` variant, defaulting to\n" +
+			"text. There is no `--headers` here — one message's full headers come from\n" +
+			"`messages get --headers`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

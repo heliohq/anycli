@@ -144,8 +144,37 @@ func (s *Service) client() *http.Client {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(credential string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "dataforseo",
-		Short:         "DataForSEO built-in service (SERP, keywords, backlinks, on-page)",
+		Use:   "dataforseo",
+		Short: "DataForSEO built-in service (SERP, keywords, backlinks, on-page)",
+		Long: "A metered, pay-per-request SEO data API. Every command except `account` and\n" +
+			"the two `meta` lists is CHARGED per call — fractions of a cent to a couple\n" +
+			"of cents — and every success prints the actual `cost` in USD next to the\n" +
+			"data.\n" +
+			"\n" +
+			"`account` is free and reports the remaining balance. Read it before a job\n" +
+			"that will make many calls: running out fails with an explicit\n" +
+			"insufficient-balance error rather than an empty result, but everything\n" +
+			"spent before that point is already gone.\n" +
+			"\n" +
+			"Output is one object per command: `{\"cost\": <usd>, \"result\": [...]}`, with\n" +
+			"DataForSEO's version/tasks envelope stripped. `result` can be null when a\n" +
+			"query legitimately matched nothing, which is not an error.\n" +
+			"\n" +
+			"Only the Live (synchronous) endpoints are wrapped — one request, one\n" +
+			"response. Task-queue submission and full site crawls are deliberately\n" +
+			"absent, so nothing here polls or leaves work running in the background.\n" +
+			"\n" +
+			"--location defaults to \"United States\" and --language to en on the\n" +
+			"commands that take them, and either a name (\"United Kingdom\") or a numeric\n" +
+			"code (2840) is accepted. A wrong identifier still costs money and returns\n" +
+			"another market's data, so resolve it with the free `meta locations` and\n" +
+			"`meta languages` first. The backlinks commands take neither flag — a link\n" +
+			"profile is not market-scoped — and `keywords intent` takes --language\n" +
+			"only.\n" +
+			"\n" +
+			"--target is a bare domain (example.com, no scheme and no www.) for\n" +
+			"domain-level data, or a full https:// URL for page-level data. The same\n" +
+			"flag silently means different things depending on which form is passed.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

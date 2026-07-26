@@ -25,8 +25,14 @@ func (s *Service) newStatCountersCmd(basic string) *cobra.Command {
 	var sourceID int64
 	var counterSource, counterTiming, counterResolution string
 	cmd := &cobra.Command{
-		Use:         "counters",
-		Short:       "Delivery/open/click counters (GET /v3/REST/statcounters)",
+		Use:   "counters",
+		Short: "Delivery/open/click counters (GET /v3/REST/statcounters)",
+		Long: "`--counter-source` picks the axis: `APIKey` (the default, whole-account),\n" +
+			"`Campaign` or `List`. The other two require `--source-id` to name which one,\n" +
+			"and the default `APIKey` source ignores it — a `--source-id` without a\n" +
+			"matching `--counter-source` therefore returns account-wide numbers that look\n" +
+			"plausible and are not what was asked. `--counter-resolution` defaults to\n" +
+			"`Lifetime`; `Day`, `Hour` or `IntervalMonth` give a time series instead.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -60,8 +66,13 @@ func (s *Service) newStatCountersCmd(basic string) *cobra.Command {
 func (s *Service) newStatRecipientESPCmd(basic string) *cobra.Command {
 	var campaignID int64
 	cmd := &cobra.Command{
-		Use:         "recipient-esp",
-		Short:       "Per-mailbox-provider deliverability for a campaign (GET /v3/REST/statistics/recipient-esp)",
+		Use:   "recipient-esp",
+		Short: "Per-mailbox-provider deliverability for a campaign (GET /v3/REST/statistics/recipient-esp)",
+		Long: "`--campaign-id` is required — this has no account-wide form. It splits one\n" +
+			"campaign's delivery by recipient mailbox provider (Gmail, Outlook, Yahoo and\n" +
+			"so on), which is what distinguishes a general content problem from one\n" +
+			"provider filtering the sender. Use it after `stat counters` shows an open or\n" +
+			"bounce rate worth explaining.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

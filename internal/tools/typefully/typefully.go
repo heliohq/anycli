@@ -121,8 +121,33 @@ func (s *Service) renderError(jsonMode bool, err error) {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "typefully",
-		Short:         "Typefully built-in service (drafts, scheduling, queue, analytics)",
+		Use:   "typefully",
+		Short: "Typefully built-in service (drafts, scheduling, queue, analytics)",
+		Long: "Drafts, schedules and publishes posts and threads to X, LinkedIn, Threads,\n" +
+			"Bluesky and Mastodon from one body, then reads back the queue and basic\n" +
+			"analytics.\n" +
+			"\n" +
+			"Every command except `me` is scoped to a social set and requires\n" +
+			"--social-set, so `social-set list` is the first call of any session. A\n" +
+			"social set bundles the connected platform accounts a draft can target.\n" +
+			"\n" +
+			"`--publish-at now` answers 201 straight away but publishes\n" +
+			"ASYNCHRONOUSLY. Poll `draft get` until `publish_state` reads finished, and\n" +
+			"read finished as \"the job ended\", not \"it worked\": the truth is in\n" +
+			"`status` (published versus error) and the per-platform URLs —\n" +
+			"`x_published_url`, `linkedin_published_url` and their siblings, where null\n" +
+			"means that platform did not post. A cross-posted draft can half-succeed,\n" +
+			"so name the platform that failed rather than reporting the draft as sent.\n" +
+			"`--publish-at next-free-slot` and an ISO-8601 datetime schedule instead\n" +
+			"and need no polling.\n" +
+			"\n" +
+			"The key carries an access level per social set: creating needs WRITE,\n" +
+			"scheduling or publishing needs PUBLISH, and `queue schedule-set` needs\n" +
+			"ADMIN. A 403 complaining about permissions is that, not a bad key, and\n" +
+			"reconnecting will not change it.\n" +
+			"\n" +
+			"Provider JSON is emitted verbatim. Lists page with --limit / --offset\n" +
+			"rather than cursors, and a 429 is never retried automatically.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

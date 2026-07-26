@@ -147,8 +147,34 @@ var (
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token, clientID string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "twitch",
-		Short:         "Twitch built-in service (Helix API)",
+		Use:   "twitch",
+		Short: "Twitch built-in service (Helix API)",
+		Long: "Speaks the Twitch Helix API with the connected account's OAuth user token.\n" +
+			"\n" +
+			"\"Self\" is automatic. Channel-scoped verbs default `broadcaster_id` to the\n" +
+			"connected account's own channel — `channel get`, `channel update`, `stream\n" +
+			"followed`, `clip create`, `follower list`, `chat chatters` and `chat send`\n" +
+			"all target it without a flag — and the tool resolves that user id once and\n" +
+			"reuses it. `subscriber list` is always keyed to the connected account,\n" +
+			"because Twitch lets a broadcaster read only its own subscriptions.\n" +
+			"\n" +
+			"Helix wraps every response in a `data` array; this tool reshapes it. List\n" +
+			"verbs emit {\"data\":[…],\"cursor\":\"…\"}, single-object verbs emit the object\n" +
+			"unwrapped from `data[0]`, and a lookup matching nothing emits `null`\n" +
+			"rather than an empty list. `channel update` emits {\"updated\":true,…}\n" +
+			"because Helix answers its PATCH with 204 and no body.\n" +
+			"\n" +
+			"Most filters take numeric Twitch ids, not display names: --broadcaster-id,\n" +
+			"--user-id and --game-id are ids. Turn a login into one with `user get\n" +
+			"--login <name>`, or use a --user-login filter where the verb offers it.\n" +
+			"\n" +
+			"Pagination is cursor-based, never offset. --first sets the page size,\n" +
+			"which Helix defaults to 20 and caps at 100; feed the response's `cursor`\n" +
+			"back as --after, and an empty cursor means the last page.\n" +
+			"\n" +
+			"Scopes are granted per capability at connect time. Followers, subscribers,\n" +
+			"chatters, sending chat, creating clips and updating the channel each need\n" +
+			"their own, and a missing one is a 401 or 403 that only reconnecting fixes.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

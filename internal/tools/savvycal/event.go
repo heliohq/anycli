@@ -27,8 +27,14 @@ func (s *Service) newEventListCmd(token string) *cobra.Command {
 	var state, period, after, before string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List events scheduled via SavvyCal (GET /v1/events)",
+		Use:   "list",
+		Short: "List events scheduled via SavvyCal (GET /v1/events)",
+		Long: "The defaults hide most of the calendar: with no flags it returns CONFIRMED\n" +
+			"and UPCOMING events only, so cancellations need `--state canceled|all` and\n" +
+			"history needs `--period past|all`. `--limit` is 20, capped at 100, and the\n" +
+			"`metadata` cursors continue it via `--after`. Only bookings made through\n" +
+			"SavvyCal appear — meetings created directly in the underlying calendar do\n" +
+			"not.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -65,8 +71,13 @@ func (s *Service) newEventListCmd(token string) *cobra.Command {
 
 func (s *Service) newEventGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <event_id>",
-		Short:       "Fetch a single event (GET /v1/events/:event_id)",
+		Use:   "get <event_id>",
+		Short: "Fetch a single event (GET /v1/events/:event_id)",
+		Long: "Takes the event id from `event list` and returns the whole booking:\n" +
+			"scheduler, times, state, booking-form answers and conferencing details.\n" +
+			"Worth calling again right after `event create` — conferencing information\n" +
+			"such as a Zoom URL can attach a moment later and be missing from the\n" +
+			"create response.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -85,8 +96,15 @@ func (s *Service) newEventCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <link_id>",
 		Short: "Create an event on a scheduling link (POST /v1/links/:link_id/events)",
-		Long: "Create an event on a scheduling link. start/end must match an " +
-			"available slot — call `link slots <link_id>` first to find valid times.",
+		Long: "Books a real meeting on the account's calendar and notifies the other\n" +
+			"party. `--start` and `--end` must match an available slot EXACTLY: call\n" +
+			"`link slots <link_id>` first and echo a slot's `start_at` / `end_at`, since\n" +
+			"a time that merely looks free is refused rather than adjusted.\n" +
+			"`--time-zone` is the SCHEDULER's IANA zone, not the account's, and decides\n" +
+			"what their invitation displays. `--field id=value` repeats to answer the\n" +
+			"link's booking-form questions — the ids come from `link get` — and\n" +
+			"`--metadata` passes a raw JSON object through untouched. A rejected booking\n" +
+			"returns 422 with the offending field named.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -136,8 +154,13 @@ func (s *Service) newEventCreateCmd(token string) *cobra.Command {
 func (s *Service) newEventCancelCmd(token string) *cobra.Command {
 	var reason string
 	cmd := &cobra.Command{
-		Use:         "cancel <event_id>",
-		Short:       "Cancel an event (POST /v1/events/:event_id/cancel)",
+		Use:   "cancel <event_id>",
+		Short: "Cancel an event (POST /v1/events/:event_id/cancel)",
+		Long: "Cancels the booking and SavvyCal notifies the other party; `--reason` is\n" +
+			"optional and is shown to them, so leaving it off cancels without\n" +
+			"explanation. There is no un-cancel — restoring the meeting means a fresh\n" +
+			"`event create` against a currently available slot. The cancelled event\n" +
+			"stays readable through `event list --state canceled`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

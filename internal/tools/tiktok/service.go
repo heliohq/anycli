@@ -62,8 +62,26 @@ var (
 
 func (s *Service) newRoot(token, openID string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "tiktok",
-		Short:         "TikTok built-in service",
+		Use:   "tiktok",
+		Short: "TikTok built-in service",
+		Long: "The acting account is whichever creator authorized the token — no command\n" +
+			"takes a target account, and `user info` is the only way to confirm who\n" +
+			"that is.\n" +
+			"\n" +
+			"TikTok's `{data, error}` envelope is unwrapped before output: a non-`ok`\n" +
+			"`error.code` becomes a command failure, and what reaches stdout is the\n" +
+			"`data` object alone. A 2xx response carrying an error code inside it\n" +
+			"therefore fails here rather than printing a body that looks like success.\n" +
+			"\n" +
+			"Reads are field-selected: `--fields` on `user info`, `video list` and\n" +
+			"`video query` names exactly which properties come back, and the defaults\n" +
+			"stay inside the basic scopes. Asking for a field the connection lacks the\n" +
+			"scope for is an error, not an omission, so widen `--fields` only when the\n" +
+			"account granted the matching scope at connect time.\n" +
+			"\n" +
+			"Publishing is asynchronous everywhere: `post video` returns a `publish_id`\n" +
+			"and nothing else, and the outcome only exists once `post status` reports\n" +
+			"it.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

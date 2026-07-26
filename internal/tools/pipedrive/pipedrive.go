@@ -160,8 +160,35 @@ func (s *Service) stderr() io.Writer {
 // (cross-entity); everything else hangs under its resource group.
 func (s *Service) newRoot(base, token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "pipedrive",
-		Short:         "Pipedrive CRM built-in service (OAuth, v2-first)",
+		Use:   "pipedrive",
+		Short: "Pipedrive CRM built-in service (OAuth, v2-first)",
+		Long: "Deals live in pipelines and move by stage: read a pipeline's stages with\n" +
+			"`stage list --pipeline-id <id>`, then move a deal by patching its\n" +
+			"--stage-id. Stage ids belong to exactly one pipeline, so a stage id from\n" +
+			"elsewhere is meaningless. Deals are never deleted — they are closed with\n" +
+			"`deal update --status won` or `--status lost --lost-reason \"…\"`, and there\n" +
+			"is no delete command for deals, persons or organizations anywhere here.\n" +
+			"\n" +
+			"A lead is a pre-pipeline, unqualified record; a deal is an active\n" +
+			"opportunity. Capture inbound interest as a lead and track live business as\n" +
+			"a deal. Nothing in this tool converts one into the other.\n" +
+			"\n" +
+			"Pagination differs by API version and is the easiest thing to get wrong.\n" +
+			"The v2 resources — deals, persons, organizations, activities, pipelines,\n" +
+			"stages and every search — page by CURSOR: read\n" +
+			"`additional_data.next_cursor` off the response and pass it back as\n" +
+			"--cursor until it is null. The v1 resources — leads and notes — page by\n" +
+			"OFFSET with --start. `user list` returns everyone in one call. There is no\n" +
+			"--page flag on any command.\n" +
+			"\n" +
+			"Ids are integers for deals, persons, organizations and activities, but a\n" +
+			"lead id is a UUID string, which is what `note --lead-id` takes.\n" +
+			"\n" +
+			"Every create and update takes typed flags for the common fields plus\n" +
+			"--data for raw JSON; --data is applied first and the typed flags overlay\n" +
+			"it, so custom fields and nested objects combine with the flags rather than\n" +
+			"replacing them. Only flags explicitly passed are sent, which is what makes\n" +
+			"every update a partial patch. Output is the provider's JSON verbatim.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

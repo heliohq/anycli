@@ -12,8 +12,14 @@ import (
 func (s *Service) newCreatorCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{Use: "creator", Short: "Content-posting prerequisites"}
 	cmd.AddCommand(&cobra.Command{
-		Use:         "info",
-		Short:       "Query posting options and limits for the creator",
+		Use:   "info",
+		Short: "Query posting options and limits for the creator",
+		Long: "Run this before `post video`: it returns `privacy_level_options`, and\n" +
+			"`post video --privacy` must be one of exactly those values — the set\n" +
+			"differs per account, and a private or under-age account does not offer\n" +
+			"`PUBLIC_TO_EVERYONE` at all. It also carries `max_video_post_duration_sec`\n" +
+			"and the `comment_disabled` / `duet_disabled` / `stitch_disabled` settings\n" +
+			"the creator has chosen, which is the only place those limits are visible.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -40,8 +46,25 @@ func (s *Service) newPostVideoCmd(token string) *cobra.Command {
 	var title, file, videoURL, privacy string
 	var draft bool
 	cmd := &cobra.Command{
-		Use:         "video",
-		Short:       "Post a video (direct post) or upload it as a draft",
+		Use:   "video",
+		Short: "Post a video (direct post) or upload it as a draft",
+		Long: "Exactly one of `--url` or `--file` is required. `--url` has TikTok PULL the\n" +
+			"video from a public address, which needs that domain verified in the TikTok\n" +
+			"developer portal; `--file` uploads the local bytes as a SINGLE chunk, so a\n" +
+			"large file is one long PUT with no resume if it breaks.\n" +
+			"\n" +
+			"Without `--draft` this is a direct post that publishes to the profile, and\n" +
+			"`--privacy` is then required — one of the values `creator info` lists for\n" +
+			"this account. `--draft` instead drops the video into the creator's TikTok\n" +
+			"inbox to finish by hand, takes no privacy level, and IGNORES `--title`,\n" +
+			"which only travels on the direct-post path.\n" +
+			"\n" +
+			"The branded-content and branded-organic toggles are always sent as false,\n" +
+			"so a paid-partnership disclosure cannot be set from here. TikTok also\n" +
+			"restricts direct posting to audited apps: on an unaudited one, posts are\n" +
+			"forced private and limited to the app's test users. The response is a\n" +
+			"`publish_id` and nothing more — the video is not live yet, and `post\n" +
+			"status` is what decides that.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -94,8 +117,15 @@ func (s *Service) newPostVideoCmd(token string) *cobra.Command {
 func (s *Service) newPostStatusCmd(token string) *cobra.Command {
 	var publishID string
 	cmd := &cobra.Command{
-		Use:         "status",
-		Short:       "Fetch the processing status of a post",
+		Use:   "status",
+		Short: "Fetch the processing status of a post",
+		Long: "`--publish-id` is required and comes from `post video`. Publishing is\n" +
+			"asynchronous, so this has to be polled: the id stays reachable while TikTok\n" +
+			"downloads and transcodes, and only `PUBLISH_COMPLETE` means the video is\n" +
+			"live (`SEND_TO_USER_INBOX` means it landed as a draft instead). A `FAILED`\n" +
+			"status carries the reason, and it is the ONLY place a rejected upload\n" +
+			"surfaces — `post video` returns successfully long before TikTok has judged\n" +
+			"the file.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

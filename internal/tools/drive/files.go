@@ -37,8 +37,12 @@ type driveFile struct {
 
 func (s *Service) newAboutCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "about",
-		Short:       "Show the connected account and storage quota (about.get)",
+		Use:   "about",
+		Short: "Show the connected account and storage quota (about.get)",
+		Long: "Names the Google account actually connected, which matters when the user has\n" +
+			"several Google identities and expects a file to appear in a different\n" +
+			"one. The quota is the other half: an account at its storage limit fails\n" +
+			"`files upload` with something that is not a permission error.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -77,8 +81,15 @@ func (s *Service) newFilesListCmd(token string) *cobra.Command {
 	var query, parent, pageToken string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List files (native Drive query syntax via --query). Visible domain = files this tool created or the user granted it (drive.file).",
+		Use:   "list",
+		Short: "List files (native Drive query syntax via --query). Visible domain = files this tool created or the user granted it (drive.file).",
+		Long: "An empty result means the file was never created or granted here, not that\n" +
+			"it does not exist — do not reword the query and try again.\n" +
+			"`trashed = false` is appended automatically unless --query mentions\n" +
+			"trashed. --parent is shorthand for a `'<id>' in parents` clause and\n" +
+			"combines with --query rather than replacing it. --max defaults to 20 and\n" +
+			"is rejected outside 1-1000; continue with --page-token from the previous\n" +
+			"response.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -148,8 +159,13 @@ func (s *Service) newFilesListCmd(token string) *cobra.Command {
 
 func (s *Service) newFilesGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <file-id>",
-		Short:       "Show file metadata: name, type, size, parents, owners, webViewLink, and a sharing summary",
+		Use:   "get <file-id>",
+		Short: "Show file metadata: name, type, size, parents, owners, webViewLink, and a sharing summary",
+		Long: "One call returns the name, mime type, size, parent folders, owners,\n" +
+			"`webViewLink` and a summary of who the file is shared with. A 404 means\n" +
+			"the file sits outside this tool's drive.file domain rather than that it is\n" +
+			"missing. `mimeType` is what decides whether content comes from\n" +
+			"`files download` or `files export`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -193,8 +209,13 @@ func (s *Service) newFilesGetCmd(token string) *cobra.Command {
 func (s *Service) newFilesMkdirCmd(token string) *cobra.Command {
 	var parent string
 	cmd := &cobra.Command{
-		Use:         "mkdir <name>",
-		Short:       "Create a folder (synthetic: files.create with the folder mimeType)",
+		Use:   "mkdir <name>",
+		Short: "Create a folder (synthetic: files.create with the folder mimeType)",
+		Long: "A folder in Drive is just a file with the folder mime type, so the id this\n" +
+			"returns is what --parent takes everywhere else. Drive permits two folders\n" +
+			"with the same name under the same parent and does not merge them: running\n" +
+			"this twice silently produces a duplicate, so reuse an id rather than\n" +
+			"re-creating by name.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -226,8 +247,12 @@ func (s *Service) newFilesMkdirCmd(token string) *cobra.Command {
 func (s *Service) newFilesUpdateCmd(token string) *cobra.Command {
 	var name, addParent, removeParent, description string
 	cmd := &cobra.Command{
-		Use:         "update <file-id>",
-		Short:       "Rename, move (--parent moves via addParents/removeParents), or set the description",
+		Use:   "update <file-id>",
+		Short: "Rename, move (--parent moves via addParents/removeParents), or set the description",
+		Long: "Renaming and moving are the same call. A move is --parent (the destination)\n" +
+			"together with --remove-parent (the source): --parent on its own ADDS a\n" +
+			"parent and leaves the file in both folders, because a Drive file can have\n" +
+			"several. Only the fields actually passed are changed.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -274,8 +299,13 @@ func (s *Service) newFilesUpdateCmd(token string) *cobra.Command {
 func (s *Service) newFilesCopyCmd(token string) *cobra.Command {
 	var name, parent string
 	cmd := &cobra.Command{
-		Use:         "copy <file-id>",
-		Short:       "Copy a file (files.copy)",
+		Use:   "copy <file-id>",
+		Short: "Copy a file (files.copy)",
+		Long: "Copies server-side without moving bytes through this machine, which makes it\n" +
+			"far cheaper than export-then-upload for anything large. --name names the\n" +
+			"copy and --parent places it. Sharing is NOT carried over — the copy starts\n" +
+			"private to the connected account, which is what makes this the safe way to\n" +
+			"snapshot a file before editing it.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -308,19 +338,36 @@ func (s *Service) newFilesCopyCmd(token string) *cobra.Command {
 	return cmd
 }
 
+// longFilesTrash and longFilesUntrash are the two deletion-path Longs. They sit
+// beside the shared builder because it is the builder that makes both verbs
+// per-id patches over the same endpoint.
+const (
+	longFilesTrash = "Reversible with `files untrash`, and the ONLY deletion this tool has —\n" +
+		"nothing here removes a file permanently, so \"delete forever\" is not\n" +
+		"available. Several ids can be passed and each is patched in its own\n" +
+		"request, so a failure part-way leaves the earlier ones already trashed.\n" +
+		"Trashing a folder takes its contents with it."
+
+	longFilesUntrash = "Restores files to the parents they had before, and only works while the item\n" +
+		"is still in the trash — Drive empties it automatically after about 30 days\n" +
+		"and nothing here recovers a file past that point. Ids are patched one\n" +
+		"request at a time."
+)
+
 // newFilesTrashCmd builds trash (untrash=false) or untrash (untrash=true). Both
 // are synthetic verbs over files.update setting trashed=true/false — trash is
 // the only deletion path this tool exposes (permanent delete is intentionally
 // omitted; design 303).
 func (s *Service) newFilesTrashCmd(token string, untrash bool) *cobra.Command {
-	verb, past, short := "trash", "trashed", "Move files to the trash (recoverable; the only deletion this tool exposes)"
+	verb, past, short, long := "trash", "trashed", "Move files to the trash (recoverable; the only deletion this tool exposes)", longFilesTrash
 	trashed := true
 	if untrash {
-		verb, past, short, trashed = "untrash", "untrashed", "Restore files from the trash", false
+		verb, past, short, trashed, long = "untrash", "untrashed", "Restore files from the trash", false, longFilesUntrash
 	}
 	return &cobra.Command{
 		Use:         verb + " <file-id>...",
 		Short:       short,
+		Long:        long,
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

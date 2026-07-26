@@ -32,8 +32,15 @@ type batchRequest struct {
 func (s *Service) newBatchCmd(token string) *cobra.Command {
 	var targets, selectFields, country, mode, protocol string
 	cmd := &cobra.Command{
-		Use:         "batch",
-		Short:       "Compare up to 100 targets in one request (POST /batch-analysis)",
+		Use:   "batch",
+		Short: "Compare up to 100 targets in one request (POST /batch-analysis)",
+		Long: "The unit-efficient way to compare domains: one request covers every target\n" +
+			"in the comma-separated --targets list, where looping a per-domain command\n" +
+			"pays the 50-unit minimum each time. Ahrefs caps the list at 100 targets\n" +
+			"and rejects more — nothing checks that locally. --mode (default\n" +
+			"subdomains) and --protocol (default both) apply to EVERY target, so a\n" +
+			"mixed list of bare domains and full URLs is interpreted uniformly.\n" +
+			"--country is optional and only affects the traffic and keyword figures.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

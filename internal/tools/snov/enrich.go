@@ -21,8 +21,14 @@ func (s *Service) newEnrichCmd(creds clientCreds) *cobra.Command {
 func (s *Service) newEnrichByEmailCmd(creds clientCreds) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:         "by-email",
-		Short:       "Enrich a person profile from a known email (consumes credits)",
+		Use:   "by-email",
+		Short: "Enrich a person profile from a known email (consumes credits)",
+		Long: "Runs in the opposite direction to the finder: it starts from an address\n" +
+			"already known and returns the person behind it — name, current company,\n" +
+			"job history and social profiles. It does not verify that the address still\n" +
+			"works, which is `email verify`. Synchronous, so unlike the finder commands\n" +
+			"it has no `--timeout` and returns in one round trip. An address Snov has\n" +
+			"no profile for still costs the credit.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -28,8 +28,19 @@ func (s *Service) newRecordSearchCmd(token string) *cobra.Command {
 	var query, objectsFlag, requestAsMember string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Fuzzy-search records across objects",
+		Use:   "search",
+		Short: "Fuzzy-search records across objects",
+		Long: "Defaults to `people,companies` ONLY — the two objects every workspace has.\n" +
+			"Reaching deals, users, workspaces or a custom object means naming them in\n" +
+			"--objects, and a slug that is not enabled in this workspace comes back as\n" +
+			"a 400 value_not_found rather than an empty result, so take slugs from\n" +
+			"`object list`.\n" +
+			"\n" +
+			"--query is required and capped at 256 characters. --limit both defaults to\n" +
+			"and maxes out at 25 and this endpoint has NO offset, so results cannot be\n" +
+			"paged past 25 — switch to `record query` with a filter when more is\n" +
+			"needed. --request-as-member scopes results to what one member can see and\n" +
+			"accepts either a member UUID or an email address.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -115,8 +126,14 @@ func splitCSV(raw string) []string {
 func (s *Service) newRecordQueryCmd(token string) *cobra.Command {
 	var filterFlag, sortsFlag string
 	cmd := &cobra.Command{
-		Use:         "query <object>",
-		Short:       "Query one object's records with filter/sorts",
+		Use:   "query <object>",
+		Short: "Query one object's records with filter/sorts",
+		Long: "The exact counterpart to `record search`: one object, --filter and --sorts\n" +
+			"passed through verbatim as Attio-wire JSON, and --limit/--offset in the\n" +
+			"request BODY — which is what makes this the pageable read. Filter keys are\n" +
+			"attribute slugs from `attribute list --object <slug>` and the filter\n" +
+			"follows Attio's operator syntax, not a search string. A list's own\n" +
+			"attributes are not visible here; query those with `entry query`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 	}
@@ -155,8 +172,12 @@ func (s *Service) newRecordQueryCmd(token string) *cobra.Command {
 // (GET /v2/objects/{object}/records/{record_id}).
 func (s *Service) newRecordGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <object> <record_id>",
-		Short:       "Get one record by id",
+		Use:   "get <object> <record_id>",
+		Short: "Get one record by id",
+		Long: "Both arguments are positional and ordered: the object slug first, then the\n" +
+			"record id. A record id alone addresses nothing, because the object is part\n" +
+			"of the path. The response carries every attribute as an array of typed\n" +
+			"value objects — the same shape a --values payload has to produce.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: readOnly,
 	}
@@ -175,8 +196,12 @@ func (s *Service) newRecordGetCmd(token string) *cobra.Command {
 // (DELETE /v2/objects/{object}/records/{record_id}).
 func (s *Service) newRecordDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <object> <record_id>",
-		Short:       "Delete one record by id",
+		Use:   "delete <object> <record_id>",
+		Short: "Delete one record by id",
+		Long: "Takes the object slug and the record id positionally. The record vanishes\n" +
+			"from every list it was on and nothing in this tool restores it. Taking a\n" +
+			"record off ONE pipeline is `entry remove`, which leaves the record itself\n" +
+			"intact — that is almost always what was actually meant.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 	}
@@ -196,8 +221,14 @@ func (s *Service) newRecordDeleteCmd(token string) *cobra.Command {
 func (s *Service) newRecordCreateCmd(token string) *cobra.Command {
 	var valuesFlag string
 	cmd := &cobra.Command{
-		Use:         "create <object> --values <json>",
-		Short:       "Create a record",
+		Use:   "create <object> --values <json>",
+		Short: "Create a record",
+		Long: "--values is a JSON object of attribute slug to value and is wrapped into\n" +
+			"the `data.values` envelope for you. Slugs come from `attribute list\n" +
+			"--object <slug>`, and select or status values have to be options that\n" +
+			"already exist — `attribute options` and `attribute statuses` list them.\n" +
+			"Nothing deduplicates here, so use `record upsert --match` whenever the\n" +
+			"record may already be in the workspace.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 	}
@@ -227,8 +258,14 @@ func (s *Service) newRecordUpdateCmd(token string) *cobra.Command {
 	var valuesFlag string
 	var appendMode bool
 	cmd := &cobra.Command{
-		Use:         "update <object> <record_id> --values <json>",
-		Short:       "Update a record (default overwrite; --append to append multiselect)",
+		Use:   "update <object> <record_id> --values <json>",
+		Short: "Update a record (default overwrite; --append to append multiselect)",
+		Long: "Defaults to OVERWRITE: the values sent replace what is there, and a\n" +
+			"multiselect attribute is reset to exactly what --values contains, dropping\n" +
+			"anything not mentioned. --append switches to a patch that ADDS to\n" +
+			"multiselect attributes instead. Attributes absent from --values are left\n" +
+			"alone in either mode. `entry update` follows the same rule for list\n" +
+			"entries.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 	}
@@ -260,8 +297,14 @@ func (s *Service) newRecordUpdateCmd(token string) *cobra.Command {
 func (s *Service) newRecordUpsertCmd(token string) *cobra.Command {
 	var valuesFlag, match string
 	cmd := &cobra.Command{
-		Use:         "upsert <object> --values <json> --match <attribute>",
-		Short:       "Assert (upsert) a record by a unique matching attribute",
+		Use:   "upsert <object> --values <json> --match <attribute>",
+		Short: "Assert (upsert) a record by a unique matching attribute",
+		Long: "--match names the attribute to key on and must be one Attio treats as\n" +
+			"unique — `attribute list` marks which are. A matching record is\n" +
+			"OVERWRITTEN with the values sent, exactly as `record update` without\n" +
+			"--append would; no match creates a new record. That makes this the\n" +
+			"idempotent import path, and also means a wrong --match attribute\n" +
+			"overwrites the wrong record without complaint.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 	}

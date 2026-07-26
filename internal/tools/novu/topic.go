@@ -22,10 +22,38 @@ func (s *Service) newTopicCmd(c *client) *cobra.Command {
 	return group
 }
 
+// The topic Longs, grouped above the constructors that use them because every
+// leaf in this group is built by the shared leafCmd helper.
+const (
+	longTopicList = "A topic is addressed by its KEY, a string the caller chose, and that key\n" +
+		"is what `event trigger --to-json` needs — this list is how to recover one\n" +
+		"when only a human name is known. The --key and --name filters are exact\n" +
+		"match. Paging is cursor-based through --after and --before."
+
+	longTopicCreate = "--key is the permanent handle triggers target and cannot be renamed later;\n" +
+		"--name is a human label only. Creating a topic does not populate it — a\n" +
+		"new topic has no subscribers, and a send to it reaches nobody until\n" +
+		"`topic add-subscribers` has run."
+
+	longTopicGet = "--key is the topic key, not an id. It returns the topic record only: no\n" +
+		"command in this tool enumerates a topic's members, so \"who is in this\n" +
+		"audience\" cannot be answered here."
+
+	longTopicAddSubscribers = "--subscriber-ids is comma-separated and every id must already exist as a\n" +
+		"subscriber — this does not create anyone. Adding someone already in the\n" +
+		"topic is not an error. Membership applies to the NEXT trigger; a send\n" +
+		"already accepted for this topic is unaffected."
+
+	longTopicRemoveSubscribers = "--subscriber-ids is comma-separated and removes membership only — the\n" +
+		"subscribers themselves, their preferences and their other topics are\n" +
+		"untouched. It does not stop a trigger Novu has already accepted for the\n" +
+		"topic, since recipients are resolved as that trigger is processed."
+)
+
 func (s *Service) newTopicListCmd(c *client) *cobra.Command {
 	var key, name, after, before string
 	var limit int
-	cmd := leafCmd("list", "List topics", readOnly, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("list", "List topics", longTopicList, readOnly, func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
 		addQueryString(q, "key", key)
 		addQueryString(q, "name", name)
@@ -49,7 +77,7 @@ func (s *Service) newTopicListCmd(c *client) *cobra.Command {
 
 func (s *Service) newTopicCreateCmd(c *client) *cobra.Command {
 	var key, name string
-	cmd := leafCmd("create", "Create a topic", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("create", "Create a topic", longTopicCreate, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("key", key); err != nil {
 			return err
 		}
@@ -69,7 +97,7 @@ func (s *Service) newTopicCreateCmd(c *client) *cobra.Command {
 
 func (s *Service) newTopicGetCmd(c *client) *cobra.Command {
 	var key string
-	cmd := leafCmd("get", "Get one topic by key", readOnly, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("get", "Get one topic by key", longTopicGet, readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("key", key); err != nil {
 			return err
 		}
@@ -85,7 +113,7 @@ func (s *Service) newTopicGetCmd(c *client) *cobra.Command {
 
 func (s *Service) newTopicAddSubscribersCmd(c *client) *cobra.Command {
 	var key, subscriberIDs string
-	cmd := leafCmd("add-subscribers", "Add subscribers to a topic", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("add-subscribers", "Add subscribers to a topic", longTopicAddSubscribers, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("key", key); err != nil {
 			return err
 		}
@@ -108,7 +136,7 @@ func (s *Service) newTopicAddSubscribersCmd(c *client) *cobra.Command {
 
 func (s *Service) newTopicRemoveSubscribersCmd(c *client) *cobra.Command {
 	var key, subscriberIDs string
-	cmd := leafCmd("remove-subscribers", "Remove subscribers from a topic", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("remove-subscribers", "Remove subscribers from a topic", longTopicRemoveSubscribers, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("key", key); err != nil {
 			return err
 		}

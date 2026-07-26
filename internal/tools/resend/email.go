@@ -23,8 +23,19 @@ func (s *Service) newEmailSendCmd(key string) *cobra.Command {
 	var to []string
 	var attachmentsJSON, tagsJSON, headersJSON, idempotencyKey string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a single email (POST /emails)",
+		Use:   "send",
+		Short: "Send a single email (POST /emails)",
+		Long: "--from, --to and --subject are required here; a body is not, though\n" +
+			"Resend needs --html or --text, and sending both gives clients a\n" +
+			"plain-text fallback. --to is repeatable up to 50 recipients and they all\n" +
+			"see each other — separate messages are separate calls.\n" +
+			"\n" +
+			"--idempotency-key sets the Idempotency-Key header, which dedupes a\n" +
+			"repeated send for 24 hours; it is the only protection against double\n" +
+			"delivery on a retry, and there is none by default. --attachments,\n" +
+			"--tags and --headers take raw JSON passed straight through. Success here\n" +
+			"means Resend accepted the message, not that it was delivered —\n" +
+			"`email get` reports what happened afterwards.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -114,9 +125,12 @@ func (s *Service) newEmailBatchCmd(key string) *cobra.Command {
 		Use:         "batch",
 		Short:       "Send up to 100 emails in one call (POST /emails/batch)",
 		Annotations: writeAction,
-		Long: "Send up to 100 emails in one call (POST /emails/batch). NOTE: the batch " +
-			"endpoint does NOT support attachments (Resend rejects them); scheduled_at and " +
-			"tags are supported. Use `email send` for attachments.",
+		Long: "--emails is a JSON ARRAY of complete email objects, and their fields are\n" +
+			"the API's own snake_case names (scheduled_at, reply_to), not this tool's\n" +
+			"flag names. Attachments are REJECTED by this endpoint, so any email\n" +
+			"carrying one has to go through `email send` individually; per-email\n" +
+			"scheduled_at and tags are fine. There is no idempotency key on this\n" +
+			"path, so a retried batch delivers twice.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload, err := decodeJSONFlag("emails", emailsJSON)
@@ -137,8 +151,13 @@ func (s *Service) newEmailBatchCmd(key string) *cobra.Command {
 
 func (s *Service) newEmailGetCmd(key string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Retrieve a sent email's delivery status (GET /emails/{id})",
+		Use:   "get <id>",
+		Short: "Retrieve a sent email's delivery status (GET /emails/{id})",
+		Long: "Takes the id `email send` returned. This is the delivery record —\n" +
+			"status, recipients, timestamps — and the only way to learn whether a\n" +
+			"message actually landed, bounced or drew a complaint. The status\n" +
+			"advances asynchronously, so a read immediately after sending reports an\n" +
+			"early state rather than a final one.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -155,8 +174,12 @@ func (s *Service) newEmailGetCmd(key string) *cobra.Command {
 func (s *Service) newEmailUpdateCmd(key string) *cobra.Command {
 	var scheduledAt string
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Reschedule a not-yet-sent email (PATCH /emails/{id})",
+		Use:   "update <id>",
+		Short: "Reschedule a not-yet-sent email (PATCH /emails/{id})",
+		Long: "Rescheduling is the only edit available: --scheduled-at is required and\n" +
+			"no recipient, subject or body can be changed after the send was created.\n" +
+			"It applies only while the email is still waiting — one already sent\n" +
+			"cannot be moved or recalled.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -178,8 +201,12 @@ func (s *Service) newEmailUpdateCmd(key string) *cobra.Command {
 
 func (s *Service) newEmailCancelCmd(key string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "cancel <id>",
-		Short:       "Cancel a scheduled email (POST /emails/{id}/cancel)",
+		Use:   "cancel <id>",
+		Short: "Cancel a scheduled email (POST /emails/{id}/cancel)",
+		Long: "Works only on an email still waiting for its scheduled time. Once the\n" +
+			"message has gone out nothing in this tool retracts it, so a cancel\n" +
+			"attempted after the scheduled moment fails rather than unsending\n" +
+			"anything.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

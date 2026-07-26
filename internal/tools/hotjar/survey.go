@@ -28,8 +28,13 @@ func (s *Service) newSurveyListCmd(creds clientCreds) *cobra.Command {
 	var site, cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List surveys for a site",
+		Use:   "list",
+		Short: "List surveys for a site",
+		Long: "The discovery step: `survey get` and `survey responses` both need a\n" +
+			"`--survey` id and this is the only command that produces one. `--site` is\n" +
+			"required and scopes the whole result — a survey id belongs to exactly one\n" +
+			"site and will not resolve under another. Cursor-paginated: pass the\n" +
+			"response's `next_cursor` back through `--cursor`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -52,8 +57,13 @@ func (s *Service) newSurveyGetCmd(creds clientCreds) *cobra.Command {
 	var site, survey string
 	var withQuestions bool
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one survey's detail",
+		Use:   "get",
+		Short: "Get one survey's detail",
+		Long: "`--with-questions` is OFF by default and is the only way to retrieve the\n" +
+			"survey's question metadata; without it the response carries survey-level\n" +
+			"attributes only. Call it with that flag before reading `survey responses`,\n" +
+			"whose answers are keyed by question id and cannot be interpreted on their\n" +
+			"own.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -81,8 +91,14 @@ func (s *Service) newSurveyResponsesCmd(creds clientCreds) *cobra.Command {
 	var site, survey, cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "responses",
-		Short:       "Export a survey's responses (newest first, cursor-paginated)",
+		Use:   "responses",
+		Short: "Export a survey's responses (newest first, cursor-paginated)",
+		Long: "Requires the Ask Scale plan; a lower tier gets a 403 that surfaces as a\n" +
+			"rejected credential rather than as a plan error. Answers are keyed by\n" +
+			"question id, so pair the export with `survey get --with-questions` to\n" +
+			"recover the question text and types. Page with `--cursor` until\n" +
+			"`next_cursor` comes back null, sizing each page with `--limit`. Responses\n" +
+			"are respondent-authored free text and routinely contain personal data.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

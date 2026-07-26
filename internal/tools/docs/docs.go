@@ -90,8 +90,33 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "docs",
-		Short:         "Google Docs built-in service",
+		Use:   "docs",
+		Short: "Google Docs built-in service",
+		Long: "Documents are addressed by a pasted link or a bare id — every command\n" +
+			"accepts a full docs.google.com document URL and extracts the id from it.\n" +
+			"There is no search and no list command, because the Docs API has no list\n" +
+			"method: when the user means \"that doc\", their link is the only way in.\n" +
+			"\n" +
+			"Indices are never the caller's problem. Reads render the structured\n" +
+			"document to markdown, and `documents create --body-file` and `documents\n" +
+			"append --body-file` translate a markdown subset into edit requests.\n" +
+			"`documents batch-update` is the one place where raw Docs API requests, and\n" +
+			"their index arithmetic, become the caller's responsibility.\n" +
+			"\n" +
+			"The WRITE subset covers headings, paragraphs, bold, italic, strikethrough,\n" +
+			"inline code, links and ordered/unordered lists. Tables and images are not\n" +
+			"written: their markup is inserted as literal text and a warning goes to\n" +
+			"stderr. List nesting is flattened, so every bullet lands at the top level.\n" +
+			"Reads render tables and nested lists correctly — it is only the write\n" +
+			"direction that is a subset.\n" +
+			"\n" +
+			"`create` and `append` only add content. `replace-all` and `batch-update`\n" +
+			"overwrite, and neither can be undone through the API, so read the document\n" +
+			"first and keep the count `replace-all` reports.\n" +
+			"\n" +
+			"A 404, or a 403 with no scope hint, nearly always means the document is\n" +
+			"not shared with the connected account rather than that it does not exist —\n" +
+			"usually because the link came from a different Google account.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

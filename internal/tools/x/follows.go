@@ -20,7 +20,11 @@ func (s *Service) newFollowCreateCmd(token, userID string) *cobra.Command {
 		Use:         "create <user-id>",
 		Annotations: sideEffect(true),
 		Short:       "Follow a user",
-		Args:        cobra.ExactArgs(1),
+		Long: "Takes a numeric user id, not a handle — resolve one with `user get\n" +
+			"--username <handle>`. Following a protected account creates a PENDING\n" +
+			"request rather than a follow: read `pending_follow` in the response,\n" +
+			"because `following: true` on its own does not mean it was accepted.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConnectedUserAndTargetID(userID, args[0]); err != nil {
 				return err
@@ -42,7 +46,10 @@ func (s *Service) newFollowDeleteCmd(token, userID string) *cobra.Command {
 		Use:         "delete <user-id>",
 		Annotations: sideEffect(true),
 		Short:       "Unfollow a user",
-		Args:        cobra.ExactArgs(1),
+		Long: "Takes a numeric user id, not a handle — resolve one with `user get\n" +
+			"--username <handle>`. This is also how a still-pending follow request to a\n" +
+			"protected account is withdrawn.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConnectedUserAndTargetID(userID, args[0]); err != nil {
 				return err
@@ -57,9 +64,24 @@ func (s *Service) newFollowDeleteCmd(token, userID string) *cobra.Command {
 	}
 }
 
+// longUserFollowers and longUserFollowing are the two connection-list Longs.
+// They sit next to the shared builder because the builder is what decides the
+// limit range and the --user-id default that both describe.
+const (
+	longUserFollowers = "Defaults to the connected account; pass --user-id to read someone else's\n" +
+		"followers. --limit is 1-1000, default 10; continue with --next-token. There\n" +
+		"is no --since-id here, so \"who followed me since last time\" means re-reading\n" +
+		"from the first page and diffing against ids you already hold."
+
+	longUserFollowing = "Defaults to the connected account; pass --user-id to read who someone else\n" +
+		"follows. --limit is 1-1000, default 10; continue with --next-token. There is\n" +
+		"no relationship-lookup command, so \"does A follow B\" is answered by paging\n" +
+		"A's following list."
+)
+
 // newUserConnectionsCmd builds `user followers` / `user following`
 // (GET /2/users/:id/followers | following), defaulting to the connected user.
-func (s *Service) newUserConnectionsCmd(token, connectedUserID, use, short, endpoint string) *cobra.Command {
+func (s *Service) newUserConnectionsCmd(token, connectedUserID, use, short, long, endpoint string) *cobra.Command {
 	userID := connectedUserID
 	var nextToken string
 	var limit int
@@ -67,6 +89,7 @@ func (s *Service) newUserConnectionsCmd(token, connectedUserID, use, short, endp
 		Use:         use,
 		Annotations: sideEffect(false),
 		Short:       short + " (one page)",
+		Long:        long,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if userID == "" {

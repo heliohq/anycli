@@ -149,8 +149,35 @@ func (s *Service) stderr() io.Writer {
 // user).
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "zoho-crm",
-		Short:         "Zoho CRM built-in service (records, COQL, notes, metadata)",
+		Use:   "zoho-crm",
+		Short: "Zoho CRM built-in service (records, COQL, notes, metadata)",
+		Long: "Wraps Zoho CRM's REST v8 API for one organization and prints the\n" +
+			"provider JSON verbatim. Records live in modules — `Leads`, `Contacts`,\n" +
+			"`Accounts`, `Deals`, `Tasks`, `Events`, `Calls` and whatever the org has\n" +
+			"added — and `--module` passes the module's API name straight through, so\n" +
+			"custom modules work. `module list` enumerates them.\n" +
+			"\n" +
+			"Write bodies are keyed by field API NAMES, not the labels the CRM shows:\n" +
+			"`Last_Name`, not \"Last Name\"; `Deal_Name`; `Stage`. Guessing them is the\n" +
+			"most common cause of `INVALID_DATA`, so read `field list --module <M>`\n" +
+			"before the first write into an unfamiliar module.\n" +
+			"\n" +
+			"An empty read is a 204: nothing prints and the exit code is still 0.\n" +
+			"Silence means no matching records, not a failure.\n" +
+			"\n" +
+			"Zoho's search index lags behind writes, so a record created seconds ago\n" +
+			"can come back empty from `record search`. `query --coql` reads the live\n" +
+			"table, and is both the way to confirm a fresh write and the only path to\n" +
+			"a filtered or aggregated read.\n" +
+			"\n" +
+			"A bulk write can partly succeed: Zoho answers 207 and gives each element\n" +
+			"of the response's `data[]` its own `code` and `status`, which this tool\n" +
+			"passes through as success. Exit 0 does NOT mean every record landed —\n" +
+			"read the per-record codes.\n" +
+			"\n" +
+			"The connection is pinned to Zoho's US datacenter (`.com`). An account\n" +
+			"homed in another DC (`.eu`, `.in`, `.com.au`, `.jp`) fails at the token\n" +
+			"layer with an explicit error rather than being retried elsewhere.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -23,8 +23,11 @@ func (s *Service) broadcastCmd(token string) *cobra.Command {
 
 func (s *Service) broadcastListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List broadcasts (one page; use --after to continue)",
+		Use:   "list",
+		Short: "List broadcasts (one page; use --after to continue)",
+		Long: "Drafts, scheduled and already-sent newsletters all come back together, so\n" +
+			"the send state has to be read off each item rather than filtered for. One\n" +
+			"page per call; continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -43,8 +46,13 @@ func (s *Service) broadcastListCmd(token string) *cobra.Command {
 
 func (s *Service) broadcastGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Show one broadcast",
+		Use:   "get <id>",
+		Short: "Show one broadcast",
+		Long: "The whole broadcast including its HTML content, its scheduled send time\n" +
+			"and the subscriber filter deciding who receives it. Reading this before\n" +
+			"scheduling is the only way to confirm the audience, since `broadcast\n" +
+			"create` reports back what was sent rather than how many people it resolves\n" +
+			"to.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -62,8 +70,21 @@ func (s *Service) broadcastCreateCmd(token string) *cobra.Command {
 	var public bool
 	var tagID, segmentID int
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a broadcast (draft unless --send-at is set)",
+		Use:   "create",
+		Short: "Create a broadcast (draft unless --send-at is set)",
+		Long: "Omitting --send-at leaves a DRAFT that will never go out on its own;\n" +
+			"supplying a future ISO8601 --send-at schedules it, and from then on it\n" +
+			"sends without further confirmation. --subject and --content are both\n" +
+			"required and --content is HTML, not markdown. --description defaults to\n" +
+			"the subject.\n" +
+			"\n" +
+			"--tag-id and --segment-id restrict recipients, but they are combined as an\n" +
+			"ANY group: passing both sends to everyone in either the tag or the\n" +
+			"segment, which widens the audience rather than narrowing it to the\n" +
+			"overlap. Passing neither sends to the whole list.\n" +
+			"\n" +
+			"--public governs publication to the web newsletter feed only and has\n" +
+			"nothing to do with email delivery.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -94,8 +115,14 @@ func (s *Service) broadcastUpdateCmd(token string) *cobra.Command {
 	var subject, content, description, sendAt, publishedAt, previewText string
 	var public bool
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update a broadcast's fields",
+		Use:   "update <id>",
+		Short: "Update a broadcast's fields",
+		Long: "Only the flags passed are sent; at least one is required. Setting\n" +
+			"--send-at on a draft is what schedules it, and changing it again is the\n" +
+			"only way to reschedule — there is no separate send or cancel verb. A\n" +
+			"broadcast that has already gone out cannot be recalled by editing it. Note\n" +
+			"this command has no --tag-id or --segment-id: the recipient filter can\n" +
+			"only be set at creation.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -131,8 +158,12 @@ func (s *Service) broadcastUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) broadcastStatsCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "stats <id>",
-		Short:       "Show open/click stats for a broadcast",
+		Use:   "stats <id>",
+		Short: "Show open/click stats for a broadcast",
+		Long: "Opens, clicks and recipient counts for this one send, which is the level\n" +
+			"`account stats --email` cannot give — that reports the account-wide rate\n" +
+			"across everything. Only meaningful once a broadcast has actually been\n" +
+			"sent.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

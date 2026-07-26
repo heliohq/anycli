@@ -13,8 +13,11 @@ import (
 // newFormListCmd: GET /v1/api/forms — all forms in the account.
 func (s *Service) newFormListCmd(token, apiBase string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List all forms in the account",
+		Use:   "list",
+		Short: "List all forms in the account",
+		Long: "Returns every form in the account in a single response — there is no\n" +
+			"pagination, filter or search on this endpoint. It is also the only way to\n" +
+			"discover a form id, which every other command in this tool requires.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -30,8 +33,12 @@ func (s *Service) newFormListCmd(token, apiBase string) *cobra.Command {
 // newFormGetCmd: GET /v1/api/forms/{formId} — form metadata + question schema.
 func (s *Service) newFormGetCmd(token, apiBase string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <formId>",
-		Short:       "Get a form's metadata and question schema",
+		Use:   "get <formId>",
+		Short: "Get a form's metadata and question schema",
+		Long: "Returns the form's settings alongside its question schema: the id, label and\n" +
+			"type of every field. That schema is the decoder for `submission list` and\n" +
+			"`submission get`, whose answers reference question ids and nothing else, and\n" +
+			"it supplies the ids `submission create` has to send.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -56,7 +63,17 @@ func (s *Service) newSubmissionListCmd(token, apiBase string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list <formId>",
 		Short: "List a form's submissions (responses)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Paging is OFFSET-based, not cursored: `--offset` (default 0) with `--limit`,\n" +
+			"which Fillout defaults to 50 and caps at 150. That cap is enforced by the\n" +
+			"provider, not locally, so an out-of-range page size surfaces as an API\n" +
+			"error rather than a usage one.\n" +
+			"\n" +
+			"`--status` accepts only finished or in_progress and `--sort` only asc or\n" +
+			"desc; both are rejected locally at exit 2 before any request goes out.\n" +
+			"`--after-date` / `--before-date` take ISO date-times, `--search` matches text\n" +
+			"anywhere in a response, and `--include-preview` adds preview responses that\n" +
+			"are otherwise left out.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := map[string]string{}
 			flags := cmd.Flags()
@@ -120,7 +137,11 @@ func (s *Service) newSubmissionGetCmd(token, apiBase string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <formId> <submissionId>",
 		Short: "Get a single submission",
-		Args:  cobra.ExactArgs(2),
+		Long: "Both ids are positional and ordered form-first; there is no way to fetch a\n" +
+			"submission by id alone. `--include-edit-link` adds an `editLink`, a URL that\n" +
+			"lets whoever holds it reopen and change the response, so it is a capability\n" +
+			"rather than an identifier — do not paste it around.",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := map[string]string{}
 			if includeEditLink {
@@ -146,7 +167,17 @@ func (s *Service) newSubmissionCreateCmd(token, apiBase string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <formId>",
 		Short: "Create submission(s) on a form (body from --data or --file)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Supply the body through exactly one of `--data` (inline) or `--file`;\n" +
+			"both or neither is a usage error. It is forwarded VERBATIM — the only local\n" +
+			"check is that it parses as JSON, so a wrong shape comes back as a Fillout\n" +
+			"4xx. The top level is `{\"submissions\": [...]}` with at most 10 entries, each\n" +
+			"holding a `questions` array of id/value pairs whose ids come from\n" +
+			"`form get`.\n" +
+			"\n" +
+			"Fillout treats API-created submissions as silent: no email notification,\n" +
+			"workflow or integration fires for them, so anything downstream of a normal\n" +
+			"response will not happen here.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			raw, err := readBody(data, file)
 			if err != nil {
@@ -168,8 +199,11 @@ func (s *Service) newSubmissionCreateCmd(token, apiBase string) *cobra.Command {
 // newSubmissionDeleteCmd: DELETE /v1/api/forms/{formId}/submissions/{submissionId}.
 func (s *Service) newSubmissionDeleteCmd(token, apiBase string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <formId> <submissionId>",
-		Short:       "Delete a submission",
+		Use:   "delete <formId> <submissionId>",
+		Short: "Delete a submission",
+		Long: "Takes the form id then the submission id, both positional. Removes one\n" +
+			"response per call — there is no bulk or filtered form — and nothing in this\n" +
+			"tool restores it afterwards.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -188,7 +222,12 @@ func (s *Service) newWebhookCreateCmd(token, apiBase string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Register a webhook on a form for new submissions",
-		Args:  cobra.NoArgs,
+		Long: "`--form-id` and `--url` are both required flags; the form id is NOT\n" +
+			"positional here as it is on the `submission` verbs. The response carries the\n" +
+			"new webhook's id, and that response is the ONLY place it appears — there is\n" +
+			"no webhook list verb, so an id that is not recorded now cannot be recovered\n" +
+			"later and `webhook delete` becomes unreachable.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			raw, err := json.Marshal(map[string]string{"formId": formID, "url": url})
 			if err != nil {
@@ -215,7 +254,11 @@ func (s *Service) newWebhookDeleteCmd(token, apiBase string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Remove a webhook",
-		Args:  cobra.NoArgs,
+		Long: "`--webhook-id` is the id returned by `webhook create`. Nothing here can\n" +
+			"enumerate existing webhooks, so an unrecorded id has to be found in\n" +
+			"Fillout's own UI. Deleting stops future deliveries only; submissions already\n" +
+			"delivered are untouched.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			raw, err := json.Marshal(map[string]string{"webhookId": webhookID})
 			if err != nil {

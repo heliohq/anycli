@@ -20,8 +20,15 @@ func (s *Service) newClipListCmd(rc *reqCtx) *cobra.Command {
 		page          paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List clips by broadcaster, game, or clip id",
+		Use:   "list",
+		Short: "List clips by broadcaster, game, or clip id",
+		Long: "Exactly one of --broadcaster-id, --game-id or --id is required — zero or\n" +
+			"several is rejected locally, before any request, because Helix will not\n" +
+			"accept it. All three are numeric ids, so a channel named by login has to\n" +
+			"go through `user get --login` first. --started-at and --ended-at are\n" +
+			"RFC3339 and narrow the window, which matters because a busy channel's\n" +
+			"clips otherwise run to many pages. --first is capped at 100; continue with\n" +
+			"--after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -77,8 +84,18 @@ func (s *Service) newClipCreateCmd(rc *reqCtx) *cobra.Command {
 		hasDelay      bool
 	)
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a clip from a live stream (self by default)",
+		Use:   "create",
+		Short: "Create a clip from a live stream (self by default)",
+		Long: "Only works while the channel is actually LIVE — clipping an offline\n" +
+			"broadcaster fails rather than returning an empty clip. Twitch captures\n" +
+			"roughly the last 30 seconds of the stream; the exact window is not\n" +
+			"controllable from here, and --has-delay tells Twitch to account for the\n" +
+			"broadcaster's configured stream delay.\n" +
+			"\n" +
+			"The response carries the clip id and an edit URL, but the clip is not\n" +
+			"playable the instant this returns — Twitch takes a few seconds to process\n" +
+			"it, so an immediate fetch by id can come back empty. Requires the\n" +
+			"clips:edit scope.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -115,8 +132,14 @@ func (s *Service) newVideoListCmd(rc *reqCtx) *cobra.Command {
 		page      paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List videos (VODs) by id, user, or game",
+		Use:   "list",
+		Short: "List videos (VODs) by id, user, or game",
+		Long: "Exactly one of --id, --user-id or --game-id is required and the check\n" +
+			"happens locally, before the request. --type separates the kinds: `archive`\n" +
+			"is the automatic recording of a past broadcast, which is what \"the VOD of\n" +
+			"last night's stream\" means, while `highlight` and `upload` are\n" +
+			"editor-made. --sort is time, trending or views. --first is capped at 100;\n" +
+			"continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

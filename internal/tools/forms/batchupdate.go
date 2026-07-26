@@ -19,7 +19,21 @@ func (s *Service) newBatchUpdateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "batch-update <form-id> (--requests <json> | --requests-file <path>)",
 		Short: "Apply a batchUpdate Request[] to a form (create/update/delete/move items, form info, settings)",
-		Args:  cobra.ExactArgs(1),
+		Long: "This is the entire editing surface: `createItem`, `updateItem`,\n" +
+			"`deleteItem`, `moveItem`, `updateFormInfo` and `updateSettings` are the\n" +
+			"Forms API's own Request union, passed through verbatim instead of being\n" +
+			"re-expressed as flags. `--requests` takes either a bare `[…]` array or a\n" +
+			"full `{\"requests\": […]}` body; `--requests-file` reads the same JSON from a\n" +
+			"path and is the workable form past a couple of items. They are mutually\n" +
+			"exclusive.\n" +
+			"\n" +
+			"Requests apply IN ORDER, so a `location.index` refers to the form as\n" +
+			"earlier requests in the same call have already left it. On a form that\n" +
+			"already has responses this changes nothing about stored answers, but it\n" +
+			"does change what later respondents see — read `get` first, especially\n" +
+			"before a `deleteItem`. File-upload questions can be read through the API\n" +
+			"but not created by it.",
+		Args: cobra.ExactArgs(1),
 		// POST /forms/{id}:batchUpdate — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

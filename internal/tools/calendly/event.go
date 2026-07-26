@@ -14,8 +14,16 @@ func (s *Service) newEventListCmd(token string) *cobra.Command {
 	var count int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List booked meetings (GET /scheduled_events)",
+		Use:   "list",
+		Short: "List booked meetings (GET /scheduled_events)",
+		Long: "Scoped to one user by default, or to every member of the organization with\n" +
+			"`--org`, which makes `--user` irrelevant. Without `--status` the result\n" +
+			"mixes ACTIVE and CANCELED meetings, so a count of \"meetings this week\"\n" +
+			"needs `--status active`. `--from`/`--to` bound the meeting start time,\n" +
+			"`--invitee-email` finds meetings with one person without knowing the event,\n" +
+			"and `--sort` takes provider keys such as `start_time:asc`. Each entry\n" +
+			"carries the `uri` that `event get`, `event invitees` and `event cancel`\n" +
+			"take.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -73,8 +81,12 @@ func (s *Service) newEventListCmd(token string) *cobra.Command {
 
 func (s *Service) newEventGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <event-id|uri>",
-		Short:       "Inspect one booked meeting (GET /scheduled_events/{uuid})",
+		Use:   "get <event-id|uri>",
+		Short: "Inspect one booked meeting (GET /scheduled_events/{uuid})",
+		Long: "Returns the meeting itself: name, start and end times, location or join\n" +
+			"URL, status, and the host memberships. It does NOT carry who booked, their\n" +
+			"answers or their cancel and reschedule links — that is `event invitees`, a\n" +
+			"separate call against the same id.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -92,8 +104,16 @@ func (s *Service) newEventInviteesCmd(token string) *cobra.Command {
 	var count int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:         "invitees <event-id|uri>",
-		Short:       "Who booked, Q&A answers, cancel/reschedule URLs (GET /scheduled_events/{uuid}/invitees)",
+		Use:   "invitees <event-id|uri>",
+		Short: "Who booked, Q&A answers, cancel/reschedule URLs (GET /scheduled_events/{uuid}/invitees)",
+		Long: "The invitee side of a meeting: names, emails, timezones, answers to the\n" +
+			"event type's custom questions, and the per-invitee `cancel_url` and\n" +
+			"`reschedule_url`. Since the API has no reschedule endpoint, that\n" +
+			"`reschedule_url` IS the reschedule path — send it to the invitee. It is\n" +
+			"also the only source of the full invitee URI that `invitee no-show`\n" +
+			"requires. `--status active|canceled` and `--email` filter; group event\n" +
+			"types can have many invitees, so it paginates with `--count` and\n" +
+			"`--page-token`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -125,8 +145,14 @@ func (s *Service) newEventInviteesCmd(token string) *cobra.Command {
 func (s *Service) newEventCancelCmd(token string) *cobra.Command {
 	var reason string
 	cmd := &cobra.Command{
-		Use:         "cancel <event-id|uri>",
-		Short:       "Cancel a booked meeting with a reason (POST /scheduled_events/{uuid}/cancellation)",
+		Use:   "cancel <event-id|uri>",
+		Short: "Cancel a booked meeting with a reason (POST /scheduled_events/{uuid}/cancellation)",
+		Long: "Calendly emails every invitee when the meeting is cancelled and `--reason`\n" +
+			"is the text they see, so omitting it sends a cancellation with no\n" +
+			"explanation. It cancels for ALL invitees of a group event, not one of\n" +
+			"them. There is no un-cancel: putting the meeting back means a fresh booking\n" +
+			"link or `book create`. When the invitee rather than the host should be the\n" +
+			"one cancelling, send them the `cancel_url` from `event invitees` instead.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -40,8 +40,13 @@ type savedFile struct {
 func (s *Service) newFilesDownloadCmd(token string) *cobra.Command {
 	var saveDir string
 	cmd := &cobra.Command{
-		Use:         "download <file-id>",
-		Short:       "Download a binary file's content (files.get alt=media). For Workspace docs use `export`.",
+		Use:   "download <file-id>",
+		Short: "Download a binary file's content (files.get alt=media). For Workspace docs use `export`.",
+		Long: "For blob files only — a PDF, an image, a zip. A Google Docs, Sheets or\n" +
+			"Slides file has no bytes to fetch and fails here; `files export` is its\n" +
+			"path. --save takes a DIRECTORY, defaulting to the current one, and the\n" +
+			"file keeps its Drive name. A 404 means the file lies outside this tool's\n" +
+			"drive.file domain.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -70,8 +75,14 @@ func (s *Service) newFilesDownloadCmd(token string) *cobra.Command {
 func (s *Service) newFilesExportCmd(token string) *cobra.Command {
 	var format, saveDir string
 	cmd := &cobra.Command{
-		Use:         "export <file-id> --format pdf|docx|xlsx|pptx|csv|txt",
-		Short:       "Export a Google Workspace doc (Docs/Sheets/Slides) to a downloadable format. API caps exports at 10MB.",
+		Use:   "export <file-id> --format pdf|docx|xlsx|pptx|csv|txt",
+		Short: "Export a Google Workspace doc (Docs/Sheets/Slides) to a downloadable format. API caps exports at 10MB.",
+		Long: "Renders a Google Workspace document into a real file. --format is pdf,\n" +
+			"docx, xlsx, pptx, csv or txt, and the sensible target follows the source:\n" +
+			"csv only means anything for a spreadsheet, and it exports one sheet, not\n" +
+			"the workbook. Drive caps exports at 10 MB and a larger document simply\n" +
+			"fails — there is no chunked export to fall back on, so a big deck has to be\n" +
+			"split in Google first. --save takes a directory.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

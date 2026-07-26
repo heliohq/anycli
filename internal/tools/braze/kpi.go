@@ -12,22 +12,46 @@ import (
 func (s *Service) newKPICmd(c *client) *cobra.Command {
 	group := newGroupCmd("kpi", "Workspace KPI time-series (DAU, MAU, new users, uninstalls)")
 	group.AddCommand(
-		s.newKPIMetricCmd(c, "dau", "dau", "Daily active users by date"),
-		s.newKPIMetricCmd(c, "mau", "mau", "Monthly active users (rolling 30 days) by date"),
-		s.newKPIMetricCmd(c, "new-users", "new_users", "Daily new users by date"),
-		s.newKPIMetricCmd(c, "uninstalls", "uninstalls", "Daily app uninstalls by date"),
+		s.newKPIMetricCmd(c, "dau", "dau", "Daily active users by date", longKPIDAU),
+		s.newKPIMetricCmd(c, "mau", "mau", "Monthly active users (rolling 30 days) by date", longKPIMAU),
+		s.newKPIMetricCmd(c, "new-users", "new_users", "Daily new users by date", longKPINewUsers),
+		s.newKPIMetricCmd(c, "uninstalls", "uninstalls", "Daily app uninstalls by date", longKPIUninstalls),
 	)
 	return group
 }
 
 // newKPIMetricCmd builds one KPI subcommand mapping `use` to
 // GET /kpi/{metric}/data_series with the shared --length / --ending-at window.
-func (s *Service) newKPIMetricCmd(c *client, use, metric, short string) *cobra.Command {
+// The four KPI Longs. They live next to the shared builder because the builder
+// is what fixes their identical --length/--ending-at window, while what each
+// number actually counts — and the overlap trap on MAU — is what differs.
+const (
+	longKPIDAU = "One unique-user count per DAY over the window, workspace-wide with no\n" +
+		"segment or app filter on this endpoint. --length is days back from\n" +
+		"--ending-at (default now) and caps at 100. A day here is Braze's own\n" +
+		"boundary, not the caller's timezone."
+
+	longKPIMAU = "Each point is a ROLLING 30-day unique count ending on that date, so\n" +
+		"consecutive points overlap by 29 days and summing them is meaningless.\n" +
+		"--length is how many such points to return, up to 100, ending at\n" +
+		"--ending-at (default now)."
+
+	longKPINewUsers = "First-seen users per day — a subset of what `kpi dau` counts on the same\n" +
+		"date, not an independent figure. --length is days back from --ending-at\n" +
+		"(default now) and caps at 100."
+
+	longKPIUninstalls = "App uninstalls per day, which only the mobile SDKs report — a\n" +
+		"web-or-email-only workspace reads zero here rather than erroring.\n" +
+		"--length is days back from --ending-at (default now) and caps at 100."
+)
+
+func (s *Service) newKPIMetricCmd(c *client, use, metric, short, long string) *cobra.Command {
 	var endingAt string
 	var length int
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}

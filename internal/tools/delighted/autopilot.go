@@ -45,8 +45,13 @@ func validatePlatform(platform string) error {
 func (s *Service) newAutopilotMembershipListCmd(key string) *cobra.Command {
 	var platform, personEmail string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List autopilot memberships (GET /autopilot/{platform}/memberships.json)",
+		Use:   "list",
+		Short: "List autopilot memberships (GET /autopilot/{platform}/memberships.json)",
+		Long: "Autopilot keeps two entirely separate rosters, so `--platform email` and\n" +
+			"`--platform sms` return different people and neither implies the other;\n" +
+			"the flag is required and rejected unless it is exactly email or sms.\n" +
+			"`--person-email` narrows to one person, which is the cheap way to answer\n" +
+			"\"is this customer enrolled\" without paging the roster.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -71,8 +76,14 @@ func (s *Service) newAutopilotMembershipListCmd(key string) *cobra.Command {
 func (s *Service) newAutopilotMembershipAddCmd(key string) *cobra.Command {
 	var platform, personEmail, name, properties string
 	cmd := &cobra.Command{
-		Use:         "add",
-		Short:       "Add a person to autopilot (POST /autopilot/{platform}/memberships.json)",
+		Use:   "add",
+		Short: "Add a person to autopilot (POST /autopilot/{platform}/memberships.json)",
+		Long: "Enrolls the person in a RECURRING survey schedule on the given\n" +
+			"`--platform`, so unlike `people send` this keeps mailing them on the\n" +
+			"project's cadence until they are removed. Enrollment is per platform:\n" +
+			"adding to email leaves sms untouched. `--properties-json` sets the custom\n" +
+			"attributes the schedule and reports segment on. Someone on the\n" +
+			"unsubscribe list stays suppressed regardless.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -110,8 +121,13 @@ func (s *Service) newAutopilotMembershipAddCmd(key string) *cobra.Command {
 func (s *Service) newAutopilotMembershipRemoveCmd(key string) *cobra.Command {
 	var platform, personEmail string
 	cmd := &cobra.Command{
-		Use:         "remove",
-		Short:       "Remove a person from autopilot (DELETE /autopilot/{platform}/memberships.json)",
+		Use:   "remove",
+		Short: "Remove a person from autopilot (DELETE /autopilot/{platform}/memberships.json)",
+		Long: "Ends the recurring enrollment for `--person-email` on one `--platform`\n" +
+			"only — someone enrolled in both email and sms needs two calls. The person,\n" +
+			"their properties and their past responses all survive; this stops future\n" +
+			"scheduled sends, it does not unsubscribe them (`unsubscribes add`) or\n" +
+			"cancel a survey already queued (`people cancel-pending`).",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -141,8 +157,13 @@ func (s *Service) newAutopilotConfigCmd(key string) *cobra.Command {
 		Short: "Autopilot configuration",
 	}
 	get := &cobra.Command{
-		Use:         "get",
-		Short:       "Read autopilot configuration (GET /autopilot/{platform}.json)",
+		Use:   "get",
+		Short: "Read autopilot configuration (GET /autopilot/{platform}.json)",
+		Long: "Reads one platform's schedule settings — whether Autopilot is running and\n" +
+			"how often it re-surveys the same person. That interval explains why an\n" +
+			"`autopilot memberships add` produces no immediate survey. Read-only:\n" +
+			"the configuration itself is changed in the Delighted UI, and `--platform`\n" +
+			"(email or sms) is required.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

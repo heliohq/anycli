@@ -129,8 +129,34 @@ func (s *Service) uploadCutover() int64 {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "drive",
-		Short:         "Google Drive built-in service",
+		Use:   "drive",
+		Short: "Google Drive built-in service",
+		Long: "Runs on Google's `drive.file` scope, which is the single most important\n" +
+			"fact here: it sees only files it created itself or that the user\n" +
+			"explicitly granted it — never the user's whole Drive. This is a delivery\n" +
+			"surface, not a search-my-Drive assistant.\n" +
+			"\n" +
+			"A 404 from `files get`, `files download` or `files export` on a file this\n" +
+			"tool never touched is that scope working as designed, not a transient\n" +
+			"failure. Rewording a `files list --query` will not surface it; the file\n" +
+			"has to be shared with the connected account first.\n" +
+			"\n" +
+			"--query is Drive's own q syntax, passed through verbatim:\n" +
+			"`name contains 'report'`, `mimeType='application/pdf'`,\n" +
+			"`'<folderId>' in parents`, `modifiedTime > '2026-01-01T00:00:00'`.\n" +
+			"Trashed items are filtered out automatically unless the query itself\n" +
+			"mentions `trashed`.\n" +
+			"\n" +
+			"Deletion is `files trash` and it is recoverable. Nothing in this tool\n" +
+			"deletes permanently.\n" +
+			"\n" +
+			"`webViewLink`, returned by `files upload` and `files get`, is the URL to\n" +
+			"hand a person — but a link grants nothing on its own. Access comes from\n" +
+			"`files share`, and that is the one place data leaves the connected\n" +
+			"account's private domain.\n" +
+			"\n" +
+			"Output is a human-readable summary; --json emits the provider JSON\n" +
+			"instead.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -15,8 +15,22 @@ func (s *Service) newInviteSendCmd(token string) *cobra.Command {
 	var to, email, subject, message, from string
 	var noEmail bool
 	cmd := &cobra.Command{
-		Use:         "send <document-id>",
-		Short:       "Send a document for signature (role-based field invite or free-form invite)",
+		Use:   "send <document-id>",
+		Short: "Send a document for signature (role-based field invite or free-form invite)",
+		Long: "Emails real people and starts a legally binding signature flow the moment\n" +
+			"it returns. Exactly one of --to or --email is required — both together, or\n" +
+			"neither, is refused.\n" +
+			"\n" +
+			"--to is the role-based field invite: a JSON array of {email, role, order}\n" +
+			"objects whose role names must match the roles already on the document,\n" +
+			"which `document get` lists, and whose order drives sequential signing.\n" +
+			"--email is the free-form invite and works ONLY on a document with no\n" +
+			"fields; SignNow rejects it on a fielded document.\n" +
+			"\n" +
+			"The sender address is resolved from the authenticated account when --from\n" +
+			"is omitted, which costs one extra request. --no-email suppresses SignNow's\n" +
+			"outbound signer mail for an embedded-style flow, in which case the signer\n" +
+			"needs a link delivered some other way.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -88,8 +102,13 @@ func (s *Service) resolveSender(ctx context.Context, token, explicit string) (st
 
 func (s *Service) newInviteResendCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "resend <field-invite-id>",
-		Short:       "Resend / remind a pending field invite",
+		Use:   "resend <field-invite-id>",
+		Short: "Resend / remind a pending field invite",
+		Long: "Takes the FIELD INVITE id, not the document id — the two are different,\n" +
+			"and the invite id exists only inside `document get`'s `field_invites`. It\n" +
+			"re-sends the signer email for one pending invite, so it is the per-signer\n" +
+			"nudge; an invite that is already signed has nothing to remind. Each call\n" +
+			"sends another email, so repeat it sparingly.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -105,8 +124,13 @@ func (s *Service) newInviteResendCmd(token string) *cobra.Command {
 
 func (s *Service) newInviteCancelCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "cancel <document-id>",
-		Short:       "Cancel a document's field invite (recall a sent document)",
+		Use:   "cancel <document-id>",
+		Short: "Cancel a document's field invite (recall a sent document)",
+		Long: "Takes the DOCUMENT id, not the invite id — the mirror image of `invite\n" +
+			"resend`, and passing the wrong one fails rather than acting on something\n" +
+			"unexpected. It withdraws the document's outstanding field invite as a\n" +
+			"whole; there is no per-signer cancel. Signatures already collected are\n" +
+			"part of the record and are not undone by this.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

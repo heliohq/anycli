@@ -185,8 +185,30 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the resource-grouped cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "hootsuite",
-		Short:         "Hootsuite built-in service (schedule and manage social posts)",
+		Use:   "hootsuite",
+		Short: "Hootsuite built-in service (schedule and manage social posts)",
+		Long: "Calls Hootsuite's REST API v1 as the connected member. Hootsuite is a\n" +
+			"scheduling layer in front of other networks, not a network itself: nothing\n" +
+			"here reads a timeline, follows anyone or replies to a comment.\n" +
+			"\n" +
+			"Posting is never addressed to a network. It is addressed to a social profile\n" +
+			"— one specific connected account, such as a particular X handle or a\n" +
+			"particular LinkedIn page — identified by a NUMERIC id. So `profile list` is\n" +
+			"the first call in almost every task, and its `id` values are what\n" +
+			"`message schedule --profile` takes.\n" +
+			"\n" +
+			"Every timestamp in this tool, on writes and on filters alike, must be UTC\n" +
+			"ISO-8601 ending in `Z`. An offset form like `+02:00` is rejected locally\n" +
+			"before the request goes out, so convert first.\n" +
+			"\n" +
+			"In an organization that gates posts, a scheduled message lands in\n" +
+			"`PENDING_APPROVAL` rather than `SCHEDULED` and does not send until\n" +
+			"`message approve` releases it. Read `state` after scheduling rather than\n" +
+			"assuming the post is queued.\n" +
+			"\n" +
+			"Hootsuite wraps every response in a `{\"data\": ...}` envelope; this tool\n" +
+			"unwraps it and prints the inner object or array, so read the payload directly\n" +
+			"and do not look for a `data` key.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

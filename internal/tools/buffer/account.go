@@ -32,8 +32,12 @@ type account struct {
 
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get",
-		Short:       "Get the authenticated account (id, email, organizations)",
+		Use:   "get",
+		Short: "Get the authenticated account (id, email, organizations)",
+		Long: "The only source of an organization id, which `channel list`, `post list`\n" +
+			"and `idea create` all require, so this is usually the first call of a\n" +
+			"session. `org list` runs the same underlying query and projects out just\n" +
+			"the organizations — neither is cheaper than the other.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -48,8 +52,13 @@ func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 
 func (s *Service) newOrgListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List organizations (workspaces) on the account",
+		Use:   "list",
+		Short: "List organizations (workspaces) on the account",
+		Long: "An organization is a Buffer workspace, and it owns its own channels, posts\n" +
+			"and ideas — nothing is shared across them, so an id from one workspace is\n" +
+			"invalid in another. This runs the same account query as `account get` and\n" +
+			"returns only the `organizations` array; a personal-plan account usually has\n" +
+			"exactly one.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

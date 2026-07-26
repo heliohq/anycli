@@ -26,8 +26,15 @@ func (s *Service) newValuesGetCmd(token string) *cobra.Command {
 	var ranges []string
 	var render string
 	cmd := &cobra.Command{
-		Use:         "get <id> --range R [--range R]...",
-		Short:       "Read values from one or more A1 ranges (batchGet for multiple --range)",
+		Use:   "get <id> --range R [--range R]...",
+		Short: "Read values from one or more A1 ranges (batchGet for multiple --range)",
+		Long: "Repeating --range switches to a single batchGet, so three ranges cost one\n" +
+			"request rather than three. The response TRIMS trailing empty rows and\n" +
+			"columns, which means the returned array length is the real extent of the\n" +
+			"data and asking for a range far larger than the table is harmless.\n" +
+			"--render formula returns formula text instead of computed values and\n" +
+			"--render unformatted the underlying number behind a display string; the\n" +
+			"default returns what the cell shows.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -101,8 +108,15 @@ func (s *Service) newValuesUpdateCmd(token string) *cobra.Command {
 	var rng, valuesJSON, csvFile string
 	var raw bool
 	cmd := &cobra.Command{
-		Use:         "update <id> --range R (--values-json <json> | --csv-file <path>)",
-		Short:       "Overwrite an A1 range with new values (values.update)",
+		Use:   "update <id> --range R (--values-json <json> | --csv-file <path>)",
+		Short: "Overwrite an A1 range with new values (values.update)",
+		Long: "Writes the given grid starting at the range's top-left cell, overwriting\n" +
+			"whatever is there with no undo. Only cells the values actually cover are\n" +
+			"touched, so a grid smaller than the range leaves the remainder alone —\n" +
+			"stale trailing rows survive unless `values clear` removes them.\n" +
+			"--values-json is a row-major 2D array such as `[[\"a\",1],[\"b\",2]]`, or\n" +
+			"--csv-file loads the same grid from a CSV. For rows added to a growing\n" +
+			"table use `values append`, which cannot step on existing data.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -147,8 +161,14 @@ func (s *Service) newValuesAppendCmd(token string) *cobra.Command {
 	var rng, valuesJSON, csvFile string
 	var raw bool
 	cmd := &cobra.Command{
-		Use:         "append <id> --range R (--values-json <json> | --csv-file <path>)",
-		Short:       "Append rows after the table the range points at (values.append)",
+		Use:   "append <id> --range R (--values-json <json> | --csv-file <path>)",
+		Short: "Append rows after the table the range points at (values.append)",
+		Long: "The range is a TABLE LOCATOR, not a write target. Sheets finds the table\n" +
+			"that range touches and writes after its last row, so `--range Log!A1`\n" +
+			"appends to the bottom of the Log table instead of overwriting A1. That\n" +
+			"makes this the safe verb for logs and incremental records. The response\n" +
+			"reports the range actually written, which is the only way to learn where\n" +
+			"the rows landed. --raw applies here exactly as it does on update.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -194,8 +214,14 @@ func (s *Service) newValuesAppendCmd(token string) *cobra.Command {
 func (s *Service) newValuesClearCmd(token string) *cobra.Command {
 	var ranges []string
 	cmd := &cobra.Command{
-		Use:         "clear <id> --range R [--range R]...",
-		Short:       "Clear values from one or more A1 ranges, keeping formatting (values.clear / batchClear)",
+		Use:   "clear <id> --range R [--range R]...",
+		Short: "Clear values from one or more A1 ranges, keeping formatting (values.clear / batchClear)",
+		Long: "Clearing is not deleting. The cells keep their formatting, conditional\n" +
+			"formatting and data validation, and the grid keeps its size, so this\n" +
+			"leaves a hole in the middle of a table where a deleteDimension request\n" +
+			"through `spreadsheets batch-update` would close it. Repeating --range\n" +
+			"issues one batchClear rather than a call per range. There is no undo —\n" +
+			"read the target with `values get` first if the scale is unknown.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

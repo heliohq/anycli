@@ -14,8 +14,14 @@ func (s *Service) newAccountListCmd(token string) *cobra.Command {
 	var limit int
 	var order, startAfter, endBefore string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List accounts (GET /accounts)",
+		Use:   "list",
+		Short: "List accounts (GET /accounts)",
+		Long: "The starting point: `data[].id` here is the bank-account id every\n" +
+			"account-scoped command demands. Each entry carries `availableBalance`\n" +
+			"and `currentBalance`, which diverge whenever something is pending —\n" +
+			"available is the spendable figure — plus status and the account and\n" +
+			"routing numbers, which makes this output sensitive. --limit is 1-1000\n" +
+			"and Mercury defaults to 1000, so one call usually returns everything.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -49,8 +55,12 @@ func (s *Service) newAccountListCmd(token string) *cobra.Command {
 // newAccountGetCmd fetches one account (GET /account/{id}).
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <account-id>",
-		Short:       "Get one account by id (GET /account/{id})",
+		Use:   "get <account-id>",
+		Short: "Get one account by id (GET /account/{id})",
+		Long: "Takes the account id positionally, exactly as `account list` prints it,\n" +
+			"and returns the same fields for that one account — a fresh balance\n" +
+			"without re-paging the list. The full account and routing numbers are in\n" +
+			"the response, so the output is sensitive.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, args []string) error {

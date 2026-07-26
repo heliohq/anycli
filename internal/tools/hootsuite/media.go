@@ -15,8 +15,14 @@ func (s *Service) newMediaCreateCmd(token string) *cobra.Command {
 		mimeType  string
 	)
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Request a media upload URL (POST /v1/media)",
+		Use:   "create",
+		Short: "Request a media upload URL (POST /v1/media)",
+		Long: "Reserves an upload slot and returns `id`, `uploadUrl` and `expiresAt` — it\n" +
+			"transfers no bytes. The file itself must be PUT to `uploadUrl` separately;\n" +
+			"this tool has no command that does that. `--size-bytes` must be the file's\n" +
+			"real byte count and `--mime-type` its real type, because Hootsuite validates\n" +
+			"the eventual upload against both. `uploadUrl` expires, so upload promptly\n" +
+			"rather than reserving ids ahead of time.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -42,8 +48,13 @@ func (s *Service) newMediaCreateCmd(token string) *cobra.Command {
 // newMediaGetCmd polls a media upload's processing status (READY before use).
 func (s *Service) newMediaGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get media upload status (GET /v1/media/{id})",
+		Use:   "get <id>",
+		Short: "Get media upload status (GET /v1/media/{id})",
+		Long: "Poll this after the bytes have been PUT to the upload URL. The `state` field\n" +
+			"settles on `READY`, and `message schedule --media-id` accepts a media id only\n" +
+			"once it has — attaching one earlier fails the schedule. Video processing takes\n" +
+			"substantially longer than an image, which is part of why Hootsuite wants video\n" +
+			"posts scheduled well ahead of their send time.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -101,8 +101,32 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "microsoft-calendar",
-		Short:         "Microsoft (Outlook) Calendar built-in service",
+		Use:   "microsoft-calendar",
+		Short: "Microsoft (Outlook) Calendar built-in service",
+		Long: "Acts as the connected Microsoft account against Microsoft Graph with one\n" +
+			"delegated scope, Calendars.ReadWrite: read events, create/update/cancel\n" +
+			"them, and reply to invites from that mailbox.\n" +
+			"\n" +
+			"Only the connected account's OWN calendar is readable. Other attendees'\n" +
+			"availability (Graph findMeetingTimes / getSchedule) needs a broader scope\n" +
+			"that is not granted here, so `freebusy` answers \"when am I busy\" and never\n" +
+			"\"when is this group free\".\n" +
+			"\n" +
+			"Every `events` verb and `freebusy` run against the default calendar.\n" +
+			"`calendars list` shows the account's other calendars, but no command can\n" +
+			"target one.\n" +
+			"\n" +
+			"There is no delete verb: `events cancel` is the only removal path and it\n" +
+			"mails the attendees. Writes reach the provider immediately — creating with\n" +
+			"`--attendees` sends invitations, `events update` re-notifies them, and\n" +
+			"`events respond` mails the organizer unless `--no-notify` is set.\n" +
+			"\n" +
+			"Event ids are opaque Graph strings taken from `events list` or\n" +
+			"`events get`. Paging is a whole URL, not a number: a list prints the Graph\n" +
+			"`@odata.nextLink` and `--page` takes that entire URL back.\n" +
+			"\n" +
+			"`--json` returns the raw Graph payload on any command; the default output\n" +
+			"is a trimmed human summary.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

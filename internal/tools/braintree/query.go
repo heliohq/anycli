@@ -22,7 +22,17 @@ func (s *Service) newQueryCmd(cl *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "query <graphql>",
 		Short: "Run a raw READ-ONLY GraphQL query (mutations are rejected)",
-		Args:  cobra.ExactArgs(1),
+		Long: "The escape hatch for fields the named verbs do not select. The document is\n" +
+			"parsed locally first and REJECTED with exit 2 and no network call if any\n" +
+			"top-level operation is a mutation — including one hidden behind leading\n" +
+			"fragment definitions or comments, and including a read merely named\n" +
+			"\"mutation\". Money movement goes through `transaction refund|void|reverse`.\n" +
+			"\n" +
+			"`--var key=value` is repeatable and every value is sent as a STRING, so a\n" +
+			"document needing an Int, enum or input object must inline the literal\n" +
+			"instead. The response is the GraphQL `data` object printed verbatim, without\n" +
+			"the `items` / `page_info` reshaping the named search verbs apply.",
+		Args: cobra.ExactArgs(1),
 		// Read-only: mutations are rejected before any request, so no verb
 		// reachable through this command can move money.
 		Annotations: map[string]string{"anycli.side_effect": "false"},

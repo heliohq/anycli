@@ -84,8 +84,19 @@ func (s *Service) newQueryCmd(c creds) *cobra.Command {
 	var stream bool
 	var pageSize int
 	cmd := &cobra.Command{
-		Use:         "query",
-		Short:       "Run a raw GAQL query (POST googleAds:search / :searchStream)",
+		Use:   "query",
+		Short: "Run a raw GAQL query (POST googleAds:search / :searchStream)",
+		Long: "The full-power path: `--gaql` is sent as written, so custom windows\n" +
+			"(`WHERE segments.date BETWEEN '2026-01-01' AND '2026-01-31'`), resources\n" +
+			"`report` does not model, ORDER BY and LIMIT all live here.\n" +
+			"\n" +
+			"Two transports with different pagination. By default it uses the paged\n" +
+			"search endpoint: `--page-size` bounds a page and the response's\n" +
+			"`nextPageToken` goes back in through `--page-token`. With `--stream` it uses\n" +
+			"searchStream, which returns everything in one flattened `results` array with\n" +
+			"no token — `--page-size` and `--page-token` are ignored there. Streaming is\n" +
+			"the cheaper choice for a bulk pull, paging the safer one for an unbounded\n" +
+			"query.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -142,8 +153,20 @@ var defaultReportMetrics = []string{"metrics.impressions", "metrics.clicks", "me
 func (s *Service) newReportCmd(c creds) *cobra.Command {
 	var customerID, resource, dateRange, metricsCSV, segmentsCSV string
 	cmd := &cobra.Command{
-		Use:         "report",
-		Short:       "Build and run a GAQL performance report (POST googleAds:searchStream)",
+		Use:   "report",
+		Short: "Build and run a GAQL performance report (POST googleAds:searchStream)",
+		Long: "Composes the GAQL so the common performance question needs none written by\n" +
+			"hand. `--resource` is campaign, ad_group or keyword (keyword reads\n" +
+			"`keyword_view`) and fixes the dimension columns. `--date-range` is a GAQL\n" +
+			"DURING literal from a closed set — LAST_7_DAYS, LAST_30_DAYS, THIS_MONTH,\n" +
+			"ALL_TIME and the rest — defaulting to LAST_30_DAYS; a custom BETWEEN window\n" +
+			"is rejected here and belongs in `query`.\n" +
+			"\n" +
+			"`--metrics` and `--segments` are comma-separated dotted snake_case GAQL\n" +
+			"fields (`metrics.clicks`, `segments.date`), each validated before the query\n" +
+			"is built. Omitting `--metrics` selects impressions, clicks, `cost_micros`\n" +
+			"and conversions. Always runs over searchStream, so the whole result set\n" +
+			"comes back in one `results` array with no paging.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

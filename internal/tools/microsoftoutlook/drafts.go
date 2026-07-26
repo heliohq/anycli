@@ -13,8 +13,14 @@ import (
 func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 	var o composeOptions
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a draft (same parameters as messages send)",
+		Use:   "create",
+		Short: "Create a draft (same parameters as messages send)",
+		Long: "The composition surface: the draft lands in the mailbox owner's Drafts\n" +
+			"folder, where it can be edited in Outlook before anyone sends it. Takes the\n" +
+			"same flags as `messages send` — `--to` and `--subject` required, exactly one\n" +
+			"of `--body` / `--body-file`, plus `--html` and `--attach` under the same\n" +
+			"3 MB inline ceiling — and sends nothing. The response carries the draft id\n" +
+			"that `drafts update`, `drafts send` and `drafts delete` all take.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -42,8 +48,12 @@ func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 func (s *Service) newDraftsUpdateCmd(token string) *cobra.Command {
 	var o composeOptions
 	cmd := &cobra.Command{
-		Use:         "update <draft-id>",
-		Short:       "Replace a draft's content (same parameters as messages send)",
+		Use:   "update <draft-id>",
+		Short: "Replace a draft's content (same parameters as messages send)",
+		Long: "REPLACES the draft's content rather than patching it: `--to`, `--subject`\n" +
+			"and a body are all required again, so a field left off is rewritten from\n" +
+			"these flags rather than preserved. `--attach` re-supplies attachments. Only\n" +
+			"an unsent draft can be updated; a message already sent cannot be edited.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -71,8 +81,12 @@ func (s *Service) newDraftsListCmd(token string) *cobra.Command {
 	var page string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List drafts (GET /me/mailFolders/drafts/messages)",
+		Use:   "list",
+		Short: "List drafts (GET /me/mailFolders/drafts/messages)",
+		Long: "Reads the Drafts folder only, which is also where a `messages reply` or\n" +
+			"`forward` that failed part-way through sending is left. `--max` sets Graph\n" +
+			"`$top` and defaults to 10; paging is the same `@odata.nextLink` into\n" +
+			"`--page` as `messages list`. There is no search or filter flag here.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -119,8 +133,13 @@ func (s *Service) newDraftsListCmd(token string) *cobra.Command {
 func (s *Service) newDraftsGetCmd(token string) *cobra.Command {
 	var bodyKind string
 	cmd := &cobra.Command{
-		Use:         "get <draft-id>",
-		Short:       "Show a draft",
+		Use:   "get <draft-id>",
+		Short: "Show a draft",
+		Long: "Renders the draft the way `messages get` renders a message, with `--body`\n" +
+			"choosing text (default) or html. Worth running before `drafts send` to\n" +
+			"confirm the recipients and body actually stored, since `drafts update`\n" +
+			"overwrites rather than merges. No `--headers` flag — an unsent draft has no\n" +
+			"internet headers yet.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -145,8 +164,11 @@ func (s *Service) newDraftsGetCmd(token string) *cobra.Command {
 
 func (s *Service) newDraftsSendCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "send <draft-id>",
-		Short:       "Send an existing draft (POST /me/messages/{id}/send)",
+		Use:   "send <draft-id>",
+		Short: "Send an existing draft (POST /me/messages/{id}/send)",
+		Long: "Sends the draft exactly as stored — no flag amends it on the way out, so any\n" +
+			"change belongs in `drafts update` first. The draft leaves Drafts for Sent\n" +
+			"Items, cannot be recalled, and its id stops resolving as a draft afterwards.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -157,8 +179,12 @@ func (s *Service) newDraftsSendCmd(token string) *cobra.Command {
 
 func (s *Service) newDraftsDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <draft-id>",
-		Short:       "Delete a draft (DELETE /me/messages/{id})",
+		Use:   "delete <draft-id>",
+		Short: "Delete a draft (DELETE /me/messages/{id})",
+		Long: "The only delete verb here, and it is aimed at unsent drafts; Graph routes\n" +
+			"the delete to Deleted Items rather than erasing anything outright. For a\n" +
+			"received message use `messages move --folder deleteditems` — this tool\n" +
+			"exposes no hard delete for mail.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

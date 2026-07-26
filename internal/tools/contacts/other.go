@@ -14,8 +14,13 @@ func (s *Service) newOtherListCmd(token string) *cobra.Command {
 	var pageToken string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List Other Contacts (otherContacts.list)",
+		Use:   "list",
+		Short: "List Other Contacts (otherContacts.list)",
+		Long: "These addresses were collected by Gmail from mail the user sent or\n" +
+			"received, never deliberately saved, so a hit means the person has\n" +
+			"corresponded — not that they are in the address book. The API limits\n" +
+			"these records to names, emails and phones; organizations do not exist on\n" +
+			"them at all. --max is 1-1000, default 100; continue with --page-token.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -61,8 +66,12 @@ func (s *Service) newOtherSearchCmd(token string) *cobra.Command {
 	var query string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search Other Contacts by prefix phrase (otherContacts.search)",
+		Use:   "search",
+		Short: "Search Other Contacts by prefix phrase (otherContacts.search)",
+		Long: "Matches names, emails and phones ONLY — a query naming a company or role\n" +
+			"returns nothing here, unlike `search` over My Contacts. Because these\n" +
+			"records come from mail traffic, this is where a correspondent who was\n" +
+			"never saved as a contact turns up. --max is capped at 30 by the API.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -12,8 +12,12 @@ import (
 // user_id field. Output JSON.
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "me",
-		Short:       "Retrieve the authenticated Typeform account (GET /me)",
+		Use:   "me",
+		Short: "Retrieve the authenticated Typeform account (GET /me)",
+		Long: "Returns exactly `alias`, `email` and `language` for the connected account.\n" +
+			"There is no user id in this response and no command in the tool takes one,\n" +
+			"so ownership questions have to be answered from a form's own workspace\n" +
+			"rather than from an account identifier.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

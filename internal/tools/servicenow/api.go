@@ -18,8 +18,21 @@ func (s *Service) newAPICmd(c *client) *cobra.Command {
 	var body string
 	var queries, headers []string
 	cmd := &cobra.Command{
-		Use:         "api <method> <path>",
-		Short:       "Make a raw ServiceNow REST request",
+		Use:   "api <method> <path>",
+		Short: "Make a raw ServiceNow REST request",
+		Long: "The escape hatch for everything the Table API does not cover — Aggregate\n" +
+			"(/api/now/stats), Import Set, Attachment, and any scoped application\n" +
+			"endpoint. The path may be written in full as `/api/now/table/incident` or\n" +
+			"with the `/now/...` shorthand, which is expanded for you.\n" +
+			"\n" +
+			"Two things differ from the table verbs. The response is passed through\n" +
+			"untouched, so the `{result}` envelope is still wrapped around it here. And\n" +
+			"the auth header is injected and locked: a --header trying to set\n" +
+			"x-sn-apikey is rejected rather than silently ignored. --query is\n" +
+			"repeatable k=v and --body takes a JSON object.\n" +
+			"\n" +
+			"It is treated as a state-changing command whatever method is passed, so a\n" +
+			"GET through here is annotated the same as a POST.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

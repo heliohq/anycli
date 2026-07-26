@@ -15,8 +15,12 @@ func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 		query    string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List reusable templates",
+		Use:   "list",
+		Short: "List reusable templates",
+		Long: "Templates are documents pre-prepared in the Dropbox Sign web app with signer\n" +
+			"roles and form fields already placed. This tool sends with them but cannot\n" +
+			"create, edit or delete one. The ids returned here are what\n" +
+			"`signature-request send-with-template` takes via `--template`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -46,8 +50,14 @@ func (s *Service) newTemplateListCmd(token string) *cobra.Command {
 // newTemplateGetCmd fetches one template's roles and fields.
 func (s *Service) newTemplateGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <template_id>",
-		Short:       "Get one template (roles and fields)",
+		Use:   "get <template_id>",
+		Short: "Get one template (roles and fields)",
+		Long: "The `signer_roles[]` in the response are exactly the role names\n" +
+			"`signature-request send-with-template` demands in its \"Role:Name:email\"\n" +
+			"signers; any other role name fails the send. `custom_fields[]` and\n" +
+			"`named_form_fields[]` describe what the template will ask each signer to fill\n" +
+			"in, which is what makes a template send cheaper than uploading a document and\n" +
+			"placing fields by hand.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,8 +75,13 @@ func (s *Service) newTemplateGetCmd(token string) *cobra.Command {
 // account, so no query params are needed).
 func (s *Service) newAccountGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get",
-		Short:       "Get the authenticated account (identity and quota)",
+		Use:   "get",
+		Short: "Get the authenticated account (identity and quota)",
+		Long: "Also the identity call: the bearer credential alone selects the account, so\n" +
+			"this takes no arguments and answers \"whose Dropbox Sign am I connected to\".\n" +
+			"The response carries the remaining signature and template quota for the\n" +
+			"current billing period — worth reading before a batch of real sends, since\n" +
+			"exhausting it fails the send, while `--test-mode` requests never draw it down.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -32,7 +32,12 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 		Use:         "list",
 		Annotations: readOnly,
 		Short:       "List campaigns (GET /campaigns)",
-		Args:        cobra.NoArgs,
+		Long: "--search matches the campaign NAME as a substring. --status takes\n" +
+			"Instantly's numeric campaign status code, not a word like \"active\", and\n" +
+			"--tag-ids is comma-separated. Cursor-paged with --limit and\n" +
+			"--starting-after. The ids returned here are what every other campaign\n" +
+			"command takes.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.applyQuery(q)
@@ -55,7 +60,11 @@ func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 		Use:         "get",
 		Annotations: readOnly,
 		Short:       "Get a campaign (GET /campaigns/{id})",
-		Args:        cobra.NoArgs,
+		Long: "--id is required. Returns the campaign's full configuration — its sequence\n" +
+			"steps, schedule and attached sending accounts — which is what a `campaign\n" +
+			"update --data` patch has to be built from, since that update has no\n" +
+			"per-field flags.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/campaigns/"+url.PathEscape(id), nil)
 		},
@@ -71,7 +80,12 @@ func (s *Service) newCampaignCreateCmd(token string) *cobra.Command {
 		Use:         "create",
 		Annotations: writeAction,
 		Short:       "Create a campaign (POST /campaigns). --data is the raw JSON body",
-		Args:        cobra.NoArgs,
+		Long: "--data carries the raw campaign body, because a campaign's sequence steps\n" +
+			"and sending schedule are nested structures with no flag equivalent;\n" +
+			"--name is a convenience that overrides `name` inside it. Creating a\n" +
+			"campaign sends nothing on its own — outreach begins only when `campaign\n" +
+			"activate` runs — so building and reviewing one is safe.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -94,7 +108,11 @@ func (s *Service) newCampaignUpdateCmd(token string) *cobra.Command {
 		Use:         "update",
 		Annotations: writeAction,
 		Short:       "Update a campaign (PATCH /campaigns/{id}). --data is the raw JSON body",
-		Args:        cobra.NoArgs,
+		Long: "--id is required and --data is the raw patch body; there are no per-field\n" +
+			"flags, so read the current shape with `campaign get` and send back only\n" +
+			"the keys that change. Editing a campaign that is currently active changes\n" +
+			"what its remaining steps will send, with no separate confirmation.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := decodeDataFlag(data)
 			if err != nil {
@@ -109,21 +127,40 @@ func (s *Service) newCampaignUpdateCmd(token string) *cobra.Command {
 	return cmd
 }
 
+// longCampaignActivate and longCampaignPause are the two start/stop Longs. They
+// sit next to the shared builder because it is the builder that fixes the
+// bodyless POST on a single --id both describe, while what the action costs —
+// live outreach beginning, or mail already handed off staying gone — is
+// opposite in each direction.
+const (
+	longCampaignActivate = "Takes --id and starts LIVE outreach: the campaign begins sending its\n" +
+		"sequence to its leads, to real recipients, as soon as its schedule window\n" +
+		"allows. There is no dry run and nothing recalls what goes out. Follow with\n" +
+		"`campaign sending-status`, since a campaign with no leads or no attached\n" +
+		"sending account activates without sending anything."
+
+	longCampaignPause = "Takes --id and stops the campaign from sending further steps. Mail already\n" +
+		"handed to a provider is gone and pausing does not retract it. Leads keep\n" +
+		"their position in the sequence, so `campaign activate` resumes from there\n" +
+		"rather than restarting from step one."
+)
+
 func (s *Service) newCampaignActivateCmd(token string) *cobra.Command {
-	return s.campaignAction(token, "activate", "Activate a campaign (POST /campaigns/{id}/activate)", "/activate")
+	return s.campaignAction(token, "activate", "Activate a campaign (POST /campaigns/{id}/activate)", longCampaignActivate, "/activate")
 }
 
 func (s *Service) newCampaignPauseCmd(token string) *cobra.Command {
-	return s.campaignAction(token, "pause", "Pause a campaign (POST /campaigns/{id}/pause)", "/pause")
+	return s.campaignAction(token, "pause", "Pause a campaign (POST /campaigns/{id}/pause)", longCampaignPause, "/pause")
 }
 
 // campaignAction builds a no-body POST action on a single campaign id.
-func (s *Service) campaignAction(token, use, short, suffix string) *cobra.Command {
+func (s *Service) campaignAction(token, use, short, long, suffix string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
 		Use:         use,
 		Annotations: writeAction,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.send(cmd, token, http.MethodPost, "/campaigns/"+url.PathEscape(id)+suffix, nil)
@@ -140,7 +177,12 @@ func (s *Service) newCampaignSendingStatusCmd(token string) *cobra.Command {
 		Use:         "sending-status",
 		Annotations: readOnly,
 		Short:       "Get a campaign's sending status (GET /campaigns/{id}/sending-status)",
-		Args:        cobra.NoArgs,
+		Long: "--id is required. This answers whether the campaign is actually sending and\n" +
+			"what is stopping it if not — an activated campaign still sends nothing\n" +
+			"when it has no leads, no attached sending account, or is outside its\n" +
+			"schedule window. Check it after `campaign activate` rather than treating\n" +
+			"activation as proof of delivery.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/campaigns/"+url.PathEscape(id)+"/sending-status", nil)
 		},
@@ -156,7 +198,12 @@ func (s *Service) newCampaignAnalyticsCmd(token string) *cobra.Command {
 		Use:         "analytics",
 		Annotations: readOnly,
 		Short:       "Campaign analytics (GET /campaigns/analytics)",
-		Args:        cobra.NoArgs,
+		Long: "The headline per-campaign figures — sent, opened, replied, bounced — for a\n" +
+			"single --id or a comma-separated --ids in one call. Omitting both covers\n" +
+			"every campaign in the workspace. --start-date and --end-date are\n" +
+			"YYYY-MM-DD and bound the window; without them the campaign's whole\n" +
+			"lifetime is counted.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd, q, "id", "id", id)
@@ -178,7 +225,11 @@ func (s *Service) newCampaignAnalyticsOverviewCmd(token string) *cobra.Command {
 		Use:         "analytics-overview",
 		Annotations: readOnly,
 		Short:       "Aggregate campaign analytics (GET /campaigns/analytics/overview)",
-		Args:        cobra.NoArgs,
+		Long: "The roll-up ACROSS campaigns, where `campaign analytics` returns a row per\n" +
+			"campaign. --id or a comma-separated --ids narrows it; omitting both sums\n" +
+			"the whole workspace, which is the one-call answer to \"how is outbound\n" +
+			"doing\". --start-date and --end-date are YYYY-MM-DD.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd, q, "id", "id", id)
@@ -200,7 +251,11 @@ func (s *Service) newCampaignAnalyticsDailyCmd(token string) *cobra.Command {
 		Use:         "analytics-daily",
 		Annotations: readOnly,
 		Short:       "Daily campaign analytics (GET /campaigns/analytics/daily)",
-		Args:        cobra.NoArgs,
+		Long: "The same figures as `campaign analytics`, broken out per DAY — which is how\n" +
+			"a trend or a sudden bounce spike becomes visible. The flag here is\n" +
+			"--campaign-id, not --id, and it takes one campaign. --start-date and\n" +
+			"--end-date are YYYY-MM-DD.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd, q, "campaign-id", "campaign_id", campaignID)
@@ -220,7 +275,12 @@ func (s *Service) newCampaignAnalyticsStepsCmd(token string) *cobra.Command {
 		Use:         "analytics-steps",
 		Annotations: readOnly,
 		Short:       "Per-step campaign analytics (GET /campaigns/analytics/steps)",
-		Args:        cobra.NoArgs,
+		Long: "Figures per SEQUENCE STEP for one --campaign-id: which email in the\n" +
+			"sequence earned the replies and which one drove the unsubscribes. This is\n" +
+			"the breakdown `campaign analytics` aggregates away, and the read a\n" +
+			"sequence edit should be based on. --start-date and --end-date are\n" +
+			"YYYY-MM-DD.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			setIfChanged(cmd, q, "campaign-id", "campaign_id", campaignID)

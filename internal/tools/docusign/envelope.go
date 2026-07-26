@@ -34,8 +34,27 @@ func (s *Service) newEnvelopeSendCmd(c *apiClient) *cobra.Command {
 		draft       bool
 	)
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Create and send an envelope for signature (from a template or a document)",
+		Use:   "send",
+		Short: "Create and send an envelope for signature (from a template or a document)",
+		Long: "Exactly one of `--template-id` or `--document` is required, and both paths\n" +
+			"build a SINGLE-signer envelope: `--signer-email` and `--signer-name` are\n" +
+			"required, and there is no way to add a second signer, a Cc recipient or a\n" +
+			"routing order from here.\n" +
+			"\n" +
+			"A template send fills one role, named by `--role`, which defaults to\n" +
+			"`Signer` and has to match the template's own role name exactly — a\n" +
+			"mismatch leaves the role unfilled rather than erroring loudly. A document\n" +
+			"send uploads the local file and places one signature tab wherever the\n" +
+			"literal text of `--anchor` (default `/sn1/`) appears in it; a document\n" +
+			"that does not contain that string gets NO signature tab, and the signer\n" +
+			"receives a document with nothing to sign. `--subject` falls back to\n" +
+			"\"Please sign\" for document sends and to the template's own subject\n" +
+			"otherwise.\n" +
+			"\n" +
+			"Without `--draft` the envelope is sent and DocuSign emails the signer\n" +
+			"immediately; `--draft` creates it in `created` state instead, which mails\n" +
+			"no one but also cannot be sent from this tool afterwards. The response\n" +
+			"carries the `envelope_id` every tracking command needs.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -165,8 +184,15 @@ func (s *Service) newEnvelopeListCmd(c *apiClient) *cobra.Command {
 		count    int
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List recent envelopes by date and status",
+		Use:   "list",
+		Short: "List recent envelopes by date and status",
+		Long: "DocuSign requires a lower date bound, so `--from-date` (YYYY-MM-DD)\n" +
+			"defaults to 30 days ago and older envelopes are simply absent until it is\n" +
+			"widened. The bound is on when an envelope last CHANGED, not when it was\n" +
+			"sent, so a stale envelope that just got signed appears in a narrow window.\n" +
+			"`--status` takes one DocuSign status (`sent`, `delivered`, `completed`,\n" +
+			"`declined`, `voided`) and `--count` caps the rows. Only summaries come\n" +
+			"back — recipients are a separate call.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -211,8 +237,12 @@ func (s *Service) newEnvelopeListCmd(c *apiClient) *cobra.Command {
 
 func (s *Service) newEnvelopeGetCmd(c *apiClient) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <envelope-id>",
-		Short:       "Get one envelope's status",
+		Use:   "get <envelope-id>",
+		Short: "Get one envelope's status",
+		Long: "Reports the envelope-level state — `status`, `subject`, and the created,\n" +
+			"sent and completed timestamps — which says whether the whole thing is\n" +
+			"done but not who is holding it up. For that, and for per-signer\n" +
+			"timestamps, use `envelope recipients`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -238,8 +268,13 @@ func (s *Service) newEnvelopeGetCmd(c *apiClient) *cobra.Command {
 
 func (s *Service) newEnvelopeRecipientsCmd(c *apiClient) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "recipients <envelope-id>",
-		Short:       "List an envelope's recipients and per-recipient signing status",
+		Use:   "recipients <envelope-id>",
+		Short: "List an envelope's recipients and per-recipient signing status",
+		Long: "This is the \"who has not signed yet\" read: each recipient carries its own\n" +
+			"`status` and `signed_at`, plus the `routing_order` that decides who is\n" +
+			"even able to act — a recipient later in the order has not been emailed\n" +
+			"yet, so an empty status there is expected rather than a stall. Reminders\n" +
+			"cannot be sent from this tool.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -268,8 +303,13 @@ func (s *Service) newEnvelopeRecipientsCmd(c *apiClient) *cobra.Command {
 func (s *Service) newEnvelopeVoidCmd(c *apiClient) *cobra.Command {
 	var reason string
 	cmd := &cobra.Command{
-		Use:         "void <envelope-id>",
-		Short:       "Void an envelope that was sent in error",
+		Use:   "void <envelope-id>",
+		Short: "Void an envelope that was sent in error",
+		Long: "`--reason` is required and DocuSign shows it to the recipients, who are\n" +
+			"emailed that the envelope was voided — this is visible to the signer, not\n" +
+			"a quiet cleanup. Only an envelope still in flight can be voided; a\n" +
+			"`completed` one cannot, and DocuSign rejects the call. Voiding is final:\n" +
+			"there is no un-void, and starting over means a fresh `envelope send`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -302,8 +342,14 @@ func (s *Service) newEnvelopeVoidCmd(c *apiClient) *cobra.Command {
 func (s *Service) newEnvelopeDownloadCmd(c *apiClient) *cobra.Command {
 	var outPath string
 	cmd := &cobra.Command{
-		Use:         "download <envelope-id>",
-		Short:       "Download the combined completed PDF for an envelope",
+		Use:   "download <envelope-id>",
+		Short: "Download the combined completed PDF for an envelope",
+		Long: "Returns every document in the envelope merged into one PDF, in whatever\n" +
+			"state it is currently in — an envelope that is not `completed` still\n" +
+			"downloads, just without the signatures that have not happened. `--out`\n" +
+			"writes the file to that path; WITHOUT it the raw PDF bytes go to stdout,\n" +
+			"which is binary and should not be captured as text. Documents cannot be\n" +
+			"downloaded individually here.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

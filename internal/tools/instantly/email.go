@@ -28,7 +28,12 @@ func (s *Service) newEmailListCmd(token string) *cobra.Command {
 		Use:         "list",
 		Annotations: readOnly,
 		Short:       "List Unibox emails (GET /emails; 20 req/min cap)",
-		Args:        cobra.NoArgs,
+		Long: "Rate-limited to 20 requests per minute, far below the workspace budget, so\n" +
+			"this must not be polled in a tight loop. --is-unread takes the string\n" +
+			"\"true\" or \"false\", not a bare flag. --campaign-id, --eaccount and\n" +
+			"--search narrow further; cursor-paged with --limit and --starting-after.\n" +
+			"The ids returned are the EMAIL ids `email reply --reply-to-uuid` takes.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
 			page.applyQuery(q)
@@ -53,7 +58,10 @@ func (s *Service) newEmailGetCmd(token string) *cobra.Command {
 		Use:         "get",
 		Annotations: readOnly,
 		Short:       "Get a single email (GET /emails/{id})",
-		Args:        cobra.NoArgs,
+		Long: "--id is one message's id. Two id spaces run through this group and they\n" +
+			"are not interchangeable: this and `email reply --reply-to-uuid` take an\n" +
+			"EMAIL id, while `email mark-read` takes a THREAD id.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/emails/"+url.PathEscape(id), nil)
 		},
@@ -71,7 +79,13 @@ func (s *Service) newEmailReplyCmd(token string) *cobra.Command {
 		Use:         "reply",
 		Annotations: writeAction,
 		Short:       "Reply to an email in the Unibox (POST /emails/reply)",
-		Args:        cobra.NoArgs,
+		Long: "Sends a REAL email to a real prospect the moment it returns; there is no\n" +
+			"draft state and nothing recalls it. --eaccount, --reply-to-uuid,\n" +
+			"--subject and --body are all required: --eaccount is the sending account\n" +
+			"the reply goes out from, and --reply-to-uuid is the id of the email being\n" +
+			"replied to, from `email list` or `email get`. --body takes HTML or text;\n" +
+			"--cc and --bcc are comma-separated address lists.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{
 				"eaccount":      eaccount,
@@ -106,7 +120,10 @@ func (s *Service) newEmailUnreadCountCmd(token string) *cobra.Command {
 		Use:         "unread-count",
 		Annotations: readOnly,
 		Short:       "Count unread Unibox emails (GET /emails/unread/count)",
-		Args:        cobra.NoArgs,
+		Long: "One number for the whole Unibox — there is no per-campaign or per-account\n" +
+			"form, so a scoped count means running `email list --is-unread true` with\n" +
+			"filters and counting the rows, against that command's 20-per-minute cap.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/emails/unread/count", nil)
 		},
@@ -120,7 +137,11 @@ func (s *Service) newEmailMarkReadCmd(token string) *cobra.Command {
 		Use:         "mark-read",
 		Annotations: writeAction,
 		Short:       "Mark a thread as read (POST /emails/threads/{thread_id}/mark-as-read)",
-		Args:        cobra.NoArgs,
+		Long: "--thread-id is a THREAD id, not the email id `email get` and `email reply`\n" +
+			"take; the two id spaces are distinct and passing one for the other fails.\n" +
+			"This marks the whole thread and moves the figure `email unread-count`\n" +
+			"reports. It sends nothing.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.send(cmd, token, http.MethodPost, "/emails/threads/"+url.PathEscape(threadID)+"/mark-as-read", nil)
 		},

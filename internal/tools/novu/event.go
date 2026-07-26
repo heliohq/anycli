@@ -24,9 +24,43 @@ func (s *Service) newEventCmd(c *client) *cobra.Command {
 	return group
 }
 
+// The four event Longs. They sit together above the group's constructors
+// because every one of them is a statement about the same accepted-vs-delivered
+// contract the group shares.
+const (
+	longEventTrigger = "--workflow is the workflow's TRIGGER IDENTIFIER, not its display name and\n" +
+		"not its database id; `workflow list` is where to find it. --to takes a\n" +
+		"bare subscriberId for the common case, while --to-json carries anything\n" +
+		"richer: a topic ({\"type\":\"Topic\",\"topicKey\":\"...\"}), a full\n" +
+		"subscriber object, or an array of up to 100 recipients.\n" +
+		"\n" +
+		"--payload is the JSON the workflow's templates interpolate, and a key the\n" +
+		"template expects but the payload omits renders empty instead of failing.\n" +
+		"--transaction-id makes the call idempotent — a repeat with the same id is\n" +
+		"ignored by Novu — and is also the handle `event cancel` and\n" +
+		"`message list --transaction-id` take afterwards."
+
+	longEventBulk = "--events is a JSON ARRAY of complete trigger objects, each carrying its\n" +
+		"own name, to and payload under the API's field names rather than this\n" +
+		"command's flags, up to 100 per call. Every event is evaluated on its own,\n" +
+		"so the HTTP status covers the batch and not its contents — read each\n" +
+		"element's status before reporting anything as sent."
+
+	longEventBroadcast = "Reaches EVERY subscriber in the environment. There is no recipient\n" +
+		"argument, no filter, no dry run and no undo, and the audience grows by\n" +
+		"itself as subscribers are created. A topic send —\n" +
+		"`event trigger --to-json` with a topicKey — is the targeted form and is\n" +
+		"almost always what is actually wanted."
+
+	longEventCancel = "Takes the --transaction-id of an earlier trigger and stops the steps that\n" +
+		"have not run yet, which is what makes it useful against a workflow\n" +
+		"carrying a digest or delay step. Anything already handed to a provider is\n" +
+		"delivered and cannot be recalled by this or any other command."
+)
+
 func (s *Service) newEventTriggerCmd(c *client) *cobra.Command {
 	var workflow, to, toJSON, payload, overrides, transactionID, actor, tenant string
-	cmd := leafCmd("trigger", "Trigger a workflow to a subscriber or topic", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("trigger", "Trigger a workflow to a subscriber or topic", longEventTrigger, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("workflow", workflow); err != nil {
 			return err
 		}
@@ -76,7 +110,7 @@ func (s *Service) newEventTriggerCmd(c *client) *cobra.Command {
 
 func (s *Service) newEventBulkCmd(c *client) *cobra.Command {
 	var events string
-	cmd := leafCmd("bulk", "Trigger up to 100 events in one call", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("bulk", "Trigger up to 100 events in one call", longEventBulk, writeAction, func(cmd *cobra.Command, _ []string) error {
 		decoded, err := decodeJSONFlag("events", events)
 		if err != nil {
 			return err
@@ -96,7 +130,7 @@ func (s *Service) newEventBulkCmd(c *client) *cobra.Command {
 
 func (s *Service) newEventBroadcastCmd(c *client) *cobra.Command {
 	var workflow, payload, overrides string
-	cmd := leafCmd("broadcast", "Trigger a workflow to every subscriber", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("broadcast", "Trigger a workflow to every subscriber", longEventBroadcast, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("workflow", workflow); err != nil {
 			return err
 		}
@@ -122,7 +156,7 @@ func (s *Service) newEventBroadcastCmd(c *client) *cobra.Command {
 
 func (s *Service) newEventCancelCmd(c *client) *cobra.Command {
 	var transactionID string
-	cmd := leafCmd("cancel", "Cancel a triggered event by transaction id", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("cancel", "Cancel a triggered event by transaction id", longEventCancel, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("transaction-id", transactionID); err != nil {
 			return err
 		}

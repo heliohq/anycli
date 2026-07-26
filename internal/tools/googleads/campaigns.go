@@ -22,8 +22,15 @@ var campaignSetStatuses = map[string]struct{}{"ENABLED": {}, "PAUSED": {}}
 func (s *Service) newCampaignsListCmd(c creds) *cobra.Command {
 	var customerID, status string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List campaigns with key metrics (POST googleAds:search)",
+		Use:   "list",
+		Short: "List campaigns with key metrics (POST googleAds:search)",
+		Long: "Composes a fixed GAQL SELECT — campaign id, name, status, channel type and\n" +
+			"lifetime impressions, clicks and `cost_micros` — with NO date filter, so\n" +
+			"the metrics are all-time rather than a recent window. For a window use\n" +
+			"`report --resource campaign --date-range`. `--status` accepts ENABLED,\n" +
+			"PAUSED or REMOVED and is checked locally; omitting it returns removed\n" +
+			"campaigns alongside live ones. The paged response carries `nextPageToken`,\n" +
+			"which only `query` can act on.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -54,8 +61,15 @@ func (s *Service) newCampaignsListCmd(c creds) *cobra.Command {
 func (s *Service) newCampaignSetStatusCmd(c creds) *cobra.Command {
 	var customerID, campaignID, status string
 	cmd := &cobra.Command{
-		Use:         "set-status",
-		Short:       "Enable or pause a campaign (POST campaigns:mutate)",
+		Use:   "set-status",
+		Short: "Enable or pause a campaign (POST campaigns:mutate)",
+		Long: "`--status` accepts ENABLED or PAUSED only; REMOVED is refused locally\n" +
+			"because this tool steers rather than deletes, which also means the change\n" +
+			"is reversible by running it again the other way. `--id` is a campaign id,\n" +
+			"not a campaign name and not the budget id `budget set` takes. Enabling\n" +
+			"resumes real spend immediately, at whatever budget the campaign already\n" +
+			"carries. The response is the mutated resource name, not the campaign\n" +
+			"itself.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -109,8 +123,17 @@ func (s *Service) newBudgetSetCmd(c creds) *cobra.Command {
 	var customerID, budgetID string
 	var amountMicros int64
 	cmd := &cobra.Command{
-		Use:         "set",
-		Short:       "Set a campaign budget's amount in micros (POST campaignBudgets:mutate)",
+		Use:   "set",
+		Short: "Set a campaign budget's amount in micros (POST campaignBudgets:mutate)",
+		Long: "`--id` is a campaign BUDGET id, not a campaign id — the two are different\n" +
+			"objects and passing the wrong one either fails or edits an unrelated budget.\n" +
+			"`--amount-micros` is the new DAILY amount in micros and must be positive:\n" +
+			"5000000 is 5.00 in the account currency. It replaces the amount outright\n" +
+			"rather than adjusting it.\n" +
+			"\n" +
+			"One budget can be shared by several campaigns, so raising it raises the\n" +
+			"ceiling for all of them at once. The change takes effect on live delivery\n" +
+			"straight away and the response returns only the mutated resource name.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

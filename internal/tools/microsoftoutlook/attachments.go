@@ -27,8 +27,19 @@ func (s *Service) newMessagesAttachmentsCmd(token string) *cobra.Command {
 	var indexes []int
 	var saveDir string
 	cmd := &cobra.Command{
-		Use:         "attachments <message-id>",
-		Short:       "Download message attachments (all by default; select with --name / --index)",
+		Use:   "attachments <message-id>",
+		Short: "Download message attachments (all by default; select with --name / --index)",
+		Long: "Writes files into `--save` (default: the working directory), creating the\n" +
+			"directory if needed, and reports each saved path and byte size. With no\n" +
+			"selector it saves everything; `--name` matches an EXACT filename and\n" +
+			"`--index` is 1-based in the order `messages get` lists them. A selector that\n" +
+			"matches nothing is an error, so a typo fails loudly instead of saving zero\n" +
+			"files.\n" +
+			"\n" +
+			"Only real file attachments carry bytes. Item attachments and reference\n" +
+			"attachments (a cloud link rather than content) are skipped silently, so\n" +
+			"fewer files than the inventory listed is expected rather than a failure.\n" +
+			"Colliding filenames are de-duplicated as `name-1.ext`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

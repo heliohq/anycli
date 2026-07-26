@@ -141,8 +141,36 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // chart, export) are top-level.
 func (s *Service) newRoot(authHeader string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "amplitude",
-		Short:         "Amplitude product analytics (read/query built-in service)",
+		Use:   "amplitude",
+		Short: "Amplitude product analytics (read/query built-in service)",
+		Long: "Read-only product analytics over one connected Amplitude PROJECT:\n" +
+			"segmentation, funnels, retention, cohorts, user activity, saved charts and\n" +
+			"raw export. There is deliberately no ingestion command — emitting events is\n" +
+			"the product SDK's job, and analytics events must never be fabricated.\n" +
+			"\n" +
+			"An Amplitude project lives in exactly ONE data-residency region and the\n" +
+			"credential cannot reveal which. Requests default to the US host and\n" +
+			"`--region eu` selects the EU one. A 401 from the DEFAULT host is therefore\n" +
+			"ambiguous — it may be a perfectly good EU key hitting the wrong silo — so\n" +
+			"retry the same command with `--region eu` before concluding the credential\n" +
+			"is dead. A 401 on an explicitly chosen region really is a bad credential.\n" +
+			"\n" +
+			"Dates are `YYYYMMDD`. `export` is the exception and works in hours,\n" +
+			"`YYYYMMDDTHH`.\n" +
+			"\n" +
+			"Event and segment definitions are large Amplitude JSON grammars and pass\n" +
+			"through as raw JSON strings rather than being modelled as flags; the\n" +
+			"minimum event object is `{\"event_type\": \"Name\"}`. Those names must match\n" +
+			"the project's catalog exactly, which is why `events list` comes first — a\n" +
+			"misspelled event yields an empty result, not an error.\n" +
+			"\n" +
+			"The Dashboard API is COST-limited rather than request-limited: roughly 1000\n" +
+			"concurrent cost units per 5 minutes and 108,000 per hour, where a wide\n" +
+			"funnel or retention query costs far more than a narrow segmentation. Pace a\n" +
+			"multi-query analysis instead of fanning out; a 429 means slow down.\n" +
+			"\n" +
+			"Responses are Amplitude's JSON verbatim, except `chart` (CSV inside a JSON\n" +
+			"envelope) and `export` (a zip streamed to a file).",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

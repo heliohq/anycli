@@ -164,8 +164,33 @@ func (s *Service) stderr() io.Writer {
 // or read directly.
 func (s *Service) newRoot(instanceURL, token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "mastodon",
-		Short:         "Mastodon built-in service (post, read timelines, search, engage)",
+		Use:   "mastodon",
+		Short: "Mastodon built-in service (post, read timelines, search, engage)",
+		Long: "Mastodon is FEDERATED: there is no single server. The credential is one\n" +
+			"identity on one instance and carries both that instance's URL and the\n" +
+			"token, so no command names either. Everything read here is what THAT\n" +
+			"instance has received — a status or account it has never federated with is\n" +
+			"simply invisible, which looks like emptiness rather than an error.\n" +
+			"\n" +
+			"Speak handles, not numbers. Numeric account ids are per-instance and mean\n" +
+			"nothing on another server, while `@user@instance` is portable;\n" +
+			"`account get`, `account posts`, `follow` and `unfollow` take either and\n" +
+			"resolve the handle. Status ids are likewise local to this instance.\n" +
+			"\n" +
+			"There is no separate comment entity. A reply IS a status, written with\n" +
+			"`post create --reply-to <id>`, and a whole thread is read with `post get`,\n" +
+			"which returns the ancestors and descendants around one status.\n" +
+			"\n" +
+			"Post text arrives as `content_text` — Mastodon's HTML already stripped to\n" +
+			"plain text — so nothing here needs markup parsing.\n" +
+			"\n" +
+			"Lists page with `--limit` (default 20) and `--cursor`, taken from the\n" +
+			"previous response's `cursor`. That cursor is a `max_id`, so paging always\n" +
+			"walks toward OLDER items; there is no forward paging.\n" +
+			"\n" +
+			"Writes land on an open federation immediately: a post, boost, favourite or\n" +
+			"follow is visible to strangers on other servers within seconds, and\n" +
+			"`post delete` can only ask other instances to drop the copies they hold.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

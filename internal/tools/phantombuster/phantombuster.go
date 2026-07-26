@@ -116,8 +116,36 @@ func (s *Service) renderError(err error) {
 
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "phantombuster",
-		Short:         "PhantomBuster built-in service (async launch -> poll -> result)",
+		Use:   "phantombuster",
+		Short: "PhantomBuster built-in service (async launch -> poll -> result)",
+		Long: "Runs cloud automations called Phantoms. A Phantom — an \"agent\" in the API —\n" +
+			"is the saved automation; one execution of it is a \"container\". The\n" +
+			"credential is a workspace API key, so it reaches every Phantom, every\n" +
+			"result and the billing surface of the whole workspace.\n" +
+			"\n" +
+			"Runs are asynchronous and nothing here blocks. `agent launch` queues a run\n" +
+			"and returns a containerId, not data. Poll `container get` or\n" +
+			"`container output` until `data.is_running` is false, then read the rows\n" +
+			"with `container result`. Leave a few seconds between polls.\n" +
+			"\n" +
+			"Check `org resources` BEFORE launching. A run that crosses the workspace's\n" +
+			"execution-time quota is killed mid-run with a 429 and leaves no\n" +
+			"recoverable partial result — the whole run's work is lost, not just its\n" +
+			"tail.\n" +
+			"\n" +
+			"Output is an envelope rather than the raw provider body:\n" +
+			"`{\"ok\":true,\"data\":{...}}` or\n" +
+			"`{\"ok\":false,\"error\":{\"code\":\"api|usage\",\"status\":...}}`. The provider\n" +
+			"object is preserved untouched under `data`, with `data.is_running` (the\n" +
+			"poll-loop stop signal), `data.output_pos` (the cursor to echo back as\n" +
+			"--from-pos) and ISO-8601 mirrors of the millisecond timestamps added\n" +
+			"alongside it.\n" +
+			"\n" +
+			"This tool reads and runs Phantoms; it does not author them. Creating,\n" +
+			"editing and deleting a Phantom, saving contacts to the CRM, and launching\n" +
+			"multi-Phantom workflows are all absent — chain individual Phantoms\n" +
+			"instead. Launching consumes quota and can scrape or message people at\n" +
+			"scale, and there is no dry-run mode.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

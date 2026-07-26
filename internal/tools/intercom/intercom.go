@@ -138,8 +138,40 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "intercom",
-		Short:         "Intercom built-in service (support inbox, contacts, tickets, articles)",
+		Use:   "intercom",
+		Short: "Intercom built-in service (support inbox, contacts, tickets, articles)",
+		Long: "Intercom is a support workspace: a shared inbox of conversations, a\n" +
+			"contacts and companies CRM, tickets, and a Help Center of articles.\n" +
+			"Requests are pinned to Intercom API version 2.15 and every command prints\n" +
+			"the provider's JSON verbatim.\n" +
+			"\n" +
+			"A reply is customer-visible; a note is internal. `conversation reply` and\n" +
+			"`ticket reply --message-type comment` reach the customer, while\n" +
+			"`conversation note`, `contact note` and `ticket reply --message-type note`\n" +
+			"are visible only to teammates. Getting that wrong publishes a private\n" +
+			"aside to the person who filed the ticket.\n" +
+			"\n" +
+			"Writes are attributed to an admin. Omitting --admin-id costs an extra GET\n" +
+			"/me to resolve the authenticating teammate, so pass it when the id is\n" +
+			"already known — and pass it explicitly to act as someone else.\n" +
+			"\n" +
+			"Search is a POST query object on `conversation search`, `contact search`\n" +
+			"and `ticket search`: supply EITHER a raw --query object OR that command's\n" +
+			"convenience filter flags, never both, and never neither. Several\n" +
+			"convenience filters compile into one AND group. `article search` is\n" +
+			"unrelated — a plain phrase GET with no query language.\n" +
+			"\n" +
+			"Two pagination models coexist. `conversation list`, `contact list` and the\n" +
+			"three search commands are cursor-based: read `pages.next.starting_after`\n" +
+			"out of the response and feed it back as --starting-after, with --per-page\n" +
+			"up to 150. `company list`, `article list` and `article collection-list`\n" +
+			"are page-numbered instead, taking --page.\n" +
+			"\n" +
+			"Almost nothing here deletes. There is no command to remove a\n" +
+			"conversation, a contact, a company or an article, and nothing deletes a\n" +
+			"tag object — `conversation untag` only detaches an existing tag from one\n" +
+			"conversation. Anything else created for a test has to be cleaned up in\n" +
+			"the Intercom UI.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -21,8 +21,14 @@ func (s *Service) newPurchasesSeriesCmd(c *client) *cobra.Command {
 	var metric, endingAt, appID, productID string
 	var length int
 	cmd := &cobra.Command{
-		Use:         "series",
-		Short:       "Get revenue or purchase-quantity time-series",
+		Use:   "series",
+		Short: "Get revenue or purchase-quantity time-series",
+		Long: "--metric picks between two different endpoints: revenue (the default) sums\n" +
+			"money, quantity counts purchases, and the two are not derivable from each\n" +
+			"other. --length is days back from --ending-at (default now) and caps at\n" +
+			"100. --app-id and --product-id narrow the slice; without them this is the\n" +
+			"whole workspace. Revenue is reported in the currencies Braze received, so\n" +
+			"a multi-currency workspace must not be summed naively.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}

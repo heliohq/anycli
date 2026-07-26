@@ -21,8 +21,15 @@ func (s *Service) newSubscriptionCmd(token string) *cobra.Command {
 func (s *Service) newSubscriptionGetByEmailCmd(token string) *cobra.Command {
 	var expand []string
 	cmd := &cobra.Command{
-		Use:         "get-by-email <email>",
-		Short:       "Look up a subscriber by email (GET /publications/{pub}/subscriptions/by_email/{email})",
+		Use:   "get-by-email <email>",
+		Short: "Look up a subscriber by email (GET /publications/{pub}/subscriptions/by_email/{email})",
+		Long: "The exact-match lookup, and the address is URL-encoded for you, so a\n" +
+			"`+` tag or an unusual character needs no escaping.\n" +
+			"`subscription list --email` is the partial-match search instead. Run\n" +
+			"this with `--expand custom_fields` before an update: the returned\n" +
+			"`sub_…` id is what `subscription update` takes, and the current custom\n" +
+			"field values are what a careless update would otherwise overwrite. An\n" +
+			"unknown address comes back as a 404, not an empty result.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -60,8 +67,15 @@ func (s *Service) newSubscriptionListCmd(token string) *cobra.Command {
 		status, tier, email, orderBy, direction, cursor, page, limit string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List subscribers (GET /publications/{pub}/subscriptions)",
+		Use:   "list",
+		Short: "List subscribers (GET /publications/{pub}/subscriptions)",
+		Long: "`--status` filters by lifecycle (`active`, `inactive`, `pending`,\n" +
+			"`validating`, `invalid`) and `--tier` by `free|premium|all`.\n" +
+			"`--email` here is a PARTIAL match, which makes it a search rather than\n" +
+			"a lookup — use `subscription get-by-email` when the address is known\n" +
+			"exactly. `--expand stats`, `custom_fields` or `tags` add fields that\n" +
+			"are otherwise absent. `--limit` is 1-100; continue with `--cursor` or\n" +
+			"`--page`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -106,8 +120,16 @@ func (s *Service) newSubscriptionListCmd(token string) *cobra.Command {
 func (s *Service) newSubscriptionCreateCmd(token string) *cobra.Command {
 	var email, data string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Add a subscriber (POST /publications/{pub}/subscriptions)",
+		Use:   "create",
+		Short: "Add a subscriber (POST /publications/{pub}/subscriptions)",
+		Long: "`--email` is required and always wins over an `email` key inside\n" +
+			"`--data`. Everything else rides `--data`, a JSON object validated\n" +
+			"before the call: `reactivate_existing` to bring a previously\n" +
+			"unsubscribed reader back instead of failing on the duplicate,\n" +
+			"`send_welcome_email` — which sends a real email to a real person —\n" +
+			"`tier`, the `utm_*` attribution fields, `automation_ids` to drop the\n" +
+			"subscriber straight into an automation, and `custom_fields` as\n" +
+			"`[{\"name\":…,\"value\":…}]` with names from `custom-field list`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -145,8 +167,16 @@ func (s *Service) newSubscriptionCreateCmd(token string) *cobra.Command {
 func (s *Service) newSubscriptionUpdateCmd(token string) *cobra.Command {
 	var data string
 	cmd := &cobra.Command{
-		Use:         "update <subscriptionId>",
-		Short:       "Update a subscriber (PUT /publications/{pub}/subscriptions/{subscriptionId})",
+		Use:   "update <subscriptionId>",
+		Short: "Update a subscriber (PUT /publications/{pub}/subscriptions/{subscriptionId})",
+		Long: "The positional argument is the `sub_…` id from\n" +
+			"`subscription get-by-email` or `subscription list`; an email address is\n" +
+			"not accepted here. `--data` carries only the fields to CHANGE —\n" +
+			"`{\"tier\":\"premium\"}`, `{\"email\":\"new@addr\"}`,\n" +
+			"`{\"custom_fields\":[{\"name\":\"Plan\",\"value\":\"pro\",\"delete\":false}]}` —\n" +
+			"and anything omitted is left as it stands. `{\"unsubscribe\":true}` is\n" +
+			"the removal path, since no delete command exists; it stops delivery to\n" +
+			"a real reader immediately.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

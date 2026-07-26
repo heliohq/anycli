@@ -120,8 +120,37 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // hangs under its resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "lemon-squeezy",
-		Short:         "Lemon Squeezy built-in service (JSON:API, API key)",
+		Use:   "lemon-squeezy",
+		Short: "Lemon Squeezy built-in service (JSON:API, API key)",
+		Long: "Talks to Lemon Squeezy's v1 API with an account API key. The key has no\n" +
+			"scopes — it grants the whole account, reads and writes alike, including\n" +
+			"refunds.\n" +
+			"\n" +
+			"Every command prints the JSON:API document verbatim: the\n" +
+			"`{data, meta, links, included}` envelope, where the fields worth reading\n" +
+			"are usually under `data.attributes`. Relationships come back as ids, so\n" +
+			"`--include a,b` on a read is what turns them into embedded objects under\n" +
+			"`included`.\n" +
+			"\n" +
+			"Reads share three flat flags that map onto the bracketed query syntax:\n" +
+			"`--page` / `--page-size` become `page[number]` / `page[size]`, and each\n" +
+			"repeatable `--filter key=value` becomes `filter[key]=value`. Nothing here\n" +
+			"pages automatically.\n" +
+			"\n" +
+			"Writes take `--data` with a complete JSON:API request document — there are\n" +
+			"no per-attribute flags — while `invoice` is the exception that takes its\n" +
+			"fields as `--param key=value` query parameters.\n" +
+			"\n" +
+			"The money model has two halves and confusing them is the standing mistake:\n" +
+			"a one-off purchase and a subscription's first charge are `order` rows,\n" +
+			"every later renewal is a `subscription-invoice` row, and each is refunded\n" +
+			"through its own `refund` verb.\n" +
+			"\n" +
+			"Lemon Squeezy rate-limits the API and a 429, like any other non-2xx,\n" +
+			"exits 1 with its `{\"errors\":[{status,title,detail}]}` body; usage and\n" +
+			"parse errors exit 2 before any request is sent. The customer-facing\n" +
+			"license activation API is a separate surface and is not reachable here —\n" +
+			"`license-key` and `license-key-instance` are the account-side view.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -130,8 +159,12 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "output JSON (always on; accepted for uniformity)")
 
 	whoami := &cobra.Command{
-		Use:         "whoami",
-		Short:       "Show the authenticated user (GET /users/me)",
+		Use:   "whoami",
+		Short: "Show the authenticated user (GET /users/me)",
+		Long: "Identifies the account the API key belongs to. Since the key is unscoped,\n" +
+			"this is the check that the right account is about to be written to — it\n" +
+			"does not narrow anything, and store scoping still comes from\n" +
+			"`store list`. Takes no flags.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {

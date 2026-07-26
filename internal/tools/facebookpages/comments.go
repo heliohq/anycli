@@ -13,7 +13,16 @@ const defaultCommentFields = "id,message,from,created_time,like_count"
 
 func (s *Service) newCommentListCmd(token string) *cobra.Command {
 	var fields string
-	cmd := &cobra.Command{Use: "list <post-id>", Short: "List comments on a post", Args: cobra.ExactArgs(1)}
+	cmd := &cobra.Command{
+		Use:   "list <post-id>",
+		Short: "List comments on a post",
+		Long: "Takes the POST's id and returns id, message, from, created_time and\n" +
+			"like_count by default, replaced wholesale by `--fields`. Unlike\n" +
+			"`post list` it has NO `--limit` and no cursor flag, so it returns whatever\n" +
+			"the Graph default page is and a heavily commented post cannot be walked\n" +
+			"through from here.",
+		Args: cobra.ExactArgs(1),
+	}
 	cmd.Annotations = readOnly
 	pageID := pageFlag(cmd)
 	cmd.Flags().StringVar(&fields, "fields", "", "comma-separated Graph fields (default: comment summary)")
@@ -30,7 +39,15 @@ func (s *Service) newCommentListCmd(token string) *cobra.Command {
 
 func (s *Service) newCommentReplyCmd(token string) *cobra.Command {
 	var message string
-	cmd := &cobra.Command{Use: "reply <comment-id>", Short: "Reply to a comment", Args: cobra.ExactArgs(1)}
+	cmd := &cobra.Command{
+		Use:   "reply <comment-id>",
+		Short: "Reply to a comment",
+		Long: "Takes the COMMENT's id, not the id of the post it sits under, and publishes\n" +
+			"as the Page. `--message` is required and the reply is public immediately.\n" +
+			"Success prints the new comment's id, which can itself be replied to,\n" +
+			"hidden or deleted. Needs MODERATE_CONTENT on the Page.",
+		Args: cobra.ExactArgs(1),
+	}
 	cmd.Annotations = writeAction
 	pageID := pageFlag(cmd)
 	cmd.Flags().StringVar(&message, "message", "", "reply text")
@@ -48,7 +65,16 @@ func (s *Service) newCommentReplyCmd(token string) *cobra.Command {
 
 func (s *Service) newCommentHideCmd(token string) *cobra.Command {
 	var hidden bool
-	cmd := &cobra.Command{Use: "hide <comment-id>", Short: "Hide or unhide a comment", Args: cobra.ExactArgs(1)}
+	cmd := &cobra.Command{
+		Use:   "hide <comment-id>",
+		Short: "Hide or unhide a comment",
+		Long: "One command for both directions: `--hidden` defaults to true, so\n" +
+			"`hide <comment-id>` hides and `hide <comment-id> --hidden=false` unhides.\n" +
+			"Hiding leaves the comment visible to its author and their friends while\n" +
+			"removing it from everyone else's view, which makes it the reversible\n" +
+			"alternative to `comment delete`.",
+		Args: cobra.ExactArgs(1),
+	}
 	cmd.Annotations = writeAction
 	pageID := pageFlag(cmd)
 	cmd.Flags().BoolVar(&hidden, "hidden", true, "true to hide, false to unhide")
@@ -64,7 +90,14 @@ func (s *Service) newCommentHideCmd(token string) *cobra.Command {
 }
 
 func (s *Service) newCommentDeleteCmd(token string) *cobra.Command {
-	cmd := &cobra.Command{Use: "delete <comment-id>", Short: "Delete a comment", Args: cobra.ExactArgs(1)}
+	cmd := &cobra.Command{
+		Use:   "delete <comment-id>",
+		Short: "Delete a comment",
+		Long: "Takes the comment id and is irreversible — nothing here restores a deleted\n" +
+			"comment. When the intent is moderation rather than removal, `comment hide`\n" +
+			"achieves the same public effect and can be undone.",
+		Args: cobra.ExactArgs(1),
+	}
 	cmd.Annotations = writeAction
 	pageID := pageFlag(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {

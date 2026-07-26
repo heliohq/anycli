@@ -16,8 +16,8 @@ func (s *Service) newLeadCmd(key string) *cobra.Command {
 		s.newLeadUpdateCmd(key),
 		s.newLeadUnsubscribeCmd(key),
 		s.newLeadDeleteCmd(key),
-		s.newLeadMarkCmd(key, "mark-interested", "interested"),
-		s.newLeadMarkCmd(key, "mark-not-interested", "notinterested"),
+		s.newLeadMarkCmd(key, "mark-interested", "interested", longLeadInterested),
+		s.newLeadMarkCmd(key, "mark-not-interested", "notinterested", longLeadNotInterested),
 	)
 	return cmd
 }
@@ -25,8 +25,16 @@ func (s *Service) newLeadCmd(key string) *cobra.Command {
 func (s *Service) newLeadAddCmd(key string) *cobra.Command {
 	var email, firstName, lastName, companyName, jobTitle, linkedinURL, phone, fieldsJSON string
 	cmd := &cobra.Command{
-		Use:         "add <campaignId>",
-		Short:       "Enroll a lead into a campaign (POST /campaigns/{campaignId}/leads/)",
+		Use:   "add <campaignId>",
+		Short: "Enroll a lead into a campaign (POST /campaigns/{campaignId}/leads/)",
+		Long: "`--email` is required and is the lead's identity. `--first-name`,\n" +
+			"`--last-name`, `--company-name`, `--job-title`, `--linkedin-url` and\n" +
+			"`--phone` have flags; everything else, custom variables included, goes\n" +
+			"into `--fields` as a JSON object, and a named flag overwrites the\n" +
+			"matching key there. Those variables are what the sequence's templates\n" +
+			"interpolate, so a missing one leaves a visible gap in a real email.\n" +
+			"Enrolment does not start a campaign — but adding a lead to one that is\n" +
+			"already running queues it for sending straight away.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,8 +77,13 @@ func (s *Service) newLeadAddCmd(key string) *cobra.Command {
 func (s *Service) newLeadGetCmd(key string) *cobra.Command {
 	var email, id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Look up a lead by email or id (GET /leads)",
+		Use:   "get",
+		Short: "Look up a lead by email or id (GET /leads)",
+		Long: "Account-wide rather than campaign-scoped, and needs `--email` or `--id`;\n" +
+			"with neither it fails before any request is made. This is how an\n" +
+			"address becomes the lead id that `lead update` and `lead delete`\n" +
+			"insist on, and how you see which campaigns a person is already sitting\n" +
+			"in before enrolling them again.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -100,8 +113,13 @@ func (s *Service) newLeadGetCmd(key string) *cobra.Command {
 func (s *Service) newLeadUpdateCmd(key string) *cobra.Command {
 	var fieldsJSON string
 	cmd := &cobra.Command{
-		Use:         "update <campaignId> <leadId>",
-		Short:       "Update a lead's fields in a campaign (PATCH /campaigns/{campaignId}/leads/{leadId})",
+		Use:   "update <campaignId> <leadId>",
+		Short: "Update a lead's fields in a campaign (PATCH /campaigns/{campaignId}/leads/{leadId})",
+		Long: "Campaign id first, then the LEAD id — from `lead get`, not an email.\n" +
+			"`--fields` is required and is a JSON object of the fields to change;\n" +
+			"only the keys sent are touched. The change is scoped to this campaign,\n" +
+			"so the same person enrolled elsewhere keeps their old values there,\n" +
+			"including the custom variables their other sequences interpolate.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -124,8 +142,13 @@ func (s *Service) newLeadUpdateCmd(key string) *cobra.Command {
 
 func (s *Service) newLeadUnsubscribeCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "unsubscribe <campaignId> <email>",
-		Short:       "Unsubscribe a lead from a campaign (DELETE /campaigns/{campaignId}/leads/{email})",
+		Use:   "unsubscribe <campaignId> <email>",
+		Short: "Unsubscribe a lead from a campaign (DELETE /campaigns/{campaignId}/leads/{email})",
+		Long: "Takes the campaign id and the lead's EMAIL, not a lead id. The lead\n" +
+			"stops receiving this campaign's steps but keeps its record and\n" +
+			"history, which is the whole difference from `lead delete`. It\n" +
+			"suppresses within this campaign only — account-wide suppression, or a\n" +
+			"whole domain, is `unsubscribe add`.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -141,8 +164,14 @@ func (s *Service) newLeadUnsubscribeCmd(key string) *cobra.Command {
 
 func (s *Service) newLeadDeleteCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <campaignId> <leadId>",
-		Short:       "Force-delete a lead by id from a campaign (DELETE /campaigns/{campaignId}/leads/{leadId}?action=remove)",
+		Use:   "delete <campaignId> <leadId>",
+		Short: "Force-delete a lead by id from a campaign (DELETE /campaigns/{campaignId}/leads/{leadId}?action=remove)",
+		Long: "Takes the campaign id and the LEAD ID, not an email, and always sends\n" +
+			"`action=remove` so the lead is genuinely deleted — without that\n" +
+			"parameter Lemlist quietly downgrades the call to an unsubscribe and\n" +
+			"then expects an email instead. The lead and its history leave the\n" +
+			"campaign and nothing here restores them. When the intent is only to\n" +
+			"stop contacting someone, `lead unsubscribe` keeps the record.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -161,13 +190,32 @@ func (s *Service) newLeadDeleteCmd(key string) *cobra.Command {
 	}
 }
 
+// longLeadInterested and longLeadNotInterested are the two disposition Longs.
+// They live next to the shared builder because it is the builder that fixes
+// the endpoint and the id-or-email argument both of them describe.
+const (
+	longLeadInterested = "Records the lead as interested, account-wide rather than inside one\n" +
+		"campaign, and accepts either a lead id or an email. This is the\n" +
+		"disposition to set after a positive reply, and what makes the lead count\n" +
+		"as an outcome of the outreach rather than another open. It does not stop\n" +
+		"the sequence: unless the campaign is configured to halt on reply, the\n" +
+		"lead keeps receiving steps until it is unsubscribed."
+
+	longLeadNotInterested = "Records the lead as not interested, account-wide, from either a lead id\n" +
+		"or an email. It marks the outcome and suppresses nobody — someone who\n" +
+		"asked not to be contacted still needs `lead unsubscribe` for that\n" +
+		"campaign, or `unsubscribe add` for the whole account. On its own this\n" +
+		"leaves the sequence running."
+)
+
 // newLeadMarkCmd builds `mark-interested` / `mark-not-interested`, which POST a
 // disposition against a lead id or email
 // (POST /leads/{interested|notinterested}/{leadIdOrEmail}).
-func (s *Service) newLeadMarkCmd(key, use, verb string) *cobra.Command {
+func (s *Service) newLeadMarkCmd(key, use, verb, long string) *cobra.Command {
 	return &cobra.Command{
 		Use:         use + " <leadIdOrEmail>",
 		Short:       "Set the lead pipeline disposition (POST /leads/" + verb + "/{leadIdOrEmail})",
+		Long:        long,
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

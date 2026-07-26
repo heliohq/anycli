@@ -27,6 +27,7 @@ const defaultDisplayLimit = 10
 type reportSpec struct {
 	use       string // subcommand word, e.g. "overview"
 	short     string // one-line help
+	long      string // depth help: report shape, cost, and scope facts
 	typ       string // Semrush type= value for the default form
 	allDBTyp  string // type= when --all-databases is set (empty = flag unsupported)
 	altTyp    string // type= when --paid is set (empty = flag unsupported)
@@ -44,6 +45,7 @@ func (s *Service) newReportCmd(key string, spec reportSpec) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         spec.use + " " + spec.argName,
 		Short:       spec.short,
+		Long:        spec.long,
 		Args:        cobra.ArbitraryArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

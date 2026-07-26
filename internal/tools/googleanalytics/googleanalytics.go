@@ -176,8 +176,37 @@ func (s *Service) adminBase() string {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "google-analytics",
-		Short:         "Google Analytics (GA4) built-in service (read-only reporting)",
+		Use:   "google-analytics",
+		Short: "Google Analytics (GA4) built-in service (read-only reporting)",
+		Long: "Reads GA4 through Google's two official surfaces: the Analytics Data API\n" +
+			"for reports and the Analytics Admin API for property discovery. Read-only\n" +
+			"by construction — nothing here creates a property, edits configuration or\n" +
+			"sends events.\n" +
+			"\n" +
+			"Every report needs a NUMERIC GA4 property id, which the user rarely knows.\n" +
+			"Start with `property list`. A bare number and the `properties/<id>` resource\n" +
+			"form are both accepted; anything else is rejected locally.\n" +
+			"\n" +
+			"Metric and dimension names are exact API strings (`activeUsers`,\n" +
+			"`screenPageViews`, `sessionSource`) and one wrong name fails the whole\n" +
+			"report. `report metadata` lists the valid names for that property including\n" +
+			"its custom definitions — read it rather than guessing. Dates take native\n" +
+			"Data API forms verbatim: `YYYY-MM-DD`, `NdaysAgo`, `yesterday`, `today`.\n" +
+			"\n" +
+			"`--json` switches the OUTPUT here, not just the error format: without it\n" +
+			"reports print a compact tab-separated table, with it the raw provider\n" +
+			"response. Prefer it whenever the numbers will be computed on.\n" +
+			"\n" +
+			"The two GET-based reads (`property list`, `report metadata`) retry\n" +
+			"themselves twice on a 429 or 5xx. `report run` and `report realtime` go\n" +
+			"over POST and are never auto-retried, so a quota error there comes straight\n" +
+			"back to the caller.\n" +
+			"\n" +
+			"Authorization is per Google product: a connection granted for another\n" +
+			"Google app does not cover Analytics, which is why 401 and 403 responses\n" +
+			"carry a reconnect hint. A 403 saying an API is \"not enabled\" is instead a\n" +
+			"Google Cloud project configuration problem — no retry and no different\n" +
+			"property will clear it.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

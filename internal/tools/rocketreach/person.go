@@ -16,8 +16,18 @@ import (
 func (s *Service) newPersonLookupCmd(key string) *cobra.Command {
 	var name, currentEmployer, linkedinURL, id string
 	cmd := &cobra.Command{
-		Use:         "lookup",
-		Short:       "Enrich a person into emails/phones (GET /person/lookup)",
+		Use:   "lookup",
+		Short: "Enrich a person into emails/phones (GET /person/lookup)",
+		Long: "Identify the person one of three ways: --id (a profile id from `person\n" +
+			"search`, the most precise), --linkedin-url, or --name optionally narrowed\n" +
+			"by --current-employer. They are checked in that order and the first one\n" +
+			"set wins silently, so passing --id alongside --name means the name is\n" +
+			"ignored.\n" +
+			"\n" +
+			"The response is NOT final. Read its `status`: only `complete` carries\n" +
+			"populated emails and phones, while searching, waiting or progress mean the\n" +
+			"enrichment is still running and the record must be polled with `person\n" +
+			"status --ids`. Credits are charged only when RocketReach matches someone.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -56,8 +66,13 @@ func (s *Service) newPersonLookupCmd(key string) *cobra.Command {
 func (s *Service) newPersonStatusCmd(key string) *cobra.Command {
 	var ids string
 	cmd := &cobra.Command{
-		Use:         "status",
-		Short:       "Poll async lookups by id (GET /person/checkStatus)",
+		Use:   "status",
+		Short: "Poll async lookups by id (GET /person/checkStatus)",
+		Long: "--ids is required and takes a COMMA-SEPARATED list, so several in-flight\n" +
+			"lookups can be polled in a single request instead of one call each. The\n" +
+			"ids are the ones returned by `person lookup`, not profile ids from `person\n" +
+			"search`. Poll until the status reads complete; polling costs no additional\n" +
+			"credits.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -85,8 +100,15 @@ func (s *Service) newPersonSearchCmd(key string) *cobra.Command {
 	var name, currentEmployer, title, jsonQuery string
 	var pageSize, start int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search people to build a prospect list (POST /person/search)",
+		Use:   "search",
+		Short: "Search people to build a prospect list (POST /person/search)",
+		Long: "Returns profiles — name, title, employer and a profile id — and never\n" +
+			"emails or phones; enrich a chosen id with `person lookup`. At least one of\n" +
+			"--name, --current-employer, --title or --json-query is required.\n" +
+			"--json-query is the full RocketReach query object, whose fields are ARRAYS\n" +
+			"of strings, and an explicit flag overwrites the same key inside it. Page\n" +
+			"with --page-size and a 1-based --start; both are omitted from the request\n" +
+			"when left at 0, leaving RocketReach's defaults.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

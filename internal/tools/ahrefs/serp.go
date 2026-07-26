@@ -17,8 +17,14 @@ func (s *Service) newSerpCmd(token string) *cobra.Command {
 	var topPositions int
 	var rf rowFlags
 	cmd := &cobra.Command{
-		Use:         "serp",
-		Short:       "SERP overview for a keyword (GET /serp-overview/serp-overview)",
+		Use:   "serp",
+		Short: "SERP overview for a keyword (GET /serp-overview/serp-overview)",
+		Long: "One row per ranking position, with the page's DR, URL rating, traffic and\n" +
+			"backlink counts — the data that answers whether a keyword is realistically\n" +
+			"winnable. --keyword and --country are both required. Unlike the Site\n" +
+			"Explorer rows commands this one takes only --select: there is no --where,\n" +
+			"--order-by, --limit or --offset. Cap the result with --top-positions\n" +
+			"instead, and use --date for a historical SERP (default is the latest).",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

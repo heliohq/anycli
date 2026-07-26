@@ -27,8 +27,14 @@ func (s *Service) newPeopleSearchCmd(token string) *cobra.Command {
 	var q string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search for people by title/seniority/location/company (POST /mixed_people/api_search)",
+		Use:   "search",
+		Short: "Search for people by title/seniority/location/company (POST /mixed_people/api_search)",
+		Long: "Returns matching profiles and their Apollo person ids, never contact\n" +
+			"details — run `people enrich` on an id to reveal an email or phone.\n" +
+			"--title, --seniority, --location and --org-domain are each repeatable and\n" +
+			"narrow the result together; --q is a free-text keyword match. Apollo\n" +
+			"documents this endpoint as master-API-key-only, so the connected OAuth\n" +
+			"token can come back 403 with a master-key hint.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -66,8 +72,14 @@ func (s *Service) newPeopleEnrichCmd(token string) *cobra.Command {
 	var email, name, firstName, lastName, domain, orgName, linkedinURL, id string
 	var revealPersonalEmails, revealPhone bool
 	cmd := &cobra.Command{
-		Use:         "enrich",
-		Short:       "Enrich one person to verified email/phone (POST /people/match)",
+		Use:   "enrich",
+		Short: "Enrich one person to verified email/phone (POST /people/match)",
+		Long: "Supply at least one match signal: --email is the strongest, then\n" +
+			"--linkedin-url, then --name (or --first-name plus --last-name) combined\n" +
+			"with --org-domain or --org. Revealing contact data spends Apollo credits,\n" +
+			"and --reveal-phone widens that further — the phone number is resolved\n" +
+			"asynchronously and delivered to an Apollo webhook rather than returned in\n" +
+			"this response. Reveal only what the task needs.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -117,8 +129,14 @@ func (s *Service) newPeopleBulkEnrichCmd(token string) *cobra.Command {
 	var body, detailsJSON string
 	var revealPersonalEmails, revealPhone bool
 	cmd := &cobra.Command{
-		Use:         "bulk-enrich",
-		Short:       "Enrich up to 10 people in one call (POST /people/bulk_match)",
+		Use:   "bulk-enrich",
+		Short: "Enrich up to 10 people in one call (POST /people/bulk_match)",
+		Long: "--details-json takes a JSON ARRAY of up to 10 objects, each shaped like\n" +
+			"the flags of `people enrich` (`email`, `name`, `first_name`, `last_name`,\n" +
+			"`organization_name`, `domain`, `linkedin_url`). One request covers the\n" +
+			"whole batch, but credits are still spent per matched person.\n" +
+			"--reveal-personal-emails and --reveal-phone apply to every entry in the\n" +
+			"batch, not to a selected one.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

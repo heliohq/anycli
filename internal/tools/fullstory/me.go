@@ -11,8 +11,11 @@ import (
 // permission-level check for the AI teammate.
 func (s *Service) newMeCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "me",
-		Short:       "Show the API key's role and verify connectivity (GET /me)",
+		Use:   "me",
+		Short: "Show the API key's role and verify connectivity (GET /me)",
+		Long: "Prints the key's role — USER, ARCHITECT or ADMIN — which decides whether\n" +
+			"the `user` reads will work at all. Run it once when a read returns a\n" +
+			"permission error, before concluding the data is missing. Takes no flags.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

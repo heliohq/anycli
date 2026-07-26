@@ -16,8 +16,16 @@ func (s *Service) newTextInsertCmd(token string) *cobra.Command {
 	var at int
 	var appendEnd bool
 	cmd := &cobra.Command{
-		Use:         "insert <presentation-id-or-url> --object <element-id> --text <string>",
-		Short:       "Insert text into a shape/text box (default at the start; --at index or --append)",
+		Use:   "insert <presentation-id-or-url> --object <element-id> --text <string>",
+		Short: "Insert text into a shape/text box (default at the start; --at index or --append)",
+		Long: "With neither --at nor --append the text is inserted at index 0, which\n" +
+			"PREPENDS it to whatever the element already holds. --append costs an extra\n" +
+			"read: it fetches the whole deck to compute the element's end index, then\n" +
+			"sends the edit. --at counts UTF-16 code units, so an index measured on a\n" +
+			"string containing emoji or other astral characters will not line up with a\n" +
+			"rune offset. --object must be a text-bearing element read from `pages get`\n" +
+			"or the outline; inserting into a placeholder that has never held text works,\n" +
+			"inserting into an image does not.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -86,8 +94,17 @@ func (s *Service) newTextReplaceCmd(token string) *cobra.Command {
 	var matchCase bool
 	var slides []string
 	cmd := &cobra.Command{
-		Use:         "replace <presentation-id-or-url> --find <string> --replace <string>",
-		Short:       "Replace all occurrences of a string (the template-placeholder path: --find '{{name}}')",
+		Use:   "replace <presentation-id-or-url> --find <string> --replace <string>",
+		Short: "Replace all occurrences of a string (the template-placeholder path: --find '{{name}}')",
+		Long: "Rewrites EVERY match across the whole deck unless --slide narrows it to\n" +
+			"specific slide object ids (repeatable). Matching is case-insensitive until\n" +
+			"--match-case is passed, so an unanchored --find like `name` will also\n" +
+			"rewrite the middle of unrelated words; delimited placeholders such as\n" +
+			"`{{name}}` are the safe shape. An omitted --replace deletes the matched\n" +
+			"text. The printed occurrence count is the only evidence of what changed,\n" +
+			"and a count of 0 means the placeholder was not found rather than that the\n" +
+			"call failed. Prefer one call per placeholder over hand-computed\n" +
+			"`text insert` indices.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -134,8 +151,14 @@ func (s *Service) newTextReplaceCmd(token string) *cobra.Command {
 func (s *Service) newTextDeleteCmd(token string) *cobra.Command {
 	var objectID, textRange string
 	cmd := &cobra.Command{
-		Use:         "delete <presentation-id-or-url> --object <element-id>",
-		Short:       "Delete text from an element (all text by default; --range A:B for a fixed span)",
+		Use:   "delete <presentation-id-or-url> --object <element-id>",
+		Short: "Delete text from an element (all text by default; --range A:B for a fixed span)",
+		Long: "An omitted --range wipes ALL text in the element, which is the default and\n" +
+			"the destructive one; `A:B` deletes a fixed span and `A:` deletes from A to\n" +
+			"the end. Indices are UTF-16 code units counted from the start of the\n" +
+			"element's text, the same units the outline's text is measured in, and the\n" +
+			"end index must be greater than the start. The element itself survives, empty\n" +
+			"— removing the shape is `elements delete`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -56,8 +56,25 @@ func (s *Service) newQueryCmd(token string) *cobra.Command {
 		aggregation string
 	)
 	cmd := &cobra.Command{
-		Use:         "query",
-		Short:       "Search analytics: clicks/impressions/CTR/position by dimension",
+		Use:   "query",
+		Short: "Search analytics: clicks/impressions/CTR/position by dimension",
+		Long: "The window is either `--days N` — an inclusive N-day window ending today,\n" +
+			"computed in Pacific time so it lines up with Google's own day\n" +
+			"boundaries — or an explicit `--start`/`--end` pair. The two are\n" +
+			"mutually exclusive and one of them is required. `--dimensions` is\n" +
+			"comma-separated over `query`, `page`, `country`, `device`, `date`,\n" +
+			"`hour` and `searchAppearance`; with none, the answer is site totals in\n" +
+			"a single row.\n" +
+			"\n" +
+			"`--filter dimension:operator:expression` is repeatable over `equals`,\n" +
+			"`notEquals`, `contains`, `notContains`, `includingRegex` and\n" +
+			"`excludingRegex` (RE2), and every filter lands in ONE AND group — the\n" +
+			"API offers no OR. `--row-limit` is 1-25000 (1000 by default) with\n" +
+			"`--start-row` to page, and `--data-state all` includes fresh,\n" +
+			"still-moving numbers that `final` withholds. Rows carry `keys`,\n" +
+			"`clicks`, `impressions`, `ctr` as a 0-1 fraction and `position`; Google\n" +
+			"returns top rows only, so a paged sum undercounts the long tail and\n" +
+			"will not match a dimensionless total.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

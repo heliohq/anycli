@@ -14,12 +14,35 @@ const (
 	competitorsDefaultSelect     = "competitor_domain,domain_rating,keywords_common,traffic,share"
 )
 
+// The Long texts for the three Site Explorer rows commands. They sit beside
+// the shared builder because it is the builder that fixes the target+date
+// contract all three describe, while each call site fixes the endpoint.
+const (
+	longKeywordsOrganic = "Every organic keyword the target currently ranks for, one row per\n" +
+		"keyword with its position, volume, difficulty and estimated traffic.\n" +
+		"--target is required and --date defaults to today UTC, so an older\n" +
+		"snapshot needs an explicit --date. --country is optional here and slices\n" +
+		"the ranking data to one market; without it the rows span every market\n" +
+		"Ahrefs tracks. Sorting by traffic is the usual first move: `--order-by\n" +
+		"'sum_traffic:desc'`."
+	longPagesTop = "The target's best-performing URLs by organic traffic, with the single\n" +
+		"keyword driving each one. This is the cheap answer to \"what actually\n" +
+		"works on this site\" — one row per page instead of one per keyword, which\n" +
+		"`keywords organic` gives. --target is required, --date defaults to today\n" +
+		"UTC and --country is optional."
+	longCompetitors = "--country is REQUIRED here, unlike the other Site Explorer rows\n" +
+		"commands: competition is per market and Ahrefs will not compute it\n" +
+		"otherwise. Returns the domains whose organic keywords overlap the\n" +
+		"target's, with the common-keyword count and traffic share that quantify\n" +
+		"the overlap. --target is required and --date defaults to today UTC."
+)
+
 // newKeywordsCmd builds `keywords organic` — what a site ranks for.
 func (s *Service) newKeywordsCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{Use: "keywords", Short: "Organic keywords a target ranks for"}
 	cmd.AddCommand(s.newTargetDateRowsCmd(token, "organic",
 		"Organic keywords for a target (GET /site-explorer/organic-keywords)",
-		"/site-explorer/organic-keywords", organicKeywordsDefaultSelect, false))
+		longKeywordsOrganic, "/site-explorer/organic-keywords", organicKeywordsDefaultSelect, false))
 	return cmd
 }
 
@@ -28,7 +51,7 @@ func (s *Service) newPagesCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{Use: "pages", Short: "Top pages of a target"}
 	cmd.AddCommand(s.newTargetDateRowsCmd(token, "top",
 		"Best-performing pages for a target (GET /site-explorer/top-pages)",
-		"/site-explorer/top-pages", topPagesDefaultSelect, false))
+		longPagesTop, "/site-explorer/top-pages", topPagesDefaultSelect, false))
 	return cmd
 }
 
@@ -37,17 +60,18 @@ func (s *Service) newPagesCmd(token string) *cobra.Command {
 func (s *Service) newCompetitorsCmd(token string) *cobra.Command {
 	return s.newTargetDateRowsCmd(token, "competitors",
 		"Organic competitors for a target (GET /site-explorer/organic-competitors)",
-		"/site-explorer/organic-competitors", competitorsDefaultSelect, true)
+		longCompetitors, "/site-explorer/organic-competitors", competitorsDefaultSelect, true)
 }
 
 // newTargetDateRowsCmd builds one Site Explorer rows command that requires
 // target+date (and, when countryRequired, country). date defaults to today UTC.
-func (s *Service) newTargetDateRowsCmd(token, use, short, path, defaultSelect string, countryRequired bool) *cobra.Command {
+func (s *Service) newTargetDateRowsCmd(token, use, short, long, path, defaultSelect string, countryRequired bool) *cobra.Command {
 	var target, date, country string
 	var rf rowFlags
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

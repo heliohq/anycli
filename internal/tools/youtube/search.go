@@ -21,8 +21,22 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search videos, channels and playlists (100-unit quota cost)",
+		Use:   "search",
+		Short: "Search videos, channels and playlists (100-unit quota cost)",
+		Long: "The single most expensive call in the tool at 100 quota units, against a\n" +
+			"daily budget of 10,000 — a hundred of these exhaust the day. Never use it\n" +
+			"to find the connected channel's own videos: `videos mine` answers that for\n" +
+			"one or two units, completely and immediately, while search is capped\n" +
+			"around 500 results and lags recent uploads.\n" +
+			"\n" +
+			"--query is required unless --channel is given, which lists that channel's\n" +
+			"content instead. --type narrows to video, channel or playlist; --order is\n" +
+			"relevance, date, rating, viewCount or title; --published-after and\n" +
+			"--published-before take RFC3339 timestamps.\n" +
+			"\n" +
+			"Results are flattened: YouTube nests the id under id.videoId, id.channelId\n" +
+			"or id.playlistId, and this rewrites each item to a top-level `id` plus\n" +
+			"`kind`, so the id is read the same way whatever the result type.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

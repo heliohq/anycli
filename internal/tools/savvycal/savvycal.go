@@ -87,8 +87,23 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "savvycal",
-		Short:         "SavvyCal built-in service",
+		Use:   "savvycal",
+		Short: "SavvyCal built-in service",
+		Long: "A scheduling-link product: a `link` is a bookable page, an `event` is a\n" +
+			"booking made through one, and `me` is the account both belong to.\n" +
+			"\n" +
+			"Booking is always two steps — `link slots` to see what is genuinely\n" +
+			"available, then `event create` echoing one of those slots exactly. A time\n" +
+			"that merely looks free is rejected rather than rounded to the nearest slot.\n" +
+			"\n" +
+			"`event list` and `link list` emit SavvyCal's full `{entries, metadata}`\n" +
+			"envelope. `metadata` carries opaque cursors: pass one back as `--after` for\n" +
+			"the next page or `--before` for the previous. Nothing auto-pages, and both\n" +
+			"take `--limit` 20 by default with a ceiling of 100.\n" +
+			"\n" +
+			"Validation failures come back as HTTP 422 with SavvyCal's own\n" +
+			"`{\"errors\": {...}}` body passed through verbatim — it names the offending\n" +
+			"field, so it is worth reading instead of retrying the same payload.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -12,13 +12,35 @@ var (
 	enrollmentResource   = resource{path: "sequenceStates", typ: "sequenceState"}
 )
 
+// longSequenceGet and the three enrollment-action Longs live here because each
+// of those leaves is produced by a shared constructor.
+const (
+	longSequenceGet = "Returns the cadence's settings and its aggregate counters — not what it\n" +
+		"says. The steps, their delays and the templates they send come from\n" +
+		"`sequence steps <id>`."
+
+	longEnrollmentPause = "Takes the ENROLLMENT id — a sequenceState id from `enrollment list` — not a\n" +
+		"prospect id. Pausing stops further steps while keeping the prospect's\n" +
+		"position, so `enrollment resume` continues from where it stopped. Mail\n" +
+		"already handed to the mailbox is not recalled."
+
+	longEnrollmentResume = "Takes the enrollment id from `enrollment list`. The cadence continues from\n" +
+		"the step it paused on rather than restarting, which means a long pause can\n" +
+		"fire the next step immediately because its delay has already elapsed."
+
+	longEnrollmentFinish = "Takes the enrollment id from `enrollment list` and ends the cadence for\n" +
+		"good: there is no un-finish, and re-engaging the prospect means a fresh\n" +
+		"`enrollment add` that starts from step one. This is the verb for \"stop\n" +
+		"emailing this person\"."
+)
+
 // newSequenceCmd builds the sequence resource group: pick the cadence to enroll
 // into and inspect its steps.
 func (s *Service) newSequenceCmd(token string) *cobra.Command {
 	group := newGroupCmd("sequence", "List and inspect sequences (cadences)")
 	group.AddCommand(
 		s.newSequenceListCmd(token),
-		s.newGetCmd(token, sequenceResource),
+		s.newGetCmd(token, sequenceResource, longSequenceGet),
 		s.newSequenceStepsCmd(token),
 	)
 	return group
@@ -27,8 +49,11 @@ func (s *Service) newSequenceCmd(token string) *cobra.Command {
 func (s *Service) newSequenceListCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List sequences (one page)",
+		Use:   "list",
+		Short: "List sequences (one page)",
+		Long: "--name filters by cadence name. Each row carries the sequence's settings\n" +
+			"and counters, which makes this the place to confirm a cadence is active\n" +
+			"and sane before `enrollment add` puts real prospects into it.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -48,8 +73,12 @@ func (s *Service) newSequenceListCmd(token string) *cobra.Command {
 // newSequenceStepsCmd lists the sequenceSteps of one sequence (its cadence content).
 func (s *Service) newSequenceStepsCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "steps <sequence-id>",
-		Short:       "List the steps of one sequence",
+		Use:   "steps <sequence-id>",
+		Short: "List the steps of one sequence",
+		Long: "The cadence's content: what is sent, after how long, and which template each\n" +
+			"email step uses. Reading this is how to know what a prospect will actually\n" +
+			"receive, and it matters because `enrollment add` starts the cadence with\n" +
+			"no preview and no scheduling flag.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -75,9 +104,9 @@ func (s *Service) newEnrollmentCmd(token string) *cobra.Command {
 	group.AddCommand(
 		s.newEnrollmentListCmd(token),
 		s.newEnrollmentAddCmd(token),
-		s.newEnrollmentActionCmd(token, "pause", "Pause an enrollment"),
-		s.newEnrollmentActionCmd(token, "resume", "Resume a paused enrollment"),
-		s.newEnrollmentActionCmd(token, "finish", "Finish (stop) an enrollment"),
+		s.newEnrollmentActionCmd(token, "pause", "Pause an enrollment", longEnrollmentPause),
+		s.newEnrollmentActionCmd(token, "resume", "Resume a paused enrollment", longEnrollmentResume),
+		s.newEnrollmentActionCmd(token, "finish", "Finish (stop) an enrollment", longEnrollmentFinish),
 	)
 	return group
 }
@@ -85,8 +114,13 @@ func (s *Service) newEnrollmentCmd(token string) *cobra.Command {
 func (s *Service) newEnrollmentListCmd(token string) *cobra.Command {
 	var prospectID, sequenceID, state string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List enrollments / sequence states (one page)",
+		Use:   "list",
+		Short: "List enrollments / sequence states (one page)",
+		Long: "Answers who is in what. --prospect-id shows every cadence one person is\n" +
+			"already in, which is worth checking before enrolling — Outreach will\n" +
+			"happily run two sequences at the same prospect. --state filters on the\n" +
+			"sequence-state value (active, finished, paused). Each item's `id` is what\n" +
+			"`enrollment pause`, `resume` and `finish` take.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -112,8 +146,15 @@ func (s *Service) newEnrollmentListCmd(token string) *cobra.Command {
 func (s *Service) newEnrollmentAddCmd(token string) *cobra.Command {
 	var prospectID, sequenceID, mailboxID string
 	cmd := &cobra.Command{
-		Use:         "add",
-		Short:       "Enroll a prospect in a sequence (via a mailbox)",
+		Use:   "add",
+		Short: "Enroll a prospect in a sequence (via a mailbox)",
+		Long: "The core write, and it sends real outbound email: the cadence begins on its\n" +
+			"own schedule from this call, with no preview and no start-date flag. All\n" +
+			"three of --prospect-id, --sequence-id and --mailbox-id are required and\n" +
+			"numeric, and the mailbox is the seat the mail leaves from — it must be a\n" +
+			"real connected one from `mailbox list`, or the enroll fails 4xx. Check\n" +
+			"`enrollment list --prospect-id` first so the same person is not put into\n" +
+			"two cadences at once.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -139,10 +180,11 @@ func (s *Service) newEnrollmentAddCmd(token string) *cobra.Command {
 
 // newEnrollmentActionCmd builds a no-param sequenceState action command
 // (pause/resume/finish).
-func (s *Service) newEnrollmentActionCmd(token, action, short string) *cobra.Command {
+func (s *Service) newEnrollmentActionCmd(token, action, short, long string) *cobra.Command {
 	return &cobra.Command{
 		Use:         action + " <id>",
 		Short:       short,
+		Long:        long,
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

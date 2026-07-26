@@ -169,8 +169,32 @@ func (s *Service) stderr() io.Writer {
 // the top-level `query` ZOQL escape hatch.
 func (s *Service) newRoot(cl *client) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "zuora",
-		Short:         "Zuora Billing built-in service (accounts, subscriptions, invoices, payments, catalog, ZOQL)",
+		Use:   "zuora",
+		Short: "Zuora Billing built-in service (accounts, subscriptions, invoices, payments, catalog, ZOQL)",
+		Long: "A read-only surface. Nothing here creates, amends or cancels a\n" +
+			"subscription, posts an invoice, or takes or refunds money — every\n" +
+			"command is a lookup.\n" +
+			"\n" +
+			"Most commands take an account or subscription KEY and accept either the\n" +
+			"human number (A00000123, A-S00000123) or the internal id. The two\n" +
+			"ZOQL-backed lists are the exception: `invoice list` and `payment list`\n" +
+			"match on AccountId, so they need the internal ID and answer an account\n" +
+			"number with an EMPTY result set rather than an error.\n" +
+			"\n" +
+			"`query --zoql` is the fallback for anything not first-classed here: a\n" +
+			"read-only SELECT over any queryable object — Account, Subscription,\n" +
+			"Invoice, Payment, RatePlan and the rest. Write verbs are refused\n" +
+			"locally, before any request is sent.\n" +
+			"\n" +
+			"The connection carries its own REST host, which fixes both the data\n" +
+			"center and the environment. A sandbox tenant and a production tenant are\n" +
+			"separate connections; there is no environment flag to switch between\n" +
+			"them, so which one is in play is decided before any command runs.\n" +
+			"\n" +
+			"A 401 means the credential is dead or expired. A 403 almost always means\n" +
+			"the tenant's OAuth client holds a role without access to that object,\n" +
+			"which reconnecting does not fix — the tenant admin has to widen the\n" +
+			"role.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

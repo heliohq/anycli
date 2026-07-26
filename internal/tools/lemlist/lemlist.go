@@ -123,7 +123,29 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "lemlist",
+		Use: "lemlist",
+		Long: "Drives Lemlist, a cold-outreach platform whose campaigns send real email\n" +
+			"and LinkedIn touches to real people. Every leaf prints Lemlist's JSON on\n" +
+			"stdout; exit 0 is success, 1 an API or transport failure with the HTTP\n" +
+			"status in the `--json` error envelope, and 2 a usage error caught before\n" +
+			"any request goes out.\n" +
+			"\n" +
+			"Scope is not uniform. `lead add`, `lead update`, `lead unsubscribe` and\n" +
+			"`lead delete` are CAMPAIGN-scoped and take a `<campaignId>` as their\n" +
+			"first argument, while `lead get`, `lead mark-interested` and\n" +
+			"`lead mark-not-interested` act across the account.\n" +
+			"\n" +
+			"The identifier each lead verb wants changes with the verb: `unsubscribe`\n" +
+			"takes an EMAIL, `delete` takes a LEAD ID, `update` takes a lead id, and\n" +
+			"the two `mark-*` verbs take either. The wrong shape is not caught here —\n" +
+			"it reaches Lemlist and fails there.\n" +
+			"\n" +
+			"Paging is offset-based rather than cursor-based: read the next page by\n" +
+			"adding `--limit` to `--offset` (0, 100, 200 …), and stop when a page\n" +
+			"comes back short. `--limit` tops out at 100 on the list endpoints.\n" +
+			"\n" +
+			"Enrolling leads starts nothing. A campaign only sends while it is\n" +
+			"running, which is `campaign start`.",
 		Short:         "Lemlist built-in service (cold outreach: campaigns, leads, activities)",
 		SilenceUsage:  true,
 		SilenceErrors: true,

@@ -107,8 +107,19 @@ func (s *Service) newEmailSendCmd(token string) *cobra.Command {
 	var common commonSendFlags
 	var subject, html, text string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a single email (POST /email)",
+		Use:   "send",
+		Short: "Send a single email (POST /email)",
+		Long: "`--from` and `--to` are required, as is at least one of `--html` / `--text`\n" +
+			"— a send with no body is rejected locally at exit 2. `--to`, `--cc` and\n" +
+			"`--bcc` each take a comma-separated list, and Postmark allows at most 50\n" +
+			"recipients across all three in one call. `--stream` defaults to the\n" +
+			"server's outbound stream, so a broadcast send has to name its stream.\n" +
+			"\n" +
+			"`--track-links` is None|HtmlAndText|HtmlOnly|TextOnly, matched\n" +
+			"case-insensitively. `--header` repeats as 'Name: Value', `--metadata` takes\n" +
+			"a JSON object, and `--attachment` repeats with a local path — each file is\n" +
+			"read and base64-encoded into the request body, which counts against\n" +
+			"Postmark's 10 MB per-message ceiling.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -141,8 +152,18 @@ func (s *Service) newEmailSendTemplateCmd(token string) *cobra.Command {
 	var templateID int
 	var templateAlias, model string
 	cmd := &cobra.Command{
-		Use:         "send-template",
-		Short:       "Send using a template (POST /email/withTemplate)",
+		Use:   "send-template",
+		Short: "Send using a template (POST /email/withTemplate)",
+		Long: "Exactly one of `--template-id` or `--template-alias`; both or neither is a\n" +
+			"usage error at exit 2. The alias is the portable one — the numeric id is\n" +
+			"per-server. `--model` is the JSON object the template's placeholders draw\n" +
+			"from, and a placeholder with no matching key renders empty instead of\n" +
+			"failing, so a typo produces a half-blank email that still exits 0. Read the\n" +
+			"expected keys off `template get`.\n" +
+			"\n" +
+			"The subject and bodies come from the template, which is why `--subject`,\n" +
+			"`--html` and `--text` do not exist here. Addressing, tags, streams,\n" +
+			"tracking and attachments behave exactly as on `email send`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

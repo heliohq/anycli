@@ -83,8 +83,32 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(sess *session) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "bluesky",
-		Short:         "Bluesky built-in service",
+		Use:   "bluesky",
+		Short: "Bluesky built-in service",
+		Long: "Three identifiers flow through this tool and none of them can be\n" +
+			"invented. A handle (alice.bsky.social) is human-readable and can change;\n" +
+			"a DID (did:plc:...) is the stable account key, and --actor takes either.\n" +
+			"A specific post or record is an at:// URI —\n" +
+			"at://<did>/<collection>/<rkey> — paired with a `cid` content hash.\n" +
+			"Writes echo the uri and cid they produced; keep them, because replying\n" +
+			"to, quoting, liking or deleting that item later needs them and nothing\n" +
+			"reconstructs them from the post's text.\n" +
+			"\n" +
+			"Reads return ONE page. Feed the returned `cursor` back as --cursor for\n" +
+			"the next one; --limit is 1-100 with a default of 25 wherever it appears.\n" +
+			"\n" +
+			"For \"what engagement did the connected account get\",\n" +
+			"`notifications list` is the standing answer — mentions, replies, likes,\n" +
+			"reposts and follows arrive in one call — rather than repeated searches.\n" +
+			"\n" +
+			"Reads are reshaped, not passed through: a post comes back as uri, cid,\n" +
+			"author, text, created_at and the three engagement counts, so embeds,\n" +
+			"facets, labels and viewer state are simply not visible through this\n" +
+			"tool.\n" +
+			"\n" +
+			"Writes are public the instant they succeed. There is no draft or\n" +
+			"scheduling state, and the only undo is deleting the record that was\n" +
+			"created.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

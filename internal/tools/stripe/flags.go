@@ -93,21 +93,22 @@ func applyParams(v url.Values, params []string) error {
 // newListGetGroup builds a resource group exposing the two universal
 // read verbs Stripe gives every list-shaped resource: `list` (GET
 // <basePath>, cursor-paginated) and `get <id>` (GET <basePath>/<id>).
-func (s *Service) newListGetGroup(token, use, short, basePath string) *cobra.Command {
+func (s *Service) newListGetGroup(token, use, short, basePath, listLong, getLong string) *cobra.Command {
 	group := newGroupCmd(use, short)
 	group.AddCommand(
-		s.newListCmd(token, basePath),
-		s.newGetByIDCmd(token, basePath),
+		s.newListCmd(token, basePath, listLong),
+		s.newGetByIDCmd(token, basePath, getLong),
 	)
 	return group
 }
 
 // newListCmd builds a paginated `list` subcommand for basePath.
-func (s *Service) newListCmd(token, basePath string) *cobra.Command {
+func (s *Service) newListCmd(token, basePath, long string) *cobra.Command {
 	var o listOpts
 	cmd := &cobra.Command{
 		Use:         "list",
 		Short:       "List " + strings.TrimPrefix(basePath, "/"),
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -127,10 +128,11 @@ func (s *Service) newListCmd(token, basePath string) *cobra.Command {
 }
 
 // newGetByIDCmd builds a `get <id>` subcommand for basePath (retrieve one).
-func (s *Service) newGetByIDCmd(token, basePath string) *cobra.Command {
+func (s *Service) newGetByIDCmd(token, basePath, long string) *cobra.Command {
 	return &cobra.Command{
 		Use:         "get <id>",
 		Short:       "Retrieve one " + strings.TrimSuffix(strings.TrimPrefix(basePath, "/"), "s") + " by id",
+		Long:        long,
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, args []string) error {

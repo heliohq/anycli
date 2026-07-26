@@ -25,8 +25,15 @@ func (s *Service) newMessagesCmd(c *client) *cobra.Command {
 func (s *Service) newMessagesSendCmd(c *client) *cobra.Command {
 	var bodyFlag string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send an immediate message (permission-gated)",
+		Use:   "send",
+		Short: "Send an immediate message (permission-gated)",
+		Long: "--body is the entire Braze request as raw JSON — the `messages` object plus\n" +
+			"`recipients`, or `broadcast` with an `audience` — and nothing here\n" +
+			"validates or re-models it. Delivery starts as soon as the call returns and\n" +
+			"there is no recall: `broadcast: true` with a wide audience is an\n" +
+			"irreversible send to everyone it matches. Use `messages schedule` when the\n" +
+			"send should be cancellable up to its scheduled time. This endpoint family\n" +
+			"is rate-limited far below the account default.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}
@@ -53,8 +60,14 @@ func (s *Service) newMessagesSendCmd(c *client) *cobra.Command {
 func (s *Service) newMessagesScheduleCmd(c *client) *cobra.Command {
 	var bodyFlag, scheduleFlag string
 	cmd := &cobra.Command{
-		Use:         "schedule",
-		Short:       "Schedule a message for the future (permission-gated)",
+		Use:   "schedule",
+		Short: "Schedule a message for the future (permission-gated)",
+		Long: "--body and --schedule are both required. --schedule is a separate raw JSON\n" +
+			"object (`time`, `in_local_time`, `at_optimal_time`) that is merged into the\n" +
+			"body's `schedule` field, overwriting one already there. The response\n" +
+			"carries a schedule id, but this tool has no command to update or cancel a\n" +
+			"scheduled send — only `messages scheduled-list` to see it — so a mistake\n" +
+			"has to be undone in the Braze dashboard.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}
@@ -86,8 +99,13 @@ func (s *Service) newMessagesScheduleCmd(c *client) *cobra.Command {
 func (s *Service) newMessagesScheduledListCmd(c *client) *cobra.Command {
 	var endTime string
 	cmd := &cobra.Command{
-		Use:         "scheduled-list",
-		Short:       "List upcoming scheduled broadcasts",
+		Use:   "scheduled-list",
+		Short: "List upcoming scheduled broadcasts",
+		Long: "--end-time is required and is an upper bound, so this always answers \"what\n" +
+			"is due between now and then\" and never lists past sends. It covers\n" +
+			"scheduled campaigns and Canvases as well as messages scheduled through\n" +
+			"this tool. Cancelling anything it shows is a dashboard operation; no\n" +
+			"command here does it.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}

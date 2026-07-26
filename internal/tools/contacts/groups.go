@@ -27,8 +27,13 @@ func (g *contactGroup) label() string {
 
 func (s *Service) newGroupsListCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List contact groups (contactGroups.list)",
+		Use:   "list",
+		Short: "List contact groups (contactGroups.list)",
+		Long: "Contact groups are what the Google Contacts UI calls labels. Each entry\n" +
+			"carries a member count and a groupType separating Google's system groups\n" +
+			"(myContacts, starred, chatBuddies) from user-created ones. This lists\n" +
+			"the groups, not their members; nothing in this tool enumerates who is in\n" +
+			"a group or puts anyone into one.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -59,8 +64,13 @@ func (s *Service) newGroupsListCmd(token string) *cobra.Command {
 
 func (s *Service) newGroupsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <resource-name>",
-		Short:       "Show one contact group (contactGroups.get)",
+		Use:   "get <resource-name>",
+		Short: "Show one contact group (contactGroups.get)",
+		Long: "Takes the group's resource name as `groups list` prints it —\n" +
+			"contactGroups/family for a system group, contactGroups/<opaque-id> for a\n" +
+			"user-created label. The request deliberately asks for zero members, so\n" +
+			"the response gives the group's name, type and member COUNT and never the\n" +
+			"member list: this cannot answer who is in a group.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

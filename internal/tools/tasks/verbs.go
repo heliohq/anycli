@@ -17,17 +17,34 @@ const (
 	statusNeedsAction = "needsAction"
 )
 
+// longComplete and longReopen are the two status-verb texts. They sit next to
+// the shared builder because it is the builder that fixes the multi-id, serial,
+// non-atomic behaviour both of them inherit.
+const (
+	longComplete = "Takes one or more task ids. They are patched SERIALLY — the API has no\n" +
+		"batch verb — so a failure part-way leaves the earlier ids completed, and\n" +
+		"each id's outcome is reported separately. Completing is reversible with\n" +
+		"`reopen`. Note that Google's own clients hide a completed task, so one\n" +
+		"completed here may later need `list --show-hidden` to find."
+
+	longReopen = "Puts completed tasks back to needsAction, undoing `complete` with the due\n" +
+		"date and notes intact. Several ids are patched serially with per-id\n" +
+		"outcomes, so a partial failure really is partial. It only revives a\n" +
+		"COMPLETED task — a deleted one is gone and this will not bring it back."
+)
+
 // newTasksStatusCmd builds `complete` (status=completed) or `reopen`
 // (status=needsAction). Both patch the status field; multiple ids are patched
 // serially and failures are reported per id (the API has no batch-modify verb).
 func (s *Service) newTasksStatusCmd(token, status string) *cobra.Command {
-	verb, past, short := "complete", "completed", "Mark tasks completed (synthetic verb = patch status=completed)"
+	verb, past, short, long := "complete", "completed", "Mark tasks completed (synthetic verb = patch status=completed)", longComplete
 	if status == statusNeedsAction {
-		verb, past, short = "reopen", "reopened", "Reopen completed tasks (synthetic verb = patch status=needsAction)"
+		verb, past, short, long = "reopen", "reopened", "Reopen completed tasks (synthetic verb = patch status=needsAction)", longReopen
 	}
 	cmd := &cobra.Command{
 		Use:         verb + " <task-id>...",
 		Short:       short,
+		Long:        long,
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -49,8 +66,14 @@ func (s *Service) newTasksStatusCmd(token, status string) *cobra.Command {
 func (s *Service) newTasksMoveCmd(token string) *cobra.Command {
 	var parent, previous, toList string
 	cmd := &cobra.Command{
-		Use:         "move <task-id>",
-		Short:       "Reposition/reparent a task (tasks.move). --to-list moves it to another list (repeating tasks cannot cross lists — API 400 passes through).",
+		Use:   "move <task-id>",
+		Short: "Reposition/reparent a task (tasks.move). --to-list moves it to another list (repeating tasks cannot cross lists — API 400 passes through).",
+		Long: "`--previous` places the task after a sibling, `--parent` makes it a subtask\n" +
+			"of another task, and `--to-list` moves it to a different list entirely. A\n" +
+			"REPEATING task cannot cross lists: Google answers 400 and that error passes\n" +
+			"through unchanged, which is a provider constraint, not something a retry\n" +
+			"fixes. After a cross-list move the task belongs to the destination, so\n" +
+			"later commands need the new `--list`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -85,8 +108,13 @@ func (s *Service) newTasksMoveCmd(token string) *cobra.Command {
 
 func (s *Service) newTasksClearCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "clear",
-		Short:       "Hide all completed tasks in a list (tasks.clear). Reversible — --show-hidden re-reveals them; prefer this over delete for 'clean up done'.",
+		Use:   "clear",
+		Short: "Hide all completed tasks in a list (tasks.clear). Reversible — --show-hidden re-reveals them; prefer this over delete for 'clean up done'.",
+		Long: "Hides every completed task in `--list` in one call — the same thing the\n" +
+			"\"delete completed\" button does in Google's clients. It is REVERSIBLE: the\n" +
+			"tasks still exist and `list --show-hidden` brings them back, which is why\n" +
+			"it, not `delete`, is the way to tidy finished work. Outstanding tasks are\n" +
+			"untouched, and there is no dry run — it clears the whole list at once.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -107,8 +135,14 @@ func (s *Service) newTasksClearCmd(token string) *cobra.Command {
 
 func (s *Service) newTasksDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <task-id>...",
-		Short:       "Delete tasks (tasks.delete) — irreversible; an assigned task's Docs/Chat original is deleted too. Prefer `clear` for done tasks.",
+		Use:   "delete <task-id>...",
+		Short: "Delete tasks (tasks.delete) — irreversible; an assigned task's Docs/Chat original is deleted too. Prefer `clear` for done tasks.",
+		Long: "IRREVERSIBLE: neither this tool nor the API has an undelete, and\n" +
+			"`list --show-deleted` only lets a deleted task be read. Deleting an\n" +
+			"ASSIGNED task — one that originated in Google Docs or Chat — also deletes\n" +
+			"the original there, a cascade that leaves Tasks entirely; `list --json`\n" +
+			"marks those with a non-empty `assignmentInfo`. Several ids are deleted\n" +
+			"serially with per-id outcomes, so a partial failure is partial.",
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

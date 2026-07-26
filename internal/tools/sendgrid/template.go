@@ -19,8 +19,13 @@ func (s *Service) newTemplateCmd(token string, region *string) *cobra.Command {
 func (s *Service) newTemplateListCmd(token string, region *string) *cobra.Command {
 	var pageSize int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List dynamic templates (GET /v3/templates?generations=dynamic)",
+		Use:   "list",
+		Short: "List dynamic templates (GET /v3/templates?generations=dynamic)",
+		Long: "Hard-filtered to dynamic templates, so a legacy transactional template\n" +
+			"visible in the SendGrid UI never appears here and its id will not work\n" +
+			"with `mail send --template-id`. --page-size is 1-200, default 100.\n" +
+			"Entries carry the template name and version summaries; the version body\n" +
+			"comes from `template get`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -41,8 +46,13 @@ func (s *Service) newTemplateListCmd(token string, region *string) *cobra.Comman
 func (s *Service) newTemplateGetCmd(token string, region *string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a template with its versions (GET /v3/templates/{id})",
+		Use:   "get",
+		Short: "Get a template with its versions (GET /v3/templates/{id})",
+		Long: "--id is required and takes the dynamic template id, the `d-` prefixed\n" +
+			"form, not the version id. The active version's subject and HTML come\n" +
+			"back with it, and the {{placeholders}} inside them are the exact keys\n" +
+			"`mail send --data` must supply — read this before composing a templated\n" +
+			"send rather than guessing the field names.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

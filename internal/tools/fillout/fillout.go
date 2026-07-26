@@ -165,8 +165,23 @@ func resolveBase(apiBase string) string {
 // newRoot builds the grouped-by-resource cobra tree for one invocation.
 func (s *Service) newRoot(token, apiBase string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "fillout",
-		Short:         "Fillout built-in service (forms + submissions)",
+		Use:   "fillout",
+		Short: "Fillout built-in service (forms + submissions)",
+		Long: "Reads the connected account's forms and their submissions and manages the\n" +
+			"webhooks that announce new ones. Fillout's own JSON is printed verbatim;\n" +
+			"`--json` only selects the shape of the error envelope.\n" +
+			"\n" +
+			"One connection is one Fillout account — the grant carries no account\n" +
+			"identifier, so there is nothing to pick between. The correct API host (US,\n" +
+			"EU data-residency, or a self-host) is fixed at connect time, which is why no\n" +
+			"command takes a base URL.\n" +
+			"\n" +
+			"Submissions do NOT carry question text. Each answer references a question id\n" +
+			"only, so `form get <formId>` has to run first to map those ids to labels and\n" +
+			"types; without that map the responses are uninterpretable.\n" +
+			"\n" +
+			"The form id is positional on `form get` and on every `submission` verb, but\n" +
+			"a required flag on `webhook create --form-id`.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

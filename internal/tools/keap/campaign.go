@@ -21,8 +21,11 @@ func (s *Service) newCampaignCmd(token string) *cobra.Command {
 func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List campaigns (GET /v2/campaigns)",
+		Use:   "list",
+		Short: "List campaigns (GET /v2/campaigns)",
+		Long: "The legacy Campaign Builder surface, separate from `automation` and\n" +
+			"read-only here: nothing in this group creates, edits or enrols anyone.\n" +
+			"To put contacts into a sequence use `automation add-contacts`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -39,8 +42,10 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 
 func (s *Service) newCampaignGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <campaign-id>",
-		Short:       "Get a campaign (GET /v2/campaigns/{id})",
+		Use:   "get <campaign-id>",
+		Short: "Get a campaign (GET /v2/campaigns/{id})",
+		Long: "Takes a legacy campaign id from `campaign list`. Campaign ids and automation\n" +
+			"ids are different namespaces — an automation id will not resolve here.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

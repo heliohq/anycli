@@ -36,8 +36,21 @@ func (s *Service) newReportRunCmd(token string) *cobra.Command {
 	var filters, orderBys []string
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "run",
-		Short:       "Run a GA4 report (dimensions × metrics over a date range)",
+		Use:   "run",
+		Short: "Run a GA4 report (dimensions × metrics over a date range)",
+		Long: "`--property` and `--metrics` are required; `--dimensions` is optional and a\n" +
+			"metrics-only report returns a single totals row. The date window defaults\n" +
+			"to `28daysAgo`..`today` and is one range only — comparing two periods means\n" +
+			"two calls.\n" +
+			"\n" +
+			"`--filter dim==value` is repeatable sugar for EXACT string matches ANDed\n" +
+			"together; anything richer (OR groups, numeric, `inList` or regex matches)\n" +
+			"needs a raw Data API `FilterExpression` through `--filter-json`, and the two\n" +
+			"flags are mutually exclusive. `--order-by` is `metric:<name>[:asc|desc]` or\n" +
+			"`dimension:<name>[:asc|desc]`, repeatable, ascending unless told otherwise.\n" +
+			"`--limit` falls back to the provider's 10000 and pages with `--offset`;\n" +
+			"when the property holds more rows than came back, the table ends in a\n" +
+			"`row count: N (returned M; ...)` line.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -116,8 +129,15 @@ func (s *Service) newReportRealtimeCmd(token string) *cobra.Command {
 	var property, metrics, dimensions string
 	var minutesAgo int
 	cmd := &cobra.Command{
-		Use:         "realtime",
-		Short:       "Run a GA4 realtime report (last 30 minutes; 60 for GA 360)",
+		Use:   "realtime",
+		Short: "Run a GA4 realtime report (last 30 minutes; 60 for GA 360)",
+		Long: "Answers \"who is on the site right now\" and nothing historical — anything\n" +
+			"with a date range belongs to `report run`. `--property` and `--metrics` are\n" +
+			"required. Realtime accepts a much smaller set of metric and dimension\n" +
+			"names than the standard report, so a name that works there may be rejected\n" +
+			"here; check `report metadata`. `--minutes-ago` moves the start of the\n" +
+			"window back from now (provider default 29) and must be >= 0. There are no\n" +
+			"filter, ordering or pagination flags.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -171,8 +191,15 @@ type metadataEntry struct {
 func (s *Service) newReportMetadataCmd(token string) *cobra.Command {
 	var property, kind, search string
 	cmd := &cobra.Command{
-		Use:         "metadata",
-		Short:       "List valid dimension/metric API names for a property (incl. custom definitions)",
+		Use:   "metadata",
+		Short: "List valid dimension/metric API names for a property (incl. custom definitions)",
+		Long: "`--property` is required because the answer includes that property's own\n" +
+			"custom dimensions and metrics, not just the standard GA4 catalogue.\n" +
+			"`--kind` is dimensions, metrics or all (default all); `--search` is a\n" +
+			"case-insensitive substring match over both `apiName` and `uiName`. Plain\n" +
+			"output is `<kind>\\t<apiName>\\t<uiName>` lines. Under `--json` the full\n" +
+			"provider objects come back — verbatim when neither `--kind` nor `--search`\n" +
+			"narrows the result, otherwise regrouped under `dimensions` and `metrics`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -22,8 +22,16 @@ func (s *Service) newPersonListCmd(token string) *cobra.Command {
 	var lf listFlags
 	var emails []string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List people (GET /v2/people); filter by --email or --updated-since",
+		Use:   "list",
+		Short: "List people (GET /v2/people); filter by --email or --updated-since",
+		Long: "The lookup that belongs before any prospect write. `--email` is\n" +
+			"repeatable, maps to Salesloft's `email_addresses[]` filter and matches\n" +
+			"the whole address exactly — there is no partial or domain match — which\n" +
+			"makes it the way to tell whether a prospect already exists. For an\n" +
+			"incremental read use `--updated-since` with\n" +
+			"`--sort-by updated_at --sort-direction ASC`; re-walking every page\n" +
+			"spends the team's shared rate budget instead. Anything else goes through\n" +
+			"`--filter`, e.g. `--filter \"account_id[]=77\"`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -49,8 +57,13 @@ func (s *Service) newPersonListCmd(token string) *cobra.Command {
 func (s *Service) newPersonGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Fetch one person (GET /v2/people/{id})",
+		Use:   "get",
+		Short: "Fetch one person (GET /v2/people/{id})",
+		Long: "`--id` is required and is Salesloft's integer person id from\n" +
+			"`person list`; an email address is not accepted here, so start from\n" +
+			"`person list --email` when that is all you have. Returns the whole\n" +
+			"prospect record — contact details, `account_id`, `owner_id`,\n" +
+			"`person_stage`, custom fields and the engagement counters.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -70,8 +83,15 @@ func (s *Service) newPersonCreateCmd(token string) *cobra.Command {
 	var email, firstName, lastName, title, body string
 	var accountID, ownerID, personStageID int
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a person (POST /v2/people)",
+		Use:   "create",
+		Short: "Create a person (POST /v2/people)",
+		Long: "The CLI requires no field, but a person without `--email` cannot be\n" +
+			"enrolled in an email cadence, so treat it as mandatory. Salesloft does\n" +
+			"not deduplicate: run `person list --email` first, because a second\n" +
+			"record on an address that already exists splits that prospect's history\n" +
+			"and nothing here merges them. `--account-id` links the person to a\n" +
+			"company, `--owner-id` assigns a rep from `user list`, and `--body`\n" +
+			"carries anything with no flag, its keys overriding the named ones.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -116,8 +136,15 @@ func (s *Service) newPersonUpdateCmd(token string) *cobra.Command {
 	var id, email, firstName, lastName, title, body string
 	var accountID, ownerID, personStageID int
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a person (PUT /v2/people/{id})",
+		Use:   "update",
+		Short: "Update a person (PUT /v2/people/{id})",
+		Long: "`--id` is required. The request is partial despite being a PUT: only the\n" +
+			"flags actually passed are sent, unmentioned fields keep their values,\n" +
+			"and no named flag can blank one out. `--body` is the route to custom\n" +
+			"fields and anything else without a flag —\n" +
+			"`--body '{\"custom_fields\":{\"Region\":\"EU\"}}'` — and its keys win over\n" +
+			"overlapping named flags. Changing `--email` re-points the record; it\n" +
+			"does not create a second one.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

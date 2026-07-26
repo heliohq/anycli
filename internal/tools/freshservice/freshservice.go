@@ -141,8 +141,31 @@ func (s *Service) httpClient() *http.Client {
 // its own group (ticket, requester, agent, group, asset).
 func (s *Service) newRoot(c *client) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "freshservice",
-		Short:         "Freshservice ITSM built-in service (tickets, requesters, agents, groups, assets)",
+		Use:   "freshservice",
+		Short: "Freshservice ITSM built-in service (tickets, requesters, agents, groups, assets)",
+		Long: "Status, priority and source are INTEGER codes on this API, not labels: a\n" +
+			"create or update carrying \"Open\" or \"High\" is rejected. status is 2 Open,\n" +
+			"3 Pending, 4 Resolved, 5 Closed, and an account may define custom statuses\n" +
+			"at 6 and above; priority is 1 Low, 2 Medium, 3 High, 4 Urgent. `type` is\n" +
+			"the exception and is a string — \"Incident\", \"Service Request\", or whatever\n" +
+			"else the account defines. The same codes are what a `ticket search`\n" +
+			"expression compares against.\n" +
+			"\n" +
+			"Requesters are the employees who raise tickets and agents are the staff who\n" +
+			"work them; they are separate directories with independent id spaces, and a\n" +
+			"person can appear in both. Assignment is by numeric id — --agent-id is\n" +
+			"Freshservice's responder_id and comes from `agent list`, --group-id comes\n" +
+			"from `group list`.\n" +
+			"\n" +
+			"List commands emit `{\"items\":[…],\"page\":N,\"per_page\":N,\"next_page\":N}` with\n" +
+			"`next_page` null on the last page; single-resource commands emit the bare\n" +
+			"object with the provider's `{\"ticket\":{…}}` wrapper already stripped.\n" +
+			"Errors go to stderr as `{\"error\":{\"status\",\"message\",\"provider_code\"}}`,\n" +
+			"carrying `retry_after` on a 429.\n" +
+			"\n" +
+			"The connected API key belongs to one agent profile and inherits exactly\n" +
+			"that profile's permissions, so a 403 on assets or on another group's\n" +
+			"tickets is a scope limit on the credential, not a malformed request.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

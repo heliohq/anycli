@@ -23,8 +23,20 @@ func (s *Service) newCampaignsCmd(client *reportingClient) *cobra.Command {
 		cursor                string
 	)
 	cmd := &cobra.Command{
-		Use:         "campaigns",
-		Short:       "Read campaign performance (GET /v2/campaigns/performance)",
+		Use:   "campaigns",
+		Short: "Read campaign performance (GET /v2/campaigns/performance)",
+		Long: "`--start` and `--end` are required, UTC YYYY-MM-DD, and the provider caps\n" +
+			"the span at two years — split a longer report into several calls.\n" +
+			"`--date-basis` decides what those dates mean: post_date (the default)\n" +
+			"buckets by when content was published, performance_date by when the\n" +
+			"engagement happened, and the same window yields different numbers under\n" +
+			"each.\n" +
+			"\n" +
+			"Omitting `--instance-ids` spans every instance the credential can reach.\n" +
+			"`--campaign-ids` takes at most 50. `--limit` is 1-100 and defaults to 50\n" +
+			"server-side. Paging is cursor-based: pass the response's nextCursor back\n" +
+			"as `--cursor` and stop when it comes back null — do not re-send the first\n" +
+			"page's cursor.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

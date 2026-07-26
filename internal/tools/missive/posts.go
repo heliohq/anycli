@@ -17,8 +17,15 @@ func (s *Service) newPostsCmd(token string) *cobra.Command {
 func (s *Service) newPostsCreateCmd(token string) *cobra.Command {
 	var inline, file string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a post (POST /posts). Body: {\"posts\":{...}}",
+		Use:   "create",
+		Short: "Create a post (POST /posts). Body: {\"posts\":{...}}",
+		Long: "Writes an INTERNAL note into a conversation: the team reads it, the\n" +
+			"customer never does. The body wraps under `posts` and carries\n" +
+			"`conversation` (the id) with `text`; a `notification` object with `title`\n" +
+			"and `body` controls what the team's notification shows. Omitting\n" +
+			"`conversation` opens a new conversation instead of appending to one. When\n" +
+			"the job is to report findings rather than answer a person, this is the\n" +
+			"right verb — `drafts create` is not.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

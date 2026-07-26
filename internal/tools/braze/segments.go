@@ -24,8 +24,12 @@ func (s *Service) newSegmentsListCmd(c *client) *cobra.Command {
 	var page int
 	var sortDirection string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List segments (id + name), paginated",
+		Use:   "list",
+		Short: "List segments (id + name), paginated",
+		Long: "Returns the segment API identifiers the other segment commands need; there\n" +
+			"is no lookup by name. --page is 0-INDEXED and --sort-direction takes asc\n" +
+			"or desc by creation time. Only segments marked analytics-enabled in the\n" +
+			"dashboard carry a size history for `segments series`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -52,8 +56,12 @@ func (s *Service) newSegmentsListCmd(c *client) *cobra.Command {
 func (s *Service) newSegmentsDetailsCmd(c *client) *cobra.Command {
 	var segmentID string
 	cmd := &cobra.Command{
-		Use:         "details",
-		Short:       "Get a segment's configuration and metadata",
+		Use:   "details",
+		Short: "Get a segment's configuration and metadata",
+		Long: "--segment-id is required. Returns how the segment is defined and whether\n" +
+			"analytics tracking is on for it — the flag that decides whether `segments\n" +
+			"series` has any data to return. It does not list the users in the segment;\n" +
+			"no command here does.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -77,8 +85,12 @@ func (s *Service) newSegmentsSeriesCmd(c *client) *cobra.Command {
 	var segmentID, endingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:         "series",
-		Short:       "Get a segment's size over time",
+		Use:   "series",
+		Short: "Get a segment's size over time",
+		Long: "--segment-id is required; --length is days back from --ending-at (default\n" +
+			"now, --length default 7) and caps at 100. This is membership SIZE per day,\n" +
+			"not engagement, and it only exists for segments with analytics tracking\n" +
+			"enabled — an untracked segment returns nothing rather than erroring.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}

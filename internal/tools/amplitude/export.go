@@ -26,8 +26,16 @@ type exportReceipt struct {
 func (s *Service) newExportCmd(authHeader string) *cobra.Command {
 	var start, end, output string
 	cmd := &cobra.Command{
-		Use:         "export",
-		Short:       "Raw event export as a zip archive (GET /api/2/export)",
+		Use:   "export",
+		Short: "Raw event export as a zip archive (GET /api/2/export)",
+		Long: "Streams a zip of raw event JSONL to a FILE, never to stdout: `--output`\n" +
+			"names the path, otherwise a temp file is created, and a JSON receipt with\n" +
+			"the path and byte count is printed. `--start` and `--end` are HOURS\n" +
+			"(YYYYMMDDTHH), not the YYYYMMDD dates every other command takes, and both\n" +
+			"are required. Amplitude rejects a window whose archive would exceed 4 GB or\n" +
+			"whose range exceeds 365 days — that arrives as an API error, so narrow the\n" +
+			"hours and repeat. The archive contains every property of every event for\n" +
+			"every user in the window: individual-level data, not an aggregate.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

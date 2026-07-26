@@ -140,8 +140,31 @@ func (s *Service) stderr() io.Writer {
 // identity read); everything else hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "front",
-		Short:         "Front shared-inbox built-in service",
+		Use:   "front",
+		Short: "Front shared-inbox built-in service",
+		Long: "Front is a shared-inbox platform: teams triage customer conversations,\n" +
+			"reply, and coordinate through internal comments on the same thread. The\n" +
+			"connection is scoped to ONE Front company rather than a personal mailbox,\n" +
+			"so a conversation that cannot be found is often the wrong company rather\n" +
+			"than a permission problem — `me` says which one this token reaches.\n" +
+			"\n" +
+			"Output is never Front's raw body. Lists arrive as\n" +
+			"{\"data\":[…],\"next_page_token\":\"…\"}, single objects as {\"data\":{…}}, and\n" +
+			"mutations that return no content as {\"data\":{\"ok\":true}}. Pagination is\n" +
+			"cursor-only: the opaque token is lifted out of Front's own pagination URL\n" +
+			"and handed back through --page-token, so Front URLs never appear and\n" +
+			"cannot be reconstructed. An empty next_page_token means the end of the\n" +
+			"list. --limit is capped at 100 by Front on every paged command.\n" +
+			"\n" +
+			"Every id comes from a lookup command and names are never accepted:\n" +
+			"`teammate list` for --assignee and --author, `tag list` for --tag-add and\n" +
+			"--tag-remove, `inbox list` for --inbox and for the channel ids a draft\n" +
+			"needs.\n" +
+			"\n" +
+			"Starting a brand-new outbound conversation is out of scope. `message send`\n" +
+			"always replies into a conversation that already exists, and `draft create`\n" +
+			"is its reviewable counterpart — the draft sits in Front until a human\n" +
+			"sends it.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

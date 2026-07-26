@@ -10,8 +10,11 @@ import (
 // GET /orgs/fetch → raw object (id is a string).
 func (s *Service) newOrgGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get",
-		Short:       "Get the current workspace/org identity (GET /orgs/fetch)",
+		Use:   "get",
+		Short: "Get the current workspace/org identity (GET /orgs/fetch)",
+		Long: "Workspace identity, including the org-level `s3Folder` that prefixes the\n" +
+			"public URL of every Phantom's result files. Quota and remaining execution\n" +
+			"time are NOT here — that is `org resources`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -29,8 +32,12 @@ func (s *Service) newOrgGetCmd(key string) *cobra.Command {
 // fails 429 mid-run with no recoverable partial result.
 func (s *Service) newOrgResourcesCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "resources",
-		Short:       "Get org resources, usage, and remaining quota (GET /orgs/fetch-resources)",
+		Use:   "resources",
+		Short: "Get org resources, usage, and remaining quota (GET /orgs/fetch-resources)",
+		Long: "The pre-launch check. Reports the plan's execution-time budget and how much\n" +
+			"of it remains, alongside slot and storage usage. Running out does not\n" +
+			"queue or throttle anything: the container is killed with a 429 and its\n" +
+			"work is unrecoverable, so one call here can save an entire run.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -47,8 +54,12 @@ func (s *Service) newOrgResourcesCmd(key string) *cobra.Command {
 // GET /users/fetch-me → {sessionId, user:{id, email, firstName, ...}}.
 func (s *Service) newMeCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "me",
-		Short:       "Get the current PhantomBuster user (GET /users/fetch-me)",
+		Use:   "me",
+		Short: "Get the current PhantomBuster user (GET /users/fetch-me)",
+		Long: "Resolves the API key to its user and session, which makes it the cheapest\n" +
+			"credential check — a revoked or mistyped key fails here before any Phantom\n" +
+			"is launched. Workspace-level facts, the S3 folder and the quota, come from\n" +
+			"`org get` and `org resources` instead.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

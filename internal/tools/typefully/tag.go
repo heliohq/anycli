@@ -16,8 +16,11 @@ func (s *Service) newTagCmd(token string) *cobra.Command {
 func (s *Service) newTagListCmd(token string) *cobra.Command {
 	var socialSet string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List tags (GET /v2/social-sets/{id}/tags)",
+		Use:   "list",
+		Short: "List tags (GET /v2/social-sets/{id}/tags)",
+		Long: "Tags belong to one social set. The `id` here is what `draft list --tag`\n" +
+			"filters on — the name is not accepted there. There is no rename or delete\n" +
+			"verb in this tool.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -35,8 +38,12 @@ func (s *Service) newTagListCmd(token string) *cobra.Command {
 func (s *Service) newTagCreateCmd(token string) *cobra.Command {
 	var socialSet, name string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a tag (POST /v2/social-sets/{id}/tags)",
+		Use:   "create",
+		Short: "Create a tag (POST /v2/social-sets/{id}/tags)",
+		Long: "--name is the tag text; Typefully assigns the id that filtering needs.\n" +
+			"Because tags are scoped to a social set, the same name in two sets is two\n" +
+			"different ids. Creating a tag does not attach it to anything — that goes\n" +
+			"through `draft update --data`.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

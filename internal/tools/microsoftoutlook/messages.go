@@ -17,8 +17,19 @@ func (s *Service) newMessagesListCmd(token string) *cobra.Command {
 	var search, filter, folder, page string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List messages (--search → Graph $search, --filter → OData $filter)",
+		Use:   "list",
+		Short: "List messages (--search → Graph $search, --filter → OData $filter)",
+		Long: "`--search` is free-text over the whole message and comes back\n" +
+			"relevance-ordered; `--filter` is a structured OData expression over fields\n" +
+			"(`isRead eq false`, `receivedDateTime ge 2026-07-01`) and stays in date\n" +
+			"order. Both are forwarded verbatim, so a malformed expression fails at\n" +
+			"Graph rather than locally, and Graph rejects using the two together.\n" +
+			"\n" +
+			"`--max` sets Graph `$top` and defaults to 10 — low enough that a \"find\n" +
+			"everything\" question silently truncates. `--folder` narrows to a folder id\n" +
+			"or well-known name and is what makes an inbox-only query actually\n" +
+			"inbox-only. Nothing auto-pages: take the `@odata.nextLink` from the response\n" +
+			"into `--page`, which then supersedes every other flag.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -88,8 +99,13 @@ func (s *Service) newMessagesGetCmd(token string) *cobra.Command {
 	var bodyKind string
 	var showHeaders bool
 	cmd := &cobra.Command{
-		Use:         "get <message-id>",
-		Short:       "Show one message: headers, body, and attachment inventory",
+		Use:   "get <message-id>",
+		Short: "Show one message: headers, body, and attachment inventory",
+		Long: "`--body` picks text (default) or html and is validated locally. The\n" +
+			"attachment inventory here is metadata only — names and sizes, in the order\n" +
+			"`messages attachments --index` counts them — so this is the call that says\n" +
+			"whether downloading is worth it. `--headers` adds the internet message\n" +
+			"headers, which is where SPF/DKIM results and the original routing live.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -127,8 +143,17 @@ func cleanMessageIDs(args []string) ([]string, error) {
 func (s *Service) newMessagesMoveCmd(token string) *cobra.Command {
 	var folder string
 	cmd := &cobra.Command{
-		Use:         "move <message-id>...",
-		Short:       "Move messages to a folder ($batch for multiple ids)",
+		Use:   "move <message-id>...",
+		Short: "Move messages to a folder ($batch for multiple ids)",
+		Long: "Takes any number of ids, whitespace-separated or as separate arguments, and\n" +
+			"batches them 20 per Graph `$batch` request. It is NOT atomic: an earlier\n" +
+			"chunk stays applied when a later one fails, and the error names the failing\n" +
+			"sub-request rather than rolling anything back.\n" +
+			"\n" +
+			"`--folder` is required and takes a folder id or a well-known name (archive,\n" +
+			"deleteditems, junkemail). Moving to deleteditems is as close to a delete as\n" +
+			"this tool gets, and it is reversible. Graph assigns each moved message a NEW\n" +
+			"id, so ids captured before the move stop resolving.",
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -178,8 +203,13 @@ func (s *Service) newMessagesMoveCmd(token string) *cobra.Command {
 func (s *Service) newMessagesMarkCmd(token string) *cobra.Command {
 	var markRead, markUnread, flag, unflag bool
 	cmd := &cobra.Command{
-		Use:         "mark <message-id>...",
-		Short:       "Mark messages read/unread and/or flag/unflag ($batch for multiple ids)",
+		Use:   "mark <message-id>...",
+		Short: "Mark messages read/unread and/or flag/unflag ($batch for multiple ids)",
+		Long: "At least one of `--read`, `--unread`, `--flag`, `--unflag` is required;\n" +
+			"read/unread and flag/unflag are mutually exclusive pairs, but a read change\n" +
+			"and a flag change can travel in one call. Multiple ids batch 20 per Graph\n" +
+			"`$batch` request and, as with `move`, a failure part-way leaves the earlier\n" +
+			"chunks applied. Unlike `move`, ids survive — nothing changes folder.",
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

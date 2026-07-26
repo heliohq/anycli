@@ -40,8 +40,14 @@ const inventoryAdjustMutation = `mutation($input: InventoryAdjustQuantitiesInput
 // levels of one inventory item across its locations.
 func (c *client) newInventoryLevelsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "levels <inventory-item-id>",
-		Short:       "Show an inventory item's stock levels by location",
+		Use:   "levels <inventory-item-id>",
+		Short: "Show an inventory item's stock levels by location",
+		Long: "Takes an INVENTORY ITEM id — not a product id and not a variant id. A\n" +
+			"variant's `inventoryItem.id` is only reachable through `graphql`. Returns\n" +
+			"`sku` and `tracked` plus, per location, the `available`, `on_hand` and\n" +
+			"`committed` quantities. `--limit` (default 20) caps LOCATIONS; a store with\n" +
+			"more reports `has_next_page` but this command has no cursor flag to resume\n" +
+			"with, so page the rest through `graphql`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readAnnotation(),
 	}
@@ -74,8 +80,19 @@ func (c *client) newInventoryAdjustCmd() *cobra.Command {
 	var item, location, reason, name, idempotencyKey string
 	var delta int
 	cmd := &cobra.Command{
-		Use:         "adjust",
-		Short:       "Adjust an inventory item's available quantity at a location",
+		Use:   "adjust",
+		Short: "Adjust an inventory item's available quantity at a location",
+		Long: "`--delta` is a signed CHANGE, never a target quantity, and must be non-zero.\n" +
+			"`--item` and `--location` are both required and take an inventory item id and\n" +
+			"a location id (bare numeric or gid) — a product or variant id will not\n" +
+			"resolve. `--name` picks which quantity moves (default available) and\n" +
+			"`--reason` is recorded on the adjustment group (default correction).\n" +
+			"\n" +
+			"The API version in use requires an idempotency key, and each call mints a\n" +
+			"fresh one. That means a retry after an ambiguous failure applies the delta a\n" +
+			"SECOND time if the first call actually landed; pass the same\n" +
+			"`--idempotency-key` on the retry to have Shopify collapse the two into one\n" +
+			"effect.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAnnotation(),
 	}

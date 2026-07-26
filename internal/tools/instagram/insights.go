@@ -23,8 +23,15 @@ func (s *Service) newInsightsCmd(token string) *cobra.Command {
 		until      string
 	)
 	cmd := &cobra.Command{
-		Use:         "insights",
-		Short:       "Account-level insights (GET /me/insights)",
+		Use:   "insights",
+		Short: "Account-level insights (GET /me/insights)",
+		Long: "Defaults to `reach,follower_count` and `--metrics` replaces that list. Several\n" +
+			"account metrics on the pinned Graph version require `--metric-type total_value`\n" +
+			"— a Graph error naming `metric_type` is the signal to re-run with it. But a\n" +
+			"time-series metric such as `follower_count` is NOT a total_value metric, so\n" +
+			"the two kinds cannot be requested in the same call. `--since` and `--until`\n" +
+			"are Unix timestamps, not ISO dates, and Instagram only retains a limited\n" +
+			"recent window of account insights.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

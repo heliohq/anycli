@@ -18,7 +18,13 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List or search the conversation queue",
-		Args:  cobra.NoArgs,
+		Long: "Three different endpoints hide behind this one verb and the most specific\n" +
+			"flag wins: --q routes to Front's search, otherwise --inbox lists a single\n" +
+			"inbox's queue, otherwise the whole visible queue comes back. Passing --q\n" +
+			"and --inbox together therefore searches everywhere and silently IGNORES\n" +
+			"the inbox. --sort-order is asc or desc, with desc putting the most recent\n" +
+			"first. --limit is capped at 100; continue with --page-token.",
+		Args: cobra.NoArgs,
 	}
 	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&inbox, "inbox", "", "restrict to one inbox id")
@@ -57,7 +63,12 @@ func (s *Service) newConversationGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "Get one conversation's metadata",
-		Args:  cobra.NoArgs,
+		Long: "Metadata only — status, assignee, tags, recipients and the channel it\n" +
+			"lives on. Neither the customer thread nor the internal discussion is\n" +
+			"included: those are `conversation messages` and `conversation comments`,\n" +
+			"so understanding a conversation properly costs three calls. The channel id\n" +
+			"in this response is what `draft create --channel` needs.",
+		Args: cobra.NoArgs,
 	}
 	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&id, "id", "", "conversation id (required)")
@@ -80,7 +91,11 @@ func (s *Service) newConversationMessagesCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "messages",
 		Short: "List the messages in a conversation",
-		Args:  cobra.NoArgs,
+		Long: "The customer-visible thread: everything sent and received, in Front's own\n" +
+			"order. Internal notes are NOT here — they live in `conversation comments`,\n" +
+			"a separate list — so reading only this misses whatever colleagues said\n" +
+			"about the case. --limit is capped at 100; continue with --page-token.",
+		Args: cobra.NoArgs,
 	}
 	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&id, "id", "", "conversation id (required)")
@@ -106,7 +121,11 @@ func (s *Service) newConversationCommentsCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "comments",
 		Short: "List the internal comments on a conversation",
-		Args:  cobra.NoArgs,
+		Long: "The teammate-only discussion attached to the conversation, which the\n" +
+			"customer never sees. It is a separate list from `conversation messages`,\n" +
+			"so a decision explained in a comment will not appear in the thread and\n" +
+			"vice versa. --limit is capped at 100; continue with --page-token.",
+		Args: cobra.NoArgs,
 	}
 	cmd.Annotations = readOnly
 	cmd.Flags().StringVar(&id, "id", "", "conversation id (required)")
@@ -136,7 +155,18 @@ func (s *Service) newConversationUpdateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Change status, assignee, inbox, or tags on a conversation",
-		Args:  cobra.NoArgs,
+		Long: "One command, but Front needs four different endpoints underneath, and they\n" +
+			"run in a fixed order: status and inbox first, then assignee, then tag\n" +
+			"additions, then tag removals. It is NOT atomic — a failure part-way leaves\n" +
+			"the earlier changes applied, and the success payload's `applied` array is\n" +
+			"the record of what actually ran. At least one change flag is required.\n" +
+			"\n" +
+			"--status is open, archived, deleted or spam; archived is the ordinary\n" +
+			"\"done\" and open reopens. --assignee takes a teammate id from `teammate\n" +
+			"list`, and the literal `null` or an empty value unassigns. --tag-add and\n" +
+			"--tag-remove are repeatable and take tag ids from `tag list`, never tag\n" +
+			"names.",
+		Args: cobra.NoArgs,
 	}
 	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&id, "id", "", "conversation id (required)")

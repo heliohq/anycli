@@ -18,8 +18,15 @@ func (s *Service) newMessageCmd(token string) *cobra.Command {
 func (s *Service) newMessageSendCmd(token string) *cobra.Command {
 	var messageType, subject, body, template, fromAdminID, toContactID, toEmail, bodyJSON string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send an admin-initiated message to a contact (POST /messages)",
+		Use:   "send",
+		Short: "Send an admin-initiated message to a contact (POST /messages)",
+		Long: "This is outbound outreach, not a reply: it opens a NEW conversation with\n" +
+			"the contact rather than adding to an existing thread, so answering an\n" +
+			"ongoing support question belongs in `conversation reply`. --message-type\n" +
+			"is inapp by default; --subject and --template apply to email only and are\n" +
+			"ignored otherwise. Address the recipient with --to-contact-id or\n" +
+			"--to-email. The message goes out immediately, with no draft, schedule or\n" +
+			"recall.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

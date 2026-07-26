@@ -30,8 +30,15 @@ func (s *Service) newContactCmd(key string) *cobra.Command {
 func (s *Service) newContactEnrichCmd(key string) *cobra.Command {
 	var email, linkedinURL, firstName, lastName, companyName, companyDomain, reveal string
 	cmd := &cobra.Command{
-		Use:         "enrich",
-		Short:       "Enrich a known contact by identifier (POST /contacts/search-and-enrich)",
+		Use:   "enrich",
+		Short: "Enrich a known contact by identifier (POST /contacts/search-and-enrich)",
+		Long: "The known-identifier path: supply --email, or --linkedin-url, or a\n" +
+			"--first-name/--last-name pair together with --company-name or\n" +
+			"--company-domain. Billed TWICE — one search charge plus one charge per\n" +
+			"revealed datapoint — so a row that already came out of `contact search`\n" +
+			"should go through `contact reveal` on its id instead, which skips the\n" +
+			"search charge. --reveal selects emails, phones or both; omitting it\n" +
+			"reveals both. `data` is an array even for the single contact asked for.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -80,8 +87,16 @@ func (s *Service) newContactSearchCmd(key string) *cobra.Command {
 	var page, size int
 	var includePartial bool
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Prospect net-new contacts by filter (POST /contacts/prospecting)",
+		Use:   "search",
+		Short: "Prospect net-new contacts by filter (POST /contacts/prospecting)",
+		Long: "Returns name-only PREVIEWS — a Lusha id per row, no email and no phone — so\n" +
+			"the output is only useful once fed into `contact reveal`. --filters is the\n" +
+			"raw Lusha prospecting object as JSON, shaped\n" +
+			"`{\"contacts\":{\"include\":…,\"exclude\":…},\"companies\":{…}}`, with contact\n" +
+			"include fields such as jobTitles, seniorityIds, departments, countries,\n" +
+			"locations and names. Billed per result returned, so tighten the filter\n" +
+			"before raising --size. --page is 0-based; keep paging while `meta.has_more`\n" +
+			"is true.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -115,8 +130,14 @@ func (s *Service) newContactRevealCmd(key string) *cobra.Command {
 	var ids []string
 	var reveal string
 	cmd := &cobra.Command{
-		Use:         "reveal",
-		Short:       "Reveal contacts by Lusha id (POST /contacts/enrich)",
+		Use:   "reveal",
+		Short: "Reveal contacts by Lusha id (POST /contacts/enrich)",
+		Long: "Takes the Lusha ids a `contact search` returned — 1 to 100 --id values per\n" +
+			"call, repeat the flag — and is billed per revealed datapoint with no search\n" +
+			"charge, which is what makes search-then-reveal cheaper than enriching every\n" +
+			"row. A preview whose `canReveal.credits` is 0 has already been revealed for\n" +
+			"this account and costs nothing to reveal again. --reveal selects emails,\n" +
+			"phones or both; omitting it reveals both, and each one revealed is charged.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

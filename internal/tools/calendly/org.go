@@ -15,8 +15,15 @@ func (s *Service) newOrgMembersCmd(token string) *cobra.Command {
 	var count int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:         "members",
-		Short:       "List organization memberships to resolve teammates' user URIs (GET /organization_memberships)",
+		Use:   "members",
+		Short: "List organization memberships to resolve teammates' user URIs (GET /organization_memberships)",
+		Long: "Turns a colleague's name or email into the user URI that\n" +
+			"`availability busy --user`, `availability schedule list --user` and\n" +
+			"`event list --user` need — there is no other lookup from a person to a URI\n" +
+			"here. Scoped to the connected user's own `current_organization`, and\n" +
+			"`--email` narrows it to one member. An account with no organization fails\n" +
+			"outright rather than returning an empty list, which is a solo Calendly\n" +
+			"account, not a transient error.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

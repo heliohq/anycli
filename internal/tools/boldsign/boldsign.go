@@ -121,8 +121,33 @@ func (s *Service) renderError(jsonMode bool, err error) {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "boldsign",
-		Short:         "BoldSign built-in service (e-signature)",
+		Use:   "boldsign",
+		Short: "BoldSign built-in service (e-signature)",
+		Long: "Calls BoldSign's v1 REST API as the connected account. The base is\n" +
+			"BoldSign's US region; an account provisioned in the EU region is not\n" +
+			"reachable from this build.\n" +
+			"\n" +
+			"There are two ways to get a signature. `document send` uploads files ad\n" +
+			"hoc; `template send` binds signers to the roles of a template that already\n" +
+			"carries its signature fields. The template path is the dependable one for a\n" +
+			"recurring contract, because files sent with signers but no fields, no text\n" +
+			"tags and no `--auto-detect-fields` are rejected by BoldSign — the signer\n" +
+			"would have nowhere to sign.\n" +
+			"\n" +
+			"Sending is asynchronous. A `documentId` in the response means the request\n" +
+			"was ACCEPTED, not that anyone has been emailed; poll `document get --id`\n" +
+			"for the real per-signer status.\n" +
+			"\n" +
+			"People are named the same way everywhere: \"Name <email>\". The name is not\n" +
+			"optional — a bare email address is rejected locally, before any request\n" +
+			"goes out.\n" +
+			"\n" +
+			"Output differs by verb. Reads print BoldSign's JSON verbatim; `remind` and\n" +
+			"`revoke` have no response body and print a small receipt instead; and\n" +
+			"`download` / `audit-log` write PDF bytes to `--out` and print only\n" +
+			"`{\"ok\":true,\"path\":…,\"bytes\":N}`. Exit 2 is a usage error caught locally,\n" +
+			"exit 1 a BoldSign API or transport failure; a 401 means the connection\n" +
+			"itself is dead rather than the request being wrong.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

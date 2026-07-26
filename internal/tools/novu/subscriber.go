@@ -23,10 +23,53 @@ func (s *Service) newSubscriberCmd(c *client) *cobra.Command {
 	return group
 }
 
+// The subscriber Longs, grouped above the constructors that use them because
+// every leaf in this group is built by the shared leafCmd helper.
+const (
+	longSubscriberList = "The filters are exact-match — --email, --phone, --subscriber-id and --name\n" +
+		"are not a fuzzy search, so a partial address finds nothing. Paging is\n" +
+		"cursor-based: --after and --before take ids from a previous page, not\n" +
+		"offsets, and --limit 0 leaves Novu's own page size."
+
+	longSubscriberGet = "--subscriber-id is the CALLER's id for the person — the one supplied at\n" +
+		"create time, usually the application's own user id — not a Novu-generated\n" +
+		"key. The response's channel identifiers (email, phone, push tokens) are\n" +
+		"what decide which of a workflow's steps can reach them at all."
+
+	longSubscriberCreate = "--subscriber-id is required and becomes the stable handle every trigger\n" +
+		"addresses. The channel identifiers matter more than the name fields: a\n" +
+		"workflow's email step has nothing to deliver to when --email was never\n" +
+		"set, and the trigger still reports success. --data takes a JSON object of\n" +
+		"custom attributes that workflow templates and step conditions can read."
+
+	longSubscriberUpdate = "A PATCH: only flags actually passed are sent, so omitted fields keep their\n" +
+		"values. --subscriber-id selects the record and is not itself editable\n" +
+		"here. --data travels as one whole object, so it must contain every custom\n" +
+		"attribute that should survive the write."
+
+	longSubscriberDelete = "Removes the subscriber along with their channel identifiers, preferences\n" +
+		"and topic memberships. It is not durable suppression: a later trigger\n" +
+		"whose --to-json carries a full subscriber object recreates them. To stop\n" +
+		"sending to someone while keeping their history, use\n" +
+		"`subscriber set-preferences` instead."
+
+	longSubscriberPreferences = "Per-workflow, per-channel opt-in state for one subscriber, which is what\n" +
+		"ultimately decides whether a triggered workflow reaches them. A perfectly\n" +
+		"valid subscriber can receive nothing because a channel is switched off\n" +
+		"here, so this is worth reading before blaming the workflow or the\n" +
+		"provider."
+
+	longSubscriberSetPreferences = "--preferences is the raw JSON preferences object, passed through with only\n" +
+		"a syntax check, so read the current shape with `subscriber preferences`\n" +
+		"before composing one. This is the durable way to record an opt-out: it\n" +
+		"suppresses the channel while keeping the subscriber and their delivery\n" +
+		"history, unlike `subscriber delete`."
+)
+
 func (s *Service) newSubscriberListCmd(c *client) *cobra.Command {
 	var email, name, phone, subscriberID, after, before, orderBy, orderDirection string
 	var limit int
-	cmd := leafCmd("list", "List / search subscribers", readOnly, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("list", "List / search subscribers", longSubscriberList, readOnly, func(cmd *cobra.Command, _ []string) error {
 		q := url.Values{}
 		addQueryString(q, "email", email)
 		addQueryString(q, "name", name)
@@ -58,7 +101,7 @@ func (s *Service) newSubscriberListCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberGetCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("get", "Get one subscriber by id", readOnly, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("get", "Get one subscriber by id", longSubscriberGet, readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -74,7 +117,7 @@ func (s *Service) newSubscriberGetCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberCreateCmd(c *client) *cobra.Command {
 	var id, email, firstName, lastName, phone, avatar, locale, timezone, data string
-	cmd := leafCmd("create", "Create a subscriber", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("create", "Create a subscriber", longSubscriberCreate, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -95,7 +138,7 @@ func (s *Service) newSubscriberCreateCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberUpdateCmd(c *client) *cobra.Command {
 	var id, email, firstName, lastName, phone, avatar, locale, timezone, data string
-	cmd := leafCmd("update", "Update a subscriber (PATCH)", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("update", "Update a subscriber (PATCH)", longSubscriberUpdate, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -116,7 +159,7 @@ func (s *Service) newSubscriberUpdateCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberDeleteCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("delete", "Delete a subscriber", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("delete", "Delete a subscriber", longSubscriberDelete, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -132,7 +175,7 @@ func (s *Service) newSubscriberDeleteCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberPreferencesCmd(c *client) *cobra.Command {
 	var id string
-	cmd := leafCmd("preferences", "Get a subscriber's channel preferences", readOnly, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("preferences", "Get a subscriber's channel preferences", longSubscriberPreferences, readOnly, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}
@@ -148,7 +191,7 @@ func (s *Service) newSubscriberPreferencesCmd(c *client) *cobra.Command {
 
 func (s *Service) newSubscriberSetPreferencesCmd(c *client) *cobra.Command {
 	var id, preferences string
-	cmd := leafCmd("set-preferences", "Update a subscriber's channel preferences (PATCH)", writeAction, func(cmd *cobra.Command, _ []string) error {
+	cmd := leafCmd("set-preferences", "Update a subscriber's channel preferences (PATCH)", longSubscriberSetPreferences, writeAction, func(cmd *cobra.Command, _ []string) error {
 		if err := requireFlag("subscriber-id", id); err != nil {
 			return err
 		}

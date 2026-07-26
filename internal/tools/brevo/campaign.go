@@ -14,8 +14,13 @@ func (s *Service) newCampaignListCmd(apiKey string) *cobra.Command {
 		limit, offset        int
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List email campaigns (GET /emailCampaigns)",
+		Use:   "list",
+		Short: "List email campaigns (GET /emailCampaigns)",
+		Long: "Covers bulk marketing campaigns only; transactional mail sent with\n" +
+			"`email send` never appears here. `--type` is classic or trigger and\n" +
+			"`--status` is draft, sent, archive, queued, suspended or in_process —\n" +
+			"`--status draft` is how a campaign created without `--scheduled-at` is\n" +
+			"found again. `--limit` defaults to 50 with `--offset` for paging.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -46,8 +51,12 @@ func (s *Service) newCampaignListCmd(apiKey string) *cobra.Command {
 func (s *Service) newCampaignGetCmd(apiKey string) *cobra.Command {
 	var id int
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get an email campaign (GET /emailCampaigns/{id})",
+		Use:   "get",
+		Short: "Get an email campaign (GET /emailCampaigns/{id})",
+		Long: "`--id` is required and is an integer campaign id from `campaign list`.\n" +
+			"Besides the definition, a campaign that has gone out carries its own\n" +
+			"delivery statistics here — this is the only place to read how a send\n" +
+			"performed.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -73,8 +82,18 @@ func (s *Service) newCampaignCreateCmd(apiKey string) *cobra.Command {
 		listIDs                          []int
 	)
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create an email campaign (POST /emailCampaigns)",
+		Use:   "create",
+		Short: "Create an email campaign (POST /emailCampaigns)",
+		Long: "`--name` and `--subject` are required; `--name` is internal and `--subject`\n" +
+			"is what recipients see. Omitting `--scheduled-at` leaves the campaign as a\n" +
+			"DRAFT that nobody receives — supplying an ISO-8601 time schedules a real\n" +
+			"bulk send to every contact on `--list-ids`, and there is no cancel verb\n" +
+			"here once it is scheduled.\n" +
+			"\n" +
+			"The sender must be verified: `--sender-id` from `sender ls` wins over\n" +
+			"`--sender-email` / `--sender-name`. Body content is `--html` or a stored\n" +
+			"`--template-id`. `--list-ids` is repeatable and takes integer ids from\n" +
+			"`list ls`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

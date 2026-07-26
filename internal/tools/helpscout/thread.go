@@ -22,8 +22,13 @@ func (s *Service) newThreadCmd(token string) *cobra.Command {
 func (s *Service) newThreadListCmd(token string) *cobra.Command {
 	var page int
 	cmd := &cobra.Command{
-		Use:         "list <conversation-id>",
-		Short:       "List a conversation's threads (GET /conversations/{id}/threads)",
+		Use:   "list <conversation-id>",
+		Short: "List a conversation's threads (GET /conversations/{id}/threads)",
+		Long: "The message bodies without the conversation record around them — the\n" +
+			"cheaper half of `conversation get --embed-threads` once the metadata is\n" +
+			"already known. Each thread carries a `type`, and that is what separates a\n" +
+			"customer message from a staff reply and from an internal note. Page with\n" +
+			"--page; a long-running conversation is not returned in one call.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -48,8 +53,17 @@ func (s *Service) newThreadReplyCmd(token string) *cobra.Command {
 	var text, customerID, status, assignTo, cc, bcc string
 	var draft bool
 	cmd := &cobra.Command{
-		Use:         "reply <conversation-id> --text ...",
-		Short:       "Reply to the customer (POST /conversations/{id}/reply)",
+		Use:   "reply <conversation-id> --text ...",
+		Short: "Reply to the customer (POST /conversations/{id}/reply)",
+		Long: "Emails the customer the moment it returns. --draft stores it as a draft\n" +
+			"for a human to send instead, which is the reversible form of this command.\n" +
+			"Omitting --customer-id costs an extra GET of the conversation to read its\n" +
+			"primaryCustomer, so pass it when it is already in hand.\n" +
+			"\n" +
+			"--status and --assign-to move the conversation in the same request, which\n" +
+			"saves a separate `conversation update` and its per-op round trips. --cc\n" +
+			"and --bcc take comma-separated addresses. The response is an id/status\n" +
+			"receipt for the new thread, not the conversation.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -127,8 +141,13 @@ func (s *Service) resolveReplyCustomer(cmd *cobra.Command, token, convID, explic
 func (s *Service) newThreadNoteCmd(token string) *cobra.Command {
 	var text string
 	cmd := &cobra.Command{
-		Use:         "note <conversation-id> --text ...",
-		Short:       "Add an internal note (POST /conversations/{id}/notes)",
+		Use:   "note <conversation-id> --text ...",
+		Short: "Add an internal note (POST /conversations/{id}/notes)",
+		Long: "Internal only: the note is visible to the team inside Help Scout and is\n" +
+			"never emailed to the customer, which is the whole difference from `thread\n" +
+			"reply`. --text is the only field — a note cannot set status or assignee in\n" +
+			"the same call the way a reply can, so pair it with `conversation update`\n" +
+			"when the conversation also has to move.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

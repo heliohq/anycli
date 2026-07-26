@@ -42,8 +42,14 @@ func jsonArray(items []string) (string, error) {
 func (s *Service) newSegmentationCmd(c *client) *cobra.Command {
 	var event, from, to, on, where, typ, unit string
 	cmd := &cobra.Command{
-		Use:         "segmentation",
-		Short:       "Segment an event over time (GET /segmentation)",
+		Use:   "segmentation",
+		Short: "Segment an event over time (GET /segmentation)",
+		Long: "`--event`, `--from` and `--to` are all required here, and `--event` takes a\n" +
+			"single name — unlike `events`, which is repeatable and can leave the window\n" +
+			"implicit. `--on` and `--where` are Mixpanel expressions over event\n" +
+			"properties (`properties[\"$browser\"]`), not bare property names. `--type`\n" +
+			"picks general (event count), unique (distinct users) or average, and\n" +
+			"`--unit` buckets the series from minute up to month.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -81,8 +87,14 @@ func (s *Service) newEventsCmd(c *client) *cobra.Command {
 	var events []string
 	var typ, unit, interval, from, to string
 	cmd := &cobra.Command{
-		Use:         "events",
-		Short:       "Event totals over time (GET /events)",
+		Use:   "events",
+		Short: "Event totals over time (GET /events)",
+		Long: "`--event` is repeatable and is sent as one JSON array, so several series\n" +
+			"come back for a single query against the hourly budget — cheaper than one\n" +
+			"call per event. Bound the window EITHER with `--interval` (that many\n" +
+			"`--unit`s back from today) OR with `--from`/`--to`; pick one rather than\n" +
+			"mixing them. `--type` is general (event count), unique (distinct users) or\n" +
+			"average.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -120,8 +132,13 @@ func (s *Service) newEventsCmd(c *client) *cobra.Command {
 func (s *Service) newEventsNamesCmd(c *client) *cobra.Command {
 	var typ, limit string
 	cmd := &cobra.Command{
-		Use:         "events-names",
-		Short:       "List actively-firing event names — primary discovery (GET /events/names)",
+		Use:   "events-names",
+		Short: "List actively-firing event names — primary discovery (GET /events/names)",
+		Long: "The authoritative inventory of what the project actually records, which\n" +
+			"`lexicon list` cannot supply. Run it before any verb that takes `--event`:\n" +
+			"those verbs match names exactly, with no fuzzy resolution. `--limit` caps\n" +
+			"how many names return and `--type` is the same general | unique | average\n" +
+			"switch as `events`, deciding what the counts behind the ordering measure.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -144,8 +161,11 @@ func (s *Service) newEventsNamesCmd(c *client) *cobra.Command {
 // newFunnelsListCmd — GET /api/query/funnels/list (saved funnels: id + name).
 func (s *Service) newFunnelsListCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List saved funnels (GET /funnels/list)",
+		Use:   "list",
+		Short: "List saved funnels (GET /funnels/list)",
+		Long: "Returns id and name only, and only for funnels SAVED in the Mixpanel UI —\n" +
+			"an ad-hoc funnel cannot be defined from here. `funnels run` needs an id from\n" +
+			"this list and there is no other source for one.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -162,8 +182,14 @@ func (s *Service) newFunnelsListCmd(c *client) *cobra.Command {
 func (s *Service) newFunnelsRunCmd(c *client) *cobra.Command {
 	var funnelID, from, to, on, where string
 	cmd := &cobra.Command{
-		Use:         "run",
-		Short:       "Run a saved funnel by id (GET /funnels)",
+		Use:   "run",
+		Short: "Run a saved funnel by id (GET /funnels)",
+		Long: "The step definition lives in Mixpanel and cannot be overridden here — only\n" +
+			"the window and the slicing are yours. `--funnel-id` comes from\n" +
+			"`funnels list`. `--from`/`--to` are optional and fall back to the saved\n" +
+			"report's own window. `--on` breaks the conversion down by a property\n" +
+			"expression and `--where` narrows the population, both in Mixpanel's\n" +
+			"expression syntax.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -194,8 +220,14 @@ func (s *Service) newFunnelsRunCmd(c *client) *cobra.Command {
 func (s *Service) newRetentionCmd(c *client) *cobra.Command {
 	var from, to, bornEvent, event, retentionType, interval, unit string
 	cmd := &cobra.Command{
-		Use:         "retention",
-		Short:       "Cohort retention over time (GET /retention)",
+		Use:   "retention",
+		Short: "Cohort retention over time (GET /retention)",
+		Long: "`--born-event` is what puts a user INTO the cohort; `--event` is what counts\n" +
+			"as coming back. Leaving either out widens it to any event, which is almost\n" +
+			"never the question being asked. `--retention-type` is birth (a first-time\n" +
+			"cohort) or compounded. `--interval` and `--unit` set the bucket width\n" +
+			"together. No flag is strictly required, but without `--from`/`--to` the\n" +
+			"window is Mixpanel's default rather than a chosen one.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -229,8 +261,13 @@ func (s *Service) newRetentionCmd(c *client) *cobra.Command {
 func (s *Service) newRetentionFrequencyCmd(c *client) *cobra.Command {
 	var from, to, event, unit, bornEvent string
 	cmd := &cobra.Command{
-		Use:         "retention-frequency",
-		Short:       "Retention frequency / 'addiction' view (GET /retention/addiction)",
+		Use:   "retention-frequency",
+		Short: "Retention frequency / 'addiction' view (GET /retention/addiction)",
+		Long: "Answers how MANY units a cohort was active in, rather than whether it\n" +
+			"returned at a given offset — a different question from `retention`, not a\n" +
+			"different formatting of it. Takes the same `--born-event` / `--event` /\n" +
+			"`--unit` vocabulary, but has no `--retention-type` or `--interval`: the\n" +
+			"buckets are counts of active units and the endpoint fixes them.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -260,8 +297,13 @@ func (s *Service) newRetentionFrequencyCmd(c *client) *cobra.Command {
 func (s *Service) newInsightsCmd(c *client) *cobra.Command {
 	var bookmarkID string
 	cmd := &cobra.Command{
-		Use:         "insights",
-		Short:       "Fetch a saved Insights report by bookmark id (GET /insights)",
+		Use:   "insights",
+		Short: "Fetch a saved Insights report by bookmark id (GET /insights)",
+		Long: "`--bookmark-id` identifies a report saved in Mixpanel's Insights UI — it is\n" +
+			"not an event name, and nothing here lists bookmarks or creates one, so the\n" +
+			"id has to be read out of the report's own URL. The response follows that\n" +
+			"report's stored configuration: changing the metric, breakdown or window\n" +
+			"means editing the report in Mixpanel, not passing different flags.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -284,8 +326,12 @@ func (s *Service) newInsightsCmd(c *client) *cobra.Command {
 // the query string.
 func (s *Service) newCohortsListCmd(c *client) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List saved cohorts (POST /cohorts/list)",
+		Use:   "list",
+		Short: "List saved cohorts (POST /cohorts/list)",
+		Long: "A POST despite being a pure read, and it accepts no filters or paging — it\n" +
+			"returns every saved cohort in the project with its id and name. Cohorts are\n" +
+			"authored in the Mixpanel UI; this verb only names them and cannot create,\n" +
+			"edit or evaluate one.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -306,8 +352,14 @@ func (s *Service) newEngageCmd(c *client) *cobra.Command {
 	var outputProps []string
 	var page string
 	cmd := &cobra.Command{
-		Use:         "engage",
-		Short:       "Query People / user profiles (POST /engage)",
+		Use:   "engage",
+		Short: "Query People / user profiles (POST /engage)",
+		Long: "Queries People PROFILES, not events, so `--where` is an expression over\n" +
+			"profile properties and an event-property expression matches nothing here.\n" +
+			"`--output-properties` is repeatable and trims each profile to those keys,\n" +
+			"which is worth doing because profiles are wide. `--page` is ZERO-indexed and\n" +
+			"must be an integer (checked locally); the page size is Mixpanel's and this\n" +
+			"command cannot change it.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

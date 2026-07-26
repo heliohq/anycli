@@ -12,7 +12,11 @@ func (s *Service) newCalendarsListCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List the signed-in user's calendars (GET /me/calendars)",
-		Args:  cobra.NoArgs,
+		Long: "Prints each calendar's id, name and owner address, with the default\n" +
+			"calendar marked. The ids are informational only: every `events` verb and\n" +
+			"`freebusy` read and write the default calendar, so a second calendar\n" +
+			"listed here cannot be targeted from this tool.",
+		Args: cobra.NoArgs,
 		// GET /me/calendars — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

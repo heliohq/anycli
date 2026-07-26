@@ -17,8 +17,15 @@ const singlePartLimit = 100 * 1024 * 1024
 func (s *Service) newDocumentUploadCmd(token, baseURI string) *cobra.Command {
 	var name, contentType string
 	cmd := &cobra.Command{
-		Use:         "upload <path>",
-		Short:       "Upload a local file to transient storage (returns a transient document id)",
+		Use:   "upload <path>",
+		Short: "Upload a local file to transient storage (returns a transient document id)",
+		Long: "Rarely needed on its own: `agreement send --document` performs this upload\n" +
+			"internally, and the id it returns has no other consumer in this tool. The\n" +
+			"file is read fully into memory and rejected locally above 100 MB, the\n" +
+			"single-request ceiling. `--name` defaults to the path's basename and\n" +
+			"`--content-type` is inferred from the extension, so a file with a missing or\n" +
+			"misleading extension needs it set explicitly. Transient documents are\n" +
+			"short-lived on Adobe's side — use the id promptly or upload again.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

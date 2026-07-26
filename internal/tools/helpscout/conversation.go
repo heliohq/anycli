@@ -30,8 +30,19 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 	var page int
 	var embedThreads bool
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List/filter/search conversations (GET /conversations)",
+		Use:   "list",
+		Short: "List/filter/search conversations (GET /conversations)",
+		Long: "The API defaults to status=active, so an unfiltered call hides everything\n" +
+			"closed or spam — pass --status all for the whole queue. --status is\n" +
+			"checked locally against active|all|closed|open|pending|spam.\n" +
+			"\n" +
+			"--query takes Help Scout's Lucene-style search string verbatim\n" +
+			"(`assigned:\"Unassigned\" tag:\"urgent\"`, `modifiedAt:[NOW-1HOUR TO *]`) and\n" +
+			"is the only way to express what the discrete filters cannot. --mailbox and\n" +
+			"--tag accept comma-separated lists. Sort with --sort-field (createdAt,\n" +
+			"modifiedAt, number, subject) and --sort-order, which the API defaults to\n" +
+			"desc; page with --page. --embed-threads inlines every conversation's\n" +
+			"messages and gets expensive fast across a wide list.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -82,8 +93,12 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 func (s *Service) newConversationGetCmd(token string) *cobra.Command {
 	var embedThreads bool
 	cmd := &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one conversation with its threads (GET /conversations/{id})",
+		Use:   "get <id>",
+		Short: "Get one conversation with its threads (GET /conversations/{id})",
+		Long: "Without --embed-threads this is the conversation record alone — subject,\n" +
+			"status, assignee, tags, primaryCustomer — and carries no message bodies at\n" +
+			"all. Pass --embed-threads to read the exchange, or use `thread list` when\n" +
+			"the metadata is already known and only the messages are wanted.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -108,8 +123,17 @@ func (s *Service) newConversationGetCmd(token string) *cobra.Command {
 func (s *Service) newConversationCreateCmd(token string) *cobra.Command {
 	var mailbox, subject, customerEmail, customerID, convType, status, text, threadType, assignTo, tags string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a conversation with an initial thread (POST /conversations)",
+		Use:   "create",
+		Short: "Create a conversation with an initial thread (POST /conversations)",
+		Long: "--mailbox (a numeric inbox id), --subject and --text are required, plus one\n" +
+			"of --customer-email or --customer-id. --status accepts only active, closed\n" +
+			"or pending here — the spam and open values that `conversation update`\n" +
+			"takes are rejected at create.\n" +
+			"\n" +
+			"--thread-type defaults to customer, which records --text as though the\n" +
+			"customer wrote it and sends nothing; choose reply to make the initial\n" +
+			"message an outbound email instead, or note to keep it internal. The\n" +
+			"response is an id/status receipt rather than the conversation.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -193,8 +217,15 @@ func (s *Service) newConversationUpdateCmd(token string) *cobra.Command {
 	var status, assignTo, subject string
 	var unassign bool
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update status / assignee / subject (PATCH /conversations/{id})",
+		Use:   "update <id>",
+		Short: "Update status / assignee / subject (PATCH /conversations/{id})",
+		Long: "Help Scout applies ONE JSON-Patch op per request, so passing --status,\n" +
+			"--subject and --assign-to together becomes three sequential PATCHes and is\n" +
+			"NOT atomic — a failure part-way leaves the earlier ones applied. At least\n" +
+			"one of --status, --assign-to, --unassign or --subject is required, and\n" +
+			"--assign-to and --unassign are mutually exclusive. --status takes\n" +
+			"active|closed|open|pending|spam. Snooze state lives on its own endpoint\n" +
+			"and cannot be reached from here.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -247,8 +278,14 @@ func (s *Service) newConversationUpdateCmd(token string) *cobra.Command {
 func (s *Service) newConversationTagCmd(token string) *cobra.Command {
 	var tags string
 	cmd := &cobra.Command{
-		Use:         "tag <id> --tags t1,t2",
-		Short:       "Replace a conversation's tag set (PUT /conversations/{id}/tags)",
+		Use:   "tag <id> --tags t1,t2",
+		Short: "Replace a conversation's tag set (PUT /conversations/{id}/tags)",
+		Long: "REPLACES the whole tag set rather than adding to it, so adding one tag\n" +
+			"means sending every tag that should survive — read the current set from\n" +
+			"`conversation get` first. --tags is required and an empty value clears\n" +
+			"every tag. Help Scout creates any tag name it does not already know, so a\n" +
+			"typo here becomes a new account-wide tag instead of an error; `tag list`\n" +
+			"shows the existing vocabulary.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -271,8 +308,14 @@ func (s *Service) newConversationSnoozeCmd(token string) *cobra.Command {
 	var until string
 	var unsnoozeOnReply bool
 	cmd := &cobra.Command{
-		Use:         "snooze <id> --until <ISO8601>",
-		Short:       "Snooze a conversation until a future time (PUT /conversations/{id}/snooze)",
+		Use:   "snooze <id> --until <ISO8601>",
+		Short: "Snooze a conversation until a future time (PUT /conversations/{id}/snooze)",
+		Long: "--until is required and must be a FUTURE ISO-8601 timestamp; a past one is\n" +
+			"rejected. --unsnooze-on-customer-reply defaults to true, so a snoozed\n" +
+			"conversation wakes the moment the customer writes back — pass\n" +
+			"--unsnooze-on-customer-reply=false to keep it asleep regardless. Both\n" +
+			"fields go on every request. Snoozing is its own endpoint and cannot be\n" +
+			"reached through `conversation update`.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -295,8 +338,12 @@ func (s *Service) newConversationSnoozeCmd(token string) *cobra.Command {
 // newConversationUnsnoozeCmd — DELETE /conversations/{id}/snooze.
 func (s *Service) newConversationUnsnoozeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "unsnooze <id>",
-		Short:       "Clear a conversation's snooze (DELETE /conversations/{id}/snooze)",
+		Use:   "unsnooze <id>",
+		Short: "Clear a conversation's snooze (DELETE /conversations/{id}/snooze)",
+		Long: "Brings the conversation back to the queue now instead of at its scheduled\n" +
+			"wake time. Nothing else moves — status, assignee and tags are left as they\n" +
+			"were — and the answer is a bare \"unsnoozed\" receipt, so re-read with\n" +
+			"`conversation get` to confirm the resulting state.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

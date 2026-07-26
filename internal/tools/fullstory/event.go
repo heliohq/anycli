@@ -23,8 +23,18 @@ func (s *Service) newEventCreateCmd(key string) *cobra.Command {
 	var useRecent bool
 	var props []string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Record a custom event for a user or session (POST /v2/events)",
+		Use:   "create",
+		Short: "Record a custom event for a user or session (POST /v2/events)",
+		Long: "`--name` is required, and so is exactly ONE identity: `--uid` for a user or\n" +
+			"`--session-id` for a specific session in `deviceId:sessionId` form. Both\n" +
+			"together are rejected locally. `--use-recent` is a modifier on the `--uid`\n" +
+			"path that stitches the event into that user's most recent session, so it\n" +
+			"cannot be combined with `--session-id`.\n" +
+			"\n" +
+			"`--timestamp` is ISO-8601 and defaults to the time FullStory receives the\n" +
+			"event. `--prop key=value` is repeatable and typed on the way out. Each call\n" +
+			"consumes server-event quota — a 429 here is the monthly allowance, not a\n" +
+			"rate limit that a short wait clears.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

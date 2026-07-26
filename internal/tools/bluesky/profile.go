@@ -20,8 +20,13 @@ func shapeProfile(p rawProfile) profileView {
 
 func (s *Service) newWhoamiCmd(sess *session) *cobra.Command {
 	return &cobra.Command{
-		Use:         "whoami",
-		Short:       "Show the connected account (opens a session and reads the self profile)",
+		Use:   "whoami",
+		Short: "Show the connected account (opens a session and reads the self profile)",
+		Long: "Opens a session and reads the connected account's own profile, so it\n" +
+			"doubles as the check that the app password still works. The `did` it\n" +
+			"prints is the authority segment of every at:// URI this account owns,\n" +
+			"which is how to tell an own post from someone else's before trying to\n" +
+			"delete it.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -42,8 +47,13 @@ func (s *Service) newProfileCmd(sess *session) *cobra.Command {
 	cmd := &cobra.Command{Use: "profile", Short: "Profiles"}
 	var actor string
 	get := &cobra.Command{
-		Use:         "get",
-		Short:       "Get an actor's profile",
+		Use:   "get",
+		Short: "Get an actor's profile",
+		Long: "--actor takes a handle or a DID. Returns the display name, description\n" +
+			"and the follower, following and post counts — the only place those\n" +
+			"numbers appear in this tool. It reports NOTHING about the relationship\n" +
+			"between the connected account and this actor, and no command looks that\n" +
+			"up, so whether they are already followed cannot be answered here.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -140,8 +140,33 @@ func (s *Service) stderr() io.Writer {
 func (s *Service) newRoot(token string) *cobra.Command {
 	r := &requester{s: s, token: token}
 	root := &cobra.Command{
-		Use:           "mailchimp",
-		Short:         "Mailchimp Marketing built-in service",
+		Use:   "mailchimp",
+		Short: "Mailchimp Marketing built-in service",
+		Long: "Speaks Marketing API v3.0 as the connected account. The data-center prefix the\n" +
+			"API is addressed by is derived from the credential on every invocation, so no\n" +
+			"region or server flag exists.\n" +
+			"\n" +
+			"An audience (the web app calls it a list) holds members. Nearly every member,\n" +
+			"segment and campaign-create call needs a `<list_id>`, which is not the\n" +
+			"audience name — resolve it with `audience list` first.\n" +
+			"\n" +
+			"A member is addressed by the MD5 of its lowercase email. Pass `--email` and\n" +
+			"the hashing happens locally; `--hash` is the passthrough for a hash already in\n" +
+			"hand. Exactly one of the two, never both.\n" +
+			"\n" +
+			"A campaign is built in stages: `campaign create` returns the id of an EMPTY\n" +
+			"campaign, `campaign set-content` gives it a body, and only then can it be\n" +
+			"tested, scheduled or sent. Performance for a sent campaign lives under\n" +
+			"`report`, keyed by that same campaign id.\n" +
+			"\n" +
+			"List verbs page with `--count` and `--offset`, not a cursor. Every read also\n" +
+			"takes `--fields`, a comma-separated projection of dotted paths\n" +
+			"(`lists.id,lists.name`) applied server-side — worth using, because the\n" +
+			"unfiltered rows are large.\n" +
+			"\n" +
+			"Actions Mailchimp answers with 204 (send, test, schedule, unschedule, archive,\n" +
+			"delete, tag) print `{\"ok\":true,\"action\":...,\"id\":...}` instead of a resource;\n" +
+			"every other command emits the provider's JSON verbatim.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -165,8 +190,13 @@ func (s *Service) newRoot(token string) *cobra.Command {
 // newPingCmd is the health check: GET /ping.
 func (s *Service) newPingCmd(r *requester) *cobra.Command {
 	return &cobra.Command{
-		Use:         "ping",
-		Short:       "Health check (GET /ping)",
+		Use:   "ping",
+		Short: "Health check (GET /ping)",
+		Long: "The cheapest call in the tool, and the one to reach for when another call\n" +
+			"fails ambiguously: it proves the credential is live and the data center\n" +
+			"resolved, without touching audience data. It reports nothing about the\n" +
+			"account itself — use `audience list` to learn what this connection can\n" +
+			"actually see.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

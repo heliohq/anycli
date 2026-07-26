@@ -24,8 +24,13 @@ func (s *Service) newLeadListCmd(key string) *cobra.Command {
 func (s *Service) newLeadListListCmd(key string) *cobra.Command {
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List leads lists (GET /leads_lists)",
+		Use:   "list",
+		Short: "List leads lists (GET /leads_lists)",
+		Long: "The prospect lists on the account, each with its numeric `id`, name and\n" +
+			"lead count. That `id` is what `lead list --leads-list-id` filters on and\n" +
+			"what `lead create --leads-list-id` files into, so this is the usual first\n" +
+			"call before touching leads. `--limit` and `--offset` page it; free, like\n" +
+			"every lead command.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -51,8 +56,11 @@ func (s *Service) newLeadListListCmd(key string) *cobra.Command {
 func (s *Service) newLeadListGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one leads list (GET /leads_lists/{id})",
+		Use:   "get",
+		Short: "Get one leads list (GET /leads_lists/{id})",
+		Long: "`--id` is a required flag. Returns the list itself — name, owner, team\n" +
+			"and how many leads it holds — and not the leads inside it, which come\n" +
+			"from `lead list --leads-list-id <id>`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -71,8 +79,14 @@ func (s *Service) newLeadListGetCmd(key string) *cobra.Command {
 func (s *Service) newLeadListCreateCmd(key string) *cobra.Command {
 	var name, teamID string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a leads list (POST /leads_lists)",
+		Use:   "create",
+		Short: "Create a leads list (POST /leads_lists)",
+		Long: "`--name` is required and is not checked for uniqueness, so running this\n" +
+			"twice leaves two lists with the same name and different ids — read\n" +
+			"`lead-list list` first if the list may already exist. `--team-id` hands\n" +
+			"ownership to a team instead of the individual account, which is what\n" +
+			"makes it visible to colleagues. Keep the returned `id`; the lead\n" +
+			"commands take it, not the name.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -94,8 +108,13 @@ func (s *Service) newLeadListCreateCmd(key string) *cobra.Command {
 func (s *Service) newLeadListUpdateCmd(key string) *cobra.Command {
 	var id, name string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a leads list (PUT /leads_lists/{id})",
+		Use:   "update",
+		Short: "Update a leads list (PUT /leads_lists/{id})",
+		Long: "A rename, and nothing more: `--id` is required and `--name` is the only\n" +
+			"mutable field, so a call without `--name` sends an empty body and\n" +
+			"changes nothing. Membership and ownership are untouched — leads keep\n" +
+			"their place across a rename, and a list cannot be handed to a different\n" +
+			"team here.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -117,8 +136,13 @@ func (s *Service) newLeadListUpdateCmd(key string) *cobra.Command {
 func (s *Service) newLeadListDeleteCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a leads list (DELETE /leads_lists/{id})",
+		Use:   "delete",
+		Short: "Delete a leads list (DELETE /leads_lists/{id})",
+		Long: "`--id` is required. Hunter answers 204 with no body, so this prints\n" +
+			"`{\"deleted\":true}` as the receipt. There is no undo and the id stops\n" +
+			"resolving, so anything filtered by `--leads-list-id` afterwards returns\n" +
+			"nothing — capture the membership with `lead list --leads-list-id <id>`\n" +
+			"first if it matters.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -21,8 +21,18 @@ func (s *Service) newSubmissionListCmd(token string) *cobra.Command {
 	var form, filter, startDate, endDate, afterID string
 	var page, limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List a form's submissions (GET /forms/{formId}/submissions)",
+		Use:   "list",
+		Short: "List a form's submissions (GET /forms/{formId}/submissions)",
+		Long: "The main read of the tool. `--form` is required. `--filter` is all,\n" +
+			"completed or partial and is checked locally — `partial` means a respondent\n" +
+			"who started and never finished, so a default list can contain half-filled\n" +
+			"entries. `--start-date` and `--end-date` take ISO-8601 bounds.\n" +
+			"\n" +
+			"Two ways to page: `--page` (1-based), or `--after-id` with the last\n" +
+			"submission id from the previous page, which is the stable cursor while new\n" +
+			"responses keep arriving. Raising `--limit` is much cheaper than a loop of\n" +
+			"`submission get`. Answers are keyed by question id — `form questions` is\n" +
+			"what turns them into labels.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -63,8 +73,12 @@ func (s *Service) newSubmissionListCmd(token string) *cobra.Command {
 func (s *Service) newSubmissionGetCmd(token string) *cobra.Command {
 	var form, submission string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get one submission (GET /forms/{formId}/submissions/{submissionId})",
+		Use:   "get",
+		Short: "Get one submission (GET /forms/{formId}/submissions/{submissionId})",
+		Long: "Both `--form` and `--submission` are required: a submission id does not\n" +
+			"address anything on its own. Worth calling only for one already-known\n" +
+			"response — a single `submission list` page returns the same answer bodies\n" +
+			"for many respondents in one request.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

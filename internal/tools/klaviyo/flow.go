@@ -7,12 +7,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// The flow read Longs, beside this group because the generic builders in
+// common.go are resource-agnostic.
+const (
+	longFlowList = "Flows are the automations that fire on events, listed here with their\n" +
+		"status (draft, manual or live). Flows are read and switched through this\n" +
+		"tool but never authored in it. Cursor-paged."
+
+	longFlowGet = "The flow's own record — name, status, trigger type — and not its individual\n" +
+		"actions or message content. --include pulls related resources into the\n" +
+		"same response."
+)
+
 // newFlowCmd builds the `flow` group: list/get plus a status toggle.
 func (s *Service) newFlowCmd(token string) *cobra.Command {
 	group := newGroupCmd("flow", "Read flows and toggle their status")
 	group.AddCommand(
-		s.newCollectionListCmd(token, "list", "List flows (GET /flows)", "/flows", "flow"),
-		s.newResourceGetCmd(token, "get", "Get one flow (GET /flows/{id})", "/flows/", "flow"),
+		s.newCollectionListCmd(token, "list", "List flows (GET /flows)", longFlowList, "/flows", "flow"),
+		s.newResourceGetCmd(token, "get", "Get one flow (GET /flows/{id})", longFlowGet, "/flows/", "flow"),
 		s.newFlowStatusCmd(token),
 	)
 	return group
@@ -23,8 +35,13 @@ func (s *Service) newFlowCmd(token string) *cobra.Command {
 func (s *Service) newFlowStatusCmd(token string) *cobra.Command {
 	var status, data string
 	cmd := &cobra.Command{
-		Use:         "status <id>",
-		Short:       "Set a flow's status (PATCH /flows/{id}) via --status draft|manual|live or --data",
+		Use:   "status <id>",
+		Short: "Set a flow's status (PATCH /flows/{id}) via --status draft|manual|live or --data",
+		Long: "--status takes draft, manual or live and is checked locally; --data\n" +
+			"overrides it with a raw body. Switching a flow to LIVE arms it — the next\n" +
+			"matching event sends real messages to real customers with no further\n" +
+			"confirmation, and nothing recalls them afterwards. draft and manual are\n" +
+			"the states that send nothing.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

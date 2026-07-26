@@ -170,8 +170,33 @@ func (s *Service) stderr() io.Writer {
 // a resource group (invoice / transaction / balance / subscription).
 func (s *Service) newRoot(cl *client) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "paypal",
-		Short:         "PayPal built-in service (invoicing, reporting, subscriptions)",
+		Use:   "paypal",
+		Short: "PayPal built-in service (invoicing, reporting, subscriptions)",
+		Long: "Calls PayPal's REST API as the business account that owns the connected\n" +
+			"REST app. That app's environment is part of the connection's identity: a\n" +
+			"Sandbox credential pair authorizes only against the sandbox host and a\n" +
+			"Live pair only against live, so a connection made with the wrong one\n" +
+			"reads as empty results or an auth failure rather than an error naming the\n" +
+			"mistake.\n" +
+			"\n" +
+			"A 403 here usually means a product is switched off, not that the token is\n" +
+			"wrong. Transaction Search and Invoicing are enabled per REST app and per\n" +
+			"PayPal account; until they are, a perfectly valid credential keeps failing\n" +
+			"`transaction list` and the invoice commands. Retrying does not help — the\n" +
+			"account holder has to turn them on.\n" +
+			"\n" +
+			"List commands emit `{\"results\":[…],\"page\":N,\"total_pages\":N,\n" +
+			"\"total_items\":N}`: PayPal's per-endpoint collection key and its HATEOAS\n" +
+			"`links` array are normalized away. Single reads emit the provider object\n" +
+			"verbatim.\n" +
+			"\n" +
+			"Nothing here moves money. There is no capture, refund, payout, invoice\n" +
+			"cancel or invoice delete command, and no raw-request escape hatch, so\n" +
+			"those need a different route entirely. `invoice send` is the one\n" +
+			"outward-facing action, and it emails a real customer.\n" +
+			"\n" +
+			"Date arguments are not uniform: `transaction list` and `balance list`\n" +
+			"take RFC3339 timestamps, `invoice search` takes plain `YYYY-MM-DD` dates.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

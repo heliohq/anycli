@@ -10,8 +10,12 @@ import (
 // newAudienceGetCmd builds `audience get <id>` — GET /audiences/{id}.
 func (s *Service) newAudienceGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <audience-id>",
-		Short:       "Get an audience",
+		Use:   "get <audience-id>",
+		Short: "Get an audience",
+		Long: "An audience is a filter Courier evaluates, not a set of subscriptions, so\n" +
+			"this returns the filter definition and metadata rather than a membership\n" +
+			"roster. Because it is re-evaluated at send time, `send --audience-id`\n" +
+			"reaches whoever matches then, not whoever matched when this was read.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -28,8 +32,11 @@ func (s *Service) newAudienceGetCmd(key string) *cobra.Command {
 func (s *Service) newAudienceListCmd(key string) *cobra.Command {
 	var cursor string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List audiences (cursor-paginated)",
+		Use:   "list",
+		Short: "List audiences (cursor-paginated)",
+		Long: "Cursor-paginated, with no page size and no name filter. Each `id` is what\n" +
+			"`send --audience-id` takes. Audience ids and list ids are separate spaces —\n" +
+			"passing one where the other belongs fails at send time, not here.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

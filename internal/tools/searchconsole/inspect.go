@@ -17,8 +17,16 @@ type inspectRequest struct {
 func (s *Service) newInspectCmd(token string) *cobra.Command {
 	var site, pageURL, language string
 	cmd := &cobra.Command{
-		Use:         "inspect",
-		Short:       "URL Inspection: index status and coverage for a page (indexed version only)",
+		Use:   "inspect",
+		Short: "URL Inspection: index status and coverage for a page (indexed version only)",
+		Long: "Reports the INDEXED version of a page — coverage verdict, crawl and\n" +
+			"index state, the canonical Google chose, mobile usability and\n" +
+			"rich-result checks. It is not a live fetch, so a page edited minutes\n" +
+			"ago still reports its last-indexed state, and it does not request\n" +
+			"indexing. `--url` must be fully qualified and inside the `--site`\n" +
+			"property. Google allows 2,000 inspections per property per day and 600\n" +
+			"per minute; a 429 is that quota surfaced verbatim, and backing off is\n" +
+			"the only remedy.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

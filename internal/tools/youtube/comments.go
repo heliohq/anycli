@@ -24,8 +24,15 @@ func (s *Service) newCommentsListCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List top-level comment threads on a video",
+		Use:   "list",
+		Short: "List top-level comment threads on a video",
+		Long: "Returns TOP-LEVEL threads with each thread's replies hydrated inline, so\n" +
+			"the common case needs no follow-up call — reach for `comments replies`\n" +
+			"only when a thread has more replies than the API embedded. --order is time\n" +
+			"or relevance; time with a recorded high-water mark is how to poll for new\n" +
+			"comments. Note the ids here are thread ids, while `comments reply`,\n" +
+			"`comments update`, `comments delete` and `comments moderate` all take a\n" +
+			"COMMENT id. --max is capped at 50 and defaults to 5.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -68,8 +75,13 @@ func (s *Service) newCommentsRepliesCmd(token string) *cobra.Command {
 	var max int
 	var page string
 	cmd := &cobra.Command{
-		Use:         "replies",
-		Short:       "List replies under a top-level comment",
+		Use:   "replies",
+		Short: "List replies under a top-level comment",
+		Long: "--parent is the top-level comment id, not a video id and not a thread id.\n" +
+			"Only needed when a thread carries more replies than `comments list`\n" +
+			"embedded — otherwise it is a redundant request. Replies are one level deep\n" +
+			"on YouTube: a reply to a reply is still attached to the same top-level\n" +
+			"comment.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -103,8 +115,13 @@ func (s *Service) newCommentsRepliesCmd(token string) *cobra.Command {
 func (s *Service) newCommentsReplyCmd(token string) *cobra.Command {
 	var parent, text string
 	cmd := &cobra.Command{
-		Use:         "reply",
-		Short:       "Reply to a top-level comment",
+		Use:   "reply",
+		Short: "Reply to a top-level comment",
+		Long: "Posts publicly as the connected channel, visible immediately under the\n" +
+			"video. --parent must be a TOP-LEVEL comment id: YouTube has no second\n" +
+			"nesting level, so replying to a reply means passing that reply's parent.\n" +
+			"There is no way to start a new top-level comment from this tool — only\n" +
+			"replies.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -133,8 +150,12 @@ func (s *Service) newCommentsReplyCmd(token string) *cobra.Command {
 func (s *Service) newCommentsUpdateCmd(token string) *cobra.Command {
 	var id, text string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Edit the text of your own comment",
+		Use:   "update",
+		Short: "Edit the text of your own comment",
+		Long: "Only reaches comments the connected account authored; someone else's\n" +
+			"comment fails rather than being edited, and the lever for those is\n" +
+			"`comments moderate`. The whole text is replaced, and YouTube marks the\n" +
+			"comment as edited publicly.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -162,8 +183,12 @@ func (s *Service) newCommentsUpdateCmd(token string) *cobra.Command {
 func (s *Service) newCommentsDeleteCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a comment",
+		Use:   "delete",
+		Short: "Delete a comment",
+		Long: "Permanent, with no undo. It removes the comment outright, which is the\n" +
+			"harsher of the two options — `comments moderate --status rejected` hides a\n" +
+			"comment from viewers while leaving it recoverable, and is usually what\n" +
+			"\"remove this comment\" should mean for someone else's post.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -193,8 +218,15 @@ func (s *Service) newCommentsModerateCmd(token string) *cobra.Command {
 	var id, status string
 	var banAuthor bool
 	cmd := &cobra.Command{
-		Use:         "moderate",
-		Short:       "Set a comment's moderation status (heldForReview | published | rejected)",
+		Use:   "moderate",
+		Short: "Set a comment's moderation status (heldForReview | published | rejected)",
+		Long: "The lever for other people's comments on the channel's videos: rejected\n" +
+			"hides it from viewers, heldForReview parks it in the moderation queue, and\n" +
+			"published releases one that was held. Unlike `comments delete` none of\n" +
+			"this destroys the comment. --ban-author is valid ONLY with --status\n" +
+			"rejected and is refused locally otherwise, because the API answers 400\n" +
+			"banWithoutReject; banning hides the author's future comments on the\n" +
+			"channel too, which is a standing decision rather than a one-off.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

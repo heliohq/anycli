@@ -21,8 +21,13 @@ func (s *Service) newEventCmd(cred credential) *cobra.Command {
 func (s *Service) newEventTrackCmd(cred credential) *cobra.Command {
 	var body string
 	cmd := &cobra.Command{
-		Use:         "track",
-		Short:       "Track a custom event (POST /api/events/track)",
+		Use:   "track",
+		Short: "Track a custom event (POST /api/events/track)",
+		Long: "--body is required and must carry `eventName` plus an `email` or `userId`;\n" +
+			"custom properties go under `dataFields`. Events are what campaign triggers\n" +
+			"and journeys fire on, and Iterable accepts ANY event name, so a misspelled\n" +
+			"one is recorded successfully and simply triggers nothing. Confirm with\n" +
+			"`event list` that the event landed on the profile.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -46,8 +51,12 @@ func (s *Service) newEventListCmd(cred credential) *cobra.Command {
 	var email string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List a user's events by email (GET /api/events/{email})",
+		Use:   "list",
+		Short: "List a user's events by email (GET /api/events/{email})",
+		Long: "--email is required and there is no by-userId variant. --limit caps how\n" +
+			"many events come back and is omitted from the request entirely when left\n" +
+			"at 0, leaving Iterable's own default. This is the way to verify that an\n" +
+			"`event track` call actually attached to the profile.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

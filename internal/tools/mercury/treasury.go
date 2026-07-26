@@ -12,8 +12,13 @@ import (
 // organization.
 func (s *Service) newTreasuryGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get treasury accounts and balances (GET /treasury)",
+		Use:   "get",
+		Short: "Get treasury accounts and balances (GET /treasury)",
+		Long: "One treasury view per organization, so this takes no id. Treasury\n" +
+			"balances are SEPARATE from the checking and savings balances in\n" +
+			"`account list` — summing the two double-counts the company's cash. An\n" +
+			"organization not enrolled in Mercury Treasury gets an empty accounts\n" +
+			"array rather than an error.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {

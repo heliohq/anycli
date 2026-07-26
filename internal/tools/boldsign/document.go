@@ -53,8 +53,23 @@ func (s *Service) newDocumentSendCmd(token string) *cobra.Command {
 	var expiryDays int
 	var signingOrder, autoDetectFields, textTags, disableEmails bool
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send files for signature (POST /v1/document/send)",
+		Use:   "send",
+		Short: "Send files for signature (POST /v1/document/send)",
+		Long: "`--file` reads a local path and base64-encodes it into the request body, so\n" +
+			"the whole document travels inline; `--file-url` instead hands BoldSign a URL\n" +
+			"that BoldSign itself must be able to fetch, which means it has to be\n" +
+			"publicly reachable. Both are repeatable and at least one is required, as is\n" +
+			"at least one `--signer`. `--title` is required.\n" +
+			"\n" +
+			"A file with signers but no signature fields is rejected: pass\n" +
+			"`--auto-detect-fields` (BoldSign locates the fields itself) or `--text-tags`\n" +
+			"(the file already carries BoldSign text tags), or send from a template.\n" +
+			"`--signer-type` is a single value applied to EVERY signer — Signer,\n" +
+			"Reviewer or InPersonSigner — not a per-signer setting. `--signing-order`\n" +
+			"numbers the signers in the order given and makes them sign one after\n" +
+			"another. `--disable-emails` suppresses BoldSign's invitation mail entirely,\n" +
+			"so nobody learns about the request unless the link is delivered some other\n" +
+			"way.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -153,8 +168,13 @@ func (s *Service) newDocumentListCmd(token string) *cobra.Command {
 	var search, transmitType string
 	var page, pageSize int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List / monitor documents (GET /v1/document/list)",
+		Use:   "list",
+		Short: "List / monitor documents (GET /v1/document/list)",
+		Long: "`--page` is 1-based and always sent, defaulting to page 1; `--page-size`\n" +
+			"falls back to BoldSign's own default of 10. `--status` is repeatable\n" +
+			"(Completed, WaitingForOthers, Revoked, ...), `--search` matches title, id or\n" +
+			"recipient, and `--transmit-type` is Sent, Received or Both. None of the\n" +
+			"three is validated locally, so a misspelled value reaches BoldSign as-is.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -190,8 +210,11 @@ func (s *Service) newDocumentListCmd(token string) *cobra.Command {
 func (s *Service) newDocumentGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get document properties and per-signer status (GET /v1/document/properties)",
+		Use:   "get",
+		Short: "Get document properties and per-signer status (GET /v1/document/properties)",
+		Long: "`--id` is a required flag, not a positional argument. This is the status\n" +
+			"read after an asynchronous `document send`, and the way to see which\n" +
+			"signers are still outstanding before calling `document remind`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -212,22 +235,39 @@ func (s *Service) newDocumentGetCmd(token string) *cobra.Command {
 func (s *Service) newDocumentDownloadCmd(token string) *cobra.Command {
 	return s.newBinaryDownloadCmd(token, "download",
 		"Download the (signed) document PDF (GET /v1/document/download)",
-		"/v1/document/download")
+		longDocumentDownload, "/v1/document/download")
 }
 
 func (s *Service) newDocumentAuditLogCmd(token string) *cobra.Command {
 	return s.newBinaryDownloadCmd(token, "audit-log",
 		"Download the audit-trail PDF (GET /v1/document/downloadAuditLog)",
-		"/v1/document/downloadAuditLog")
+		longDocumentAuditLog, "/v1/document/downloadAuditLog")
 }
+
+// longDocumentDownload and longDocumentAuditLog are the two binary-download
+// Longs. They live next to the shared builder because it is the builder that
+// fixes the required --id/--out pair and the write-to-disk receipt they both
+// describe.
+const (
+	longDocumentDownload = "Writes PDF bytes to `--out`; both `--id` and `--out` are required, and an\n" +
+		"existing file at that path is overwritten without warning. stdout carries\n" +
+		"only `{\"ok\":true,\"path\":…,\"bytes\":N}` — never the PDF itself. The\n" +
+		"document's state is not checked first, so this happily writes a half-signed\n" +
+		"copy; call `document get` when a fully executed one is what is wanted."
+	longDocumentAuditLog = "Writes the audit trail — the signing history and its timestamps — to\n" +
+		"`--out`, NOT the contract; the signed document is `document download`. Both\n" +
+		"`--id` and `--out` are required, an existing file at that path is\n" +
+		"overwritten without warning, and stdout carries only the receipt."
+)
 
 // newBinaryDownloadCmd builds a document/{download,audit-log} command: both GET
 // a PDF by documentId and write raw bytes to --out, emitting a receipt.
-func (s *Service) newBinaryDownloadCmd(token, use, short, path string) *cobra.Command {
+func (s *Service) newBinaryDownloadCmd(token, use, short, long, path string) *cobra.Command {
 	var id, out string
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -254,8 +294,14 @@ func (s *Service) newDocumentRemindCmd(token string) *cobra.Command {
 	var id, message string
 	var emails []string
 	cmd := &cobra.Command{
-		Use:         "remind",
-		Short:       "Send a reminder to pending signers (POST /v1/document/remind)",
+		Use:   "remind",
+		Short: "Send a reminder to pending signers (POST /v1/document/remind)",
+		Long: "`--email` is repeatable and narrows the reminder to those addresses;\n" +
+			"omitting it reminds every recipient BoldSign still considers outstanding.\n" +
+			"Each call sends real mail and nothing here rate-limits it, so a loop is a\n" +
+			"loop of emails. `--message` replaces the default reminder text. There is no\n" +
+			"response body — success prints `{\"ok\":true,\"documentId\":…,\"action\":\n" +
+			"\"remind\"}`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -284,8 +330,13 @@ func (s *Service) newDocumentRemindCmd(token string) *cobra.Command {
 func (s *Service) newDocumentRevokeCmd(token string) *cobra.Command {
 	var id, message string
 	cmd := &cobra.Command{
-		Use:         "revoke",
-		Short:       "Revoke / cancel a document with a reason (POST /v1/document/revoke)",
+		Use:   "revoke",
+		Short: "Revoke / cancel a document with a reason (POST /v1/document/revoke)",
+		Long: "`--message` is required alongside `--id` and is stored as the cancellation\n" +
+			"reason. Revoking ends the request for every recipient at once and cannot be\n" +
+			"undone — a corrected version has to go out as a NEW document with a new id.\n" +
+			"There is no response body; success prints\n" +
+			"`{\"ok\":true,\"documentId\":…,\"action\":\"revoke\"}`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -23,7 +23,14 @@ func (s *Service) newPostRepliesCmd(token string) *cobra.Command {
 		Use:         "replies <post-id>",
 		Annotations: sideEffect(false),
 		Short:       "List replies (comments) in a post's conversation (one page, last 7 days)",
-		Args:        cobra.ExactArgs(1),
+		Long: "Runs as a recent search over the post's conversation id, so it returns\n" +
+			"EVERY post in the conversation, not only direct children of the id you\n" +
+			"passed — rebuild nesting from each item's `referenced_tweets` entry of\n" +
+			"type `replied_to`. Passing a reply's id works: it resolves to the same\n" +
+			"conversation as the root post. Costs two API calls, one lookup to resolve\n" +
+			"the conversation and one search. --limit is 10-100, default 10; continue\n" +
+			"with --next-token, or poll incrementally with --since-id.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("post id", args[0]); err != nil {
 				return err
@@ -69,7 +76,11 @@ func (s *Service) newPostQuotesCmd(token string) *cobra.Command {
 		Use:         "quotes <post-id>",
 		Annotations: sideEffect(false),
 		Short:       "List quote posts of a post (one page)",
-		Args:        cobra.ExactArgs(1),
+		Long: "Reads the quote_tweets endpoint rather than recent search, so unlike\n" +
+			"`post replies` it is not limited to the last 7 days. --limit is 10-100,\n" +
+			"default 10; continue with --next-token. There is no --since-id, so\n" +
+			"watching for new quotes means re-reading from the first page.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("post id", args[0]); err != nil {
 				return err
@@ -104,7 +115,12 @@ func (s *Service) newPostQuoteCmd(token string) *cobra.Command {
 		Use:         "quote <post-id>",
 		Annotations: sideEffect(true),
 		Short:       "Quote a post with a comment",
-		Args:        cobra.ExactArgs(1),
+		Long: "Creates a NEW post that embeds the target, so it carries its own id,\n" +
+			"engagement and reply tree — unlike `repost create`, which adds no text and\n" +
+			"produces nothing anyone can reply to you on. --media-id attaches up to 4\n" +
+			"already-uploaded media. Deleting the quote leaves the quoted post\n" +
+			"untouched.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload, err := buildCreatePostRequest(text, mediaIDs, "", args[0])
 			if err != nil {
@@ -123,13 +139,30 @@ func (s *Service) newPostQuoteCmd(token string) *cobra.Command {
 	return cmd
 }
 
+// longPostHide and longPostUnhide are the two moderation Longs. They live next
+// to the shared builder because it is the builder that fixes the argument
+// (a reply id) and the endpoint both describe.
+const (
+	longPostHide = "Takes the REPLY's id, not the id of the post it sits under. Only replies\n" +
+		"under the connected account's own posts can be hidden; anything else\n" +
+		"returns 403. Hiding neither deletes the reply nor notifies its author — it\n" +
+		"moves the reply behind X's \"Show additional replies\" affordance. Reverse\n" +
+		"with `post unhide`."
+
+	longPostUnhide = "Takes the REPLY's id, not the id of the post it sits under, and carries\n" +
+		"the same ownership rule as `post hide`: only replies under the connected\n" +
+		"account's own posts, 403 otherwise. The response reports the resulting\n" +
+		"state, so calling it on a reply that was never hidden is not an error."
+)
+
 // newPostHiddenCmd builds `post hide` / `post unhide`: moderation of replies
 // under the connected user's own posts (PUT /2/tweets/:id/hidden).
-func (s *Service) newPostHiddenCmd(token, use, short string, hidden bool) *cobra.Command {
+func (s *Service) newPostHiddenCmd(token, use, short, long string, hidden bool) *cobra.Command {
 	return &cobra.Command{
 		Use:         use + " <reply-id>",
 		Annotations: sideEffect(true),
 		Short:       short,
+		Long:        long,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireNumericID("reply id", args[0]); err != nil {

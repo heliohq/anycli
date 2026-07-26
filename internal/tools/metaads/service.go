@@ -65,8 +65,32 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "meta-ads",
-		Short:         "Meta Ads built-in service",
+		Use:   "meta-ads",
+		Short: "Meta Ads built-in service",
+		Long: "A Facebook user usually has access to many ad accounts across several\n" +
+			"businesses. The connection identity is the USER, not one ad account, so\n" +
+			"`--account act_<id>` is passed per command and is never remembered between\n" +
+			"calls. `accounts list` is what reveals which accounts are reachable.\n" +
+			"\n" +
+			"The object hierarchy is Ad Account, then Campaign, then Ad Set, then Ad,\n" +
+			"with creatives attached to ads and insights readable at every level. The\n" +
+			"campaign carries the objective, the ad set carries budget, schedule and\n" +
+			"targeting, and the ad carries the creative.\n" +
+			"\n" +
+			"Account ids must be in `act_<number>` form and are rejected otherwise;\n" +
+			"every other id (campaign, ad set, ad) is a bare numeric string. Passing\n" +
+			"one where the other belongs fails locally, before any request leaves.\n" +
+			"\n" +
+			"Edge lists page with `--limit` and `--after`, where the cursor comes from\n" +
+			"`paging.cursors.after` in the previous page. `--fields` selects exactly\n" +
+			"what Graph returns — each command ships a curated default, and anything\n" +
+			"outside that default has to be asked for by name.\n" +
+			"\n" +
+			"The Graph JSON response is printed verbatim; `--json` is accepted for\n" +
+			"uniformity and changes nothing about the output. A Graph error surfaces\n" +
+			"with its `type`, `code` and `message`. Code 190, OAuthException, means the\n" +
+			"token is expired or revoked, and Meta issues no refresh grant for it — the\n" +
+			"user must re-authorize, retrying will not help.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -98,8 +98,33 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "microsoft-outlook",
-		Short:         "Microsoft Outlook built-in service",
+		Use:   "microsoft-outlook",
+		Short: "Microsoft Outlook built-in service",
+		Long: "A close projection of Microsoft Graph's `/me/messages` and\n" +
+			"`/me/mailFolders`: everything runs as the connected mailbox, and OData\n" +
+			"passes through rather than being re-invented. `--search` becomes Graph\n" +
+			"`$search` (free text, relevance-ordered) and `--filter` becomes `$filter`\n" +
+			"(`isRead eq false`, `receivedDateTime ge 2026-07-01`). Graph will not honour\n" +
+			"both on the same request.\n" +
+			"\n" +
+			"Message ids are long opaque Graph strings, not RFC 822 Message-IDs, and\n" +
+			"they are mailbox-specific — a MOVED message gets a NEW id, so an id cached\n" +
+			"before `messages move` is dead afterwards. Folders are addressed either by\n" +
+			"id or by a Graph well-known name (inbox, drafts, sentitems,\n" +
+			"deleteditems, archive).\n" +
+			"\n" +
+			"Without `--json` list commands print tab-separated lines and single reads\n" +
+			"print a rendered summary; with it, most commands hand back Graph's own JSON\n" +
+			"body untouched. Lists never auto-page: they print or carry an\n" +
+			"`@odata.nextLink`, which goes back in through `--page` verbatim.\n" +
+			"\n" +
+			"There is no permanent delete. `messages move` to another folder is the only\n" +
+			"removal path and it is reversible; `drafts delete` is the one delete verb\n" +
+			"and it only reaches unsent drafts.\n" +
+			"\n" +
+			"Sending is immediate and attributed to the mailbox owner. A sent message\n" +
+			"cannot be recalled from here, and `messages reply` / `forward` build and\n" +
+			"send a draft in one step rather than leaving anything to review.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

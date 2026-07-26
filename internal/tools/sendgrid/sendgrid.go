@@ -86,8 +86,29 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 func (s *Service) newRoot(token, defaultRegion string) *cobra.Command {
 	region := new(string)
 	root := &cobra.Command{
-		Use:           "sendgrid",
-		Short:         "SendGrid built-in service",
+		Use:   "sendgrid",
+		Short: "SendGrid built-in service",
+		Long: "Two independent SendGrid products sit behind one API key. `mail`,\n" +
+			"`template`, `sender`, `suppression` and `stats` ride the transactional\n" +
+			"v3 API; `contact` and `list` ride Marketing Campaigns\n" +
+			"(/v3/marketing/...). A key scoped for one is not automatically scoped\n" +
+			"for the other, and a marketing contact is not a prerequisite for\n" +
+			"sending mail to an address.\n" +
+			"\n" +
+			"A 403 is NOT a dead key. It means the key lacks the scope for that one\n" +
+			"operation, or the `from` address is not a verified sender; reconnecting\n" +
+			"the same key changes nothing. Only a 401 means the key is invalid or\n" +
+			"revoked. `scopes` itself answers 403 for a least-privilege key, which\n" +
+			"proves the key is live and narrow rather than broken.\n" +
+			"\n" +
+			"--region picks the data-residency host: global (default) or eu\n" +
+			"(api.eu.sendgrid.com). Set it only when the connected key belongs to an\n" +
+			"EU subuser — calling the global host routes that account's data\n" +
+			"globally.\n" +
+			"\n" +
+			"Every command prints the provider JSON verbatim except `mail send`,\n" +
+			"whose success body is empty. Sends leave the account immediately: there\n" +
+			"is no draft, scheduling or recall state on this surface.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -14,8 +14,18 @@ import (
 func (s *Service) newMessagesSendCmd(token string) *cobra.Command {
 	var o composeOptions
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send an email",
+		Use:   "send",
+		Short: "Send an email",
+		Long: "`--to` and `--subject` are required, plus exactly one of `--body` or\n" +
+			"`--body-file`, which are mutually exclusive. `--html` sends the body as\n" +
+			"text/html instead of plain text. `--attach` is repeatable and the assembled\n" +
+			"message is rejected locally above 25 MB — attachments are base64-encoded\n" +
+			"into it, which inflates them by about a third, so the practical file\n" +
+			"ceiling is nearer 18 MB.\n" +
+			"\n" +
+			"The mail leaves the moment this returns: no scheduling, no undo window, no\n" +
+			"recall. `drafts create` writes the same message into the user's Gmail\n" +
+			"instead, where a person can read and edit it before `drafts send`.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -43,8 +53,17 @@ func (s *Service) newMessagesReplyCmd(token string) *cobra.Command {
 	var o composeOptions
 	var replyAll bool
 	cmd := &cobra.Command{
-		Use:         "reply <message-id>",
-		Short:       "Reply to a message (sender only; --all for reply-all)",
+		Use:   "reply <message-id>",
+		Short: "Reply to a message (sender only; --all for reply-all)",
+		Long: "Takes the id of the message being answered and sends into ITS thread, with\n" +
+			"`In-Reply-To` and `References` set and `Re: ` prefixed unless the subject\n" +
+			"already carries it. The recipient is the original's `Reply-To`, falling\n" +
+			"back to its `From`; `--all` additionally Cc's the original To and Cc minus\n" +
+			"the connected mailbox itself, at the cost of one extra profile lookup.\n" +
+			"\n" +
+			"There is no `--to`, `--cc`, `--bcc` or `--subject` here: a reply cannot be\n" +
+			"redirected or retitled, and reaching anyone outside the original\n" +
+			"conversation means `messages send`. Body flags are the same as there.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -86,8 +105,17 @@ func (s *Service) newMessagesForwardCmd(token string) *cobra.Command {
 	var to []string
 	var preamble string
 	cmd := &cobra.Command{
-		Use:         "forward <message-id>",
-		Short:       "Forward a message with the original quoted",
+		Use:   "forward <message-id>",
+		Short: "Forward a message with the original quoted",
+		Long: "`--body` here is a PREAMBLE placed above the quoted original, not the\n" +
+			"message body; omitting it forwards the quote alone. The quote is the\n" +
+			"original's plain-text rendering and its ATTACHMENTS ARE NOT CARRIED OVER —\n" +
+			"pull them with `messages attachments` and re-send through\n" +
+			"`messages send --attach` when they matter.\n" +
+			"\n" +
+			"The subject is the original's with `Fwd: ` prefixed, `--to` is the only\n" +
+			"addressing flag, and the forward starts a NEW thread rather than joining\n" +
+			"the conversation it came from.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

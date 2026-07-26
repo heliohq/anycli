@@ -25,7 +25,14 @@ func (s *Service) newFileUploadCmd(token string) *cobra.Command {
 		Use:         "upload <path>",
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		Short:       "Upload a local file to Notion-managed storage",
-		Args:        cobra.ExactArgs(1),
+		Long: "Single-part only: a file over 20 MB is rejected locally rather than being\n" +
+			"split, so large media has to go in as an external URL instead. Prints the\n" +
+			"file_upload id — the full object under --json — and that id is what `file\n" +
+			"attach --upload-id` takes; uploading on its own attaches the bytes to\n" +
+			"nothing. --content-type is inferred from the extension when omitted. If\n" +
+			"the byte transfer fails after the upload was created, the error names the\n" +
+			"id that already exists.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := args[0]
 			data, err := os.ReadFile(path)
@@ -71,7 +78,13 @@ func (s *Service) newFileAttachCmd(token string) *cobra.Command {
 		Use:         "attach <page-id>",
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		Short:       "Attach an uploaded or external file to a page files property",
-		Args:        cobra.ExactArgs(1),
+		Long: "--property must name a files property that already exists on the page;\n" +
+			"this writes a value, it does not add a column. Exactly one of --upload-id\n" +
+			"(from `file upload`) or --external-url (an http(s) URL Notion links rather\n" +
+			"than stores). The write REPLACES the property's whole file list with the\n" +
+			"single file given — it does not append, so an existing attachment is lost\n" +
+			"unless it is re-sent.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pageID, err := resolveID(args[0])
 			if err != nil {

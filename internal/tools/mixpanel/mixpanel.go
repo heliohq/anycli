@@ -206,8 +206,34 @@ func (s *Service) stderr() io.Writer {
 // under a runnable group.
 func (s *Service) newRoot(c *client) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "mixpanel",
-		Short:         "Mixpanel product-analytics reads (Query, Lexicon, Export, App)",
+		Use:   "mixpanel",
+		Short: "Mixpanel product-analytics reads (Query, Lexicon, Export, App)",
+		Long: "Read-only throughout. Nothing here ingests events — instrumentation is the\n" +
+			"application's own job on a different credential.\n" +
+			"\n" +
+			"The connected Service Account is bound to one project in one region\n" +
+			"(us / eu / in). Both are fixed at connect time and injected on every call,\n" +
+			"so no command takes a project id or a host, and switching accounts switches\n" +
+			"projects.\n" +
+			"\n" +
+			"Discover event names with `events-names`, NEVER with `lexicon list`. Lexicon\n" +
+			"returns only events that have an authored schema, so a project that never\n" +
+			"wrote one comes back empty while events fire normally — reading that as\n" +
+			"\"this project has no events\" is how a real capability gets declared\n" +
+			"missing.\n" +
+			"\n" +
+			"The Query API allows 60 queries per hour, 5 concurrent. A 429 surfaces as a\n" +
+			"rateLimit error carrying Mixpanel's `Retry-After` seconds when it supplies\n" +
+			"one; back off and retry rather than treating the call as dead. Chaining\n" +
+			"several analytics verbs reaches that ceiling quickly, so prefer one call\n" +
+			"with several `--event` values over several calls.\n" +
+			"\n" +
+			"Dates are YYYY-MM-DD, inclusive at both ends, and interpreted in the\n" +
+			"project's configured timezone rather than UTC.\n" +
+			"\n" +
+			"There is no connect-time credential check, so a wrong or expired secret\n" +
+			"first appears as a 401 on whatever call is made. `me` is the cheap way to\n" +
+			"settle that before spending query budget.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

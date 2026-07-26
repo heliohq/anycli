@@ -149,6 +149,7 @@ func (s *Service) newRoot(token, base string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "activecampaign",
 		Short:         "ActiveCampaign built-in service (marketing automation & CRM, API v3)",
+		Long:          longRoot,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -173,44 +174,44 @@ func (s *Service) newRoot(token, base string) *cobra.Command {
 
 	list := newGroupCmd("list", "Discover audiences (lists)")
 	list.AddCommand(
-		s.newSimpleListCmd(c, "lists"),
-		s.newSimpleGetCmd(c, "lists"),
+		s.newSimpleListCmd(c, "lists", longListList),
+		s.newSimpleGetCmd(c, "lists", longListGet),
 	)
 
 	tag := newGroupCmd("tag", "Discover and create tags")
 	tag.AddCommand(
-		s.newSimpleListCmd(c, "tags"),
+		s.newSimpleListCmd(c, "tags", longTagList),
 		s.newTagCreateCmd(c),
 	)
 
 	deal := newGroupCmd("deal", "CRM deals")
 	deal.AddCommand(
-		s.newSimpleListCmd(c, "deals"),
-		s.newSimpleGetCmd(c, "deals"),
-		s.newResourceCreateCmd(c, "deal", "deals"),
-		s.newResourceUpdateCmd(c, "deal", "deals"),
+		s.newSimpleListCmd(c, "deals", longDealList),
+		s.newSimpleGetCmd(c, "deals", longDealGet),
+		s.newResourceCreateCmd(c, "deal", "deals", longDealCreate),
+		s.newResourceUpdateCmd(c, "deal", "deals", longDealUpdate),
 	)
 
 	pipeline := newGroupCmd("pipeline", "CRM pipelines (deal groups)")
-	pipeline.AddCommand(s.newSimpleListCmd(c, "dealGroups"))
+	pipeline.AddCommand(s.newSimpleListCmd(c, "dealGroups", longPipelineList))
 
 	stage := newGroupCmd("stage", "CRM pipeline stages (deal stages)")
-	stage.AddCommand(s.newSimpleListCmd(c, "dealStages"))
+	stage.AddCommand(s.newSimpleListCmd(c, "dealStages", longStageList))
 
 	campaign := newGroupCmd("campaign", "Campaign reporting")
 	campaign.AddCommand(
-		s.newSimpleListCmd(c, "campaigns"),
-		s.newSimpleGetCmd(c, "campaigns"),
+		s.newSimpleListCmd(c, "campaigns", longCampaignList),
+		s.newSimpleGetCmd(c, "campaigns", longCampaignGet),
 	)
 
 	automation := newGroupCmd("automation", "Discover automations")
-	automation.AddCommand(s.newSimpleListCmd(c, "automations"))
+	automation.AddCommand(s.newSimpleListCmd(c, "automations", longAutomationList))
 
 	field := newGroupCmd("field", "Custom contact fields")
-	field.AddCommand(s.newSimpleListCmd(c, "fields"))
+	field.AddCommand(s.newSimpleListCmd(c, "fields", longFieldList))
 
 	account := newGroupCmd("account", "B2B accounts")
-	account.AddCommand(s.newSimpleListCmd(c, "accounts"))
+	account.AddCommand(s.newSimpleListCmd(c, "accounts", longAccountList))
 
 	root.AddCommand(contact, list, tag, deal, pipeline, stage, campaign, automation, field, account)
 	return root

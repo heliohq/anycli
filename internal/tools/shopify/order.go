@@ -32,8 +32,14 @@ const orderUpdateMutation = `mutation($input: OrderInput!) {
 // newOrderListCmd is `order list`: recent orders first, cursor-paginated.
 func (c *client) newOrderListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List orders, newest first (cursor-paginated)",
+		Use:   "list",
+		Short: "List orders, newest first (cursor-paginated)",
+		Long: "The sort is FIXED to created-at descending and `--query` cannot change it.\n" +
+			"Each row carries `name`, `createdAt`, `displayFinancialStatus`,\n" +
+			"`displayFulfillmentStatus`, the shop-currency total and a `customer` stub;\n" +
+			"line items only come from `order get`. `--query` takes Shopify order search\n" +
+			"syntax (`financial_status:paid`, `fulfillment_status:unfulfilled`,\n" +
+			"`created_at:>2026-01-01`).",
 		Args:        cobra.NoArgs,
 		Annotations: readAnnotation(),
 	}
@@ -51,8 +57,13 @@ func (c *client) newOrderListCmd() *cobra.Command {
 // newOrderGetCmd is `order get <id>`: one order with line items.
 func (c *client) newOrderGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one order by numeric id or gid",
+		Use:   "get <id>",
+		Short: "Get one order by numeric id or gid",
+		Long: "Accepts a bare numeric id or `gid://shopify/Order/<n>`. The human-facing\n" +
+			"order number — `name`, like #1001 — is NOT an id; find its order with\n" +
+			"`order list --query` instead. Adds `note`, `tags` and the first 50 line\n" +
+			"items (`title`, `quantity`, `sku`) to the list fields; a longer order is\n" +
+			"truncated silently.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readAnnotation(),
 	}
@@ -73,8 +84,13 @@ func (c *client) newOrderUpdateCmd() *cobra.Command {
 	var tags []string
 	var noteSet bool
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update an order's note or tags",
+		Use:   "update <id>",
+		Short: "Update an order's note or tags",
+		Long: "Only the note and the tags are editable from here — items, prices,\n" +
+			"addresses, financial state and fulfillment are not, and need `graphql`. At\n" +
+			"least one of `--note` / `--tag` is required. `--tag` REPLACES the whole tag\n" +
+			"set rather than adding to it, so read the current tags with `order get` and\n" +
+			"pass them all back alongside the new one.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAnnotation(),
 	}

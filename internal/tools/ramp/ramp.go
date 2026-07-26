@@ -127,8 +127,27 @@ func (s *Service) stderr() io.Writer {
 // raw-GET passthrough; everything else hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "ramp",
-		Short:         "Ramp transactions, reimbursements, cards, users, departments, locations, and business (read)",
+		Use:   "ramp",
+		Short: "Ramp transactions, reimbursements, cards, users, departments, locations, and business (read)",
+		Long: "Read-only over the Ramp Developer API. Nothing here issues, freezes or\n" +
+			"terminates a card, moves money, or approves a reimbursement — a request to\n" +
+			"do any of that cannot be met from this tool.\n" +
+			"\n" +
+			"Lists share one cursor envelope, `{\"data\":[…],\"page\":{\"next\":…}}`.\n" +
+			"`--limit` is Ramp's page_size and `--cursor` resumes from a previous\n" +
+			"response's start cursor. `--all` follows `page.next` to the end and merges\n" +
+			"every page into a single `data` array with `page.next` null — on a busy\n" +
+			"ledger that is an unbounded number of requests, so bound the walk unless\n" +
+			"the whole set is genuinely wanted.\n" +
+			"\n" +
+			"The typed commands expose those cursor flags and NOTHING else: no state,\n" +
+			"date, user or amount filter. Ramp's own query parameters are reachable\n" +
+			"only through the `get` passthrough, which is the escape hatch both for\n" +
+			"filtering and for read endpoints that have no verb here.\n" +
+			"\n" +
+			"Records reference each other by id — a transaction names its user, card,\n" +
+			"department and location as ids — so making a ledger readable means\n" +
+			"resolving them with `user get`, `department get` and `location get`.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

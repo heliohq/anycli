@@ -16,8 +16,14 @@ func (s *Service) newStreamListCmd(rc *reqCtx) *cobra.Command {
 		page                                    paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List live streams (optionally filtered)",
+		Use:   "list",
+		Short: "List live streams (optionally filtered)",
+		Long: "Only LIVE streams are returned, so this doubles as the\n" +
+			"is-this-channel-live check: an offline channel is absent from the results\n" +
+			"rather than present with an offline status. --user-login is the one filter\n" +
+			"that takes login names instead of ids; --user-id, --game-id and --language\n" +
+			"are repeatable id or code filters. --first is capped at 100; continue with\n" +
+			"--after using the response's cursor.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -52,8 +58,13 @@ func (s *Service) newStreamFollowedCmd(rc *reqCtx) *cobra.Command {
 	var userID string
 	var page paginationFlags
 	cmd := &cobra.Command{
-		Use:         "followed",
-		Short:       "List live streams from channels you follow",
+		Use:   "followed",
+		Short: "List live streams from channels you follow",
+		Long: "The connected account's own follow graph — a different question from\n" +
+			"`stream list`, which searches all of Twitch. Defaults to self, and\n" +
+			"--user-id only works for a user the token is actually authorised for, so\n" +
+			"it cannot be used to inspect someone else's follows. Requires the\n" +
+			"user:read:follows scope. --first is capped at 100; continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -85,8 +96,13 @@ func (s *Service) newSearchChannelsCmd(rc *reqCtx) *cobra.Command {
 		page     paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:         "channels",
-		Short:       "Search channels by query",
+		Use:   "channels",
+		Short: "Search channels by query",
+		Long: "--query is required and matches both channel names and stream titles, so\n" +
+			"results include channels that are currently offline; --live-only narrows\n" +
+			"to those broadcasting now. This is a fuzzy name search — turning a known\n" +
+			"login into an id exactly is `user get --login`, which is one call and\n" +
+			"cannot mismatch. --first is capped at 100; continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

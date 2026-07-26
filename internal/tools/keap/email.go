@@ -19,8 +19,15 @@ func (s *Service) newEmailSendCmd(token string) *cobra.Command {
 	var contacts []string
 	var subject, userID, html, plain, jsonBody string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a one-off email to contacts (POST /v2/emails:send)",
+		Use:   "send",
+		Short: "Send a one-off email to contacts (POST /v2/emails:send)",
+		Long: "Delivers real mail from the Keap account the moment Keap accepts it; there\n" +
+			"is no draft, scheduling or recall state on this endpoint. `--contact` is\n" +
+			"repeatable and takes contact IDS, not email addresses — resolve an address\n" +
+			"with `contact list --filter email==...`. `--contact`, `--subject` and\n" +
+			"`--user-id` are all required and are checked locally; `--user-id` is the\n" +
+			"Keap user the message is attributed to, from `user list` or `user me`.\n" +
+			"Supply `--html`, `--plain` or both.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -67,8 +74,11 @@ func (s *Service) newEmailSendCmd(token string) *cobra.Command {
 func (s *Service) newEmailListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List sent/recorded emails (GET /v2/emails)",
+		Use:   "list",
+		Short: "List sent/recorded emails (GET /v2/emails)",
+		Long: "Reads Keap's record of outbound and logged mail. It is not an inbox —\n" +
+			"nothing in this tool reads replies or incoming messages. The shared\n" +
+			"`--filter` / `--order-by` / `--page-token` params apply.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

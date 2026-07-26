@@ -18,8 +18,21 @@ func (s *Service) newEmailSendCmd(apiKey string) *cobra.Command {
 		tags                             []string
 	)
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a transactional email (POST /smtp/email)",
+		Use:   "send",
+		Short: "Send a transactional email (POST /smtp/email)",
+		Long: "Delivers immediately to the addresses named — there is no scheduling and no\n" +
+			"recall on this endpoint. `--to` is repeatable; `--to-json` takes a raw\n" +
+			"array like `[{\"email\":\"x\",\"name\":\"Y\"}]` and OVERRIDES `--to` entirely\n" +
+			"rather than adding to it. `--cc`, `--bcc` and `--reply-to` are plain\n" +
+			"addresses.\n" +
+			"\n" +
+			"The sender must be verified: `--sender-id` from `sender ls` takes\n" +
+			"precedence over `--sender-email` / `--sender-name`, and an unverified\n" +
+			"address is a 400 from Brevo. Body content is either `--html` / `--text`\n" +
+			"or a stored template through `--template-id` with `--params-json`\n" +
+			"supplying its placeholders; a template can carry its own subject, so\n" +
+			"`--subject` is only required without one. Nothing here is validated\n" +
+			"locally — a missing recipient or sender surfaces as Brevo's error.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

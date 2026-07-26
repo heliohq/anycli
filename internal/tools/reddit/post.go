@@ -22,8 +22,13 @@ func (s *Service) newPostCmd(token string) *cobra.Command {
 
 func (s *Service) newPostGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Fetch a single post by id (t3_ prefix optional)",
+		Use:   "get <id>",
+		Short: "Fetch a single post by id (t3_ prefix optional)",
+		Long: "Accepts the bare id36 or the `t3_` fullname. Returns the post's own\n" +
+			"fields — title, author, subreddit, score, `num_comments`, `permalink`,\n" +
+			"`url` and `selftext` — and no comments at all; the discussion is\n" +
+			"`post comments`. A link post has an empty `selftext` and a `url`\n" +
+			"pointing off Reddit, which is how the two kinds are told apart.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -44,8 +49,15 @@ func (s *Service) newPostCommentsCmd(token string) *cobra.Command {
 	var sort string
 	var depth, limit int
 	cmd := &cobra.Command{
-		Use:         "comments <id>",
-		Short:       "Fetch a post's comment tree (flattened, with depth)",
+		Use:   "comments <id>",
+		Short: "Fetch a post's comment tree (flattened, with depth)",
+		Long: "The reply tree arrives FLATTENED, one object per line with a `depth`\n" +
+			"field, so nesting has to be rebuilt from `depth` and `parent_id` rather\n" +
+			"than from the structure. Collapsed branches appear as\n" +
+			"`{\"kind\":\"more\",\"count\":N,\"parent_id\":…}` stubs: those mark that\n" +
+			"content exists, they are not content, and no command here expands one.\n" +
+			"`--sort` is `best|top|new|controversial|old|qa`, `--depth` caps nesting\n" +
+			"and `--limit` is 1-100. Takes the id36 or the `t3_` form.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -81,8 +93,16 @@ func (s *Service) newPostCommentsCmd(token string) *cobra.Command {
 func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 	var subreddit, title, text, link string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Submit a text or link post",
+		Use:   "create",
+		Short: "Submit a text or link post",
+		Long: "`--subreddit` (bare name) and `--title` are required, plus EXACTLY one of\n" +
+			"`--text` for a self-post or `--url` for a link post; both or neither is\n" +
+			"a usage error. The post is public the moment the call succeeds — there\n" +
+			"is no draft or scheduled state, and taking it down is a separate\n" +
+			"`post delete`. Body text is Reddit markdown. A subreddit rule rejection\n" +
+			"arrives from this call as a code such as `NO_SELFS` or\n" +
+			"`SUBREDDIT_NOTALLOWED`, so read `subreddit rules` first. The reply\n" +
+			"carries the new post's `fullname` and `permalink`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -125,8 +145,14 @@ func (s *Service) newPostCreateCmd(token string) *cobra.Command {
 func (s *Service) newPostEditCmd(token string) *cobra.Command {
 	var text string
 	cmd := &cobra.Command{
-		Use:         "edit <fullname>",
-		Short:       "Edit the body of your own self-post (t3_ fullname)",
+		Use:   "edit <fullname>",
+		Short: "Edit the body of your own self-post (t3_ fullname)",
+		Long: "Takes the `t3_` fullname, not a bare id, and replaces the body with\n" +
+			"`--text` in full — there is no partial edit. Only the connected\n" +
+			"account's own self-posts qualify: a link post has no body to change and\n" +
+			"another user's post is refused. The TITLE cannot be changed at all, by\n" +
+			"this tool or by Reddit's API, so a wrong title means delete and repost.\n" +
+			"Reddit flags the post as edited publicly.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -145,8 +171,12 @@ func (s *Service) newPostEditCmd(token string) *cobra.Command {
 
 func (s *Service) newPostDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <fullname>",
-		Short:       "Delete your own post (t3_ fullname)",
+		Use:   "delete <fullname>",
+		Short: "Delete your own post (t3_ fullname)",
+		Long: "Takes the `t3_` fullname. The removal is immediate and there is no\n" +
+			"undelete. The comment thread underneath survives with the post body\n" +
+			"replaced by a deletion marker, and nothing about this reaches the\n" +
+			"third-party mirrors and caches that copy Reddit content.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

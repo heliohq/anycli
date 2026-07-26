@@ -11,8 +11,13 @@ import (
 // parameters, so it doubles as the connection health / verify probe.
 func (s *Service) newUsageCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "usage",
-		Short:       "Plan, API unit limits/usage, and reset date (free; GET /subscription-info/limits-and-usage)",
+		Use:   "usage",
+		Short: "Plan, API unit limits/usage, and reset date (free; GET /subscription-info/limits-and-usage)",
+		Long: "Costs 0 units and takes no parameters, which makes it both the budget\n" +
+			"check before an expensive run and the \"is this connection alive\" probe. It\n" +
+			"reports the plan, the units consumed against the limit, and the date the\n" +
+			"allowance resets — read it before widening a `--select` or raising a\n" +
+			"`--limit` anywhere else.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

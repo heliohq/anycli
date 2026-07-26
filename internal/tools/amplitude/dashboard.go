@@ -29,8 +29,17 @@ func (s *Service) runJSON(cmd *cobra.Command, authHeader, path string, query url
 func (s *Service) newSegmentationCmd(authHeader string) *cobra.Command {
 	var events, events2, start, end, metric, interval, segment, groupBy string
 	cmd := &cobra.Command{
-		Use:         "segmentation",
-		Short:       "Event segmentation (GET /api/2/events/segmentation)",
+		Use:   "segmentation",
+		Short: "Event segmentation (GET /api/2/events/segmentation)",
+		Long: "The core metric query: one event's volume over time. `--events` is an\n" +
+			"Amplitude event object as JSON, at minimum `{\"event_type\": \"Add to Cart\"}`,\n" +
+			"and `--events2` adds a second series to the same call for comparison.\n" +
+			"`--start` and `--end` are YYYYMMDD and required. `--metric` defaults to\n" +
+			"`uniques` (distinct users), so `totals` is needed for raw event counts —\n" +
+			"a different number, and the usual reason a result disagrees with a UI\n" +
+			"chart. `--interval` is 1 (daily, the default), 7 or 30. `--segment` takes a\n" +
+			"user-property filter array as JSON and `--group-by` splits the series by a\n" +
+			"property. It is the cheapest of the query commands against the cost budget.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -93,8 +102,16 @@ func (s *Service) newFunnelsCmd(authHeader string) *cobra.Command {
 	var events []string
 	var start, end, mode, interval, segment string
 	cmd := &cobra.Command{
-		Use:         "funnels",
-		Short:       "Funnel conversion (GET /api/2/funnels)",
+		Use:   "funnels",
+		Short: "Funnel conversion (GET /api/2/funnels)",
+		Long: "One `--events` per step, repeated, and the FLAG ORDER IS THE FUNNEL — at\n" +
+			"least two are required and swapping them measures a different journey.\n" +
+			"Each value is an Amplitude event object as JSON. `--start` and `--end` are\n" +
+			"YYYYMMDD. `--mode` chooses the conversion semantics — `ordered`,\n" +
+			"`unordered` or `sequential` — which changes what counts as a conversion and\n" +
+			"therefore the numbers, so report which mode produced them. Funnels are\n" +
+			"among the most expensive queries against the cost budget: narrow the date\n" +
+			"range before widening the step list.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -149,8 +166,16 @@ func (s *Service) newFunnelsCmd(authHeader string) *cobra.Command {
 func (s *Service) newRetentionCmd(authHeader string) *cobra.Command {
 	var startEvent, returningEvent, start, end, interval, retentionType, segment string
 	cmd := &cobra.Command{
-		Use:         "retention",
-		Short:       "Retention analysis (GET /api/2/retention)",
+		Use:   "retention",
+		Short: "Retention analysis (GET /api/2/retention)",
+		Long: "Takes a DIFFERENT flag pair from the other queries: `--start-event` and\n" +
+			"`--returning-event`, each an Amplitude event object as JSON — `--events` is\n" +
+			"not accepted here. `--retention-type` picks `n-day` (returned exactly on\n" +
+			"day N), `unbounded` (on or after day N) or `bracket`, and the same data\n" +
+			"yields materially different curves under each, so a retention number is\n" +
+			"meaningless without saying which. `--start` and `--end` (YYYYMMDD) bound\n" +
+			"the cohort's starting window, not the return window. Expensive against the\n" +
+			"cost budget.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -204,8 +229,13 @@ func (s *Service) newRetentionCmd(authHeader string) *cobra.Command {
 // (the prerequisite for building valid segmentation/funnels queries). No params.
 func (s *Service) newEventsListCmd(authHeader string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List all tracked event types (GET /api/2/events/list)",
+		Use:   "list",
+		Short: "List all tracked event types (GET /api/2/events/list)",
+		Long: "The catalog of event types this project actually tracks, and the right\n" +
+			"first call of any analysis: `segmentation`, `funnels` and `retention` all\n" +
+			"take an `event_type` string that must match one of these EXACTLY, and a\n" +
+			"near-miss returns an empty result rather than an error. Takes no\n" +
+			"parameters and is cheap.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -219,8 +249,13 @@ func (s *Service) newEventsListCmd(authHeader string) *cobra.Command {
 func (s *Service) newUserSearchCmd(authHeader string) *cobra.Command {
 	var user string
 	cmd := &cobra.Command{
-		Use:         "user-search",
-		Short:       "Search for a user by Amplitude ID, Device ID, User ID, or prefix (GET /api/2/usersearch)",
+		Use:   "user-search",
+		Short: "Search for a user by Amplitude ID, Device ID, User ID, or prefix (GET /api/2/usersearch)",
+		Long: "Resolves an email, a product-side user id, a device id or a prefix into the\n" +
+			"AMPLITUDE ID that `user-activity` requires — that command takes nothing\n" +
+			"else. A prefix can match several people, so the result is a list to choose\n" +
+			"from rather than a single answer, and an unknown identifier comes back\n" +
+			"empty rather than failing.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -241,8 +276,13 @@ func (s *Service) newUserSearchCmd(authHeader string) *cobra.Command {
 func (s *Service) newUserActivityCmd(authHeader string) *cobra.Command {
 	var user, offset, limit string
 	cmd := &cobra.Command{
-		Use:         "user-activity",
-		Short:       "A user's event stream by Amplitude ID (GET /api/2/useractivity)",
+		Use:   "user-activity",
+		Short: "A user's event stream by Amplitude ID (GET /api/2/useractivity)",
+		Long: "`--user` must be the Amplitude ID from `user-search`; an email or the\n" +
+			"product's own user id will not resolve here. Returns ONE person's raw event\n" +
+			"stream and user properties — individual behaviour, not an aggregate, and\n" +
+			"the most privacy-sensitive read in this tool alongside `export`. The stream\n" +
+			"is bounded per call: `--limit` and `--offset` page further back.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -271,8 +311,13 @@ func (s *Service) newUserActivityCmd(authHeader string) *cobra.Command {
 // (metadata only; member download is out of v1 scope). No params.
 func (s *Service) newCohortsListCmd(authHeader string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List all discoverable behavioral cohorts (GET /api/3/cohorts)",
+		Use:   "list",
+		Short: "List all discoverable behavioral cohorts (GET /api/3/cohorts)",
+		Long: "Metadata only — names, ids, sizes and definitions of the cohorts marked\n" +
+			"discoverable in the project. Member lists cannot be downloaded through this\n" +
+			"tool. Read it before hand-building a `--segment` filter: the team may\n" +
+			"already have defined the population in question, and its definition here\n" +
+			"says how they define it.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

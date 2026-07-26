@@ -13,8 +13,13 @@ import (
 
 func (s *Service) newProfileCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "profile",
-		Short:       "Show the connected mailbox profile (users.getProfile)",
+		Use:   "profile",
+		Short: "Show the connected mailbox profile (users.getProfile)",
+		Long: "Reports the connected mailbox's own address plus `messagesTotal`,\n" +
+			"`threadsTotal` and the current `historyId`. Those totals span the whole\n" +
+			"account including spam and trash, so they are NOT an inbox figure —\n" +
+			"`labels get INBOX` is what answers that. `messages reply --all` calls this\n" +
+			"internally to keep the mailbox off its own Cc line.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -52,8 +57,18 @@ func (s *Service) newMessagesListCmd(token string) *cobra.Command {
 	var labels []string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List messages (native Gmail search syntax via --query)",
+		Use:   "list",
+		Short: "List messages (native Gmail search syntax via --query)",
+		Long: "Returns ids only — no sender, subject or snippet — so triage is this plus a\n" +
+			"`messages get` per interesting id, or `threads list` when a snippet is\n" +
+			"enough. `--label` restricts to a label id from `labels list`, never a label\n" +
+			"name. `--max` defaults to 10 and Gmail caps it at 500; the response's\n" +
+			"`nextPageToken` goes back in as `--page-token`.\n" +
+			"\n" +
+			"Under `--json` the reply carries `resultSizeEstimate`. It is Gmail's cheap\n" +
+			"index estimate, it saturates around 100-200 regardless of the real total,\n" +
+			"and it must NEVER be reported as a count — only zero versus non-zero is\n" +
+			"meaningful. For an exact figure use `labels get <label-id>`.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -108,8 +123,13 @@ func (s *Service) newMessagesGetCmd(token string) *cobra.Command {
 	var bodyKind string
 	var showHeaders bool
 	cmd := &cobra.Command{
-		Use:         "get <message-id>",
-		Short:       "Show one message: headers, body, and attachment inventory",
+		Use:   "get <message-id>",
+		Short: "Show one message: headers, body, and attachment inventory",
+		Long: "`--body` selects the `text` or `html` variant and defaults to text, which\n" +
+			"matters for mail that carries no plain-text part. `--headers` adds the full\n" +
+			"header set and is off by default. The attachments are numbered in the order\n" +
+			"`messages attachments --index` counts them, but their `attachmentId`s are\n" +
+			"regenerated on every fetch and cannot be carried to a later call.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -156,8 +176,18 @@ func (s *Service) newMessagesModifyCmd(token string) *cobra.Command {
 	var addLabels, removeLabels []string
 	var archive, markRead, markUnread bool
 	cmd := &cobra.Command{
-		Use:         "modify <message-id>...",
-		Short:       "Add/remove labels (batchModify for multiple ids)",
+		Use:   "modify <message-id>...",
+		Short: "Add/remove labels (batchModify for multiple ids)",
+		Long: "Takes label IDS, not names: the system ids `INBOX`, `UNREAD`, `STARRED` and\n" +
+			"friends, or a `Label_…` id from `labels list`. `--archive` is exactly\n" +
+			"`--remove-label INBOX` and `--mark-read` exactly `--remove-label UNREAD`,\n" +
+			"and at least one of the five flags must be given or the command refuses.\n" +
+			"\n" +
+			"One id goes through messages.modify and returns the updated message; two or\n" +
+			"more go through batchModify, which returns NO bodies, so the receipt there\n" +
+			"is built from the request rather than from Gmail. Label changes are\n" +
+			"reversible by applying the opposite ones. Only the ids passed are touched —\n" +
+			"a query never reaches this command, so scale is exactly what was listed.",
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -211,15 +241,34 @@ func (s *Service) newMessagesModifyCmd(token string) *cobra.Command {
 	return cmd
 }
 
+// longMessagesTrash and longMessagesUntrash are the two Longs for the pair of
+// commands newMessagesTrashCmd builds. They live next to the shared builder
+// because it is the builder that fixes the direction each one describes.
+const (
+	longMessagesTrash = "Reversible: `messages untrash` puts a message back with the labels it had,\n" +
+		"and Gmail keeps trashed mail for 30 days before purging it for good — after\n" +
+		"which nothing here recovers it. The ids are trashed one request at a time\n" +
+		"and the run stops at the first failure, leaving the earlier ones already\n" +
+		"trashed. It acts only on the ids given, never on a query, so nothing is\n" +
+		"trashed that was not listed first."
+
+	longMessagesUntrash = "The inverse of `messages trash`, restoring each message to the labels it\n" +
+		"carried before. It only reaches mail still IN the trash: Gmail purges\n" +
+		"trashed messages after 30 days and there is no command here that recovers\n" +
+		"one afterwards. Like trashing, the ids are applied one request at a time and\n" +
+		"the run stops at the first failure."
+)
+
 // newMessagesTrashCmd builds trash (untrash=false) or untrash (untrash=true).
 func (s *Service) newMessagesTrashCmd(token string, untrash bool) *cobra.Command {
-	verb, past, short := "trash", "trashed", "Move messages to the trash"
+	verb, past, short, long := "trash", "trashed", "Move messages to the trash", longMessagesTrash
 	if untrash {
-		verb, past, short = "untrash", "untrashed", "Move messages out of the trash"
+		verb, past, short, long = "untrash", "untrashed", "Move messages out of the trash", longMessagesUntrash
 	}
 	return &cobra.Command{
 		Use:         verb + " <message-id>...",
 		Short:       short,
+		Long:        long,
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

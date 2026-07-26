@@ -13,8 +13,17 @@ import (
 func (s *Service) newMessagesSendCmd(token string) *cobra.Command {
 	var o composeOptions
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send an email (POST /me/sendMail)",
+		Use:   "send",
+		Short: "Send an email (POST /me/sendMail)",
+		Long: "`--to` and `--subject` are required, as is exactly one of `--body` /\n" +
+			"`--body-file`. The body is plain text unless `--html` is set. `--to`,\n" +
+			"`--cc` and `--bcc` each take a comma-separated list or repeat.\n" +
+			"\n" +
+			"`--attach` repeats and inlines each file as base64 in the message, so the\n" +
+			"attachments total is capped at 3 MB and anything larger has to travel as a\n" +
+			"shared link. The message is saved to Sent Items. Graph answers 202 Accepted\n" +
+			"with an empty body, so success means accepted for delivery and NO message id\n" +
+			"comes back — look in Sent Items if one is needed.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -47,8 +56,14 @@ func (s *Service) newMessagesReplyCmd(token string) *cobra.Command {
 	var o composeOptions
 	var replyAll bool
 	cmd := &cobra.Command{
-		Use:         "reply <message-id>",
-		Short:       "Reply to a message (sender only; --all for reply-all)",
+		Use:   "reply <message-id>",
+		Short: "Reply to a message (sender only; --all for reply-all)",
+		Long: "Threading, the subject and the quoted original all come from Graph;\n" +
+			"`--body` (or `--body-file`) is only the new text above the quote. There are\n" +
+			"no recipient flags — `--all` is the only way to widen it past the original\n" +
+			"sender. Three calls run under the hood: a reply draft is created,\n" +
+			"attachments are added, then it is sent, so a failure after the first leaves\n" +
+			"an unsent draft behind in Drafts.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -81,8 +96,13 @@ func (s *Service) newMessagesForwardCmd(token string) *cobra.Command {
 	var to []string
 	var preamble string
 	cmd := &cobra.Command{
-		Use:         "forward <message-id>",
-		Short:       "Forward a message with the original quoted",
+		Use:   "forward <message-id>",
+		Short: "Forward a message with the original quoted",
+		Long: "`--to` is required, and `--body` here is only a preamble ABOVE the quoted\n" +
+			"original rather than a replacement for it. This verb has no `--body-file`,\n" +
+			"`--html`, `--cc` or `--attach`; the original's own attachments travel with\n" +
+			"the forward. Like `reply` it creates a draft and then sends it, so an\n" +
+			"interrupted run can leave a draft in Drafts.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

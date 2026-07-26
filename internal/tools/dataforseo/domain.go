@@ -27,7 +27,11 @@ func (s *Service) newDomainOverviewCmd(credential string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "overview",
 		Short: "Organic and paid visibility overview for a domain",
-		Args:  cobra.NoArgs,
+		Long: "Aggregate visibility for one domain: estimated traffic, keyword counts and\n" +
+			"how those keywords are distributed across positions. One call at one price\n" +
+			"however large the domain is, which makes it the cheap orientation before\n" +
+			"`domain ranked-keywords` pulls the detail.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			task := map[string]any{"target": target}
 			tp.apply(task)
@@ -51,7 +55,12 @@ func (s *Service) newDomainRankedKeywordsCmd(credential string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ranked-keywords",
 		Short: "Keywords a domain currently ranks for",
-		Args:  cobra.NoArgs,
+		Long: "Each row carries the keyword, the position held and its search volume.\n" +
+			"--target accepts a domain, a subdomain or a full URL, and a URL narrows the\n" +
+			"answer to that single page. --limit defaults to 100 and tops out at 1000,\n" +
+			"with no offset flag — a domain ranking for more than that cannot be walked\n" +
+			"past the limit from here.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			task := map[string]any{"target": target}
 			tp.apply(task)
@@ -79,7 +88,11 @@ func (s *Service) newDomainCompetitorsCmd(credential string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "competitors",
 		Short: "Organic SERP competitors for a domain",
-		Args:  cobra.NoArgs,
+		Long: "Domains competing for the same organic keywords, ranked by overlap. These\n" +
+			"are SERP competitors, not necessarily business competitors — a marketplace\n" +
+			"or a review site routinely outranks both sides of a real rivalry. --limit\n" +
+			"defaults to 100 and tops out at 1000.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			task := map[string]any{"target": target}
 			tp.apply(task)

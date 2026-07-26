@@ -26,8 +26,12 @@ func (s *Service) newTenantSetCmd(key string) *cobra.Command {
 		data string
 	)
 	cmd := &cobra.Command{
-		Use:         "set",
-		Short:       "Set (create or update) a tenant",
+		Use:   "set",
+		Short: "Set (create or update) a tenant",
+		Long: "--id is required and this is an upsert, so re-running with different --data\n" +
+			"replaces the tenant's properties. A tenant carries per-customer branding,\n" +
+			"settings and preferences; passing --tenant on `workflow trigger` or\n" +
+			"`schedule create` is what makes a send use them.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -57,8 +61,12 @@ func (s *Service) newTenantSetCmd(key string) *cobra.Command {
 func (s *Service) newTenantGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a tenant",
+		Use:   "get",
+		Short: "Get a tenant",
+		Long: "Requires --id. Returns the tenant's settings and branding as stored,\n" +
+			"which is what a trigger scoped with --tenant will render with — worth\n" +
+			"checking when a notification went out looking wrong for one customer\n" +
+			"only.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -79,8 +87,11 @@ func (s *Service) newTenantListCmd(key string) *cobra.Command {
 		before   string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List tenants",
+		Use:   "list",
+		Short: "List tenants",
+		Long: "Every tenant in the connected environment, paged with --page-size (Knock's\n" +
+			"default is 50) and --after. There is no filter, so locating one by name\n" +
+			"means scanning the pages.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -98,8 +109,12 @@ func (s *Service) newTenantListCmd(key string) *cobra.Command {
 func (s *Service) newTenantDeleteCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a tenant",
+		Use:   "delete",
+		Short: "Delete a tenant",
+		Long: "Requires --id. Removes the tenant together with the per-tenant settings,\n" +
+			"branding and preferences stored under it, and nothing here restores them.\n" +
+			"Recreating the same id later gives a tenant with default settings, not the\n" +
+			"old ones.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

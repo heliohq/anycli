@@ -17,8 +17,13 @@ const defaultBalanceTypes = "STANDARD,SAVINGS"
 func (s *Service) newBalanceListCmd(token string) *cobra.Command {
 	var profile, types string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List a profile's multi-currency balances (GET /v4/profiles/{id}/balances)",
+		Use:   "list",
+		Short: "List a profile's multi-currency balances (GET /v4/profiles/{id}/balances)",
+		Long: "One row per currency the profile holds, each with its own balance id.\n" +
+			"`--profile` is required. `--types` defaults to STANDARD,SAVINGS so that\n" +
+			"money parked in Jars is counted; narrowing it to STANDARD under-reports\n" +
+			"what the account actually holds. \"How much do I have\" is answered here,\n" +
+			"in one call — do not sum the activity feed for it.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -45,8 +50,13 @@ func (s *Service) newBalanceListCmd(token string) *cobra.Command {
 func (s *Service) newBalanceGetCmd(token string) *cobra.Command {
 	var profile string
 	cmd := &cobra.Command{
-		Use:         "get <balanceId>",
-		Short:       "Get one balance by id (GET /v4/profiles/{id}/balances/{balanceId})",
+		Use:   "get <balanceId>",
+		Short: "Get one balance by id (GET /v4/profiles/{id}/balances/{balanceId})",
+		Long: "Takes the numeric balance id from `balance list`, not a currency code, and\n" +
+			"still requires `--profile` because a balance id is only addressable under\n" +
+			"its owning profile. Use it to re-read a single currency; `balance list`\n" +
+			"already returns every balance, so this is not the way to survey an\n" +
+			"account.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, args []string) error {

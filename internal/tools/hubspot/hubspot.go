@@ -154,8 +154,35 @@ func (s *Service) stderr() io.Writer {
 // groups; account is a top-level whoami/smoke command.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "hubspot",
-		Short:         "HubSpot CRM built-in service",
+		Use:   "hubspot",
+		Short: "HubSpot CRM built-in service",
+		Long: "Wraps HubSpot's CRM v3 object surface plus the v4 associations API as the\n" +
+			"connected portal. Every command prints HubSpot's own JSON verbatim.\n" +
+			"\n" +
+			"Portals are heavily customised: stages, pipelines and properties differ per\n" +
+			"account, and nothing here validates a property name. Discover the real ones\n" +
+			"with `property list <objectType>` and `pipeline list deals|tickets` before\n" +
+			"writing — an unknown property comes back as a HubSpot validation error, not\n" +
+			"a local one.\n" +
+			"\n" +
+			"Reads return HubSpot's DEFAULT properties only. Everything else, including\n" +
+			"the very property just filtered on, has to be named in `--properties`.\n" +
+			"\n" +
+			"Records are linked by associations, not foreign keys, so a contact's deals\n" +
+			"come from `assoc list contacts <id> deals` rather than from a field on the\n" +
+			"contact. `note create` and `task create` also take repeatable `--contact`,\n" +
+			"`--company`, `--deal` and `--ticket` id flags that associate at creation.\n" +
+			"\n" +
+			"Object types appear in paths and positional arguments as HubSpot's plural\n" +
+			"API names (`contacts`, `companies`, `deals`, `tickets`, `notes`, `tasks`)\n" +
+			"even though the command words are singular. Ids are numeric strings;\n" +
+			"`contact get --by-email` is the one place an email address is accepted\n" +
+			"instead. Owner ids come from `owner list` and are what every `--owner`\n" +
+			"flag wants.\n" +
+			"\n" +
+			"Reads page with `--limit` plus the opaque `--after` cursor from the\n" +
+			"previous response. `delete` ARCHIVES rather than destroys, and archived\n" +
+			"records stay readable through `list --archived`.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

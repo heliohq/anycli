@@ -15,8 +15,14 @@ import (
 func (s *Service) newCallCmd(token string) *cobra.Command {
 	var method, dataJSON string
 	cmd := &cobra.Command{
-		Use:         "call",
-		Short:       "Invoke any Moz JSON-RPC method with a raw --data JSON body",
+		Use:   "call",
+		Short: "Invoke any Moz JSON-RPC method with a raw --data JSON body",
+		Long: "The escape hatch for the many Moz methods with no typed subcommand —\n" +
+			"link status and filter variants, metric histories and distributions,\n" +
+			"redirect lookups, Moz Local. --method is the dotted method name and\n" +
+			"--data becomes params.data verbatim, defaulting to {}. Only JSON syntax\n" +
+			"is checked locally, so a wrong body shape fails at Moz. Quota applies\n" +
+			"exactly as it does elsewhere: a method that returns rows bills them.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

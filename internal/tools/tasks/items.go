@@ -25,8 +25,16 @@ func (s *Service) newTasksListCmd(token string) *cobra.Command {
 		showHidden, showDeleted, showAssigned                bool
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List tasks in a list (tasks.list). No text search — the API has no query language; use --json and read.",
+		Use:   "list",
+		Short: "List tasks in a list (tasks.list). No text search — the API has no query language; use --json and read.",
+		Long: "The filters are date windows and toggles, nothing more:\n" +
+			"`--due-after` / `--due-before`, `--completed-after` / `--completed-before`,\n" +
+			"`--updated-after`. Completed tasks come back by default, BUT a task ticked\n" +
+			"off in Gmail or the Tasks app also becomes hidden, so one that\n" +
+			"`--show-completed` fails to reveal needs `--show-hidden`. `--show-assigned`\n" +
+			"adds tasks that originated in Docs or Chat, and `--show-deleted` makes\n" +
+			"deleted ones visible for reading only — there is no undelete. `--max` is 20\n" +
+			"by default, 100 at most; continue with `--page-token`.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -105,8 +113,12 @@ func (s *Service) newTasksListCmd(token string) *cobra.Command {
 
 func (s *Service) newTasksGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <task-id>",
-		Short:       "Show one task (tasks.get)",
+		Use:   "get <task-id>",
+		Short: "Show one task (tasks.get)",
+		Long: "Needs both the task id and the `--list` it lives in; an id from another\n" +
+			"list does not resolve. Returns title, status, due date, parent and notes,\n" +
+			"and marks an ASSIGNED task — one created from Google Docs or Chat, whose\n" +
+			"deletion cascades back to that original document or space.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -133,8 +145,14 @@ func (s *Service) newTasksGetCmd(token string) *cobra.Command {
 func (s *Service) newTasksCreateCmd(token string) *cobra.Command {
 	var title, notes, due, parent, previous string
 	cmd := &cobra.Command{
-		Use:         "create --title T",
-		Short:       "Create a task (tasks.insert). --parent makes a subtask; --previous positions it.",
+		Use:   "create --title T",
+		Short: "Create a task (tasks.insert). --parent makes a subtask; --previous positions it.",
+		Long: "`--title` is the only requirement and the task lands in `@default` unless\n" +
+			"`--list` says otherwise. `--due` accepts YYYY-MM-DD or RFC3339 but only the\n" +
+			"DATE survives — any time is dropped, so a 3pm reminder cannot be expressed\n" +
+			"here. `--notes` carries the body. `--parent <task-id>` makes it a subtask\n" +
+			"and `--previous <task-id>` positions it after a sibling; both ids must be\n" +
+			"in the same list.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -182,8 +200,13 @@ func (s *Service) newTasksUpdateCmd(token string) *cobra.Command {
 	var title, notes, due string
 	var clearDue bool
 	cmd := &cobra.Command{
-		Use:         "update <task-id>",
-		Short:       "Update a task's fields (tasks.patch — partial update, never a full overwrite)",
+		Use:   "update <task-id>",
+		Short: "Update a task's fields (tasks.patch — partial update, never a full overwrite)",
+		Long: "Only the flags actually passed are sent, so `--title` alone leaves the notes\n" +
+			"and due date alone. Passing no field is an error rather than a wasted call.\n" +
+			"`--clear-due` removes a due date — an empty `--due` will not — and the two\n" +
+			"are mutually exclusive. Status is not editable here: `complete` and\n" +
+			"`reopen` own that field.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

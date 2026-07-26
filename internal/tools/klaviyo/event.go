@@ -8,13 +8,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// The event read Longs, beside this group because the generic builders in
+// common.go cannot say what an event is or which filter makes the list usable.
+const (
+	longEventList = "Events are the individual metric occurrences behind every report, and the\n" +
+		"filter is what makes this usable: `equals(profile_id,\"<id>\")`,\n" +
+		"`equals(metric_id,\"<id>\")`, `greater-than(datetime,2026-01-01T00:00:00Z)`.\n" +
+		"Without one this pages through the account's entire event firehose."
+
+	longEventGet = "One event with its properties, and its metric and profile as relationship\n" +
+		"ids rather than objects — pass `--include metric,profile` to get them in\n" +
+		"the same response instead of making two more calls."
+)
+
 // newEventCmd builds the `event` group: list/get plus create (which triggers
 // flows).
 func (s *Service) newEventCmd(token string) *cobra.Command {
 	group := newGroupCmd("event", "Read events and create custom events")
 	group.AddCommand(
-		s.newCollectionListCmd(token, "list", "List events (GET /events)", "/events", "event"),
-		s.newResourceGetCmd(token, "get", "Get one event (GET /events/{id})", "/events/", "event"),
+		s.newCollectionListCmd(token, "list", "List events (GET /events)", longEventList, "/events", "event"),
+		s.newResourceGetCmd(token, "get", "Get one event (GET /events/{id})", longEventGet, "/events/", "event"),
 		s.newEventCreateCmd(token),
 	)
 	return group
@@ -26,8 +39,14 @@ func (s *Service) newEventCmd(token string) *cobra.Command {
 func (s *Service) newEventCreateCmd(token string) *cobra.Command {
 	var metric, email, value, properties, data string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a custom event (POST /events) via --metric/--email or --data",
+		Use:   "create",
+		Short: "Create a custom event (POST /events) via --metric/--email or --data",
+		Long: "--metric (the metric NAME, created on first use if the account has never\n" +
+			"seen it) and --email are both required unless --data carries a full body.\n" +
+			"--value is numeric and --properties a JSON object. Recording an event can\n" +
+			"TRIGGER any live flow waiting on that metric, so this reaches real\n" +
+			"customers even though nothing about it looks like a send. The endpoint\n" +
+			"answers with an empty body, so a local receipt is printed instead.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

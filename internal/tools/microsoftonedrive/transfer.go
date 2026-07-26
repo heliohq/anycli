@@ -27,8 +27,14 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var query string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search the drive (Graph drive search, query passed through verbatim)",
+		Use:   "search",
+		Short: "Search the drive (Graph drive search, query passed through verbatim)",
+		Long: "Searches the whole drive from the root — file and folder names plus the\n" +
+			"text Graph has indexed inside documents — so it is the way to find an item\n" +
+			"whose folder is unknown. `--query` is free text, not a path or a glob, and\n" +
+			"quotes in it are escaped automatically. Results come back one page deep:\n" +
+			"there is no page flag, so widen `--max` (default 20) rather than trying to\n" +
+			"continue.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -59,8 +65,15 @@ type savedFile struct {
 func (s *Service) newDownloadCmd(token string) *cobra.Command {
 	var path, saveDir string
 	cmd := &cobra.Command{
-		Use:         "download [item-id]",
-		Short:       "Download an item's contents into a local directory",
+		Use:   "download [item-id]",
+		Short: "Download an item's contents into a local directory",
+		Long: "Writes the file into the `--save` directory (the working directory by\n" +
+			"default), creating it if needed and keeping the item's own name — an\n" +
+			"existing local file of that name is OVERWRITTEN without warning, so point\n" +
+			"`--save` at a scratch directory when the name may collide. The whole file\n" +
+			"is held in memory before it is written, which makes very large items\n" +
+			"expensive. Under `--json` the output is {id, name, path, size}, where path\n" +
+			"is the local file to hand on to other steps.",
 		Args:        cobra.MaximumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -108,8 +121,19 @@ func (s *Service) newDownloadCmd(token string) *cobra.Command {
 func (s *Service) newUploadCmd(token string) *cobra.Command {
 	var toPath, parentID, name string
 	cmd := &cobra.Command{
-		Use:         "upload <local-path>",
-		Short:       "Upload a local file (small files direct, large files via an upload session)",
+		Use:   "upload <local-path>",
+		Short: "Upload a local file (small files direct, large files via an upload session)",
+		Long: "Uploading onto a name that already exists REPLACES the stored file; there\n" +
+			"is no create-only mode, so check with `items get --path` first when that\n" +
+			"matters. The destination folder is `--to` (a root-relative path) or\n" +
+			"`--parent` (a folder id), never both, and defaults to the drive root;\n" +
+			"`--name` overrides the stored name, which is otherwise the local\n" +
+			"basename.\n" +
+			"\n" +
+			"Files up to 4 MiB go in a single request; anything larger is streamed\n" +
+			"through an upload session in ~3 MiB chunks. The whole file is read into\n" +
+			"memory either way, and a session that fails mid-file leaves the item\n" +
+			"incomplete — re-run the same command to start it over.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

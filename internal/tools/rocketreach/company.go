@@ -12,8 +12,12 @@ import (
 func (s *Service) newCompanyLookupCmd(key string) *cobra.Command {
 	var name, domain string
 	cmd := &cobra.Command{
-		Use:         "lookup",
-		Short:       "Look up a company's firmographics (GET /company/lookup)",
+		Use:   "lookup",
+		Short: "Look up a company's firmographics (GET /company/lookup)",
+		Long: "Takes --domain or --name; --domain is checked first and wins when both are\n" +
+			"set, and it is the more reliable of the two since company names collide.\n" +
+			"Returns one company's firmographics — it does not return people at that\n" +
+			"company, which is what `person search --current-employer` is for.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -45,8 +49,13 @@ func (s *Service) newCompanySearchCmd(key string) *cobra.Command {
 	var name, domain, jsonQuery string
 	var pageSize, start int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search companies by firmographics (POST /company/search)",
+		Use:   "search",
+		Short: "Search companies by firmographics (POST /company/search)",
+		Long: "At least one of --name, --domain or --json-query is required. --json-query\n" +
+			"carries the full RocketReach query object, whose fields are ARRAYS of\n" +
+			"strings (industry, location and the rest that have no typed flag here),\n" +
+			"and an explicit flag overwrites the same key inside it. Page with\n" +
+			"--page-size and a 1-based --start.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

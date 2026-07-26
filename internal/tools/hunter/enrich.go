@@ -27,8 +27,13 @@ func (s *Service) newEnrichCmd(key string) *cobra.Command {
 func (s *Service) newEnrichPersonCmd(key string) *cobra.Command {
 	var email, linkedinHandle string
 	cmd := &cobra.Command{
-		Use:         "person",
-		Short:       "Enrich a person (GET /people/find)",
+		Use:   "person",
+		Short: "Enrich a person (GET /people/find)",
+		Long: "Takes `--email` or `--linkedin-handle` and returns what Hunter holds on\n" +
+			"that individual: name, role, seniority, employer and social profiles.\n" +
+			"Neither flag is enforced locally, so a call with neither reaches Hunter\n" +
+			"and fails there. When the employer's details are wanted too,\n" +
+			"`enrich combined` returns both halves in one call rather than two.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -50,8 +55,13 @@ func (s *Service) newEnrichPersonCmd(key string) *cobra.Command {
 func (s *Service) newEnrichCompanyCmd(key string) *cobra.Command {
 	var domain string
 	cmd := &cobra.Command{
-		Use:         "company",
-		Short:       "Enrich a company (GET /companies/find)",
+		Use:   "company",
+		Short: "Enrich a company (GET /companies/find)",
+		Long: "Keyed by `--domain` only — a company name is not accepted, so resolve one\n" +
+			"first with `domain-finder`. Returns the firmographics Hunter keeps:\n" +
+			"industry, headcount band, founding year, location, technologies in use\n" +
+			"and funding where it has them. It says nothing about who works there;\n" +
+			"that is `domain-search`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -72,8 +82,13 @@ func (s *Service) newEnrichCompanyCmd(key string) *cobra.Command {
 func (s *Service) newEnrichCombinedCmd(key string) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:         "combined",
-		Short:       "Enrich a person and their company (GET /combined/find)",
+		Use:   "combined",
+		Short: "Enrich a person and their company (GET /combined/find)",
+		Long: "Keyed by `--email` alone, and returns the person and their employer in\n" +
+			"one response — one round trip instead of `enrich person` followed by\n" +
+			"`enrich company`, and the right default whenever both halves are wanted.\n" +
+			"It cannot start from a LinkedIn handle or a bare domain; those are\n" +
+			"`enrich person` and `enrich company` respectively.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

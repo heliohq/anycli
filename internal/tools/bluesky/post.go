@@ -26,8 +26,19 @@ func (s *Service) newPostCreateCmd(sess *session) *cobra.Command {
 	var text, replyTo, quote, lang string
 	var images, alts []string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a post (text, reply, quote, links, images)",
+		Use:   "create",
+		Short: "Create a post (text, reply, quote, links, images)",
+		Long: "Rich text is computed here: links and #hashtags in --text become facets\n" +
+			"with correct byte offsets automatically, and @mentions resolve\n" +
+			"best-effort — a handle that cannot be resolved stays plain text instead\n" +
+			"of failing the post. --lang takes one BCP-47 tag.\n" +
+			"\n" +
+			"--reply-to and --quote each take the target's at:// URI, and a reply's\n" +
+			"thread root is resolved automatically so it lands in the right\n" +
+			"conversation. Up to four --image paths attach, each pairing POSITIONALLY\n" +
+			"with the --alt at the same index; a missing alt only warns on stderr.\n" +
+			"Images and a quote together become a single recordWithMedia embed. The\n" +
+			"response carries the new post's uri and cid.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -202,8 +213,14 @@ func (se *session) fetchPostRef(ctx context.Context, uri string) (recordRef, *re
 func (s *Service) newPostDeleteCmd(sess *session) *cobra.Command {
 	var uri string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a post by its at:// URI",
+		Use:   "delete",
+		Short: "Delete a post by its at:// URI",
+		Long: "Only records in the connected account's own repo can be deleted;\n" +
+			"someone else's post is not reachable. The collection segment of the URI\n" +
+			"is not restricted to posts, so this also removes a like, repost or\n" +
+			"follow record when given that record's own at:// URI — which is what\n" +
+			"makes it the undo path for `like` and `repost`. Deletion is immediate\n" +
+			"and permanent.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -225,8 +242,13 @@ func (s *Service) newPostDeleteCmd(sess *session) *cobra.Command {
 func (s *Service) newPostGetCmd(sess *session) *cobra.Command {
 	var uri string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a post (and its thread root) by at:// URI",
+		Use:   "get",
+		Short: "Get a post (and its thread root) by at:// URI",
+		Long: "Returns the single post — uri, cid, author, text, created_at and the\n" +
+			"reply, repost and like counts. The replies beneath it do NOT come back,\n" +
+			"and nothing in this tool walks a conversation, so a reply worth\n" +
+			"answering has to be found through `notifications list`. The `cid`\n" +
+			"printed here is what `like` and `repost` require.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

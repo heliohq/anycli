@@ -152,8 +152,34 @@ func (s *Service) resolveBaseURL(envName string) string {
 // and non-interactive.
 func (s *Service) newRoot(c creds) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "plaid",
-		Short:         "Plaid built-in service (institution lookups, Item reads, sandbox loop)",
+		Use:   "plaid",
+		Short: "Plaid built-in service (institution lookups, Item reads, sandbox loop)",
+		Long: "Plaid has two credential kinds and only one of them is stored here. The\n" +
+			"app credentials — a client_id and secret for a single environment — are\n" +
+			"injected automatically on every call, so a connection is one Plaid app in\n" +
+			"one environment, never one bank account. An Item `access_token` is per\n" +
+			"linked bank and is NOT stored: it is supplied per call through\n" +
+			"--access-token, and it comes from the user's own Plaid Link integration\n" +
+			"or, in sandbox, from `sandbox public-token-create` followed by `item\n" +
+			"exchange-public-token`.\n" +
+			"\n" +
+			"So the two `institutions` commands are the entire surface that works\n" +
+			"without a token. Everything under `accounts`, `auth`, `identity`,\n" +
+			"`transactions` and `item` reads one specific bank and cannot run until\n" +
+			"that bank's token is in hand.\n" +
+			"\n" +
+			"The environment is fixed when the app was connected and selects the host.\n" +
+			"The `sandbox` group exists only in sandbox and refuses outright against a\n" +
+			"production connection rather than passing a confusing 404 through.\n" +
+			"\n" +
+			"Every command is an HTTPS POST whose JSON response is printed verbatim;\n" +
+			"`--json` is accepted for uniformity and changes nothing. Failures carry\n" +
+			"Plaid's own `error_type`, `error_code`, `error_message` and `request_id`.\n" +
+			"Read `error_code` and act on it instead of retrying:\n" +
+			"`INVALID_ACCESS_TOKEN` is a bad Item token rather than a broken\n" +
+			"connection, `ITEM_LOGIN_REQUIRED` means the user must re-authenticate that\n" +
+			"bank through Link, and `PRODUCT_NOT_READY` means Plaid is still pulling\n" +
+			"the data.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

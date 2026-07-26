@@ -16,8 +16,14 @@ func (s *Service) newRefdomainsCmd(token string) *cobra.Command {
 	var target string
 	var rf rowFlags
 	cmd := &cobra.Command{
-		Use:         "refdomains",
-		Short:       "Referring domains for a target (GET /site-explorer/refdomains)",
+		Use:   "refdomains",
+		Short: "Referring domains for a target (GET /site-explorer/refdomains)",
+		Long: "One row per linking DOMAIN rather than per link, which is both the honest\n" +
+			"measure of link diversity and materially cheaper than `backlinks list` for\n" +
+			"the same question. --target is required and there is no --date. The\n" +
+			"default fields carry `links_to_target` and `dofollow_links`, so the\n" +
+			"per-domain link count is available without dropping down to individual\n" +
+			"backlinks.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -8,12 +8,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// longCampaignGet sits here rather than in the generic builder in common.go
+// because the builder is resource-agnostic: what it must say is that a
+// campaign's content lives on its messages, which is campaign-specific.
+const longCampaignGet = "The campaign's configuration and status, but not its content: subject\n" +
+	"lines and bodies live on its messages, which is `campaign messages <id>`.\n" +
+	"Campaigns are neither created nor edited through this tool."
+
 // newCampaignCmd builds the `campaign` group: list/get/messages/send.
 func (s *Service) newCampaignCmd(token string) *cobra.Command {
 	group := newGroupCmd("campaign", "Read campaigns and trigger sends")
 	group.AddCommand(
 		s.newCampaignListCmd(token),
-		s.newResourceGetCmd(token, "get", "Get one campaign (GET /campaigns/{id})", "/campaigns/", "campaign"),
+		s.newResourceGetCmd(token, "get", "Get one campaign (GET /campaigns/{id})", longCampaignGet, "/campaigns/", "campaign"),
 		s.newCampaignMessagesCmd(token),
 		s.newCampaignSendCmd(token),
 	)
@@ -28,8 +35,14 @@ func (s *Service) newCampaignListCmd(token string) *cobra.Command {
 	f := &listFlags{}
 	var channel string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List campaigns (GET /campaigns), required channel via --channel email|sms|mobile_push",
+		Use:   "list",
+		Short: "List campaigns (GET /campaigns), required channel via --channel email|sms|mobile_push",
+		Long: "Klaviyo REQUIRES a messages.channel filter on this endpoint, surfaced as\n" +
+			"--channel with a default of email — so a bare `campaign list` shows email\n" +
+			"campaigns only, and sms or mobile_push campaigns are invisible until the\n" +
+			"flag names them. A --filter passed alongside is AND-combined with the\n" +
+			"channel predicate rather than replacing it, so both constraints apply.\n" +
+			"Cursor-paged like every list here.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -75,8 +88,11 @@ func campaignChannelFilter(channel string) (string, error) {
 func (s *Service) newCampaignMessagesCmd(token string) *cobra.Command {
 	f := &listFlags{}
 	cmd := &cobra.Command{
-		Use:         "messages <id>",
-		Short:       "List a campaign's messages (GET /campaigns/{id}/campaign-messages)",
+		Use:   "messages <id>",
+		Short: "List a campaign's messages (GET /campaigns/{id}/campaign-messages)",
+		Long: "A campaign's messages carry the content `campaign get` omits — the channel,\n" +
+			"subject, body and template link — so this is the read that answers what a\n" +
+			"campaign will actually say. Messages are not editable from here.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -100,8 +116,14 @@ func (s *Service) newCampaignMessagesCmd(token string) *cobra.Command {
 func (s *Service) newCampaignSendCmd(token string) *cobra.Command {
 	var id, data string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Trigger a campaign send (POST /campaign-send-jobs) via --id or --data",
+		Use:   "send",
+		Short: "Trigger a campaign send (POST /campaign-send-jobs) via --id or --data",
+		Long: "Posts a campaign-send-job and answers a job receipt, not a delivery result:\n" +
+			"--id names the campaign to send, or --data supplies the whole job body.\n" +
+			"The campaign has to already exist and be ready in Klaviyo — this triggers\n" +
+			"one, it does not build one. The send goes to the campaign's real audience\n" +
+			"and there is no cancel command here. The endpoint may answer with no\n" +
+			"body, in which case a local receipt is printed.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

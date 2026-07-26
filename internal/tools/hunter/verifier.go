@@ -15,8 +15,16 @@ import (
 func (s *Service) newEmailVerifierCmd(key string) *cobra.Command {
 	var email string
 	cmd := &cobra.Command{
-		Use:         "email-verifier",
-		Short:       "Verify an email address is deliverable (GET /email-verifier)",
+		Use:   "email-verifier",
+		Short: "Verify an email address is deliverable (GET /email-verifier)",
+		Long: "Verification runs on Hunter's side and can take around 20 seconds. While\n" +
+			"it is still working Hunter answers 202 with `data.status` short of a\n" +
+			"final value, and this command does NOT wait — re-run the identical\n" +
+			"command to poll, at one verification request per attempt. Read\n" +
+			"`data.result` (`deliverable`, `undeliverable`, `risky`, `unknown`)\n" +
+			"together with `data.status`; a catch-all domain answers `accept_all`,\n" +
+			"which means the mail server accepts everything, not that the person\n" +
+			"exists.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

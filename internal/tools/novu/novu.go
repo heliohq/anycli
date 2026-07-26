@@ -150,8 +150,35 @@ func (s *Service) newClient(secret, base string) *client {
 // newRoot builds the resource-grouped cobra tree.
 func (s *Service) newRoot(secret, base string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "novu",
-		Short:         "Novu notification infrastructure built-in service",
+		Use:   "novu",
+		Short: "Novu notification infrastructure built-in service",
+		Long: "One `event trigger` fans a workflow out to a subscriber or a topic\n" +
+			"across whatever channels — in-app, email, SMS, push, chat — that\n" +
+			"workflow defines. The channel is never chosen here: it is a property of\n" +
+			"the workflow, so changing how something is delivered means changing the\n" +
+			"workflow in Novu, not the command.\n" +
+			"\n" +
+			"HTTP 201 on a trigger does NOT mean delivered; it means Novu accepted\n" +
+			"the request. The load-bearing field is `data.status`, where `processed`\n" +
+			"is the only success. trigger_not_active,\n" +
+			"no_workflow_active_steps_defined, no_workflow_steps_defined,\n" +
+			"no_tenant_found, invalid_recipients and error all come back on an\n" +
+			"accepted request that delivered nothing, with the reason in\n" +
+			"`data.error[]` and a `data.activityFeedLink` to inspect. Never report\n" +
+			"success from a transactionId alone.\n" +
+			"\n" +
+			"The credential is one environment's secret key and is region-scoped, so\n" +
+			"everything here happens inside the single environment it was minted for\n" +
+			"— development and production are separate keys and separate data.\n" +
+			"\n" +
+			"Pagination differs by resource and both forms are present:\n" +
+			"`subscriber list` and `topic list` are cursor-based (--after/--before\n" +
+			"take ids), while `message list` and `activity list` take a 0-based\n" +
+			"--page and `workflow list` takes --offset. --limit 0 everywhere means\n" +
+			"Novu's own default.\n" +
+			"\n" +
+			"Exit 1 means the request reached Novu and failed; exit 2 means it was\n" +
+			"rejected locally — missing flag, malformed JSON — and never left.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

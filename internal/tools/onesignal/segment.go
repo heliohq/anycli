@@ -10,8 +10,13 @@ import (
 func (s *Service) newSegmentCreateCmd(key, appID string) *cobra.Command {
 	var name, filters string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create an audience segment (POST /apps/{app_id}/segments)",
+		Use:   "create",
+		Short: "Create an audience segment (POST /apps/{app_id}/segments)",
+		Long: "`--name` and `--filters` are both required and both checked locally.\n" +
+			"`--filters` is a JSON ARRAY of OneSignal filter objects\n" +
+			"(`{\"field\":...,\"relation\":...,\"value\":...}`), not an object — a bare\n" +
+			"object is rejected. Creating a segment messages nobody; it only saves the\n" +
+			"audience definition that `message send --segment <name>` can then target.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -40,8 +45,11 @@ func (s *Service) newSegmentCreateCmd(key, appID string) *cobra.Command {
 
 func (s *Service) newSegmentListCmd(key, appID string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List segments (GET /apps/{app_id}/segments)",
+		Use:   "list",
+		Short: "List segments (GET /apps/{app_id}/segments)",
+		Long: "The source of both valid `--segment` NAMES for `message send` and segment\n" +
+			"IDS for `segment delete`. Takes no flags and no pagination — one call\n" +
+			"returns the app's segments.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -57,8 +65,11 @@ func (s *Service) newSegmentListCmd(key, appID string) *cobra.Command {
 func (s *Service) newSegmentDeleteCmd(key, appID string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a segment (DELETE /apps/{app_id}/segments/{id})",
+		Use:   "delete",
+		Short: "Delete a segment (DELETE /apps/{app_id}/segments/{id})",
+		Long: "`--id` is required and is the segment ID from `segment list` — not the name\n" +
+			"that `message send --segment` uses. This removes the saved audience\n" +
+			"definition, not the users matching it, and it cannot be undone from here.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -105,8 +105,14 @@ func setIfNotEmpty(body map[string]any, field, value string) {
 func (s *Service) newContactCreateCmd(key string) *cobra.Command {
 	f := &contactFlags{}
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a contact (POST /v1/contacts/create)",
+		Use:   "create",
+		Short: "Create a contact (POST /v1/contacts/create)",
+		Long: "--email is required even when --user-id is also supplied. Any key passed\n" +
+			"through --property must already exist as a custom property in Loops or the\n" +
+			"call fails — create it with `contact-property create` first. --source\n" +
+			"replaces the default \"API\" attribution, which is what keeps contacts\n" +
+			"created this way distinguishable later. An email that already exists is an\n" +
+			"error rather than a merge; `contact update` is the upsert.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -131,8 +137,13 @@ func (s *Service) newContactCreateCmd(key string) *cobra.Command {
 func (s *Service) newContactUpdateCmd(key string) *cobra.Command {
 	f := &contactFlags{}
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update or upsert a contact (PUT /v1/contacts/update)",
+		Use:   "update",
+		Short: "Update or upsert a contact (PUT /v1/contacts/update)",
+		Long: "Creates the contact when neither identifier matches, so this is the safe\n" +
+			"verb when existence is unknown. Passing --email and --user-id together is\n" +
+			"how a userId is attached to a contact that was created by email alone.\n" +
+			"Only the fields actually passed are sent, and `subscribed` only when\n" +
+			"--subscribed is set explicitly.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -159,8 +170,12 @@ func (s *Service) newContactUpdateCmd(key string) *cobra.Command {
 func (s *Service) newContactFindCmd(key string) *cobra.Command {
 	var email, userID string
 	cmd := &cobra.Command{
-		Use:         "find",
-		Short:       "Find a contact by email or userId (GET /v1/contacts/find)",
+		Use:   "find",
+		Short: "Find a contact by email or userId (GET /v1/contacts/find)",
+		Long: "Exactly one of --email or --user-id; passing both is rejected before the\n" +
+			"request goes out, which mirrors the API refusing the pair. Returns the\n" +
+			"contact's whole field set, custom properties and mailing-list membership\n" +
+			"included — the only read that shows what a contact currently carries.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -179,8 +194,13 @@ func (s *Service) newContactFindCmd(key string) *cobra.Command {
 func (s *Service) newContactDeleteCmd(key string) *cobra.Command {
 	var email, userID string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a contact by email or userId (POST /v1/contacts/delete)",
+		Use:   "delete",
+		Short: "Delete a contact by email or userId (POST /v1/contacts/delete)",
+		Long: "Exactly one of --email or --user-id. This removes the contact record and its\n" +
+			"properties outright — there is no soft-delete state and nothing to restore\n" +
+			"from. To stop mail without losing the record, use\n" +
+			"`contact update --mailing-list <id>=false` or leave them suppressed\n" +
+			"instead.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -217,8 +237,13 @@ func (s *Service) newContactSuppressionCmd(key string) *cobra.Command {
 func (s *Service) newContactSuppressionGetCmd(key string) *cobra.Command {
 	var email, userID string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get suppression status by email or userId (GET /v1/contacts/suppression)",
+		Use:   "get",
+		Short: "Get suppression status by email or userId (GET /v1/contacts/suppression)",
+		Long: "Suppression is Loops' own send block — a hard bounce, a spam complaint, a\n" +
+			"manual block — and is a different thing from being unsubscribed from a\n" +
+			"mailing list. A suppressed contact silently receives nothing, transactional\n" +
+			"mail included, so this is the first check when a send reports success and\n" +
+			"the person saw no email. Exactly one of --email or --user-id.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -237,8 +262,14 @@ func (s *Service) newContactSuppressionGetCmd(key string) *cobra.Command {
 func (s *Service) newContactSuppressionRemoveCmd(key string) *cobra.Command {
 	var email, userID string
 	cmd := &cobra.Command{
-		Use:         "remove",
-		Short:       "Un-suppress a contact by email or userId (DELETE /v1/contacts/suppression)",
+		Use:   "remove",
+		Short: "Un-suppress a contact by email or userId (DELETE /v1/contacts/suppression)",
+		Long: "Lifts the block so the address can be mailed again; it does not resend\n" +
+			"anything that was dropped while suppressed. The suppression usually exists\n" +
+			"because a provider bounced the address or the recipient complained, so\n" +
+			"clearing it without fixing that cause simply earns another one — and\n" +
+			"repeated bounces damage the team's sending reputation. Exactly one of\n" +
+			"--email or --user-id.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

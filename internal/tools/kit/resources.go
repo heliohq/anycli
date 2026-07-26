@@ -14,8 +14,12 @@ func (s *Service) sequenceCmd(token string) *cobra.Command {
 	group := newGroupCmd("sequence", "Manage sequences (automations)")
 
 	list := &cobra.Command{
-		Use:         "list",
-		Short:       "List sequences (one page; use --after to continue)",
+		Use:   "list",
+		Short: "List sequences (one page; use --after to continue)",
+		Long: "The automations defined in this account, with the ids `sequence add`\n" +
+			"needs. Sequences are read-only here: they cannot be created, edited,\n" +
+			"paused or deleted through this tool. One page per call; continue with\n" +
+			"--after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -33,8 +37,14 @@ func (s *Service) sequenceCmd(token string) *cobra.Command {
 	var sequenceID, subscriberID int
 	var email string
 	add := &cobra.Command{
-		Use:         "add",
-		Short:       "Enroll a subscriber into a sequence",
+		Use:   "add",
+		Short: "Enroll a subscriber into a sequence",
+		Long: "Puts a subscriber into the sequence directly, which BYPASSES whatever tag\n" +
+			"or form normally triggers it. The person then receives the sequence\n" +
+			"without carrying the tag the rest of the account filters and reports on,\n" +
+			"so `tag add` is usually the more faithful action when a tag is what drives\n" +
+			"the automation. --sequence-id is required plus exactly one of\n" +
+			"--subscriber-id or --email.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -67,8 +77,11 @@ func (s *Service) formCmd(token string) *cobra.Command {
 	group := newGroupCmd("form", "Manage forms and form subscriptions")
 
 	list := &cobra.Command{
-		Use:         "list",
-		Short:       "List forms (one page; use --after to continue)",
+		Use:   "list",
+		Short: "List forms (one page; use --after to continue)",
+		Long: "The forms defined in this account and the ids `form add` needs. Forms are\n" +
+			"read-only here — creating or editing one is a Kit UI action. One page per\n" +
+			"call; continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -86,8 +99,12 @@ func (s *Service) formCmd(token string) *cobra.Command {
 	var formID, subscriberID int
 	var email string
 	add := &cobra.Command{
-		Use:         "add",
-		Short:       "Subscribe a contact to a form",
+		Use:   "add",
+		Short: "Subscribe a contact to a form",
+		Long: "Kit's canonical opt-in path: a form carries its own follow-up\n" +
+			"configuration, so subscribing through one is not equivalent to `subscriber\n" +
+			"create`, which adds the person with no form logic attached. --form-id is\n" +
+			"required plus exactly one of --subscriber-id or --email.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -120,8 +137,12 @@ func (s *Service) customFieldCmd(token string) *cobra.Command {
 	group := newGroupCmd("custom-field", "Manage custom fields")
 
 	list := &cobra.Command{
-		Use:         "list",
-		Short:       "List custom fields (one page; use --after to continue)",
+		Use:   "list",
+		Short: "List custom fields (one page; use --after to continue)",
+		Long: "The field labels `subscriber create --fields` and `subscriber update\n" +
+			"--fields` are allowed to set. A key that does not appear here is not\n" +
+			"created implicitly by a subscriber write — it is simply not stored. One\n" +
+			"page per call; continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -138,8 +159,12 @@ func (s *Service) customFieldCmd(token string) *cobra.Command {
 
 	var label string
 	create := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a custom field",
+		Use:   "create",
+		Short: "Create a custom field",
+		Long: "--label is required and is the key subscriber writes will use. The field\n" +
+			"is created empty for every existing subscriber, so it has to be backfilled\n" +
+			"through `subscriber update --fields` before anything can segment on it.\n" +
+			"There is no delete or rename here.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -165,8 +190,12 @@ func (s *Service) segmentCmd(token string) *cobra.Command {
 	group := newGroupCmd("segment", "Enumerate saved segments")
 
 	list := &cobra.Command{
-		Use:         "list",
-		Short:       "List segments (one page; use --after to continue)",
+		Use:   "list",
+		Short: "List segments (one page; use --after to continue)",
+		Long: "Saved segments, read-only: they are defined in Kit's UI and cannot be\n" +
+			"created, edited or deleted here. Their ids feed `broadcast create\n" +
+			"--segment-id`, which is the only thing this tool does with them. One page\n" +
+			"per call; continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}

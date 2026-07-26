@@ -24,7 +24,12 @@ func (s *Service) newVerifyCreateCmd(token string) *cobra.Command {
 		Use:         "create",
 		Annotations: writeAction,
 		Short:       "Submit an email address for verification (POST /email-verification)",
-		Args:        cobra.NoArgs,
+		Long: "Asynchronous: the response can come back with status `pending`, which is\n" +
+			"not a verdict — poll `verify get --email` until it resolves, or pass\n" +
+			"--webhook-url to be told instead of polling. One address per call; there\n" +
+			"is no bulk form here, so a whole list is verified in Instantly itself and\n" +
+			"read back with `lead-list verification-stats`.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			payload := map[string]any{"email": email}
 			if cmd.Flags().Changed("webhook-url") {
@@ -45,7 +50,11 @@ func (s *Service) newVerifyGetCmd(token string) *cobra.Command {
 		Use:         "get",
 		Annotations: readOnly,
 		Short:       "Get a verification result (GET /email-verification/{email}); poll while pending",
-		Args:        cobra.NoArgs,
+		Long: "--email is required. This is the poll for `verify create`: a `pending`\n" +
+			"status means the check is still running, not that the address is bad. It\n" +
+			"only reads an existing result and starts nothing, so an address that was\n" +
+			"never submitted has nothing to return here.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return s.get(cmd, token, "/email-verification/"+url.PathEscape(email), nil)
 		},

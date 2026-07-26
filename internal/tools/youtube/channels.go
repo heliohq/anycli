@@ -16,8 +16,16 @@ func (s *Service) newChannelsGetCmd(token string) *cobra.Command {
 	var mine bool
 	var id, forHandle, forUsername, part string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get channel info + statistics (subscriber / view / video counts)",
+		Use:   "get",
+		Short: "Get channel info + statistics (subscriber / view / video counts)",
+		Long: "Exactly one selector is required and they are tried in order: --mine, then\n" +
+			"--id (comma-separated, several channels in one call), then --for-handle\n" +
+			"(@Name), then --for-username for the legacy form. The statistics are\n" +
+			"LIFETIME cumulative totals — subscribers, views, video count as of now —\n" +
+			"not a time series, and windowed analytics live in a different API this\n" +
+			"tool does not reach. A channel that hides its subscriber count returns an\n" +
+			"empty value, printed as a dash. The contentDetails part also carries the\n" +
+			"uploads playlist id that `videos mine` resolves internally.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -171,8 +171,34 @@ func (s *Service) client() *http.Client {
 // runnable command (bare group shows help, unknown subcommand fails).
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "youtube",
-		Short:         "YouTube built-in service (Data API v3)",
+		Use:   "youtube",
+		Short: "YouTube built-in service (Data API v3)",
+		Long: "Rides the YouTube Data API v3 as one connected Google account. That\n" +
+			"account may own several channels, and the verb-level --mine / --channel\n" +
+			"flags pick between the connected one and any other.\n" +
+			"\n" +
+			"Quota is the constraint that shapes everything. A project gets 10,000\n" +
+			"units a day; most reads cost 1 unit, writes around 50, and `search` costs\n" +
+			"100 — a hundred times a plain read. A 403 quotaExceeded is surfaced\n" +
+			"verbatim with no client-side retry, and the day's budget does not reset\n" +
+			"early. For the connected channel's own videos always use `videos mine`,\n" +
+			"which walks the uploads playlist for one or two units and is complete and\n" +
+			"immediately consistent, rather than `search`, which is expensive, capped\n" +
+			"around 500 results and eventually consistent.\n" +
+			"\n" +
+			"Every read is shaped by the API's `part` parameter — which sections of a\n" +
+			"resource get hydrated: snippet, statistics, contentDetails, status,\n" +
+			"replies. Each verb sends a sensible default and --part overrides it with\n" +
+			"the API's own part names verbatim.\n" +
+			"\n" +
+			"List verbs take --max, which the API caps at 50 and this tool defaults to\n" +
+			"5, plus --page for the token echoed as `nextPageToken` in the previous\n" +
+			"response.\n" +
+			"\n" +
+			"Captions, thumbnails, live broadcasts and windowed analytics are out of\n" +
+			"scope; `channels get` reports lifetime totals, not a time series. Without\n" +
+			"--json each command prints a compact human summary instead of the API\n" +
+			"payload.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

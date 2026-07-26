@@ -134,8 +134,36 @@ func (s *Service) stderr() io.Writer {
 // cross-resource escape hatch; everything else hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "sage",
-		Short:         "Sage Accounting built-in service (REST v3.1)",
+		Use:   "sage",
+		Short: "Sage Accounting built-in service (REST v3.1)",
+		Long: "Wraps the Sage Accounting v3.1 API and emits Sage's JSON verbatim.\n" +
+			"\n" +
+			"Business scoping is per CALL, not per connection: one login reaches\n" +
+			"every business the authorizing user can access, and `--business <id>`\n" +
+			"picks which. Omitted, Sage quietly uses that user's lead business, which\n" +
+			"is how an invoice ends up on the wrong ledger. Discover the ids with\n" +
+			"`business list` and pass `--business` explicitly on anything that\n" +
+			"writes.\n" +
+			"\n" +
+			"List responses are Sage's paginated envelope — `$items`, `$total`,\n" +
+			"`$page`, `$next`. There is no fetch-everything flag: page with `--page`\n" +
+			"and `--items-per-page` and keep going while `$next` is present.\n" +
+			"\n" +
+			"Writes take the complete Sage resource envelope through `--body`, root\n" +
+			"key included (`{\"contact\":{…}}`, `{\"sales_invoice\":{…}}`), and there\n" +
+			"are no per-field flags. The accounting schema is country-variable — UK\n" +
+			"VAT, US sales tax and FR TVA require different fields — so the payload\n" +
+			"goes through untouched and Sage is what validates it.\n" +
+			"\n" +
+			"The typed commands are read-first: list and get across the resources,\n" +
+			"with exactly three creates (`contact create`, `sales-invoice create`,\n" +
+			"`contact-payment create`). Nothing updates or deletes. `fetch` is the\n" +
+			"only route to a PUT or DELETE, and to the resources with no typed\n" +
+			"command.\n" +
+			"\n" +
+			"Sage allows on the order of 100 requests a minute and 2,500 a day PER\n" +
+			"BUSINESS. A 429 is a retryable runtime failure, so back off rather than\n" +
+			"re-issuing immediately.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -149,50 +177,50 @@ func (s *Service) newRoot(token string) *cobra.Command {
 
 	business := newGroupCmd("business", "Businesses (discover X-Business ids)")
 	business.AddCommand(
-		s.newListCmd(token, "list", "/businesses", "List businesses"),
-		s.newGetCmd(token, "get", "/businesses", "Get a business by id"),
+		s.newListCmd(token, "list", "/businesses", "List businesses", longBusinessList),
+		s.newGetCmd(token, "get", "/businesses", "Get a business by id", longBusinessGet),
 	)
 	contact := newGroupCmd("contact", "Customers and suppliers")
 	contact.AddCommand(
-		s.newListCmd(token, "list", "/contacts", "List contacts"),
-		s.newGetCmd(token, "get", "/contacts", "Get a contact by id"),
-		s.newCreateCmd(token, "create", "/contacts", "Create a contact (--body wraps a contact object)"),
+		s.newListCmd(token, "list", "/contacts", "List contacts", longContactList),
+		s.newGetCmd(token, "get", "/contacts", "Get a contact by id", longContactGet),
+		s.newCreateCmd(token, "create", "/contacts", "Create a contact (--body wraps a contact object)", longContactCreate),
 	)
 	salesInvoice := newGroupCmd("sales-invoice", "Customer sales invoices")
 	salesInvoice.AddCommand(
-		s.newListCmd(token, "list", "/sales_invoices", "List sales invoices"),
-		s.newGetCmd(token, "get", "/sales_invoices", "Get a sales invoice by id"),
-		s.newCreateCmd(token, "create", "/sales_invoices", "Raise a sales invoice (--body wraps a sales_invoice object)"),
+		s.newListCmd(token, "list", "/sales_invoices", "List sales invoices", longSalesInvoiceList),
+		s.newGetCmd(token, "get", "/sales_invoices", "Get a sales invoice by id", longSalesInvoiceGet),
+		s.newCreateCmd(token, "create", "/sales_invoices", "Raise a sales invoice (--body wraps a sales_invoice object)", longSalesInvoiceCreate),
 	)
 	purchaseInvoice := newGroupCmd("purchase-invoice", "Supplier bills")
 	purchaseInvoice.AddCommand(
-		s.newListCmd(token, "list", "/purchase_invoices", "List purchase invoices"),
-		s.newGetCmd(token, "get", "/purchase_invoices", "Get a purchase invoice by id"),
+		s.newListCmd(token, "list", "/purchase_invoices", "List purchase invoices", longPurchaseInvoiceList),
+		s.newGetCmd(token, "get", "/purchase_invoices", "Get a purchase invoice by id", longPurchaseInvoiceGet),
 	)
 	contactPayment := newGroupCmd("contact-payment", "Payments and receipts")
 	contactPayment.AddCommand(
-		s.newCreateCmd(token, "create", "/contact_payments", "Record a payment/receipt (--body wraps a contact_payment object)"),
+		s.newCreateCmd(token, "create", "/contact_payments", "Record a payment/receipt (--body wraps a contact_payment object)", longContactPaymentCreate),
 	)
 	ledgerAccount := newGroupCmd("ledger-account", "Chart of accounts")
 	ledgerAccount.AddCommand(
-		s.newListCmd(token, "list", "/ledger_accounts", "List ledger accounts"),
+		s.newListCmd(token, "list", "/ledger_accounts", "List ledger accounts", longLedgerAccountList),
 	)
 	bankAccount := newGroupCmd("bank-account", "Bank accounts and balances")
 	bankAccount.AddCommand(
-		s.newListCmd(token, "list", "/bank_accounts", "List bank accounts"),
-		s.newGetCmd(token, "get", "/bank_accounts", "Get a bank account by id"),
+		s.newListCmd(token, "list", "/bank_accounts", "List bank accounts", longBankAccountList),
+		s.newGetCmd(token, "get", "/bank_accounts", "Get a bank account by id", longBankAccountGet),
 	)
 	product := newGroupCmd("product", "Product catalog")
 	product.AddCommand(
-		s.newListCmd(token, "list", "/products", "List products"),
+		s.newListCmd(token, "list", "/products", "List products", longProductList),
 	)
 	service := newGroupCmd("service", "Service catalog")
 	service.AddCommand(
-		s.newListCmd(token, "list", "/services", "List services"),
+		s.newListCmd(token, "list", "/services", "List services", longServiceList),
 	)
 	taxRate := newGroupCmd("tax-rate", "Tax rates")
 	taxRate.AddCommand(
-		s.newListCmd(token, "list", "/tax_rates", "List tax rates"),
+		s.newListCmd(token, "list", "/tax_rates", "List tax rates", longTaxRateList),
 	)
 
 	root.AddCommand(

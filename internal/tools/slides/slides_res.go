@@ -18,8 +18,11 @@ func (s *Service) newSlidesAddCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <presentation-id-or-url>",
 		Short: "Add a slide (optionally filling its title/body); --layout takes a PredefinedLayout",
-		Long: "Add a slide. --title / --body fill the layout's TITLE / BODY placeholders in the same " +
-			"atomic batchUpdate; they assume a layout that has those placeholders (e.g. TITLE_AND_BODY).",
+		Long: "--title / --body fill the layout's TITLE / BODY placeholders in the same\n" +
+			"atomic batchUpdate that creates the slide, so one call leaves a populated\n" +
+			"slide rather than empty placeholders. They assume a layout that actually\n" +
+			"has those placeholders (e.g. TITLE_AND_BODY); against BLANK they have\n" +
+			"nothing to fill. --at is a 0-based insertion index — omit it to append.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -78,8 +81,14 @@ func placeholderMapping(objectID, placeholderType string) map[string]any {
 func (s *Service) newSlidesDuplicateCmd(token string) *cobra.Command {
 	var at int
 	cmd := &cobra.Command{
-		Use:         "duplicate <presentation-id-or-url> <slide-id>",
-		Short:       "Duplicate a slide (optionally positioning the copy with --at)",
+		Use:   "duplicate <presentation-id-or-url> <slide-id>",
+		Short: "Duplicate a slide (optionally positioning the copy with --at)",
+		Long: "Copies the slide and everything on it. Every element in the copy gets a NEW\n" +
+			"object id, so the source slide's element ids do not address the copy — run\n" +
+			"`pages get` on the printed new slide id before editing it. Without --at the\n" +
+			"copy lands directly after the source; --at is a 0-based index into the deck.\n" +
+			"This is the closest thing to templating available here: duplicate a slide\n" +
+			"already in the deck, then fill it with `text replace --slide`.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -115,8 +124,14 @@ func (s *Service) newSlidesDuplicateCmd(token string) *cobra.Command {
 func (s *Service) newSlidesMoveCmd(token string) *cobra.Command {
 	var to int
 	cmd := &cobra.Command{
-		Use:         "move <presentation-id-or-url> <slide-id>...",
-		Short:       "Reorder slides to a new position (--to is the 0-based target index)",
+		Use:   "move <presentation-id-or-url> <slide-id>...",
+		Short: "Reorder slides to a new position (--to is the 0-based target index)",
+		Long: "--to is required and is a 0-based index into the slide order as it stands\n" +
+			"BEFORE the move, not after, so moving a slide later in the deck lands\n" +
+			"earlier than the raw number suggests. Several slide ids may be given in one\n" +
+			"call; they move as a contiguous block and keep their relative order.\n" +
+			"Reordering only — nothing is copied or destroyed, and re-reading\n" +
+			"`presentations get` afterwards confirms the resulting order.",
 		Args:        cobra.MinimumNArgs(2),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -152,8 +167,13 @@ func (s *Service) newSlidesMoveCmd(token string) *cobra.Command {
 // a deck the assistant did not create) lives in the skill, not here.
 func (s *Service) newSlidesDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <presentation-id-or-url> <slide-id>...",
-		Short:       "Delete whole slides (no undo — confirm with the user first for decks you did not create)",
+		Use:   "delete <presentation-id-or-url> <slide-id>...",
+		Short: "Delete whole slides (no undo — confirm with the user first for decks you did not create)",
+		Long: "Takes slide object ids read from `presentations get`, several per call, and\n" +
+			"removes each slide with everything on it. There is no undo and no trash: the\n" +
+			"only recovery is the deck owner opening version history in the browser.\n" +
+			"Deleting all of a deck's slides leaves an empty presentation rather than\n" +
+			"removing the deck, which cannot be deleted on this scope at all.",
 		Args:        cobra.MinimumNArgs(2),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

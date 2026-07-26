@@ -126,8 +126,30 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // persistent flag; each leaf validates it via websiteFlag (missing → exit 2).
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "crisp",
-		Short:         "Crisp built-in service (website inbox + contacts)",
+		Use:   "crisp",
+		Short: "Crisp built-in service (website inbox + contacts)",
+		Long: "`--website <id>` is required on EVERY command. Crisp calls a workspace a\n" +
+			"website, every route is scoped to one, and the website-tier token this tool\n" +
+			"authenticates with cannot enumerate websites — so there is no auto-resolve\n" +
+			"and no default. The id is the UUID in the Crisp dashboard URL after\n" +
+			"`website/`; ask for it once and carry it through the whole session.\n" +
+			"\n" +
+			"Every conversation is addressed by its `session_id`, which is not the\n" +
+			"visitor's `people_id`: a thread and the contact behind it are separate\n" +
+			"objects with separate ids, and nothing here maps one to the other.\n" +
+			"\n" +
+			"Crisp wraps every reply in its own envelope; on success this prints\n" +
+			"`{\"data\": <crisp payload>, \"meta\": {...}}`, where `meta` echoes the\n" +
+			"website and the session or page that produced it. A Crisp failure can arrive\n" +
+			"with a 2xx status and `error: true` in the body — that is still a non-zero\n" +
+			"exit here.\n" +
+			"\n" +
+			"`conversation list` and `people list` page by NUMBER (`--page`, 1-based),\n" +
+			"while `conversation messages` pages by TIME. There is no cursor anywhere and\n" +
+			"no page size to set.\n" +
+			"\n" +
+			"Writes land in a live support inbox: `conversation reply` is visible to the\n" +
+			"customer the moment it returns, and there is no edit or unsend.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

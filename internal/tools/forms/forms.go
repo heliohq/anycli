@@ -116,8 +116,31 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "forms",
-		Short:         "Google Forms built-in service",
+		Use:   "forms",
+		Short: "Google Forms built-in service",
+		Long: "Google Forms API v1, plus responder sharing carried on Drive permissions.\n" +
+			"The loop is create → batch-update → get → publish → responders add: a form\n" +
+			"is created UNPUBLISHED, and building questions, publishing and sharing are\n" +
+			"separate explicit steps.\n" +
+			"\n" +
+			"There is no \"list my forms\" command, because the Forms API has no list\n" +
+			"method and listing would need a Drive scope this tool does not hold. A form\n" +
+			"id comes from the user's edit link or from a form created here.\n" +
+			"\n" +
+			"Every `<form-id>` argument accepts the bare id or an EDIT link\n" +
+			"(https://docs.google.com/forms/d/<id>/edit). A responder link\n" +
+			"(/forms/d/e/…/viewform) carries a different, public-facing id that the API\n" +
+			"cannot resolve; it is rejected before any call, so ask for the edit link\n" +
+			"rather than retrying.\n" +
+			"\n" +
+			"Output is a human-readable summary by default. `--json` returns the API\n" +
+			"body and is what anything meaning to parse the result should pass.\n" +
+			"\n" +
+			"`publish`, `unpublish`, `close`, `reopen` and the `responders` writes are\n" +
+			"bounded by the drive.file scope: they only reach forms THIS connection\n" +
+			"created, and fail 403/404 on a form the user built in the Forms UI. `get`\n" +
+			"and `responses` are unaffected and work on anything the account can open.\n" +
+			"A 401 or 403 elsewhere usually means a scope was never granted on connect.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

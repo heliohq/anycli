@@ -148,8 +148,26 @@ func (s *Service) stderr() io.Writer {
 // a false success.
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "paperform",
-		Short:         "Paperform built-in service (read-only)",
+		Use:   "paperform",
+		Short: "Paperform built-in service (read-only)",
+		Long: "Entirely read-only: there is no command that creates, edits, closes or\n" +
+			"deletes a form, a submission or a coupon. Paperform's API is also gated on\n" +
+			"a Standard or Business plan, so on a lower plan every command fails at\n" +
+			"authentication rather than returning empty results.\n" +
+			"\n" +
+			"A form is addressed by its slug OR its id and `--form` accepts either.\n" +
+			"Submissions carry their answers keyed by FIELD KEY, not by question text,\n" +
+			"so `field list` is what turns a response into something readable.\n" +
+			"\n" +
+			"Paging flags exist on `form list`, `submission list` and\n" +
+			"`partial-submission list` only: `--limit` (Paperform defaults to 20 and\n" +
+			"caps it at 100), `--skip`, `--sort ASC|DESC` — newest-first by created_at\n" +
+			"unless changed — plus the `--after-id` / `--before-id` and `--after-date` /\n" +
+			"`--before-date` (UTC) windows. `field list`, `product list`, `coupon list`\n" +
+			"and `space list` take none of them and return their whole set in one call.\n" +
+			"\n" +
+			"The provider's JSON is printed verbatim. A 429 surfaces Paperform's retry\n" +
+			"delay in the error message — wait that long rather than retrying at once.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

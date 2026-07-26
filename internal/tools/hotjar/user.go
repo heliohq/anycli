@@ -28,8 +28,17 @@ func (s *Service) newUserCmd(creds clientCreds) *cobra.Command {
 func (s *Service) newUserLookupCmd(creds clientCreds) *cobra.Command {
 	var org, email string
 	cmd := &cobra.Command{
-		Use:         "lookup",
-		Short:       "Find a data subject's captured data by email (read-only)",
+		Use:   "lookup",
+		Short: "Find a data subject's captured data by email (read-only)",
+		Long: "POSTs to the organization's user-lookup endpoint, which is also Hotjar's\n" +
+			"data-DELETION endpoint — the same call with `delete_all_hits` set true\n" +
+			"purges everything Hotjar holds on the subject. This command pins that flag\n" +
+			"to false and exposes no way to flip it, so it can only read; a genuine\n" +
+			"erasure request has to be done in Hotjar's own UI.\n" +
+			"\n" +
+			"`--org` is an organization id, not the `--site` id the survey commands take.\n" +
+			"Matching is on the exact `--email`; there is no lookup by user id, partial\n" +
+			"address or any other attribute. Needs at least the Observe Scale plan.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

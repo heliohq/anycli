@@ -137,8 +137,36 @@ func (s *Service) stderr() io.Writer {
 // hatch is top-level; every other command hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "instantly",
-		Short:         "Instantly built-in service (campaigns, leads, Unibox, warmup)",
+		Use:   "instantly",
+		Short: "Instantly built-in service (campaigns, leads, Unibox, warmup)",
+		Long: "Cold-email outreach on API v2. A campaign holds a sequence and a schedule,\n" +
+			"sending accounts do the actual sending, leads are the recipients, and\n" +
+			"replies land in the Unibox that the `email` commands read and answer.\n" +
+			"\n" +
+			"Pagination is cursor-based: pass the previous response's\n" +
+			"`next_starting_after` back as --starting-after, with --limit sizing the\n" +
+			"page. On every list this rides the QUERY STRING — except `lead list`,\n" +
+			"which is a POST and carries both in its body.\n" +
+			"\n" +
+			"Writes with a nested shape take a raw provider JSON body on --data, and\n" +
+			"the typed flags are merged over it and win, so the two combine. Output is\n" +
+			"the provider's snake_case JSON verbatim, matching Instantly's own docs.\n" +
+			"\n" +
+			"The API key is workspace-scoped with permissions fixed at creation, so the\n" +
+			"failure modes are distinct: 401 means the key was revoked and the account\n" +
+			"must reconnect, 402 means the key is valid but the workspace has no paid\n" +
+			"plan for API v2 — relay that rather than retrying — and 429 means back\n" +
+			"off. The workspace budget is generous, but `email list` is separately\n" +
+			"capped at 20 requests per minute.\n" +
+			"\n" +
+			"Two operations are asynchronous and their immediate response is not the\n" +
+			"result: `lead move` returns a background job to poll with `job get`, and\n" +
+			"`verify create` can answer `pending` until `verify get` resolves it.\n" +
+			"\n" +
+			"Spending and workspace administration are deliberately out of scope — no\n" +
+			"domain or account purchases, no member changes, no key rotation, no paid\n" +
+			"enrichment. The `api` escape hatch can reach those endpoints, but only on\n" +
+			"explicit instruction.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

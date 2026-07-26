@@ -111,8 +111,33 @@ func hasJSONArg(args []string) bool {
 // a required --page flag and rides the Page-token two-hop.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "facebook-pages",
-		Short:         "Facebook Pages built-in service (Graph API)",
+		Use:   "facebook-pages",
+		Short: "Facebook Pages built-in service (Graph API)",
+		Long: "Speaks the Facebook Graph API as the connected Facebook USER, not as a\n" +
+			"Page. One user commonly administers several Pages, so `pages list` comes\n" +
+			"first and `--page <page-id>` is required on every other command — a missing\n" +
+			"one is a usage error, never a silent default.\n" +
+			"\n" +
+			"Page access tokens are resolved behind `--page` on each call and never\n" +
+			"appear in output, `pages list` included. Reason in Page IDS, not tokens.\n" +
+			"\n" +
+			"What the connected user may do on a Page is the `tasks` array from\n" +
+			"`pages list`: CREATE_CONTENT to publish, MODERATE_CONTENT to touch\n" +
+			"comments, MANAGE, ANALYZE. A missing task fails with an\n" +
+			"insufficient-permission error, and that is NOT a reconnect — the role has\n" +
+			"to be granted on Facebook. A failed Page lookup is reported distinctly\n" +
+			"(\"resolve Page access token for <page-id>\"), so a wrong Page id is\n" +
+			"distinguishable from a read that itself failed.\n" +
+			"\n" +
+			"Reads return a fixed default field projection and every one takes\n" +
+			"`--fields`, which REPLACES that projection rather than adding to it — name\n" +
+			"the fields still wanted.\n" +
+			"\n" +
+			"The stored user token is long-lived, around 60 days, with no refresh\n" +
+			"grant; once it lapses the connection has to consent again.\n" +
+			"\n" +
+			"Publishing covers text and links only. Photos, video, Reels and scheduled\n" +
+			"posts are not reachable from this tool.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

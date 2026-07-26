@@ -34,8 +34,14 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 	var page int
 	var filterStatus string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List (triage) conversations in the website inbox",
+		Use:   "list",
+		Short: "List (triage) conversations in the website inbox",
+		Long: "The entry point: every other conversation verb needs a `session_id` and this\n" +
+			"is where one comes from. `--filter-status` accepts only resolved or\n" +
+			"unresolved and is rejected locally otherwise; leaving it off returns both,\n" +
+			"including pending threads. `--page` is 1-based and the page size is Crisp's\n" +
+			"to choose — there is no size flag and no total count in the response, so\n" +
+			"walk pages until one comes back short.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -70,8 +76,12 @@ func (s *Service) newConversationListCmd(token string) *cobra.Command {
 func (s *Service) newConversationGetCmd(token string) *cobra.Command {
 	var session string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Read one conversation thread",
+		Use:   "get",
+		Short: "Read one conversation thread",
+		Long: "Returns the thread's metadata — state, assignment, the visitor's profile\n" +
+			"stub, unread counts and the last message preview — but NOT the message\n" +
+			"history. For the messages themselves call `conversation messages` with the\n" +
+			"same `--session`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -98,8 +108,14 @@ func (s *Service) newConversationMessagesCmd(token string) *cobra.Command {
 	var session string
 	var before int64
 	cmd := &cobra.Command{
-		Use:         "messages",
-		Short:       "Read a conversation's messages (latest page; --before to paginate)",
+		Use:   "messages",
+		Short: "Read a conversation's messages (latest page; --before to paginate)",
+		Long: "Paginates by TIME, not page number: `--before` takes a Unix-MILLISECOND\n" +
+			"timestamp and returns messages older than it, so walk backwards by feeding\n" +
+			"the oldest returned message's timestamp into the next call. A seconds-based\n" +
+			"timestamp silently matches nothing useful. Each message carries a `from`\n" +
+			"of user or operator, which is what distinguishes the customer from the\n" +
+			"support side.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -130,8 +146,14 @@ func (s *Service) newConversationMessagesCmd(token string) *cobra.Command {
 func (s *Service) newConversationReplyCmd(token string) *cobra.Command {
 	var session, text, from string
 	cmd := &cobra.Command{
-		Use:         "reply",
-		Short:       "Send a text message to a customer in a conversation",
+		Use:   "reply",
+		Short: "Send a text message to a customer in a conversation",
+		Long: "Posts a plain-text chat message that reaches the customer immediately, with\n" +
+			"no draft state and no way to edit or unsend it afterwards. `--from` defaults\n" +
+			"to operator; the only other accepted value is user, which writes the message\n" +
+			"INTO the thread as though the visitor had said it — useful for logging what\n" +
+			"a customer said elsewhere, wrong for answering them. Text only: attachments,\n" +
+			"files and rich message types are not reachable from here.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -171,8 +193,13 @@ func (s *Service) newConversationReplyCmd(token string) *cobra.Command {
 func (s *Service) newConversationStateCmd(token string) *cobra.Command {
 	var session, state string
 	cmd := &cobra.Command{
-		Use:         "state",
-		Short:       "Change a conversation's state (resolve / reopen)",
+		Use:   "state",
+		Short: "Change a conversation's state (resolve / reopen)",
+		Long: "`--state` accepts resolved, pending or unresolved and is checked locally\n" +
+			"before any request. They are a flat set, not a workflow, so reopening is\n" +
+			"just setting unresolved again and pending is the middle ground for a triaged\n" +
+			"but unfinished thread. Changing the state leaves the assignment alone —\n" +
+			"`conversation route` is a separate call.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -205,8 +232,13 @@ func (s *Service) newConversationStateCmd(token string) *cobra.Command {
 func (s *Service) newConversationRouteCmd(token string) *cobra.Command {
 	var session, operator string
 	cmd := &cobra.Command{
-		Use:         "route",
-		Short:       "Assign a conversation to an operator (by user_id or email)",
+		Use:   "route",
+		Short: "Assign a conversation to an operator (by user_id or email)",
+		Long: "`--operator` takes either a raw operator `user_id` or an email address. An\n" +
+			"email costs an EXTRA call against the website's operator list to resolve the\n" +
+			"id, and an address that matches no operator on this website fails outright\n" +
+			"with nothing assigned — so a `user_id` is the cheaper, exact form when one\n" +
+			"is already known. Assignment replaces whoever held the thread before.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

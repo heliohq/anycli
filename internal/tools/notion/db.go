@@ -20,7 +20,14 @@ func (s *Service) newDBCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a database container",
-		Args:  cobra.NoArgs,
+		Long: "Creates the database CONTAINER. --properties is the schema for its first\n" +
+			"data source and is wrapped into `initial_data_source.properties` for you,\n" +
+			"because the current data model no longer accepts a top-level properties\n" +
+			"field. --parent is required and takes a page id, a URL or a parent JSON\n" +
+			"object; --title is a plain string here and is wrapped into rich text. The\n" +
+			"response carries the new database's `data_sources[]` — that id, not the\n" +
+			"database id, is what every query and view command needs next.",
+		Args: cobra.NoArgs,
 		// POST /databases
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
@@ -66,7 +73,13 @@ func (s *Service) newDBQueryCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "query <data-source-id>",
 		Short: "Query a data source with filter/sorts",
-		Args:  cobra.ExactArgs(1),
+		Long: "The only way to read a database row's FIELD VALUES; `fetch` on a row\n" +
+			"returns just its body. Takes a data-source id, and a database id is\n" +
+			"rejected before any query runs with a pointer to `fetch <db-id>` →\n" +
+			"`data_sources[]`. --filter and --sorts are Notion's REST wire JSON passed\n" +
+			"through verbatim — not the SQL-style query the Notion AI surface offers.\n" +
+			"Paginate with --all or the cursor flags.",
+		Args: cobra.ExactArgs(1),
 		// POST /data_sources/{id}/query is a documented read-only query.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
@@ -125,7 +138,14 @@ func (s *Service) newDataSourceUpdateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <data-source-id>",
 		Short: "Update a data source's schema or title",
-		Args:  cobra.ExactArgs(1),
+		Long: "Takes a data-source id only; a database id is rejected before the write.\n" +
+			"--name maps to the rich-text `title` field because the endpoint has no\n" +
+			"`name` — renaming a data source is a title write. --properties is a schema\n" +
+			"PATCH passed through verbatim, so it only touches the columns it names.\n" +
+			"--in-trash true is the nearest thing to a delete anywhere in this tool and\n" +
+			"it trashes the data source itself, not its rows. At least one of the three\n" +
+			"flags is required.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /data_sources/{id}
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}

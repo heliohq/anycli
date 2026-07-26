@@ -40,8 +40,13 @@ func (s *Service) newObjectSetCmd(key string) *cobra.Command {
 		data       string
 	)
 	cmd := &cobra.Command{
-		Use:         "set",
-		Short:       "Set (create or update) an object",
+		Use:   "set",
+		Short: "Set (create or update) an object",
+		Long: "--collection and --id are both required: an object id is unique only inside\n" +
+			"its collection. This is an upsert, so calling it again with different\n" +
+			"--data replaces the object's properties instead of failing. Objects are\n" +
+			"recipients that are not people — a project, a document, an account — and\n" +
+			"they become notifiable through the users subscribed to them.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -76,8 +81,11 @@ func (s *Service) newObjectGetCmd(key string) *cobra.Command {
 		id         string
 	)
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get an object",
+		Use:   "get",
+		Short: "Get an object",
+		Long: "Requires both --collection and --id; there is no lookup by id alone.\n" +
+			"Returns the object's own properties, not the users subscribed to it —\n" +
+			"those come from `object subscriptions`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -99,8 +107,12 @@ func (s *Service) newObjectDeleteCmd(key string) *cobra.Command {
 		id         string
 	)
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete an object",
+		Use:   "delete",
+		Short: "Delete an object",
+		Long: "Requires --collection and --id. Removing the object removes it as a\n" +
+			"recipient, so a workflow that fanned out through its subscriptions stops\n" +
+			"reaching anyone that way. Nothing here restores it, and there is no\n" +
+			"command to remove a single subscription instead.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -124,8 +136,12 @@ func (s *Service) newObjectListCmd(key string) *cobra.Command {
 		before     string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List objects in a collection",
+		Use:   "list",
+		Short: "List objects in a collection",
+		Long: "--collection is required: objects are always listed within one collection\n" +
+			"and there is no cross-collection listing, nor any command that enumerates\n" +
+			"the collections themselves. Paged with --page-size (Knock's default is 50)\n" +
+			"and --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -153,8 +169,12 @@ func (s *Service) newObjectSubscriptionsCmd(key string) *cobra.Command {
 		before     string
 	)
 	cmd := &cobra.Command{
-		Use:         "subscriptions",
-		Short:       "List an object's subscriptions (who follows it)",
+		Use:   "subscriptions",
+		Short: "List an object's subscriptions (who follows it)",
+		Long: "The recipients subscribed to this object, which is the audience a workflow\n" +
+			"reaches when it fans out through the object rather than through named\n" +
+			"recipients. Requires --collection and --id. This tool can read\n" +
+			"subscriptions but neither create nor remove one.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

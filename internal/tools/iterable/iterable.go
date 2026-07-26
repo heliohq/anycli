@@ -126,8 +126,30 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(cred credential) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "iterable",
-		Short:         "Iterable built-in service (cross-channel marketing)",
+		Use:   "iterable",
+		Short: "Iterable built-in service (cross-channel marketing)",
+		Long: "Iterable is a cross-channel marketing platform: user (contact) profiles,\n" +
+			"custom events, subscription lists, campaigns, message templates and\n" +
+			"transactional email.\n" +
+			"\n" +
+			"A credential is bound to one Iterable project inside one data center, US\n" +
+			"or EU, and the API host follows from it. A key used against the wrong data\n" +
+			"center is rejected as an auth failure rather than returning empty results,\n" +
+			"and the key must be a server-side API key — a JWT-enabled one does not\n" +
+			"work here.\n" +
+			"\n" +
+			"Users are addressed by `email` or by the project's own `userId`. `user\n" +
+			"get` accepts either, but `user delete` and `event list` take an email\n" +
+			"only.\n" +
+			"\n" +
+			"Every write verb carries its payload as raw JSON in a required `--body`,\n" +
+			"passed to Iterable verbatim, so mirror the shapes in Iterable's own API\n" +
+			"reference. Custom per-user attributes live under `dataFields` throughout.\n" +
+			"\n" +
+			"Iterable reports write results inside the response body as a `code` field\n" +
+			"and returns HTTP 200 even when the operation failed. Any code other than\n" +
+			"Success is treated as a failure here and exits non-zero, so trust the exit\n" +
+			"code rather than the HTTP status.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

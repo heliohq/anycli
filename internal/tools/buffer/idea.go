@@ -15,8 +15,13 @@ const createIdeaMutation = `mutation($input: CreateIdeaInput!) {
 func (s *Service) newIdeaCreateCmd(token string) *cobra.Command {
 	var org, text, title string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create an idea in an organization",
+		Use:   "create",
+		Short: "Create an idea in an organization",
+		Long: "Ideas are the workspace's content backlog: they hang off `--org`, never a\n" +
+			"channel, and are never scheduled or published, so nothing written here can\n" +
+			"reach a social account. `--text` is required and `--title` optional.\n" +
+			"Promoting an idea into a real post is manual work in Buffer — there is no\n" +
+			"verb for it here and `post create` does not read ideas.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

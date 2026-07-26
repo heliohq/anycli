@@ -15,8 +15,15 @@ import (
 func (s *Service) newExportDeliveriesCmd(key string) *cobra.Command {
 	var newsletter, campaign, action, start, end, metric string
 	cmd := &cobra.Command{
-		Use:         "deliveries",
-		Short:       "Start a deliveries export (POST /v1/exports/deliveries)",
+		Use:   "deliveries",
+		Short: "Start a deliveries export (POST /v1/exports/deliveries)",
+		Long: "Starts an asynchronous job and returns an export id; no data comes back\n" +
+			"from this call. Exactly one of --newsletter, --campaign or --action is\n" +
+			"required — --action narrows to a single step inside a campaign, which is\n" +
+			"the way to isolate one message in a multi-step automation. --start and\n" +
+			"--end are Unix timestamps bounding the delivery window and --metric\n" +
+			"filters on outcome. Poll `export get --id` until the status is ready, then\n" +
+			"fetch it with `export get --download`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -55,8 +62,14 @@ func (s *Service) newExportDeliveriesCmd(key string) *cobra.Command {
 func (s *Service) newExportPeopleCmd(key string) *cobra.Command {
 	var filters string
 	cmd := &cobra.Command{
-		Use:         "people",
-		Short:       "Start a people export (POST /v1/exports/customers)",
+		Use:   "people",
+		Short: "Start a people export (POST /v1/exports/customers)",
+		Long: "--filters is required by design: the endpoint would otherwise export the\n" +
+			"entire workspace. It takes a raw Customer.io filter object, and/or/not\n" +
+			"over segment and attribute conditions — the same grammar `person search\n" +
+			"--filter` accepts, so a filter can be validated cheaply there first.\n" +
+			"Asynchronous like every export: this returns an id, and the file arrives\n" +
+			"through `export get --download` once the status is ready.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -81,8 +94,11 @@ func (s *Service) newExportPeopleCmd(key string) *cobra.Command {
 
 func (s *Service) newExportListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List exports (GET /v1/exports)",
+		Use:   "list",
+		Short: "List exports (GET /v1/exports)",
+		Long: "Every export the workspace has started, with each one's status. Useful for\n" +
+			"picking up an export id from an earlier session, and for spotting that a\n" +
+			"job is still processing rather than assuming its download failed.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -99,8 +115,16 @@ func (s *Service) newExportGetCmd(key string) *cobra.Command {
 	var id, out string
 	var download bool
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get an export (GET /v1/exports/{id}); with --download, fetch its signed link (GET /v1/exports/{id}/download) and save the file",
+		Use:   "get",
+		Short: "Get an export (GET /v1/exports/{id}); with --download, fetch its signed link (GET /v1/exports/{id}/download) and save the file",
+		Long: "Bare, this returns the export's metadata and is the call to poll until its\n" +
+			"status shows the job finished. --download is a different endpoint: the\n" +
+			"export object itself carries no link, only a downloads counter, so the\n" +
+			"signed URL is minted per request and expires 15 minutes after it is\n" +
+			"issued. --out is required with --download, and the file is streamed to\n" +
+			"that path with a `{\"ok\":true,\"path\":…,\"bytes\":N}` receipt instead of the\n" +
+			"file contents. An error saying there is no download url yet means the\n" +
+			"export is still processing — poll without --download first.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

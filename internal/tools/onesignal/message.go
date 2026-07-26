@@ -26,8 +26,21 @@ type messageSendFlags struct {
 func (s *Service) newMessageSendCmd(key, appID string) *cobra.Command {
 	f := &messageSendFlags{}
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a push / email / SMS message (POST /notifications)",
+		Use:   "send",
+		Short: "Send a push / email / SMS message (POST /notifications)",
+		Long: "`--content` is required, and exactly one targeting method must be present:\n" +
+			"`--segment` (by name), `--subscription-id`, `--email`, `--phone` (E.164) or\n" +
+			"`--filters` (a JSON array). All but `--filters` are repeatable, and two\n" +
+			"different methods together are rejected locally.\n" +
+			"\n" +
+			"`--channel` decides how the text is mapped. For email `--heading` becomes\n" +
+			"the subject and `--content` the body; for push they are the title and body;\n" +
+			"for SMS `--heading` is DROPPED and only `--content` is sent. Content goes\n" +
+			"out under the `en` locale only, so a multi-language message cannot be\n" +
+			"composed here. `--send-after` schedules delivery, and a scheduled message\n" +
+			"is the only kind `message cancel` can stop — anything unscheduled reaches\n" +
+			"real devices at once and cannot be recalled. `--name` is an internal label\n" +
+			"recipients never see.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -144,8 +157,12 @@ func (f *messageSendFlags) applyContent(body map[string]any) {
 func (s *Service) newMessageListCmd(key, appID string) *cobra.Command {
 	var limit, offset int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List recent messages (GET /notifications)",
+		Use:   "list",
+		Short: "List recent messages (GET /notifications)",
+		Long: "Covers the connected app only. `--limit` tops out at OneSignal's own\n" +
+			"default and maximum of 50, and `--offset` walks further back. Rows carry\n" +
+			"summary counters; the full delivery breakdown for one message is\n" +
+			"`message get --id`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -171,8 +188,12 @@ func (s *Service) newMessageListCmd(key, appID string) *cobra.Command {
 func (s *Service) newMessageGetCmd(key, appID string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "View one message's delivery stats (GET /notifications/{id})",
+		Use:   "get",
+		Short: "View one message's delivery stats (GET /notifications/{id})",
+		Long: "`--id` is a required FLAG, not a positional argument, and takes the\n" +
+			"notification id returned by `message send`. Delivery counters keep moving\n" +
+			"for a while after a send as devices report back, so a call made seconds\n" +
+			"later under-reports rather than being wrong.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -193,8 +214,12 @@ func (s *Service) newMessageGetCmd(key, appID string) *cobra.Command {
 func (s *Service) newMessageCancelCmd(key, appID string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "cancel",
-		Short:       "Cancel a scheduled message (DELETE /notifications/{id})",
+		Use:   "cancel",
+		Short: "Cancel a scheduled message (DELETE /notifications/{id})",
+		Long: "`--id` is a required flag. Only a message still waiting on its\n" +
+			"`--send-after` time can be cancelled; once OneSignal has begun delivering\n" +
+			"there is nothing left to stop and the call fails. There is no recall for a\n" +
+			"message already delivered.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

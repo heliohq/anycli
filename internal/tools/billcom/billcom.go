@@ -154,8 +154,31 @@ func (s *Service) stderr() io.Writer {
 // login->call dance.
 func (s *Service) newRoot(c *client) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "billcom",
-		Short:         "BILL (Bill.com) AP/AR built-in service",
+		Use:   "billcom",
+		Short: "BILL (Bill.com) AP/AR built-in service",
+		Long: "BILL splits into accounts payable — money the org owes, held as `bill`\n" +
+			"records against a `vendor` — and accounts receivable — money owed to the\n" +
+			"org, held as an `invoice` against a `customer`. Picking the wrong side is\n" +
+			"the usual mistake: an unpaid supplier charge is a bill, not an invoice.\n" +
+			"\n" +
+			"Payments are READ-ONLY here. There is no way to create or schedule a\n" +
+			"payment, add a funding source, or approve anything: that needs an\n" +
+			"elevated, MFA-trusted session this integration does not hold. Moving money\n" +
+			"is a human action in the BILL web app. Drafting a bill or an invoice is\n" +
+			"not money movement and is fully supported.\n" +
+			"\n" +
+			"Every `list` returns the neutral envelope {\"items\":[...],\"next_page\":\"...\"};\n" +
+			"feed that next_page value back as `--page` until it is empty. `get` and\n" +
+			"`create` emit BILL's own JSON untouched, so their field names are BILL's,\n" +
+			"not the envelope's.\n" +
+			"\n" +
+			"`--filter field:op:value` (repeatable) and `--sort field:asc` are passed\n" +
+			"to BILL verbatim and validated only there — an unknown field comes back as\n" +
+			"a provider error, while malformed `--data` JSON is caught locally.\n" +
+			"\n" +
+			"The session is bound to the one organization stored with the credential.\n" +
+			"`org list` shows the others the login can reach, but no flag switches\n" +
+			"organization — that takes a reconnect.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -164,12 +187,12 @@ func (s *Service) newRoot(c *client) *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "force structured JSON output (default for list/get/create)")
 
 	root.AddCommand(
-		s.newResourceGroup(c, "bill", "/bills", true),
-		s.newResourceGroup(c, "vendor", "/vendors", true),
-		s.newResourceGroup(c, "invoice", "/invoices", true),
-		s.newResourceGroup(c, "customer", "/customers", true),
+		s.newResourceGroup(c, "bill", "/bills", true, billDocs),
+		s.newResourceGroup(c, "vendor", "/vendors", true, vendorDocs),
+		s.newResourceGroup(c, "invoice", "/invoices", true, invoiceDocs),
+		s.newResourceGroup(c, "customer", "/customers", true, customerDocs),
 		// Payments are read-only (money-movement carve-out): no create verb.
-		s.newResourceGroup(c, "payment", "/payments", false),
+		s.newResourceGroup(c, "payment", "/payments", false, paymentDocs),
 		s.newOrgCmd(c),
 		s.newWhoamiCmd(c),
 	)

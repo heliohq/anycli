@@ -21,8 +21,16 @@ func (s *Service) newActivityListCmd(key string) *cobra.Command {
 	var offset, limit int
 	var isFirst bool
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List activities (GET /activities)",
+		Use:   "list",
+		Short: "List activities (GET /activities)",
+		Long: "The event stream behind every other number here. `--type` selects one\n" +
+			"kind (`emailsOpened`, `emailsClicked`, `emailsReplied`,\n" +
+			"`emailsBounced`, …) and `--campaign-id` or `--lead-id` narrow to one\n" +
+			"target. `--min-date` and `--max-date` bound `createdAt` and accept Unix\n" +
+			"seconds or ISO 8601. Paging is offset-based, NOT cursor-based: walk\n" +
+			"`--offset` 0, 100, 200 … with `--limit` at its maximum of 100 and stop\n" +
+			"on a short page. `--is-first` keeps only the first activity per lead,\n" +
+			"which is how unique openers are counted rather than opens.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

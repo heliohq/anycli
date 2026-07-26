@@ -24,8 +24,12 @@ func (s *Service) newFormCmd(token string) *cobra.Command {
 func (s *Service) newFormListCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:         "list <type>",
-		Short:       "List forms of a type (GET /forms/{type}); type is popup|embedded|promotion",
+		Use:   "list <type>",
+		Short: "List forms of a type (GET /forms/{type}); type is popup|embedded|promotion",
+		Long: "The type is a required positional argument, one of popup, embedded or\n" +
+			"promotion, checked locally so a typo fails as a usage error rather than a\n" +
+			"404. There is no way to list every form in one call — covering the account\n" +
+			"means three calls, one per type. Page-numbered with --page.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -59,8 +63,10 @@ func validateFormType(t string) error {
 
 func (s *Service) newFormGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get a form (GET /forms/{id})",
+		Use:   "get <id>",
+		Short: "Get a form (GET /forms/{id})",
+		Long: "Takes only the form id; unlike `form list` it needs no type, so an id\n" +
+			"found under one type is read back here directly.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -76,8 +82,11 @@ func (s *Service) newFormGetCmd(token string) *cobra.Command {
 func (s *Service) newFormUpdateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Rename a form (PUT /forms/{id})",
+		Use:   "update <id>",
+		Short: "Rename a form (PUT /forms/{id})",
+		Long: "Renaming is the only edit this API exposes for a form. Its fields,\n" +
+			"content, styling and the groups it feeds are all UI-only, so a request to\n" +
+			"change what a form collects cannot be satisfied from here.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -95,8 +104,12 @@ func (s *Service) newFormUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newFormDeleteCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "delete <id>",
-		Short:       "Delete a form (DELETE /forms/{id})",
+		Use:   "delete <id>",
+		Short: "Delete a form (DELETE /forms/{id})",
+		Long: "Removes the form; the subscribers who signed up through it stay in the\n" +
+			"account and keep their group memberships. Anything embedding the form on a\n" +
+			"site will stop collecting, and there is no disable-without-deleting option\n" +
+			"here.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -113,8 +126,12 @@ func (s *Service) newFormSubscribersCmd(token string) *cobra.Command {
 	var cursor string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "subscribers <id>",
-		Short:       "List subscribers who signed up through a form (GET /forms/{id}/subscribers)",
+		Use:   "subscribers <id>",
+		Short: "List subscribers who signed up through a form (GET /forms/{id}/subscribers)",
+		Long: "Attribution by acquisition source — who arrived through this particular\n" +
+			"form — which no other command answers. Cursor-paged: pass\n" +
+			"`meta.next_cursor` back as --cursor, there is no --page and no status\n" +
+			"filter here.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

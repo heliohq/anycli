@@ -19,8 +19,11 @@ func (s *Service) newCampaignCmd(cred credential) *cobra.Command {
 
 func (s *Service) newCampaignListCmd(cred credential) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List all campaigns (GET /api/campaigns)",
+		Use:   "list",
+		Short: "List all campaigns (GET /api/campaigns)",
+		Long: "Returns every campaign in the project with its numeric `campaignId`, the\n" +
+			"id that `campaign metrics` and `email send` reference. There are no\n" +
+			"filters, so narrowing to one campaign means matching its name locally.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -36,8 +39,12 @@ func (s *Service) newCampaignListCmd(cred credential) *cobra.Command {
 func (s *Service) newCampaignMetricsCmd(cred credential) *cobra.Command {
 	var campaignID string
 	cmd := &cobra.Command{
-		Use:         "metrics",
-		Short:       "Get metrics for a campaign (GET /api/campaigns/metrics?campaignId=…)",
+		Use:   "metrics",
+		Short: "Get metrics for a campaign (GET /api/campaigns/metrics?campaignId=…)",
+		Long: "--campaign-id is required and is the numeric id from `campaign list`. It\n" +
+			"reports aggregate counts for the whole campaign — sends, opens, clicks,\n" +
+			"unsubscribes. It says nothing about an individual recipient; for one\n" +
+			"person's delivery history use `event list` instead.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

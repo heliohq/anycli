@@ -102,8 +102,32 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "postmark",
-		Short:         "Postmark built-in service (transactional email)",
+		Use:   "postmark",
+		Short: "Postmark built-in service (transactional email)",
+		Long: "The connection is scoped to ONE Postmark server, and the server token IS\n" +
+			"the account. An account with several servers connects each token\n" +
+			"separately, and every command here sees only that one server's messages,\n" +
+			"templates, streams and bounces.\n" +
+			"\n" +
+			"`--from` must be a CONFIRMED Sender Signature or a verified domain on the\n" +
+			"account. An unconfirmed sender is the most common send failure and it is a\n" +
+			"non-zero exit, not a silent drop.\n" +
+			"\n" +
+			"Postmark rejects a send with HTTP 200 carrying a non-zero `ErrorCode` and a\n" +
+			"`Message`; the tool exits non-zero on that, so a printed `MessageID` with\n" +
+			"`ErrorCode` 0 is a genuine accept. Accepted means queued, not delivered —\n" +
+			"the delivery events live on `message get-outbound`.\n" +
+			"\n" +
+			"Searches page with `--count` (default 100, capped by Postmark at 500) and\n" +
+			"`--offset` rather than cursors, so a result set that keeps growing shifts\n" +
+			"under a deep offset. Postmark also retains message data for about 45 days;\n" +
+			"older mail is unreachable regardless of filters.\n" +
+			"\n" +
+			"Three separate id spaces that do not cross: outbound message GUIDs, inbound\n" +
+			"message GUIDs, and numeric bounce ids.\n" +
+			"\n" +
+			"Writes land immediately. A sent email cannot be recalled, and\n" +
+			"`bounce activate` reopens delivery to an address Postmark had suppressed.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

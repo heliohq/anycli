@@ -131,8 +131,30 @@ func (s *Service) stderr() io.Writer {
 // sender/account).
 func (s *Service) newRoot(apiKey string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "brevo",
-		Short:         "Brevo built-in service (email marketing, transactional email, contacts, CRM)",
+		Use:   "brevo",
+		Short: "Brevo built-in service (email marketing, transactional email, contacts, CRM)",
+		Long: "Calls Brevo (formerly Sendinblue) with an account API key and prints its\n" +
+			"JSON verbatim; `--json` turns errors into an envelope carrying Brevo's own\n" +
+			"error code. A 401 means the key is bad — reconnect rather than retry.\n" +
+			"\n" +
+			"Brevo REJECTS every send from an unverified sender, even a test one. Run\n" +
+			"`sender ls` first and use one of the addresses or ids it returns;\n" +
+			"otherwise `email send` and `campaign create` come back 400.\n" +
+			"\n" +
+			"Sending has two unrelated surfaces. `email send` is one-off transactional\n" +
+			"mail to addresses you name; `campaign create` is a bulk marketing campaign\n" +
+			"aimed at contact lists and scheduled by Brevo. Neither substitutes for the\n" +
+			"other.\n" +
+			"\n" +
+			"List ids are INTEGERS, resolved through `list ls` — a list name is never\n" +
+			"accepted. Contacts, by contrast, are addressed by email, contact id or\n" +
+			"ext_id through the same `--id` flag, with `--identifier-type\n" +
+			"email_id|contact_id|ext_id` to disambiguate. Contact attribute names are\n" +
+			"UPPERCASE (`FIRSTNAME`, not `firstname`) and are passed as raw JSON\n" +
+			"objects.\n" +
+			"\n" +
+			"Lists page with `--limit` and `--offset`, defaulting to 50 per page, and\n" +
+			"nothing here follows pagination automatically.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

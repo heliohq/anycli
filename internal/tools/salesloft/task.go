@@ -21,8 +21,14 @@ func (s *Service) newTaskCmd(token string) *cobra.Command {
 func (s *Service) newTaskListCmd(token string) *cobra.Command {
 	var lf listFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List tasks (GET /v2/tasks)",
+		Use:   "list",
+		Short: "List tasks (GET /v2/tasks)",
+		Long: "The rep's queue, unfiltered by default and team-wide rather than\n" +
+			"personal. There are no named filters, so narrowing goes through\n" +
+			"`--filter` — `--filter current_state=scheduled` for what is still open —\n" +
+			"combined with `--sort-by due_date` and the shared paging controls. A\n" +
+			"task carries the person or account it hangs on, so filtering by those\n" +
+			"ids is how you get a single prospect's outstanding work.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -44,8 +50,12 @@ func (s *Service) newTaskListCmd(token string) *cobra.Command {
 func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Fetch one task (GET /v2/tasks/{id})",
+		Use:   "get",
+		Short: "Fetch one task (GET /v2/tasks/{id})",
+		Long: "`--id` is required. Returns the task's subject, `task_type`, `due_date`,\n" +
+			"`current_state` and the person or account it is attached to. Completing\n" +
+			"it is `task update --current-state completed`; no dedicated complete\n" +
+			"verb exists.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -65,8 +75,16 @@ func (s *Service) newTaskCreateCmd(token string) *cobra.Command {
 	var subject, taskType, dueDate, currentState, body string
 	var personID, accountID, userID int
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a task (POST /v2/tasks)",
+		Use:   "create",
+		Short: "Create a task (POST /v2/tasks)",
+		Long: "Nothing is required by the CLI, but a usable task needs at least\n" +
+			"`--subject` and `--task-type` (`call`, `email`, `general`, `other`).\n" +
+			"`--due-date` is ISO-8601 and `--current-state` is `scheduled` or\n" +
+			"`completed` — creating one straight into `completed` is how work that\n" +
+			"already happened gets logged. `--person-id` or `--account-id` attaches\n" +
+			"it to a record, and `--user-id` puts it on another rep's queue instead\n" +
+			"of the connected user's. A task is internal: creating one contacts\n" +
+			"nobody outside the team.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -90,8 +108,14 @@ func (s *Service) newTaskUpdateCmd(token string) *cobra.Command {
 	var id, subject, taskType, dueDate, currentState, body string
 	var personID, accountID, userID int
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a task (PUT /v2/tasks/{id}); set --current-state completed to finish it",
+		Use:   "update",
+		Short: "Update a task (PUT /v2/tasks/{id}); set --current-state completed to finish it",
+		Long: "`--id` is required and the write is partial: only the flags passed are\n" +
+			"sent, so the state can be changed without restating the subject or due\n" +
+			"date. Completing is the whole of the state machine here — there is no\n" +
+			"cancel or delete, and the only way back is setting `--current-state`\n" +
+			"to `scheduled` again. `--body` overrides the named flags for fields\n" +
+			"without one.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

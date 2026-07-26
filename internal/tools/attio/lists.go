@@ -10,8 +10,13 @@ import (
 // newListListCmd is `list list` (GET /v2/lists): discover pipeline/view lists.
 func (s *Service) newListListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List all lists",
+		Use:   "list",
+		Short: "List all lists",
+		Long: "Lists are pipelines and views overlaid on records, each with its own\n" +
+			"attributes. The slugs and ids here are what every `entry` command takes\n" +
+			"and what `attribute list --list <slug>` describes. A record can sit on\n" +
+			"several lists at once, and each membership is a separate entry with its\n" +
+			"own id.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -29,8 +34,12 @@ func (s *Service) newListListCmd(token string) *cobra.Command {
 // newListGetCmd is `list get <list>` (GET /v2/lists/{list}).
 func (s *Service) newListGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <list>",
-		Short:       "Get one list by slug or id",
+		Use:   "get <list>",
+		Short: "Get one list by slug or id",
+		Long: "Takes a list slug or id and returns the list's own definition — name,\n" +
+			"parent object, workspace access. Its entries are not included: query those\n" +
+			"with `entry query <list>`, and its list-scoped attributes with `attribute\n" +
+			"list --list <slug>`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 	}
@@ -50,8 +59,13 @@ func (s *Service) newListGetCmd(token string) *cobra.Command {
 func (s *Service) newEntryQueryCmd(token string) *cobra.Command {
 	var filterFlag, sortsFlag string
 	cmd := &cobra.Command{
-		Use:         "query <list>",
-		Short:       "Query a list's entries with filter/sorts",
+		Use:   "query <list>",
+		Short: "Query a list's entries with filter/sorts",
+		Long: "The pageable read for a pipeline: --filter and --sorts are Attio-wire JSON\n" +
+			"and --limit/--offset go in the request body. Filter keys are the LIST's\n" +
+			"own attribute slugs from `attribute list --list <slug>`, not the parent\n" +
+			"object's — a stage that lives on the list is not reachable through\n" +
+			"`record query`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 	}
@@ -92,8 +106,13 @@ func (s *Service) newEntryQueryCmd(token string) *cobra.Command {
 func (s *Service) newEntryAddCmd(token string) *cobra.Command {
 	var parentRecord, parentObject, valuesFlag string
 	cmd := &cobra.Command{
-		Use:         "add <list> --parent-record <id> --parent-object <o>",
-		Short:       "Add a record to a list",
+		Use:   "add <list> --parent-record <id> --parent-object <o>",
+		Short: "Add a record to a list",
+		Long: "--parent-record and --parent-object are both required, because a record id\n" +
+			"only means something together with its object. --values is optional and\n" +
+			"seeds the entry's LIST-scoped attributes — a pipeline stage, an owner on\n" +
+			"this list — which are separate from the record's own attributes and are\n" +
+			"discovered with `attribute list --list <slug>`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 	}
@@ -131,8 +150,12 @@ func (s *Service) newEntryAddCmd(token string) *cobra.Command {
 // (GET /v2/lists/{list}/entries/{entry_id}).
 func (s *Service) newEntryGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <list> <entry_id>",
-		Short:       "Get one list entry by id",
+		Use:   "get <list> <entry_id>",
+		Short: "Get one list entry by id",
+		Long: "Both arguments are positional and ordered: the list first, then the entry\n" +
+			"id. The entry carries its list-scoped values plus a pointer to the parent\n" +
+			"record; the record's own attributes are not included and need `record get\n" +
+			"<object> <record_id>`.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: readOnly,
 	}
@@ -151,8 +174,12 @@ func (s *Service) newEntryGetCmd(token string) *cobra.Command {
 // (DELETE /v2/lists/{list}/entries/{entry_id}): remove a record from a list.
 func (s *Service) newEntryRemoveCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "remove <list> <entry_id>",
-		Short:       "Remove a list entry by id",
+		Use:   "remove <list> <entry_id>",
+		Short: "Remove a list entry by id",
+		Long: "Takes the record off this ONE list; the record itself, and its entries on\n" +
+			"every other list, are untouched. This is what \"take it out of the\n" +
+			"pipeline\" means — `record delete` removes the record everywhere and is\n" +
+			"almost never the intent.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 	}
@@ -174,8 +201,13 @@ func (s *Service) newEntryUpdateCmd(token string) *cobra.Command {
 	var valuesFlag string
 	var appendMode bool
 	cmd := &cobra.Command{
-		Use:         "update <list> <entry_id> --values <json>",
-		Short:       "Update a list entry (default overwrite; --append to append multiselect)",
+		Use:   "update <list> <entry_id> --values <json>",
+		Short: "Update a list entry (default overwrite; --append to append multiselect)",
+		Long: "Same duality as `record update`: by default the values sent REPLACE the\n" +
+			"entry's list-scoped values and a multiselect is reset to exactly what is\n" +
+			"passed, while --append adds instead. It writes only the entry's\n" +
+			"list-scoped attributes — changing a field on the underlying record is\n" +
+			"`record update`.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 	}

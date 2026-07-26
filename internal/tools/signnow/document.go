@@ -92,8 +92,18 @@ func rawTimestamp(raw json.RawMessage) string {
 func (s *Service) newDocumentListCmd(token string) *cobra.Command {
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List documents (both modified/in-flight and freshly-uploaded)",
+		Use:   "list",
+		Short: "List documents (both modified/in-flight and freshly-uploaded)",
+		Long: "SignNow splits documents across two listing endpoints — one for documents\n" +
+			"that have been modified or sent, one for those uploaded but not yet\n" +
+			"touched — and a freshly-uploaded document lives ONLY in the second until\n" +
+			"its first edit. Both are fetched concurrently here and merged deduped by\n" +
+			"id, so a document that seems to have vanished right after upload is in\n" +
+			"this list; there is no need to guess an id.\n" +
+			"\n" +
+			"There is no server-side filter or cursor. --limit truncates the merged\n" +
+			"result after both endpoints have already been read, so it bounds the\n" +
+			"output rather than the work.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -162,8 +172,14 @@ func (s *Service) fetchDocs(ctx context.Context, token, path string) ([]rawDoc, 
 
 func (s *Service) newDocumentGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <document-id>",
-		Short:       "Show a document: roles, field invites, statuses, signatures",
+		Use:   "get <document-id>",
+		Short: "Show a document: roles, field invites, statuses, signatures",
+		Long: "A projection, not the raw document: roles, one entry per field invite with\n" +
+			"its id, email, role and status, plus a count of signatures collected. The\n" +
+			"invite ids in `field_invites` are the ONLY place `invite resend` can get\n" +
+			"its argument from. Field geometry and element definitions are deliberately\n" +
+			"not returned. Read this to answer \"who has signed and who is still\n" +
+			"pending\" before nudging anyone.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -185,8 +201,15 @@ func (s *Service) newDocumentUploadCmd(token string) *cobra.Command {
 	var file, name string
 	var extractFields bool
 	cmd := &cobra.Command{
-		Use:         "upload",
-		Short:       "Upload a PDF/DOCX to start a signature flow",
+		Use:   "upload",
+		Short: "Upload a PDF/DOCX to start a signature flow",
+		Long: "--file is read whole into memory and posted; --name defaults to the file's\n" +
+			"basename and becomes the document name signers see. --extract-fields\n" +
+			"routes to a different endpoint that reads text tags already embedded in\n" +
+			"the file and turns them into fillable fields, which skips `document\n" +
+			"add-fields` entirely for a prepared PDF — without it the document arrives\n" +
+			"with no fields at all. Prints the new document id, which everything\n" +
+			"downstream needs.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -221,8 +244,17 @@ func (s *Service) newDocumentUploadCmd(token string) *cobra.Command {
 func (s *Service) newDocumentAddFieldsCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:         "add-fields <document-id>",
-		Short:       "Add fillable fields (signature/text/date) to a document",
+		Use:   "add-fields <document-id>",
+		Short: "Add fillable fields (signature/text/date) to a document",
+		Long: "--fields is a JSON array of field objects carrying x, y, page_number, type\n" +
+			"and role. Coordinates are in the document's own space and page_number is\n" +
+			"zero-based, so they have to come from the actual layout rather than being\n" +
+			"guessed — `document upload --extract-fields` is the alternative when the\n" +
+			"file already carries text tags.\n" +
+			"\n" +
+			"Adding fields changes how the document can be sent: once it has fields,\n" +
+			"the free-form `invite send --email` is refused and a role-based `invite\n" +
+			"send --to` naming these roles is required.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -248,8 +280,13 @@ func (s *Service) newDocumentDownloadCmd(token string) *cobra.Command {
 	var out string
 	var withHistory bool
 	cmd := &cobra.Command{
-		Use:         "download <document-id>",
-		Short:       "Download the executed PDF (collapsed)",
+		Use:   "download <document-id>",
+		Short: "Download the executed PDF (collapsed)",
+		Long: "--out is required; the PDF is written to that path and the command prints\n" +
+			"`{\"saved_to\":…,\"bytes\":N}` rather than the file itself. The download is\n" +
+			"always the collapsed form — fields flattened into the page — and\n" +
+			"--with-history appends SignNow's audit trail, which is what an executed\n" +
+			"agreement usually needs for evidence.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -277,8 +314,13 @@ func (s *Service) newDocumentDownloadCmd(token string) *cobra.Command {
 
 func (s *Service) newDocumentDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <document-id>",
-		Short:       "Delete a document",
+		Use:   "delete <document-id>",
+		Short: "Delete a document",
+		Long: "Permanent, and it takes the signature record with it — the executed PDF\n" +
+			"and its audit trail are no longer retrievable afterwards. For anything\n" +
+			"that has been signed, run `document download --with-history` first.\n" +
+			"Withdrawing an in-flight request without destroying the record is `invite\n" +
+			"cancel`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

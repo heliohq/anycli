@@ -18,6 +18,12 @@ type resourceDef struct {
 	word  string
 	short string
 	path  string
+	// listLong and getLong are the `Long` for this resource's two leaves. Both
+	// leaves are built by shared constructors, so the prose that separates a
+	// settlement from a subscription travels on the spec; the texts are the
+	// long* consts below.
+	listLong string
+	getLong  string
 }
 
 // resources is the AI-relevant, read-mostly gateway surface a payments/finance
@@ -26,13 +32,13 @@ type resourceDef struct {
 // second pass and are not registered here. RazorpayX banking (payouts) is a
 // separate, higher-risk scope family and is out of this tool's first scope.
 var resources = []resourceDef{
-	{word: "payment", short: "Payments", path: "/payments"},
-	{word: "order", short: "Orders", path: "/orders"},
-	{word: "refund", short: "Refunds", path: "/refunds"},
-	{word: "customer", short: "Customers", path: "/customers"},
-	{word: "payment-link", short: "Payment links", path: "/payment_links"},
-	{word: "settlement", short: "Settlements", path: "/settlements"},
-	{word: "subscription", short: "Subscriptions", path: "/subscriptions"},
+	{word: "payment", short: "Payments", path: "/payments", listLong: longPaymentList, getLong: longPaymentGet},
+	{word: "order", short: "Orders", path: "/orders", listLong: longOrderList, getLong: longOrderGet},
+	{word: "refund", short: "Refunds", path: "/refunds", listLong: longRefundList, getLong: longRefundGet},
+	{word: "customer", short: "Customers", path: "/customers", listLong: longCustomerList, getLong: longCustomerGet},
+	{word: "payment-link", short: "Payment links", path: "/payment_links", listLong: longPaymentLinkList, getLong: longPaymentLinkGet},
+	{word: "settlement", short: "Settlements", path: "/settlements", listLong: longSettlementList, getLong: longSettlementGet},
+	{word: "subscription", short: "Subscriptions", path: "/subscriptions", listLong: longSubscriptionList, getLong: longSubscriptionGet},
 }
 
 // newResourceCmd builds the `<resource>` group with its `list` and `get`
@@ -52,6 +58,7 @@ func (s *Service) newListCmd(token string, r resourceDef) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "list",
 		Short:       fmt.Sprintf("List %s", r.short),
+		Long:        r.listLong,
 		Annotations: map[string]string{sideEffectAnnotation: "false"},
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -70,6 +77,7 @@ func (s *Service) newGetCmd(token string, r resourceDef) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "get <id>",
 		Short:       fmt.Sprintf("Fetch one %s by id", r.word),
+		Long:        r.getLong,
 		Annotations: map[string]string{sideEffectAnnotation: "false"},
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -33,8 +33,26 @@ var validVisibilities = map[string]bool{"public": true, "unlisted": true, "priva
 
 func (rt *runContext) newPostCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Post a status (text, reply, content warning, visibility, media)",
+		Use:   "create",
+		Short: "Post a status (text, reply, content warning, visibility, media)",
+		Long: "Publishes to a real account on an open federation; other servers hold\n" +
+			"copies within seconds, which is why `post delete` cannot truly unpublish.\n" +
+			"Requires `--text` or at least one `--image`. `--reply-to <id>` makes it a\n" +
+			"reply, which is a full status of its own. `--cw` hides the body behind a\n" +
+			"content warning, `--lang` takes an ISO 639 code, and `--visibility` is\n" +
+			"`public`, `unlisted` (not on public timelines), `private` (followers only)\n" +
+			"or `direct` (only the accounts mentioned in the text) — omitted, the\n" +
+			"account's own default applies.\n" +
+			"\n" +
+			"Up to 4 `--image` attachments, each paired POSITIONALLY with an `--alt`:\n" +
+			"the first alt belongs to the first image. A missing alt is a warning on\n" +
+			"stderr rather than an error, and leaves the picture unreadable to\n" +
+			"screen-reader users. Media the server processes asynchronously is waited\n" +
+			"out before the status is created.\n" +
+			"\n" +
+			"The request carries an Idempotency-Key derived from the parameters, so a\n" +
+			"retry with identical arguments returns the already-created status instead\n" +
+			"of posting twice.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE:        rt.runPostCreate,
@@ -257,8 +275,13 @@ func (rt *runContext) waitForMedia(ctx context.Context, id string) error {
 
 func (rt *runContext) newPostDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a status",
+		Use:   "delete",
+		Short: "Delete a status",
+		Long: "Removes the status from this instance and returns its contents — Mastodon's\n" +
+			"delete response is the deleted status itself, which is what makes\n" +
+			"delete-and-redraft possible. Federation is best-effort: instances that\n" +
+			"already received a copy are ASKED to drop it and nothing guarantees they\n" +
+			"do, so this is not a retraction of something already read.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -283,8 +306,15 @@ func (rt *runContext) newPostDeleteCmd() *cobra.Command {
 
 func (rt *runContext) newPostGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Read a status and its thread context",
+		Use:   "get",
+		Short: "Read a status and its thread context",
+		Long: "`--id` is required. Returns the status plus its thread: `ancestors` — what\n" +
+			"it replied to, up to the root — and `descendants`, the replies below it,\n" +
+			"which is how a whole conversation is read in one call. The context is a\n" +
+			"SECOND request and is best-effort: if it fails the status still comes back\n" +
+			"and the ancestor and descendant keys are simply absent, so their absence\n" +
+			"does not prove the post has no thread. Descendants are bounded by\n" +
+			"federation — replies from servers this instance does not know are missing.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -77,8 +77,33 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(apiKey, base string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "freshdesk",
-		Short:         "Freshdesk built-in service",
+		Use:   "freshdesk",
+		Short: "Freshdesk built-in service",
+		Long: "Calls the Freshdesk v2 REST API against one helpdesk's own host,\n" +
+			"https://<domain>.freshdesk.com/api/v2. The subdomain is half the\n" +
+			"credential and is not derivable from the API key, so a key alone cannot\n" +
+			"reach the right helpdesk.\n" +
+			"\n" +
+			"Status and priority are integers everywhere they appear, on read and on\n" +
+			"write: status 2 Open, 3 Pending, 4 Resolved, 5 Closed; priority 1 Low,\n" +
+			"2 Medium, 3 High, 4 Urgent.\n" +
+			"\n" +
+			"Reply, note and description bodies are HTML, not plain text — wrap them in\n" +
+			"`<p>`. A bare newline in a plain string renders as nothing.\n" +
+			"\n" +
+			"There are two read paths and they are not interchangeable. The `list`\n" +
+			"commands take fixed exact-match filters (requester, company,\n" +
+			"updated-since, Freshdesk's own named views) and page without a ceiling.\n" +
+			"The `search` commands take Freshdesk's query language, which is the only\n" +
+			"way to filter on status, priority or a name — but they return 30 rows a\n" +
+			"page and stop at page 10, so about 300 matches is all a query can ever\n" +
+			"yield.\n" +
+			"\n" +
+			"Paging is explicit and never auto-followed. `--page` with `--per-page`,\n" +
+			"which Freshdesk defaults to 30 and caps at 100; walking a large queue is\n" +
+			"the caller's job. `contact`, `company` and `agent` are three distinct\n" +
+			"populations — requesters, the B2B accounts they belong to, and the\n" +
+			"helpdesk's own staff — and their ids are not interchangeable.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

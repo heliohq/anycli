@@ -53,7 +53,14 @@ func (s *Service) newEventsListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List events; a --start/--end window queries /me/calendarView, otherwise /me/events",
-		Args:  cobra.NoArgs,
+		Long: "Passing `--start` and `--end` (both or neither) switches the read to Graph's\n" +
+			"calendar view, which expands a recurring series into the individual\n" +
+			"occurrences that fall inside the window; without a window the plain event\n" +
+			"listing returns each series once, ordered by start time. `--max` is the\n" +
+			"page size and defaults to 10. `--filter` is raw OData, forwarded\n" +
+			"untouched. `--page` takes the whole nextLink URL printed after the last\n" +
+			"row, and that URL already carries the original window and filter.",
+		Args: cobra.NoArgs,
 		// GET /me/events or /me/calendarView — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -123,7 +130,12 @@ func (s *Service) newEventsGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <event-id>",
 		Short: "Show one event (GET /me/events/{id})",
-		Args:  cobra.ExactArgs(1),
+		Long: "Takes the opaque Graph event id from `events list`, not a subject. The\n" +
+			"default output is a summary: subject, window, location, organizer, join\n" +
+			"URL and a cancelled marker. The attendee list, response status, body and\n" +
+			"recurrence pattern are in the provider payload but only reach stdout\n" +
+			"under `--json`.",
+		Args: cobra.ExactArgs(1),
 		// GET /me/events/{id} — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -164,7 +176,14 @@ func (s *Service) newEventsCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create an event (POST /me/events)",
-		Args:  cobra.NoArgs,
+		Long: "`--start` and `--end` are zone-less ISO 8601 timestamps read in\n" +
+			"`--timezone`, which defaults to UTC — pass the user's own zone or a slot\n" +
+			"picked from their wall clock lands hours away. Every `--attendees` address\n" +
+			"is added as a REQUIRED attendee and invited by mail the moment the event\n" +
+			"is created; there is no optional-attendee tier and no silent create.\n" +
+			"`--online` turns it into a Teams meeting whose join URL comes back on the\n" +
+			"created event. The event lands on the default calendar.",
+		Args: cobra.NoArgs,
 		// POST /me/events — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -220,7 +239,13 @@ func (s *Service) newEventsUpdateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <event-id>",
 		Short: "Update an event's time/subject/location (PATCH /me/events/{id})",
-		Args:  cobra.ExactArgs(1),
+		Long: "Patches only the fields passed, and at least one of `--subject`, `--start`,\n" +
+			"`--end` or `--location` is required. Moving one edge of the window without\n" +
+			"the other silently changes the meeting's duration, so send both `--start`\n" +
+			"and `--end` to reschedule; `--timezone` applies to whichever is given and\n" +
+			"defaults to UTC. Attendees cannot be added or removed here. A time change\n" +
+			"on a meeting mails the existing attendees an update.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /me/events/{id} — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -264,7 +289,13 @@ func (s *Service) newEventsCancelCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cancel <event-id>",
 		Short: "Cancel an event and notify attendees (POST /me/events/{id}/cancel)",
-		Args:  cobra.ExactArgs(1),
+		Long: "The organizer-side removal, and the only one: no delete verb exists. Graph\n" +
+			"mails a cancellation notice to every attendee, carrying `--comment`, and\n" +
+			"marks the event cancelled rather than erasing it, so it keeps showing up\n" +
+			"in `events list` with a cancelled marker. This action is valid only on\n" +
+			"events the connected account organizes — to get off someone else's\n" +
+			"meeting use `events respond --action decline`.",
+		Args: cobra.ExactArgs(1),
 		// POST /me/events/{id}/cancel — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -300,7 +331,13 @@ func (s *Service) newEventsRespondCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "respond <event-id>",
 		Short: "Respond to an invite: accept | decline | tentative",
-		Args:  cobra.ExactArgs(1),
+		Long: "For meetings the connected account was invited to; it is not the way to\n" +
+			"drop a meeting that account organizes (that is `events cancel`).\n" +
+			"`--action` is accept, decline or tentative, validated before the call.\n" +
+			"The organizer is mailed the reply with `--comment` attached; `--no-notify`\n" +
+			"records the response on the calendar but leaves the organizer seeing no\n" +
+			"answer at all.",
+		Args: cobra.ExactArgs(1),
 		// POST /me/events/{id}/{accept|decline|tentativelyAccept} — mutating
 		// provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},

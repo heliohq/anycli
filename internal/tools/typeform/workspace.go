@@ -15,8 +15,13 @@ func (s *Service) newWorkspaceListCmd(token string) *cobra.Command {
 	var search string
 	var page, pageSize int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List workspaces (GET /workspaces)",
+		Use:   "list",
+		Short: "List workspaces (GET /workspaces)",
+		Long: "--search matches the workspace NAME as a substring. --page-size defaults\n" +
+			"to 10 and caps at 200; advance --page yourself. The ids returned here are\n" +
+			"what `form list --workspace-id` takes and what a form definition's\n" +
+			"`workspace` href points at, so this is the lookup step before creating a\n" +
+			"form somewhere specific.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -47,8 +52,11 @@ func (s *Service) newWorkspaceListCmd(token string) *cobra.Command {
 // (GET /workspaces/{id}). Output JSON.
 func (s *Service) newWorkspaceGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <workspace_id>",
-		Short:       "Retrieve a workspace (GET /workspaces/{id})",
+		Use:   "get <workspace_id>",
+		Short: "Retrieve a workspace (GET /workspaces/{id})",
+		Long: "Takes the workspace id, not its name — resolve one with `workspace list\n" +
+			"--search <name>`. Returns the workspace record itself, not the forms\n" +
+			"inside it; enumerate those with `form list --workspace-id`.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,8 +77,13 @@ func (s *Service) newWorkspaceGetCmd(token string) *cobra.Command {
 func (s *Service) newWorkspaceCreateCmd(token string) *cobra.Command {
 	var name string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a workspace (POST /workspaces)",
+		Use:   "create",
+		Short: "Create a workspace (POST /workspaces)",
+		Long: "--name is the only field the request body carries; theme, members and\n" +
+			"sharing are not settable here and there is no update or delete command for\n" +
+			"workspaces in this tool. The workspace is created in the account where the\n" +
+			"connected user holds the organisation-owner role. The new id comes back in\n" +
+			"the response and can go straight into `form list --workspace-id`.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

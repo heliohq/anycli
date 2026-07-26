@@ -23,7 +23,13 @@ func (s *Service) newCommentCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Comment on a page/block, or reply to a discussion",
-		Args:  cobra.NoArgs,
+		Long: "Exactly one of --page-id, --block-id or --discussion-id: the first two open\n" +
+			"a new discussion on that page or block, the third replies into an existing\n" +
+			"thread. --content is Notion-flavored MARKDOWN rather than plaintext, so\n" +
+			"inline bold, italic, strikethrough, code, links, inline equations and\n" +
+			"@mentions all render. Nothing here edits, deletes or resolves a comment\n" +
+			"once posted.",
+		Args: cobra.NoArgs,
 		// POST /comments
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
@@ -78,7 +84,11 @@ func (s *Service) newCommentListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list <page-id>",
 		Short: "List comments on a page",
-		Args:  cobra.ExactArgs(1),
+		Long: "Returns UNRESOLVED comments only — a discussion someone resolved in the UI\n" +
+			"is absent, so an empty result is not proof that nothing was said. A page\n" +
+			"is itself a block, which is why the page id is what this takes. Paginated:\n" +
+			"--all drains every page, otherwise follow the cursor yourself.",
+		Args: cobra.ExactArgs(1),
 		// GET /comments
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
@@ -121,7 +131,15 @@ func (s *Service) newUserGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get [self|<user-id>]",
 		Short: "Get the current user (self), a user by id, search users (--query), or list all users",
-		Args:  cobra.MaximumNArgs(1),
+		Long: "Four forms, and a positional argument together with --query is a usage\n" +
+			"error. `self` reads the connected integration's own bot user. A user id\n" +
+			"reads one user, including guests the listing leaves out. --query lists\n" +
+			"everyone and keeps case-insensitive substring matches on name OR email,\n" +
+			"answering with an empty list rather than an error when nothing matches.\n" +
+			"No argument at all pages through every user and aggregates them into one\n" +
+			"envelope. This is how a `created_by` or `last_edited_by` id from any other\n" +
+			"response becomes a name.",
+		Args: cobra.MaximumNArgs(1),
 		// GET /users, /users/me, /users/{id}
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}
@@ -231,7 +249,12 @@ func (s *Service) newTaskGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <task-id>",
 		Short: "Get an async task's status",
-		Args:  cobra.ExactArgs(1),
+		Long: "A task id only exists for a write that carried --allow-async AND markdown\n" +
+			"content; the --allow-async path polls this endpoint internally, so the\n" +
+			"manual call is mainly for resuming after an auto-poll timed out. A\n" +
+			"template-based create such as `page duplicate` returns synchronously and\n" +
+			"hands back no task, so polling for one there never completes.",
+		Args: cobra.ExactArgs(1),
 		// GET task status
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 	}

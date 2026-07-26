@@ -12,8 +12,15 @@ import (
 // assistant runs it first, then targets a specific account with --customer-id.
 func (s *Service) newAccountsListCmd(c creds) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List reachable customer accounts (GET customers:listAccessibleCustomers)",
+		Use:   "list",
+		Short: "List reachable customer accounts (GET customers:listAccessibleCustomers)",
+		Long: "The only command that needs no `--customer-id`, and the source of the ids\n" +
+			"every other one does need. Returns bare `resourceNames` of the form\n" +
+			"`customers/1234567890` — no account names, currencies or status, so a\n" +
+			"human-readable label has to come from a `query` against `customer_client`.\n" +
+			"It ignores `--login-customer-id` entirely and reports what the OAuth user\n" +
+			"can reach directly, which is why a manager account may list fewer accounts\n" +
+			"here than it can actually operate on.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

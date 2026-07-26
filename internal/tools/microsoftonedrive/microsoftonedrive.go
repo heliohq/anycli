@@ -99,8 +99,30 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "microsoft-onedrive",
-		Short:         "Microsoft OneDrive built-in service",
+		Use:   "microsoft-onedrive",
+		Short: "Microsoft OneDrive built-in service",
+		Long: "Projects the connected account's OWN OneDrive. Shared libraries,\n" +
+			"SharePoint sites and other people's drives are out of reach — a team\n" +
+			"library path will not resolve, and no command switches drive. Say that\n" +
+			"rather than guessing a path when the user points at a shared location.\n" +
+			"\n" +
+			"An item is addressed either by its opaque Graph item id (the positional\n" +
+			"argument) or by a root-relative `--path` such as\n" +
+			"/Documents/report.docx; the two are mutually exclusive, and ids come from\n" +
+			"`items list` or `search`. Watch which form each flag wants: `items move\n" +
+			"--to` and `items mkdir --parent` take a folder ID, while `upload --to`\n" +
+			"takes a folder PATH.\n" +
+			"\n" +
+			"Paging is a whole URL, not a number: a list prints the Graph\n" +
+			"`@odata.nextLink` and `--page` takes that entire URL back. `search` has no\n" +
+			"page flag at all — it returns a single page, so raise its `--max`.\n" +
+			"\n" +
+			"`--json` returns the raw Graph DriveItem (webUrl, parentReference, hashes);\n" +
+			"the default output is a trimmed one-line-per-item summary.\n" +
+			"\n" +
+			"Writes land immediately. `items delete` moves items to the recycle bin and\n" +
+			"nothing here restores them or purges it — recovery is a manual step in the\n" +
+			"OneDrive web UI, and there is no permanent-delete verb.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

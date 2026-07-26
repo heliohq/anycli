@@ -146,8 +146,26 @@ func (s *Service) stderr() io.Writer {
 // agreement / library / document groups, each a runnable group.
 func (s *Service) newRoot(token, baseURI string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "adobe-sign",
-		Short:         "Adobe Acrobat Sign built-in service (e-signature agreements, REST API v6)",
+		Use:   "adobe-sign",
+		Short: "Adobe Acrobat Sign built-in service (e-signature agreements, REST API v6)",
+		Long: "The unit of work is an AGREEMENT: a document sent to recipients for\n" +
+			"signature, tracked to completion, then downloaded. Agreements are the only\n" +
+			"thing that can be created here — `library` and `document` exist to feed one.\n" +
+			"\n" +
+			"Adobe's status enum passes through verbatim in `status`: OUT_FOR_SIGNATURE,\n" +
+			"SIGNED, CANCELLED, WAITING_FOR_MY_SIGNATURE and the rest. SIGNED is the\n" +
+			"terminal success state and the one `agreement download` needs. A fresh send\n" +
+			"reports IN_PROCESS, which is the state it was created in, not a confirmation\n" +
+			"that anyone has seen it — re-read with `agreement get`.\n" +
+			"\n" +
+			"`--json` switches every command to a stable snake_case envelope\n" +
+			"(`agreement_id`, `page_cursor`, `participants`); without it the provider's\n" +
+			"own camelCase body is printed verbatim, and the two shapes are not\n" +
+			"interchangeable. Pick one and parse for it.\n" +
+			"\n" +
+			"Adobe's refresh token dies after 60 days of INACTIVITY, not at a fixed\n" +
+			"expiry. A connection nobody has used for two months reports that it needs\n" +
+			"reconnecting; nothing in-band can revive it.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

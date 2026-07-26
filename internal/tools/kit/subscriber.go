@@ -24,8 +24,14 @@ func (s *Service) subscriberCmd(token string) *cobra.Command {
 func (s *Service) subscriberListCmd(token string) *cobra.Command {
 	var status, emailAddress, createdAfter, createdBefore string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List subscribers (one page; use --after to continue)",
+		Use:   "list",
+		Short: "List subscribers (one page; use --after to continue)",
+		Long: "Kit filters to ACTIVE subscribers unless --status says otherwise, so\n" +
+			"bounced, complained and cancelled records are invisible on a bare call —\n" +
+			"pass --status all to see the whole list. --email is an exact lookup and is\n" +
+			"the way to resolve an address to the numeric id every other subscriber\n" +
+			"verb needs. --created-after and --created-before take ISO8601 timestamps.\n" +
+			"One page per call; continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -60,8 +66,11 @@ func (s *Service) subscriberListCmd(token string) *cobra.Command {
 
 func (s *Service) subscriberGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Show one subscriber",
+		Use:   "get <id>",
+		Short: "Show one subscriber",
+		Long: "Takes the numeric subscriber id. There is no lookup by email address here\n" +
+			"— `subscriber list --email <address>` is the resolver, and its result\n" +
+			"carries the id this needs.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -78,8 +87,17 @@ func (s *Service) subscriberCreateCmd(token string) *cobra.Command {
 	var email, firstName, state string
 	var fields map[string]string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create or upsert a subscriber",
+		Use:   "create",
+		Short: "Create or upsert a subscriber",
+		Long: "An upsert keyed on --email: an address already on the list comes back\n" +
+			"updated rather than duplicated, so this is safe to re-run. --fields takes\n" +
+			"repeatable key=value pairs whose keys must already exist as custom fields\n" +
+			"— check `custom-field list` first, since an unrecognised key is not\n" +
+			"created implicitly. --state is active or inactive.\n" +
+			"\n" +
+			"Note that adding someone this way runs no form logic and triggers no\n" +
+			"automation; entering a subscriber into a funnel is `form add` or `tag\n" +
+			"add`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -118,8 +136,13 @@ func (s *Service) subscriberUpdateCmd(token string) *cobra.Command {
 	var email, firstName string
 	var fields map[string]string
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update a subscriber's attributes",
+		Use:   "update <id>",
+		Short: "Update a subscriber's attributes",
+		Long: "Only the flags actually passed are sent, and --fields merges the custom\n" +
+			"fields it names while leaving the rest alone. At least one flag is\n" +
+			"required. Changing --email rewrites the identity the whole account keys\n" +
+			"on, including how `subscriber list --email` and every membership command\n" +
+			"find this person. Unlike `subscriber create` there is no --state here.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -155,8 +178,12 @@ func (s *Service) subscriberUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) subscriberUnsubscribeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "unsubscribe <id>",
-		Short:       "Unsubscribe a subscriber",
+		Use:   "unsubscribe <id>",
+		Short: "Unsubscribe a subscriber",
+		Long: "Marks the subscriber inactive rather than deleting them: the record, its\n" +
+			"tags and its history all survive and stop receiving mail. There is no undo\n" +
+			"verb here. The id must be a positive integer and is checked locally, so an\n" +
+			"email address passed by mistake fails before any request goes out.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

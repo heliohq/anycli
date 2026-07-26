@@ -17,8 +17,16 @@ func (s *Service) newFollowerListCmd(rc *reqCtx) *cobra.Command {
 		page          paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List a channel's followers (self by default)",
+		Use:   "list",
+		Short: "List a channel's followers (self by default)",
+		Long: "Requires the moderator:read:followers scope AND the connected account\n" +
+			"being the broadcaster or a moderator of the target channel — reading a\n" +
+			"channel where it holds neither role returns 401 or 403 rather than a\n" +
+			"partial list. Defaults to the connected account's own channel.\n" +
+			"\n" +
+			"--user-id turns this into a membership check for one person: does this\n" +
+			"user follow the channel, answered in a single call instead of paging every\n" +
+			"follower.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -51,8 +59,12 @@ func (s *Service) newFollowerListCmd(rc *reqCtx) *cobra.Command {
 func (s *Service) newSubscriberListCmd(rc *reqCtx) *cobra.Command {
 	var page paginationFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List your channel's subscribers",
+		Use:   "list",
+		Short: "List your channel's subscribers",
+		Long: "Always the connected account's own channel — there is deliberately no\n" +
+			"--broadcaster-id flag, because Twitch lets a broadcaster read nobody\n" +
+			"else's subscriptions. Requires the channel:read:subscriptions scope.\n" +
+			"--first is capped at 100; continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -91,8 +103,19 @@ func (s *Service) newChatSendCmd(rc *reqCtx) *cobra.Command {
 		replyParentMsg string
 	)
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a chat message to a channel (self by default)",
+		Use:   "send",
+		Short: "Send a chat message to a channel (self by default)",
+		Long: "Posts publicly and immediately as the connected account, into its own\n" +
+			"channel by default or another with --broadcaster-id. There is no edit or\n" +
+			"delete here. --reply-parent-message-id threads the message under an\n" +
+			"existing one.\n" +
+			"\n" +
+			"Twitch can refuse the send even with the user:write:chat scope granted:\n" +
+			"account phone verification, the channel's own chat settings\n" +
+			"(followers-only, subscriber-only, slow mode) and per-account rate limits\n" +
+			"all apply. Such a refusal is a rule rather than a transient failure, so\n" +
+			"the Helix `message` in the error is the thing to read — retrying the same\n" +
+			"call will be refused again.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -135,8 +158,14 @@ func (s *Service) newChattersCmd(rc *reqCtx) *cobra.Command {
 		page          paginationFlags
 	)
 	cmd := &cobra.Command{
-		Use:         "chatters",
-		Short:       "List users connected to a channel's chat (self by default)",
+		Use:   "chatters",
+		Short: "List users connected to a channel's chat (self by default)",
+		Long: "Who is CONNECTED to the chat right now, not who has spoken — the list\n" +
+			"turns over constantly, so it is a snapshot rather than an audience roster.\n" +
+			"Requires the moderator:read:chatters scope, and the moderator identity\n" +
+			"sent is always the connected account, so another channel only works where\n" +
+			"that account is its broadcaster or a moderator. --first is capped at 100;\n" +
+			"continue with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

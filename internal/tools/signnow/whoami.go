@@ -21,8 +21,13 @@ type rawUser struct {
 
 func (s *Service) newWhoamiCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "whoami",
-		Short:       "Show the authenticated SignNow account",
+		Use:   "whoami",
+		Short: "Show the authenticated SignNow account",
+		Long: "Returns the account id, primary email and name. That primary email is also\n" +
+			"the default sender `invite send` uses when --from is omitted, so this is\n" +
+			"how to tell which address a signature request will appear to come from\n" +
+			"before sending one. Also the cheapest check that the credential still\n" +
+			"works.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

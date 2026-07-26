@@ -12,8 +12,14 @@ func (s *Service) newPersonSearchCmd(key string) *cobra.Command {
 	var email, filter, start string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Find a person by email (GET /v1/customers) or filter people by segment/attributes (POST /v1/customers)",
+		Use:   "search",
+		Short: "Find a person by email (GET /v1/customers) or filter people by segment/attributes (POST /v1/customers)",
+		Long: "Exactly one of --email or --filter is required; they are two different\n" +
+			"endpoints behind one verb. --email is an exact match, not a prefix or\n" +
+			"domain search. --filter takes a raw Customer.io filter object — and/or/not\n" +
+			"over segment and attribute conditions — and is the only way to select\n" +
+			"people by anything other than an address. Results page with --start and\n" +
+			"--limit. This resolves the id every other `person` command needs.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -59,8 +65,13 @@ func (s *Service) newPersonSearchCmd(key string) *cobra.Command {
 func (s *Service) newPersonGetCmd(key string) *cobra.Command {
 	var id, idType string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a person's profile attributes (GET /v1/customers/{id}/attributes)",
+		Use:   "get",
+		Short: "Get a person's profile attributes (GET /v1/customers/{id}/attributes)",
+		Long: "Returns profile attributes only. Segment membership, delivery history and\n" +
+			"the activity log are three separate calls (`person segments`, `person\n" +
+			"messages`, `person activities`), so a full picture of one person costs\n" +
+			"four requests. Attributes are read-only here — writing them is Track API\n" +
+			"territory, which this tool does not wrap.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -80,8 +91,12 @@ func (s *Service) newPersonGetCmd(key string) *cobra.Command {
 func (s *Service) newPersonSegmentsCmd(key string) *cobra.Command {
 	var id, idType string
 	cmd := &cobra.Command{
-		Use:         "segments",
-		Short:       "List the segments a person is in (GET /v1/customers/{id}/segments)",
+		Use:   "segments",
+		Short: "List the segments a person is in (GET /v1/customers/{id}/segments)",
+		Long: "Answers \"why did this person get that message\" from the audience side. The\n" +
+			"inverse question — who is in a given segment — is `segment members`, and\n" +
+			"the count alone is `segment get --count`. Not paginated: one response per\n" +
+			"person.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -102,8 +117,13 @@ func (s *Service) newPersonMessagesCmd(key string) *cobra.Command {
 	var id, idType, start string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "messages",
-		Short:       "List a person's delivery history (GET /v1/customers/{id}/messages)",
+		Use:   "messages",
+		Short: "List a person's delivery history (GET /v1/customers/{id}/messages)",
+		Long: "The direct answer to \"did they actually receive it\": every delivery\n" +
+			"attempted to this person, each carrying its own outcome, so a message that\n" +
+			"bounced or was suppressed shows up here rather than silently missing.\n" +
+			"Pages with --start and --limit. Searching deliveries across everyone\n" +
+			"instead is `message list`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -132,8 +152,12 @@ func (s *Service) newPersonActivitiesCmd(key string) *cobra.Command {
 	var id, idType, activityType, start string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "activities",
-		Short:       "List a person's activity log (GET /v1/customers/{id}/activities)",
+		Use:   "activities",
+		Short: "List a person's activity log (GET /v1/customers/{id}/activities)",
+		Long: "The behavioural log behind a person's segment membership: events they\n" +
+			"triggered and attribute changes over time. --type narrows the stream to\n" +
+			"one activity kind, which matters because an active profile can otherwise\n" +
+			"fill several pages of --start / --limit before reaching anything relevant.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -150,8 +150,29 @@ func (s *Service) stderr() io.Writer {
 // webhook).
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "typeform",
-		Short:         "Typeform built-in service (forms, responses, workspaces, webhooks)",
+		Use:   "typeform",
+		Short: "Typeform built-in service (forms, responses, workspaces, webhooks)",
+		Long: "A response's `answers` identify their question only by a field `id`/`ref`,\n" +
+			"never by the question's visible text. Reading responses is therefore two\n" +
+			"calls: `form get` for the field dictionary (ids, refs, types, choice\n" +
+			"labels) and `response list` for the answers, joined on\n" +
+			"`answers[].field.ref`. Nothing here resolves titles on its own.\n" +
+			"\n" +
+			"Forms are edited whole, not in pieces. `form update` is a PUT of the\n" +
+			"complete definition and the only way to add, remove or reorder questions;\n" +
+			"`form patch` is a JSON-Patch array the API restricts to metadata paths.\n" +
+			"\n" +
+			"Every command prints the provider's own JSON untransformed; --json only\n" +
+			"changes the shape of errors on stderr. Writes take effect immediately —\n" +
+			"any form the connected account can reach can be overwritten or deleted,\n" +
+			"and nothing in this tool restores one.\n" +
+			"\n" +
+			"Only Typeform's global data center is reachable here. An account homed in\n" +
+			"the EU data center returns no data through this tool, and reconnecting\n" +
+			"does not change that.\n" +
+			"\n" +
+			"The token is rate-limited at roughly 2 requests per second. A 429 is\n" +
+			"surfaced verbatim; back off rather than retrying in a loop.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

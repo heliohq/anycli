@@ -14,8 +14,12 @@ func (s *Service) newRecipientListCmd(token string) *cobra.Command {
 	var limit int
 	var startAfter, endBefore string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List payment recipients (GET /recipients)",
+		Use:   "list",
+		Short: "List payment recipients (GET /recipients)",
+		Long: "Recipients are the organization's saved payees. Their presence says\n" +
+			"nothing about whether money ever moved to them — that lives in\n" +
+			"`transaction list` under `counterpartyName`. Cursor-paged with\n" +
+			"--start-after and --end-before, which take a recipient id.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -45,8 +49,11 @@ func (s *Service) newRecipientListCmd(token string) *cobra.Command {
 // newRecipientGetCmd fetches one recipient (GET /recipient/{id}).
 func (s *Service) newRecipientGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <recipient-id>",
-		Short:       "Get one recipient by id (GET /recipient/{id})",
+		Use:   "get <recipient-id>",
+		Short: "Get one recipient by id (GET /recipient/{id})",
+		Long: "Takes the recipient id positionally from `recipient list`. The response\n" +
+			"carries the payee's banking details, so the output is sensitive. It\n" +
+			"describes the payee record only and never their payment history.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, args []string) error {

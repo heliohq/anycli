@@ -28,8 +28,14 @@ func (s *Service) newTicketListCmd(c *client) *cobra.Command {
 	var include []string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List tickets (GET /tickets). Use `ticket search` to filter by status/priority.",
+		Use:   "list",
+		Short: "List tickets (GET /tickets). Use `ticket search` to filter by status/priority.",
+		Long: "--filter takes Freshdesk's own named views — new_and_my_open, watching,\n" +
+			"spam, deleted — and nothing else; there is no status or priority filter on\n" +
+			"this endpoint. --include accepts stats, requester and description, and\n" +
+			"description folds each ticket's body into the list, saving one\n" +
+			"`ticket get` per row. For polling a queue, --updated-since with an\n" +
+			"ISO-8601 timestamp is far cheaper than re-reading the whole filter.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -68,8 +74,13 @@ func (s *Service) newTicketGetCmd(c *client) *cobra.Command {
 	var id string
 	var include []string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a ticket (GET /tickets/{id})",
+		Use:   "get",
+		Short: "Get a ticket (GET /tickets/{id})",
+		Long: "--include is the reason to reach for this rather than the list:\n" +
+			"conversations, requester, company and stats are embedded in the single\n" +
+			"response, so `--include conversations,requester` answers what was said and\n" +
+			"by whom in one request. Without it the ticket carries ids only. The thread\n" +
+			"on its own, paged, is `ticket conversations`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -96,14 +107,14 @@ func (s *Service) newTicketCreateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a ticket (POST /tickets)",
-		Long: "Create a ticket (POST /tickets).\n\n" +
-			"The only field the API requires is a requester identifier — pass\n" +
-			"--email or --requester-id. Status, priority, subject, and description\n" +
-			"are optional: Freshdesk defaults status to 2 (Open) and priority to 1\n" +
-			"(Low) when they are omitted. Passing explicit --status and --priority\n" +
-			"is still good practice so the ticket lands in the state you intend.\n" +
-			"Status: 2 Open|3 Pending|4 Resolved|5 Closed. Priority: 1 Low|2\n" +
-			"Medium|3 High|4 Urgent.",
+		Long: "The only field Freshdesk requires is a requester — --email or\n" +
+			"--requester-id. Subject, description, status and priority are all\n" +
+			"optional, and a create carrying a requester alone succeeds rather than\n" +
+			"returning 400: it lands as status 2 (Open), priority 1 (Low). Pass them\n" +
+			"explicitly anyway so the ticket arrives in the queue and state intended.\n" +
+			"--description is HTML. An --email matching no existing contact creates one\n" +
+			"as a side effect, so a typo silently produces a new requester rather than\n" +
+			"an error.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -150,8 +161,14 @@ func (s *Service) newTicketUpdateCmd(c *client) *cobra.Command {
 	var id, subject, description, priority, status, groupID, responderID, customFieldsJSON string
 	var tags []string
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a ticket (PUT /tickets/{id})",
+		Use:   "update",
+		Short: "Update a ticket (PUT /tickets/{id})",
+		Long: "--tags REPLACES the entire tag set. There is no merge and no add verb, so\n" +
+			"keeping existing tags means reading them with `ticket get` and passing the\n" +
+			"full desired list. Every other field is send-only-if-passed, so omitted\n" +
+			"flags keep their current values. Resolving or closing is --status 4 or 5;\n" +
+			"neither tells the requester anything on its own — only `ticket reply`\n" +
+			"emails them.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -194,8 +211,14 @@ func (s *Service) newTicketSearchCmd(c *client) *cobra.Command {
 	var query string
 	var page int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search tickets (GET /search/tickets). --query is Freshdesk query syntax, e.g. status:2 AND priority:4",
+		Use:   "search",
+		Short: "Search tickets (GET /search/tickets). --query is Freshdesk query syntax, e.g. status:2 AND priority:4",
+		Long: "--query is Freshdesk's query language, and string values need their own\n" +
+			"inner quotes: \"status:2 AND priority:4\", \"requester_id:123\",\n" +
+			"\"tag:'billing'\". The outer double quotes the API demands are added when\n" +
+			"absent. Results come back 30 to a page with no --per-page to raise it, and\n" +
+			"Freshdesk refuses --page above 10, so a query can surface at most about\n" +
+			"300 tickets — narrow it rather than paging for more.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -221,8 +244,13 @@ func (s *Service) newTicketReplyCmd(c *client) *cobra.Command {
 	var id, body string
 	var cc, bcc []string
 	cmd := &cobra.Command{
-		Use:         "reply",
-		Short:       "Reply to a ticket, visible to the requester (POST /tickets/{id}/reply)",
+		Use:   "reply",
+		Short: "Reply to a ticket, visible to the requester (POST /tickets/{id}/reply)",
+		Long: "The reply is EMAILED to the requester the moment this returns. There is no\n" +
+			"draft, no scheduling and no recall. --body is HTML. --cc and --bcc apply\n" +
+			"to this one message and do not change the ticket's standing cc list. An\n" +
+			"internal remark belongs in `ticket note`, which does not mail the\n" +
+			"customer.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -254,8 +282,13 @@ func (s *Service) newTicketNoteCmd(c *client) *cobra.Command {
 	var notify []string
 	var private, public bool
 	cmd := &cobra.Command{
-		Use:         "note",
-		Short:       "Add a note to a ticket (POST /tickets/{id}/notes). Notes are private by default.",
+		Use:   "note",
+		Short: "Add a note to a ticket (POST /tickets/{id}/notes). Notes are private by default.",
+		Long: "--public is what makes a note visible to the requester, and it wins over\n" +
+			"--private when both are passed. --body is HTML. --notify takes agent email\n" +
+			"addresses and mails them the note without making it customer-visible,\n" +
+			"which is the way to pull a colleague in without touching the customer\n" +
+			"thread.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -286,8 +319,14 @@ func (s *Service) newTicketConversationsCmd(c *client) *cobra.Command {
 	var id string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "conversations",
-		Short:       "List a ticket's conversations (GET /tickets/{id}/conversations)",
+		Use:   "conversations",
+		Short: "List a ticket's conversations (GET /tickets/{id}/conversations)",
+		Long: "Replies and notes come back interleaved in one list. Each entry carries\n" +
+			"`private` (true for an internal note) and `incoming` (true when the\n" +
+			"customer wrote it); that pair is the only thing separating the customer's\n" +
+			"words from the team's. Paged with --page / --per-page, default 30 and max\n" +
+			"100. `ticket get --include conversations` returns the same thread in one\n" +
+			"call when the ticket fields are wanted too.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

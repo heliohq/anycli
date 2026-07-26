@@ -9,8 +9,12 @@ import (
 
 func (s *Service) newBroadcastListCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "list",
-		Short:       "List broadcasts (GET /v1/broadcasts)",
+		Use:   "list",
+		Short: "List broadcasts (GET /v1/broadcasts)",
+		Long: "One unpaginated response. Broadcasts are the API-triggered sends; despite\n" +
+			"that, their trigger and status endpoints live under the campaign path, so\n" +
+			"a broadcast id is what `broadcast trigger --id` takes even though the\n" +
+			"request goes to /v1/campaigns.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -26,8 +30,12 @@ func (s *Service) newBroadcastListCmd(key string) *cobra.Command {
 func (s *Service) newBroadcastGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a broadcast (GET /v1/broadcasts/{id})",
+		Use:   "get",
+		Short: "Get a broadcast (GET /v1/broadcasts/{id})",
+		Long: "Reads the broadcast's configuration, including the audience it will send\n" +
+			"to when `broadcast trigger` is called with no audience selector. Worth\n" +
+			"reading before triggering, because that default audience is usually the\n" +
+			"widest one available.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -47,8 +55,13 @@ func (s *Service) newBroadcastMetricsCmd(key string) *cobra.Command {
 	var id string
 	var m metricsParams
 	cmd := &cobra.Command{
-		Use:         "metrics",
-		Short:       "Broadcast performance metrics (GET /v1/broadcasts/{id}/metrics)",
+		Use:   "metrics",
+		Short: "Broadcast performance metrics (GET /v1/broadcasts/{id}/metrics)",
+		Long: "Aggregate delivery metrics for the broadcast across all of its triggers.\n" +
+			"It does not break down by trigger — per-run outcomes come from `broadcast\n" +
+			"status --trigger`, and per-recipient failures from `broadcast status\n" +
+			"--errors`. --period and --steps set the reporting window; unset takes the\n" +
+			"provider default.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -71,8 +84,20 @@ func (s *Service) newBroadcastTriggerCmd(key string) *cobra.Command {
 	var id, data, perUserData, dataFileURL string
 	var emails, ids []string
 	cmd := &cobra.Command{
-		Use:         "trigger",
-		Short:       "Trigger an API broadcast (POST /v1/campaigns/{id}/triggers). Rate limit: 1 request / 10s per broadcast",
+		Use:   "trigger",
+		Short: "Trigger an API broadcast (POST /v1/campaigns/{id}/triggers). Rate limit: 1 request / 10s per broadcast",
+		Long: "Sends for real, immediately, to live recipients. At most ONE audience\n" +
+			"selector may be given — --emails, --ids, --per-user-data or\n" +
+			"--data-file-url — and giving none is legal but means the broadcast's own\n" +
+			"configured audience, typically the widest possible send, so read\n" +
+			"`broadcast get` first if the audience is not being overridden. --data\n" +
+			"supplies liquid merge values shared by every recipient, while\n" +
+			"--per-user-data carries them per recipient and doubles as the audience.\n" +
+			"\n" +
+			"Customer.io accepts one trigger per 10 seconds per broadcast, so a failed\n" +
+			"call must not be retried in a tight loop. The response carries a trigger\n" +
+			"id; pass it to `broadcast status` to find out what actually happened,\n" +
+			"since a 200 here only means the send was accepted.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -130,8 +155,14 @@ func (s *Service) newBroadcastStatusCmd(key string) *cobra.Command {
 	var id, trigger string
 	var errorsOnly bool
 	cmd := &cobra.Command{
-		Use:         "status",
-		Short:       "Trigger status (GET /v1/campaigns/{id}/triggers/{trigger}) or per-recipient errors (/errors)",
+		Use:   "status",
+		Short: "Trigger status (GET /v1/campaigns/{id}/triggers/{trigger}) or per-recipient errors (/errors)",
+		Long: "Needs both --id (the broadcast) and --trigger (the id returned by\n" +
+			"`broadcast trigger`). Bare, it reports the run's overall state; --errors\n" +
+			"switches to the per-recipient failure list, which is where a\n" +
+			"partially-delivered send explains itself. A trigger that was accepted can\n" +
+			"still fail for individual recipients, so checking only the overall state\n" +
+			"hides the interesting half.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

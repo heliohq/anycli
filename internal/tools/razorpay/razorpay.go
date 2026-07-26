@@ -110,6 +110,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "razorpay",
 		Short:         "Razorpay built-in service",
+		Long:          longRoot,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

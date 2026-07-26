@@ -28,8 +28,14 @@ type serverView struct {
 func (s *Service) newServerCmd(token string) *cobra.Command {
 	group := newGroupCmd("server", "Inspect the connected server")
 	group.AddCommand(&cobra.Command{
-		Use:         "get",
-		Short:       "Show current server metadata, redacting API tokens (GET /server)",
+		Use:   "get",
+		Short: "Show current server metadata, redacting API tokens (GET /server)",
+		Long: "Identifies which server the credential actually points at, and reports the\n" +
+			"inbound settings (`InboundAddress`, `InboundDomain`) plus the server-wide\n" +
+			"`TrackOpens` / `TrackLinks` defaults a send inherits when it passes no\n" +
+			"tracking flags. Postmark echoes the caller's own API token in this\n" +
+			"response; the reply is filtered through a field allowlist before printing,\n" +
+			"so no token reaches stdout.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

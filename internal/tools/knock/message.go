@@ -14,10 +14,10 @@ func (s *Service) newMessageCmd(key string) *cobra.Command {
 	group.AddCommand(
 		s.newMessageListCmd(key),
 		s.newMessageGetCmd(key),
-		s.newMessageSubCmd(key, "content", "Get a message's rendered content"),
-		s.newMessageSubCmd(key, "events", "List a message's events"),
-		s.newMessageSubCmd(key, "activities", "List a message's activities"),
-		s.newMessageSubCmd(key, "delivery-logs", "List a message's delivery logs"),
+		s.newMessageSubCmd(key, "content", "Get a message's rendered content", longMessageContent),
+		s.newMessageSubCmd(key, "events", "List a message's events", longMessageEvents),
+		s.newMessageSubCmd(key, "activities", "List a message's activities", longMessageActivities),
+		s.newMessageSubCmd(key, "delivery-logs", "List a message's delivery logs", longMessageDeliveryLogs),
 		s.newMessageMarkCmd(key),
 	)
 	return group
@@ -35,8 +35,13 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 		before    string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List messages, filtered by recipient/channel/status/tenant/workflow",
+		Use:   "list",
+		Short: "List messages, filtered by recipient/channel/status/tenant/workflow",
+		Long: "Filters are exact: --recipient, --channel-id, --tenant, --workflow (a\n" +
+			"workflow KEY) and --status (queued, sent, delivered, undelivered,\n" +
+			"not_sent, …). A message exists only once a workflow run produced one, so\n" +
+			"an environment that has never sent anything returns empty `entries` — that\n" +
+			"is not a mis-typed filter. Knock's own page size is 50; page with --after.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -74,8 +79,12 @@ func (s *Service) newMessageListCmd(key string) *cobra.Command {
 func (s *Service) newMessageGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a message",
+		Use:   "get",
+		Short: "Get a message",
+		Long: "--id is a message id, not the workflow_run_id `workflow trigger` returned —\n" +
+			"a run id does not resolve here, so find the message with `message list\n" +
+			"--recipient` first. The record carries the delivery status and engagement\n" +
+			"timestamps but not the rendered body, which is `message content`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -91,7 +100,31 @@ func (s *Service) newMessageGetCmd(key string) *cobra.Command {
 
 // newMessageSubCmd builds a read-only GET /messages/{id}/<segment> command. The
 // CLI word "delivery-logs" maps to the API segment "delivery_logs".
-func (s *Service) newMessageSubCmd(key, use, short string) *cobra.Command {
+// The four message-detail Longs. They sit next to the shared builder because
+// the builder is what fixes their identical shape (--id, one GET, no paging),
+// while what each sub-resource actually contains — and therefore which failure
+// it diagnoses — is what tells them apart.
+const (
+	longMessageContent = "The body Knock actually produced for this message after the workflow\n" +
+		"template ran, which is what the recipient was shown rather than what went\n" +
+		"in as --data. Requires --id."
+
+	longMessageEvents = "The message's own lifecycle inside Knock — queued, sent, and the\n" +
+		"engagement states after that. Requires --id. This is Knock's side of the\n" +
+		"story; what the downstream email or push vendor said is `message\n" +
+		"delivery-logs`."
+
+	longMessageActivities = "The trigger activities Knock rolled up into this message, which is how a\n" +
+		"batched or digest message is traced back to the individual events that\n" +
+		"produced it. Requires --id. A message from a non-batching workflow has one."
+
+	longMessageDeliveryLogs = "The raw request and response exchanged with the downstream provider — the\n" +
+		"email or push vendor — which is where a bounce or a provider-side rejection\n" +
+		"actually shows up. Requires --id, and logs exist only for a message that\n" +
+		"reached a send attempt."
+)
+
+func (s *Service) newMessageSubCmd(key, use, short, long string) *cobra.Command {
 	var id string
 	segment := use
 	if use == "delivery-logs" {
@@ -100,6 +133,7 @@ func (s *Service) newMessageSubCmd(key, use, short string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         use,
 		Short:       short,
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -123,8 +157,13 @@ func (s *Service) newMessageMarkCmd(key string) *cobra.Command {
 		undo  bool
 	)
 	cmd := &cobra.Command{
-		Use:         "mark",
-		Short:       "Mark a message seen|read|interacted|archived (--undo to clear)",
+		Use:   "mark",
+		Short: "Mark a message seen|read|interacted|archived (--undo to clear)",
+		Long: "--state is one of seen, read, interacted or archived. --undo clears the\n" +
+			"state instead of setting it, EXCEPT for interacted, which Knock has no\n" +
+			"endpoint to reverse — that combination is rejected before any request.\n" +
+			"These are in-app feed engagement states: marking a message read here does\n" +
+			"not recall an email that already went out.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

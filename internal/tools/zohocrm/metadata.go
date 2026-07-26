@@ -13,8 +13,14 @@ import (
 // picking a --module value.
 func (s *Service) newModuleListCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List available modules",
+		Use:   "list",
+		Short: "List available modules",
+		Long: "The first call in an unfamiliar org: every module it exposes, custom ones\n" +
+			"included, each with the `api_name` that every `--module` flag takes. That\n" +
+			"API name is not the label shown in the UI — a custom module usually reads\n" +
+			"as `CustomModule1`. Each entry also reports whether it is `creatable`,\n" +
+			"`editable` and `deletable`, which is the cheapest way to learn a write is\n" +
+			"impossible before attempting it.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 	}
@@ -35,8 +41,15 @@ func (s *Service) newModuleListCmd(token string) *cobra.Command {
 func (s *Service) newFieldListCmd(token string) *cobra.Command {
 	var module string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List a module's field API names",
+		Use:   "list",
+		Short: "List a module's field API names",
+		Long: "`--module` is required. Every field on that module comes back with its\n" +
+			"`api_name` — the key a write body must use, `Last_Name` rather than\n" +
+			"\"Last Name\" — plus `data_type`, whether it is read-only or mandatory,\n" +
+			"and for a picklist the exact set of accepted values. One call here is\n" +
+			"what prevents the `INVALID_DATA` that a guessed key or an unconfigured\n" +
+			"picklist value produces, and it is also how you assemble a legal\n" +
+			"`--fields` list for `record list`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 	}
@@ -62,8 +75,14 @@ func (s *Service) newFieldListCmd(token string) *cobra.Command {
 func (s *Service) newUserListCmd(token string) *cobra.Command {
 	var userType string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List CRM users",
+		Use:   "list",
+		Short: "List CRM users",
+		Long: "CRM users are the org's own staff, not `Contacts` or `Leads` — those are\n" +
+			"records inside modules and are read with `record list`. `--type` narrows\n" +
+			"the category (`AllUsers`, `ActiveUsers`, `DeactiveUsers`, `AdminUsers`,\n" +
+			"`CurrentUser`); left off, Zoho returns its own default set rather than\n" +
+			"everyone. A user's `id` is what a record's `Owner` field points at, so\n" +
+			"this is where a reassignment gets its value.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 	}
@@ -89,7 +108,12 @@ func (s *Service) newUserListCmd(token string) *cobra.Command {
 // provider bundle).
 func (s *Service) newUserMeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "me",
+		Use: "me",
+		Long: "Sugar for `user list --type CurrentUser`: the user this connection acts\n" +
+			"as. Its `id` is what to write into an `Owner` field for a record that\n" +
+			"should belong to the connected user, and its `role` and `profile` bound\n" +
+			"what every other command can see or change — a record that appears to be\n" +
+			"missing is usually this user's permissions rather than absent data.",
 		Short:       "Show the currently authenticated CRM user",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
@@ -113,8 +137,13 @@ func (s *Service) newOrgGetCmd(token string) *cobra.Command {
 		Args:  cobra.NoArgs,
 	}
 	get := &cobra.Command{
-		Use:         "get",
-		Short:       "Get the organization record",
+		Use:   "get",
+		Short: "Get the organization record",
+		Long: "The organization itself: company name, the org `id`, primary contact,\n" +
+			"time zone, currency and the licence edition. The edition is worth\n" +
+			"reading before planning work, because COQL, custom modules and several\n" +
+			"other API features are gated on it. One organization per connection, so\n" +
+			"this takes no arguments.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

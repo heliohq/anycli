@@ -128,8 +128,32 @@ func (s *Service) stderr() io.Writer {
 // mutating leaves.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "pennylane",
-		Short:         "Pennylane built-in service (accounting REST API v2)",
+		Use:   "pennylane",
+		Short: "Pennylane built-in service (accounting REST API v2)",
+		Long: "A connection is bound to ONE Pennylane company, so every command operates\n" +
+			"on that company's books. The surface is read-heavy: `list` and `get` cover\n" +
+			"customers, suppliers, invoices, products, transactions and the ledger,\n" +
+			"while the only mutating leaves are `customer create`, `customer-invoice\n" +
+			"create` and `transaction categorize`.\n" +
+			"\n" +
+			"Pagination is cursor-based and nothing here auto-loops. A `list` returns\n" +
+			"one page plus a cursor in its metadata; pass it back through `--cursor`\n" +
+			"for the next page. `--limit` sizes a page (1-100), `--sort` orders (`-id`\n" +
+			"for newest first) and `--filter` takes Pennylane's own filter expression\n" +
+			"grammar verbatim — this tool invents no query DSL of its own.\n" +
+			"\n" +
+			"Request bodies are raw JSON in `--body`, which is required on every\n" +
+			"mutating command and may be an object or an array depending on the\n" +
+			"endpoint. The global `--json` is an output and error format flag, not a\n" +
+			"payload flag; an empty or malformed `--body` is a usage error and sends\n" +
+			"nothing.\n" +
+			"\n" +
+			"The connection requests read-only ledger scopes, so the whole `ledger`\n" +
+			"group is read-only by design. A 403 on a write means the scope was never\n" +
+			"granted rather than a transient failure, and retrying will not clear it.\n" +
+			"\n" +
+			"Success prints Pennylane's JSON response body verbatim. Errors render as a\n" +
+			"plain message, or as an error envelope under `--json`.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -42,8 +42,19 @@ func (s *Service) newEmailFindDomainCmd(creds clientCreds) *cobra.Command {
 	var domain string
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:         "domain",
-		Short:       "Find all business emails for a company domain (consumes credits)",
+		Use:   "domain",
+		Short: "Find all business emails for a company domain (consumes credits)",
+		Long: "`--domain` is a bare domain such as `example.com`, not a URL or a company\n" +
+			"name. Run `email count --domain` first — it is free and says whether Snov\n" +
+			"holds anything for that domain at all, which turns a wasted paid search\n" +
+			"into a free one. Addresses come back with Snov's own confidence markers;\n" +
+			"they are database entries, not proof of deliverability, so `email verify`\n" +
+			"is still a separate step.\n" +
+			"\n" +
+			"The task runs on Snov's side and is polled until it finishes. If the wait\n" +
+			"expires the task is NOT cancelled and the credits are already spent — and\n" +
+			"re-running starts a brand-new search rather than resuming, so raise\n" +
+			"`--timeout` instead of retrying.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -68,8 +79,17 @@ func (s *Service) newEmailFindByNameCmd(creds clientCreds) *cobra.Command {
 	var first, last, domain string
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:         "by-name",
-		Short:       "Find a specific person's email from their name and company domain (consumes credits)",
+		Use:   "by-name",
+		Short: "Find a specific person's email from their name and company domain (consumes credits)",
+		Long: "All three of `--first`, `--last` and `--domain` are required: Snov infers\n" +
+			"the address from the company's known pattern, so a person with no domain\n" +
+			"cannot be looked up here. One person per call — the endpoint accepts\n" +
+			"batches but this command sends a single row, so a list of prospects is one\n" +
+			"paid call each.\n" +
+			"\n" +
+			"Cheaper alternative for several people at one company: `email find domain`\n" +
+			"once, then match names locally. The wait is polled and bounded by\n" +
+			"`--timeout`; expiring it does not cancel the task or refund the credits.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -103,8 +123,17 @@ func (s *Service) newEmailVerifyCmd(creds clientCreds) *cobra.Command {
 	var emails []string
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:         "verify",
-		Short:       "Verify email deliverability before sending (consumes credits)",
+		Use:   "verify",
+		Short: "Verify email deliverability before sending (consumes credits)",
+		Long: "`--email` is repeatable and Snov accepts up to 10 per task; the limit is\n" +
+			"the provider's, not checked locally, so an eleventh address fails the whole\n" +
+			"call rather than being dropped. Batching to 10 is one task's worth of\n" +
+			"waiting instead of ten.\n" +
+			"\n" +
+			"The result is per-address and graded — valid, invalid, catch-all or\n" +
+			"unknown — and a catch-all domain means the address cannot be proven either\n" +
+			"way, not that it is good. The wait is polled and bounded by `--timeout`;\n" +
+			"expiring it neither cancels the task nor refunds the credits.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -128,8 +157,12 @@ func (s *Service) newEmailVerifyCmd(creds clientCreds) *cobra.Command {
 func (s *Service) newEmailCountCmd(creds clientCreds) *cobra.Command {
 	var domain string
 	cmd := &cobra.Command{
-		Use:         "count",
-		Short:       "Count how many emails Snov has for a domain (free)",
+		Use:   "count",
+		Short: "Count how many emails Snov has for a domain (free)",
+		Long: "Returns the number Snov holds for the domain and NOT the addresses\n" +
+			"themselves — that is the paid `email find domain`. Synchronous, free, and\n" +
+			"the right first move on any unfamiliar domain: a count of zero means the\n" +
+			"paid search would have found nothing either.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

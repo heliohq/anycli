@@ -19,7 +19,14 @@ func (s *Service) newMessageSendCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "send",
 		Short: "Reply into an existing conversation",
-		Args:  cobra.NoArgs,
+		Long: "Reaches the real customer the moment it returns; there is no unsend. It\n" +
+			"only ever REPLIES — --conversation is required and no command here starts\n" +
+			"a new outbound thread. --channel is inferred from the conversation when\n" +
+			"omitted, and --author sends on behalf of a teammate instead of as the\n" +
+			"connected app. --body is the rich body and --text supplies a plain-text\n" +
+			"alternative for clients that cannot render it. When a human should approve\n" +
+			"the wording first, `draft create` leaves it inside Front instead.",
+		Args: cobra.NoArgs,
 	}
 	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&conversation, "conversation", "", "conversation id to reply into (required)")
@@ -65,7 +72,13 @@ func (s *Service) newDraftCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a draft reply for a human to review",
-		Args:  cobra.NoArgs,
+		Long: "Nothing leaves Front: the draft sits on the conversation until a teammate\n" +
+			"opens it and sends it, which makes this the reversible counterpart to\n" +
+			"`message send`. --channel is REQUIRED here even though `message send`\n" +
+			"infers one, because a draft has to know what it would be sent from — take\n" +
+			"the id from `inbox list` or from the conversation's own metadata.\n" +
+			"--subject applies to email channels only.",
+		Args: cobra.NoArgs,
 	}
 	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&conversation, "conversation", "", "conversation id to draft into (required)")
@@ -106,7 +119,12 @@ func (s *Service) newCommentAddCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add",
 		Short: "Add an internal comment to a conversation",
-		Args:  cobra.NoArgs,
+		Long: "Visible to every teammate on the conversation and never to the customer —\n" +
+			"the place for reasoning, context and questions to colleagues. Notifying\n" +
+			"someone is done by @mentioning them inside --body; there is no separate\n" +
+			"mention flag. --author attributes the comment to a specific teammate\n" +
+			"rather than the connected app.",
+		Args: cobra.NoArgs,
 	}
 	cmd.Annotations = writeAction
 	cmd.Flags().StringVar(&conversation, "conversation", "", "conversation id to comment on (required)")

@@ -14,8 +14,15 @@ func (s *Service) newEventTypeListCmd(token string) *cobra.Command {
 	var count int
 	var pageToken string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List bookable event types (GET /event_types)",
+		Use:   "list",
+		Short: "List bookable event types (GET /event_types)",
+		Long: "Event types are the bookable meeting kinds. Each entry carries the public\n" +
+			"`scheduling_url` that is shareable as-is and the `uri` that\n" +
+			"`availability slots`, `link create` and `book create` all require. Defaults\n" +
+			"to the connected user's own types; `--org` widens the listing to the whole\n" +
+			"organization and makes `--user` irrelevant. `--active true|false` separates\n" +
+			"live event types from hidden ones. Paginate with `--count` and\n" +
+			"`--page-token`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -57,8 +64,13 @@ func (s *Service) newEventTypeListCmd(token string) *cobra.Command {
 
 func (s *Service) newEventTypeGetCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <event-type-id|uri>",
-		Short:       "Get one event type (GET /event_types/{uuid})",
+		Use:   "get <event-type-id|uri>",
+		Short: "Get one event type (GET /event_types/{uuid})",
+		Long: "Returns the duration, location rules, custom booking questions and\n" +
+			"`scheduling_url` for one event type. Worth reading before `book create`:\n" +
+			"the `--location-kind` that command accepts is dictated by THIS event type's\n" +
+			"location configuration, and its custom questions are the ones invitees\n" +
+			"answered in `event invitees`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

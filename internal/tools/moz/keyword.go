@@ -29,8 +29,13 @@ func serpQuery(keyword, locale string) map[string]any {
 func (s *Service) newKeywordMetricsCmd(token string) *cobra.Command {
 	var keyword, locale string
 	cmd := &cobra.Command{
-		Use:         "metrics",
-		Short:       "Search volume, difficulty, organic CTR, and priority for a keyword",
+		Use:   "metrics",
+		Short: "Search volume, difficulty, organic CTR, and priority for a keyword",
+		Long: "One keyword per call — there is no batch form here, unlike\n" +
+			"`site metrics`. --locale is a language-region tag such as en-US and\n" +
+			"moves every number materially; omitting it accepts Moz's default\n" +
+			"locale, which is not the same as a worldwide total. Volume comes back as\n" +
+			"a monthly range rather than an exact figure.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -56,8 +61,12 @@ func (s *Service) newKeywordSuggestionsCmd(token string) *cobra.Command {
 	var keyword, locale string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "suggestions",
-		Short:       "Related keyword suggestions for a seed keyword",
+		Use:   "suggestions",
+		Short: "Related keyword suggestions for a seed keyword",
+		Long: "Each suggestion returned is a billed row, so a wide sweep here is one of\n" +
+			"the most expensive things in this tool; --limit defaults to 25. --locale\n" +
+			"shapes which terms come back at all, since suggestions are drawn from\n" +
+			"that market's search behaviour.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -83,8 +92,13 @@ func (s *Service) newKeywordSuggestionsCmd(token string) *cobra.Command {
 func (s *Service) newKeywordIntentCmd(token string) *cobra.Command {
 	var keyword, locale string
 	cmd := &cobra.Command{
-		Use:         "intent",
-		Short:       "Search-intent classification for a keyword",
+		Use:   "intent",
+		Short: "Search-intent classification for a keyword",
+		Long: "Classifies what a searcher wants — informational, navigational,\n" +
+			"commercial, transactional — which is the signal for whether a term\n" +
+			"deserves an article or a product page. Intent is market-specific, so\n" +
+			"--locale can change the classification of an identical string. One\n" +
+			"keyword per call.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

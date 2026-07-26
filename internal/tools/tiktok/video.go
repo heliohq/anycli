@@ -22,8 +22,15 @@ func (s *Service) newVideoListCmd(token string) *cobra.Command {
 	var cursor int64
 	var maxCount int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List the creator's videos (one page)",
+		Use:   "list",
+		Short: "List the creator's videos (one page)",
+		Long: "`--max-count` is 1-20, default 10, and anything outside that range is\n" +
+			"rejected before a request goes out. `--cursor` is a UTC unix MILLISECOND\n" +
+			"timestamp, not an opaque token: pass the `cursor` from the previous page to\n" +
+			"continue, and `has_more` says whether continuing is worthwhile. `--fields`\n" +
+			"already asks for the engagement counters (`like_count`, `comment_count`,\n" +
+			"`share_count`, `view_count`) alongside the metadata, so a per-video stats\n" +
+			"pass needs no second call.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -51,8 +58,12 @@ func (s *Service) newVideoListCmd(token string) *cobra.Command {
 func (s *Service) newVideoQueryCmd(token string) *cobra.Command {
 	var fields, ids string
 	cmd := &cobra.Command{
-		Use:         "query",
-		Short:       "Query specific videos by id",
+		Use:   "query",
+		Short: "Query specific videos by id",
+		Long: "`--ids` is required and comma-separated, and the ids come from `video list`\n" +
+			"— there is no lookup by URL, caption or share link. Only videos belonging\n" +
+			"to the connected creator resolve. Use this to refresh counters on videos\n" +
+			"already known instead of paging `video list` again.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

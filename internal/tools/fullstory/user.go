@@ -24,8 +24,13 @@ func (s *Service) newUserGetCmd(key string) *cobra.Command {
 	var id string
 	var includeSchema bool
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a user by FullStory id (GET /v2/users/{id})",
+		Use:   "get",
+		Short: "Get a user by FullStory id (GET /v2/users/{id})",
+		Long: "`--id` is required and is the FULLSTORY-assigned user id from a `user list`\n" +
+			"or session result — not the application's `--uid`, which will not resolve\n" +
+			"here. `--include-schema` adds the property schema, which is how a custom\n" +
+			"property's stored type is confirmed before writing to it. Typically needs\n" +
+			"an Architect key.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -52,8 +57,12 @@ func (s *Service) newUserGetCmd(key string) *cobra.Command {
 func (s *Service) newUserListCmd(key string) *cobra.Command {
 	var uid, email string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "Find users by uid and/or email (GET /v2/users)",
+		Use:   "list",
+		Short: "Find users by uid and/or email (GET /v2/users)",
+		Long: "The bridge from an application id or address to the FullStory user id that\n" +
+			"`user get --id` needs. Neither `--uid` nor `--email` is required here —\n" +
+			"unlike `session list`, calling it with no filter is accepted and asks\n" +
+			"FullStory for an unfiltered list. Typically needs an Architect key.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -83,8 +92,14 @@ func (s *Service) newUserUpsertCmd(key string) *cobra.Command {
 	var uid, displayName, email string
 	var props []string
 	cmd := &cobra.Command{
-		Use:         "upsert",
-		Short:       "Create or update a user by uid (POST /v2/users)",
+		Use:   "upsert",
+		Short: "Create or update a user by uid (POST /v2/users)",
+		Long: "`--uid` is required and is the identity: an existing uid is updated, a new\n" +
+			"one is created, and a uid cannot be changed afterwards. `--display-name`\n" +
+			"and `--email` are first-class fields; everything else goes through\n" +
+			"repeatable `--prop key=value`, which is sent typed (`true` a boolean,\n" +
+			"`14.55` a number, the rest strings) with no type suffix in the key. Works\n" +
+			"on a Standard key.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

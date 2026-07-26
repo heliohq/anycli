@@ -85,8 +85,25 @@ func splitCredentials(raw string) (clientID, clientSecret string, ok bool) {
 
 func (s *Service) newRoot(clientID, clientSecret string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "later",
-		Short:         "Later Influence Reporting built-in service",
+		Use:   "later",
+		Short: "Later Influence Reporting built-in service",
+		Long: "Reads Later Influence creator-campaign performance. The surface is\n" +
+			"read-only by construction: Later's social scheduling and publishing\n" +
+			"product has no public API, so nothing here can draft, schedule, publish or\n" +
+			"edit a post, and no such command can be added. A request to \"post with\n" +
+			"Later\" has no path through this tool.\n" +
+			"\n" +
+			"A reporting instance is one Later Influence workspace. Most reads span\n" +
+			"every instance the credential can reach unless narrowed with\n" +
+			"`--instance-ids`, whose values come from `instances`.\n" +
+			"\n" +
+			"Organic metric names are plain (`impressions`, `engagements`); the paid\n" +
+			"equivalents carry a paid prefix (`paidImpressions`, `paidEngagementRate`).\n" +
+			"Asking for an organic name will not surface paid spend.\n" +
+			"\n" +
+			"A 403 means the credential is valid but lacks access to the requested\n" +
+			"instance or scope — narrow the request rather than treating it as a\n" +
+			"broken connection. Responses are the provider's JSON, printed verbatim.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

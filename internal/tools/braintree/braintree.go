@@ -143,8 +143,35 @@ func (s *Service) stderr() io.Writer {
 // dispute / subscription are groups; ping and query are top-level leaves.
 func (s *Service) newRoot(cl *client) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "braintree",
-		Short:         "Braintree payments operations via the GraphQL API",
+		Use:   "braintree",
+		Short: "Braintree payments operations via the GraphQL API",
+		Long: "Authenticates with a Braintree API key pair rather than OAuth, and the pair\n" +
+			"is environment-qualified: it is valid against the sandbox host or the\n" +
+			"production host, never both, so one merchant connected in each is two\n" +
+			"separate accounts with different data.\n" +
+			"\n" +
+			"This is an operational surface over payments that ALREADY exist. There is no\n" +
+			"charge-creation verb — taking a payment needs a client-collected payment\n" +
+			"method this server-side tool never holds.\n" +
+			"\n" +
+			"Every object carries two ids: `id`, the opaque GraphQL global id that every\n" +
+			"command here accepts, and `legacyId`, the shorter id shown in the Braintree\n" +
+			"Control Panel. Handing a legacy id to a `get` verb resolves to nothing and\n" +
+			"reports not found.\n" +
+			"\n" +
+			"Search verbs return `{\"items\": [...], \"page_info\": {\"has_next_page\": bool,\n" +
+			"\"end_cursor\": \"...\"}}`, fetch `--first` rows (default 50) and page by feeding\n" +
+			"`end_cursor` back through `--after`.\n" +
+			"\n" +
+			"Braintree reports failures as HTTP 200 with a GraphQL `errors[]` array. The\n" +
+			"tool still exits non-zero and prints the provider message plus its\n" +
+			"`errorClass`, so read the exit code, not the transport status.\n" +
+			"\n" +
+			"Three verbs move money and they are not interchangeable: `transaction refund`\n" +
+			"returns funds on a settled transaction, `transaction void` cancels an\n" +
+			"unsettled one and errors once it has settled, and `transaction reverse` does\n" +
+			"whichever the current state calls for. Reach for `void` when the intent is\n" +
+			"\"cancel only if it has not settled yet\".",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

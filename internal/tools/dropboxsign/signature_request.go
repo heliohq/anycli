@@ -28,8 +28,15 @@ func (s *Service) newSendCmd(token string) *cobra.Command {
 		testMode bool
 	)
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Send a document for signature (--file or --file-url)",
+		Use:   "send",
+		Short: "Send a document for signature (--file or --file-url)",
+		Long: "Requires exactly one kind of document source: `--file` uploads or `--file-url`\n" +
+			"remote URLs (each repeatable), never both kinds and never neither — that is\n" +
+			"rejected locally before any request goes out. `--signer` is \"Name:email\" and\n" +
+			"an explicit signing order is always sent, taken from flag order, so signers\n" +
+			"are asked one after another and there is no parallel-signing form. `--cc`\n" +
+			"addresses receive the finished copy without signing. Returns the\n" +
+			"`signature_request_id` every other signature-request verb takes.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -85,8 +92,14 @@ func (s *Service) newSendWithTemplateCmd(token string) *cobra.Command {
 		testMode  bool
 	)
 	cmd := &cobra.Command{
-		Use:         "send-with-template",
-		Short:       "Send a signature request from saved template(s)",
+		Use:   "send-with-template",
+		Short: "Send a signature request from saved template(s)",
+		Long: "`--signer` here is \"Role:Name:email\", not the \"Name:email\" of\n" +
+			"`signature-request send`, and the role must match a signer role defined on the\n" +
+			"template or the send is rejected — read the roles from `template get` first.\n" +
+			"`--template` is repeatable and multiple templates merge into one request in\n" +
+			"flag order. No signing order is sent: sequence comes from the template's own\n" +
+			"role definitions, unlike `signature-request send` where flag order decides it.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -216,8 +229,13 @@ func (s *Service) newListCmd(token string) *cobra.Command {
 		query    string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List signature requests",
+		Use:   "list",
+		Short: "List signature requests",
+		Long: "Lists the signature requests this credential can access, which is not\n" +
+			"guaranteed to be every request in the account's history — read a missing id as\n" +
+			"\"not visible to this connection\" rather than \"deleted\". Use it to discover\n" +
+			"ids; use `signature-request get` to follow one request, since the per-signer\n" +
+			"detail is not in the list rows.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -247,8 +265,13 @@ func (s *Service) newListCmd(token string) *cobra.Command {
 // newGetCmd fetches one signature request's status and per-signer state.
 func (s *Service) newGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <signature_request_id>",
-		Short:       "Get one signature request's status",
+		Use:   "get <signature_request_id>",
+		Short: "Get one signature request's status",
+		Long: "Returns the request-level `is_complete` and `is_declined` booleans plus the\n" +
+			"per-signer `signatures[]` array, where each entry carries `status_code`\n" +
+			"(`awaiting_signature`, `signed`, `declined`) and `signed_at`. This is the only\n" +
+			"place a signer's email address appears, and `signature-request remind` needs\n" +
+			"that address, so read it here before chasing anyone.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -270,8 +293,15 @@ func (s *Service) newFilesCmd(token string) *cobra.Command {
 		out      string
 	)
 	cmd := &cobra.Command{
-		Use:         "files <signature_request_id>",
-		Short:       "Download the signed document(s) as PDF or ZIP",
+		Use:   "files <signature_request_id>",
+		Short: "Download the signed document(s) as PDF or ZIP",
+		Long: "With `--out /path` the bytes are written to that path with owner-only\n" +
+			"permissions and a JSON receipt carrying the byte count goes to stdout;\n" +
+			"without it the raw binary goes to stdout, which is not something to read\n" +
+			"inline. `--file-type` is `pdf` (one merged document) or `zip` (one file per\n" +
+			"original document). An incomplete request still returns a document — the\n" +
+			"current copy, missing the outstanding signatures — so check `is_complete`\n" +
+			"from `signature-request get` before treating the result as signed.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -294,8 +324,13 @@ func (s *Service) newRemindCmd(token string) *cobra.Command {
 		name  string
 	)
 	cmd := &cobra.Command{
-		Use:         "remind <signature_request_id>",
-		Short:       "Remind a signer (resend the signing email)",
+		Use:   "remind <signature_request_id>",
+		Short: "Remind a signer (resend the signing email)",
+		Long: "`--email` is required and must be one of the request's signer addresses,\n" +
+			"which `signature-request get` lists under `signatures[]`. `--name` is needed\n" +
+			"only to disambiguate when two signers on the same request share an email\n" +
+			"address. Each call sends a real email to a real inbox, and Dropbox Sign\n" +
+			"rejects a reminder aimed at a signer who has already signed.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -321,8 +356,13 @@ func (s *Service) newRemindCmd(token string) *cobra.Command {
 // newCancelCmd cancels an incomplete signature request.
 func (s *Service) newCancelCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "cancel <signature_request_id>",
-		Short:       "Cancel an incomplete signature request",
+		Use:   "cancel <signature_request_id>",
+		Short: "Cancel an incomplete signature request",
+		Long: "Signers immediately lose access to the signing link, and there is no\n" +
+			"un-cancel — resuming means building a new request from scratch. Only an\n" +
+			"incomplete request can be cancelled; a completed one is already binding. The\n" +
+			"API answers with an empty 200 body, so success prints the receipt\n" +
+			"`{\"cancelled\":true,\"signature_request_id\":\"...\"}` instead of a resource.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

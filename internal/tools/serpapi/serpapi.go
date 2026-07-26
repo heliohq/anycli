@@ -98,8 +98,31 @@ func (s *Service) renderError(jsonMode bool, err error) {
 // newRoot builds the cobra tree: search / archive / locations / account.
 func (s *Service) newRoot(apiKey string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "serpapi",
-		Short:         "SerpApi built-in service (live search engine results)",
+		Use:   "serpapi",
+		Short: "SerpApi built-in service (live search engine results)",
+		Long: "Runs live search-engine queries and returns structured JSON — organic results,\n" +
+			"knowledge graph, answer boxes, local packs — instead of HTML to be scraped.\n" +
+			"\n" +
+			"There is no per-engine subcommand and there never will be. `search` is one\n" +
+			"generic command over two axes: `--engine` picks the vertical (`google`,\n" +
+			"`google_news`, `google_maps`, `google_scholar`, `youtube`, `bing`, and the\n" +
+			"rest of SerpApi's roughly seventy), and the params are the knobs. The\n" +
+			"cross-engine params are first-class flags; anything engine-specific rides the\n" +
+			"repeatable `--param key=value`. `--engine` is passed through unvalidated, so\n" +
+			"an engine added by SerpApi after this build still works.\n" +
+			"\n" +
+			"Output shape follows the engine, not the tool: `organic_results` for google,\n" +
+			"`news_results`, `local_results`, `shopping_results` and so on elsewhere. Read\n" +
+			"`search_metadata` and then the array the chosen engine actually populates.\n" +
+			"\n" +
+			"Only `search` spends quota. `locations`, `archive get` and `account` are free,\n" +
+			"which makes the cheap path explicit: budget with `account`, resolve places\n" +
+			"with `locations`, and re-read a result already paid for with `archive get`\n" +
+			"rather than repeating the search.\n" +
+			"\n" +
+			"An unknown engine or a malformed param fails with SerpApi's own message rather\n" +
+			"than a local validation error — read the `error` field, which usually names\n" +
+			"the offending parameter.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -101,8 +101,34 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "calendar",
-		Short:         "Google Calendar built-in service",
+		Use:   "calendar",
+		Short: "Google Calendar built-in service",
+		Long: "Every timed argument is RFC3339 WITH an explicit offset\n" +
+			"(2026-07-16T14:00:00-07:00) and anything else is rejected before the\n" +
+			"call; --all-day boundaries are bare YYYY-MM-DD instead. A calendar's own\n" +
+			"IANA zone comes from `calendars list`, and a time reported back to a\n" +
+			"person should carry its offset rather than a naked clock reading.\n" +
+			"\n" +
+			"--calendar defaults to `primary` wherever it appears, and an event id is\n" +
+			"only resolvable against the calendar that holds it. Ids for other\n" +
+			"calendars, and the caller's access role on each, come from\n" +
+			"`calendars list`.\n" +
+			"\n" +
+			"Finding a free slot is `freebusy`, not `events list` pointed at someone\n" +
+			"else's calendar: freebusy needs only free/busy sharing and returns no\n" +
+			"event content.\n" +
+			"\n" +
+			"A recurring event has two editable levels. The base event's id governs\n" +
+			"the whole series; one occurrence has its own id, which only\n" +
+			"`events instances` produces. Editing the base when a single occurrence\n" +
+			"was meant is the most common way to damage a calendar.\n" +
+			"\n" +
+			"Output defaults to a one-line-per-item human summary. --json prints the\n" +
+			"full API resource and is the only way to see attendees, response\n" +
+			"statuses, descriptions or recurrence rules.\n" +
+			"\n" +
+			"A 401 or 403 here usually means the token was never granted the scope\n" +
+			"the command needs, rather than that it expired.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

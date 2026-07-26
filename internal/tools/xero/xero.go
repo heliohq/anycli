@@ -138,8 +138,42 @@ func newGroupCmd(use, short string) *cobra.Command {
 // newRoot builds the resource-grouped cobra tree. defaultTenant seeds --tenant.
 func (s *Service) newRoot(token, defaultTenant string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "xero",
-		Short:         "Xero accounting (invoices, bills, contacts, payments, accounts, reports)",
+		Use:   "xero",
+		Short: "Xero accounting (invoices, bills, contacts, payments, accounts, reports)",
+		Long: "Calls the Xero Accounting API and emits Xero's JSON verbatim. Every\n" +
+			"response is the PascalCase envelope, single reads included: `contact get`\n" +
+			"returns `{\"Contacts\":[{…}]}`, a one-element array, never a bare object.\n" +
+			"\n" +
+			"One Xero login can act on MANY organisations (Xero calls them tenants), and\n" +
+			"a token is scoped to the login rather than to one organisation, so every\n" +
+			"accounting call needs a target. With one organisation connected it is\n" +
+			"chosen automatically and invisibly. With more than one the command exits 2\n" +
+			"and prints each organisation's name and id — retry with `--tenant`, which\n" +
+			"takes either the tenantId GUID or an organisation name matched\n" +
+			"case-insensitively (an unknown or ambiguous name also exits 2). A GUID is\n" +
+			"used directly; a name costs an extra lookup call first. `connections`\n" +
+			"lists the candidates at any time.\n" +
+			"\n" +
+			"Reads take repeatable `--query key=value`, passed straight through as Xero\n" +
+			"query parameters (`where`, `order`, `page`, `Statuses`, `summaryOnly`, …).\n" +
+			"Xero's `where` is its own filter syntax, not SQL: string tests read\n" +
+			"`Name.Contains(\"Acme\")` or `Status==\"AUTHORISED\"`, dates read\n" +
+			"`Date>=DateTime(2026,01,01)`. Paging is per-endpoint — the transactional\n" +
+			"collections page at 100 rows, while the reference lists (`account list`,\n" +
+			"`item list`, `tax-rate list`) return everything at once.\n" +
+			"\n" +
+			"Writes invert the usual verbs: `create` is PUT and `update` is POST, and\n" +
+			"both take a complete Xero envelope through `--data` or `--file`, never a\n" +
+			"bare object. Because the envelope holds an array, one call can write\n" +
+			"several records. An update is matched by the record's own id — a POST that\n" +
+			"omits it CREATES a new record instead of failing, which is the most\n" +
+			"expensive mistake available here.\n" +
+			"\n" +
+			"Exit codes are 0 success, 1 for a Xero or transport failure, 2 for usage\n" +
+			"(bad flags, unknown subcommand, unresolved organisation). Under `--json`\n" +
+			"failures render as\n" +
+			"`{\"error\":{\"tool\":\"xero\",\"code\":…,\"status\":…,\"details\":<xero body>}}`, so a\n" +
+			"ValidationException's per-field messages survive.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -154,48 +188,48 @@ func (s *Service) newRoot(token, defaultTenant string) *cobra.Command {
 
 	contact := newGroupCmd("contact", "Manage contacts (customers & suppliers)")
 	contact.AddCommand(
-		rc.listCmd("list", "List contacts", "/Contacts"),
-		rc.getCmd("get", "Get a contact by id", "/Contacts"),
-		rc.writeCmd("create", "Create contacts", http.MethodPut, "/Contacts"),
-		rc.writeCmd("update", "Update contacts", http.MethodPost, "/Contacts"),
+		rc.listCmd("list", "List contacts", longContactList, "/Contacts"),
+		rc.getCmd("get", "Get a contact by id", longContactGet, "/Contacts"),
+		rc.writeCmd("create", "Create contacts", longContactCreate, http.MethodPut, "/Contacts"),
+		rc.writeCmd("update", "Update contacts", longContactUpdate, http.MethodPost, "/Contacts"),
 	)
 
 	invoice := newGroupCmd("invoice", "Manage sales invoices & bills")
 	invoice.AddCommand(
-		rc.listCmd("list", "List invoices", "/Invoices"),
-		rc.getCmd("get", "Get an invoice by id or number", "/Invoices"),
-		rc.writeCmd("create", "Create invoices", http.MethodPut, "/Invoices"),
-		rc.writeCmd("update", "Update invoices", http.MethodPost, "/Invoices"),
+		rc.listCmd("list", "List invoices", longInvoiceList, "/Invoices"),
+		rc.getCmd("get", "Get an invoice by id or number", longInvoiceGet, "/Invoices"),
+		rc.writeCmd("create", "Create invoices", longInvoiceCreate, http.MethodPut, "/Invoices"),
+		rc.writeCmd("update", "Update invoices", longInvoiceUpdate, http.MethodPost, "/Invoices"),
 		rc.emailCmd(),
 	)
 
 	payment := newGroupCmd("payment", "Manage payments")
 	payment.AddCommand(
-		rc.listCmd("list", "List payments", "/Payments"),
-		rc.getCmd("get", "Get a payment by id", "/Payments"),
-		rc.writeCmd("create", "Create payments", http.MethodPut, "/Payments"),
+		rc.listCmd("list", "List payments", longPaymentList, "/Payments"),
+		rc.getCmd("get", "Get a payment by id", longPaymentGet, "/Payments"),
+		rc.writeCmd("create", "Create payments", longPaymentCreate, http.MethodPut, "/Payments"),
 	)
 
 	bankTxn := newGroupCmd("bank-transaction", "Manage bank transactions")
 	bankTxn.AddCommand(
-		rc.listCmd("list", "List bank transactions", "/BankTransactions"),
-		rc.getCmd("get", "Get a bank transaction by id", "/BankTransactions"),
-		rc.writeCmd("create", "Create bank transactions", http.MethodPut, "/BankTransactions"),
+		rc.listCmd("list", "List bank transactions", longBankTxnList, "/BankTransactions"),
+		rc.getCmd("get", "Get a bank transaction by id", longBankTxnGet, "/BankTransactions"),
+		rc.writeCmd("create", "Create bank transactions", longBankTxnCreate, http.MethodPut, "/BankTransactions"),
 	)
 
 	account := newGroupCmd("account", "Chart of accounts")
-	account.AddCommand(rc.listCmd("list", "List accounts", "/Accounts"))
+	account.AddCommand(rc.listCmd("list", "List accounts", longAccountList, "/Accounts"))
 
 	item := newGroupCmd("item", "Manage items (products & services)")
 	item.AddCommand(
-		rc.listCmd("list", "List items", "/Items"),
-		rc.getCmd("get", "Get an item by id", "/Items"),
-		rc.writeCmd("create", "Create items", http.MethodPut, "/Items"),
-		rc.writeCmd("update", "Update items", http.MethodPost, "/Items"),
+		rc.listCmd("list", "List items", longItemList, "/Items"),
+		rc.getCmd("get", "Get an item by id", longItemGet, "/Items"),
+		rc.writeCmd("create", "Create items", longItemCreate, http.MethodPut, "/Items"),
+		rc.writeCmd("update", "Update items", longItemUpdate, http.MethodPost, "/Items"),
 	)
 
 	taxRate := newGroupCmd("tax-rate", "Tax rates")
-	taxRate.AddCommand(rc.listCmd("list", "List tax rates", "/TaxRates"))
+	taxRate.AddCommand(rc.listCmd("list", "List tax rates", longTaxRateList, "/TaxRates"))
 
 	organisation := newGroupCmd("organisation", "Organisation details")
 	organisation.AddCommand(rc.orgGetCmd())

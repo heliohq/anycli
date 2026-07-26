@@ -10,8 +10,12 @@ import (
 // region host is written to stderr so stdout stays clean provider JSON.
 func (s *Service) newWhoamiCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "whoami",
-		Short:       "Show the authenticated user and resolved region host (GET /api/users/@me)",
+		Use:   "whoami",
+		Short: "Show the authenticated user and resolved region host (GET /api/users/@me)",
+		Long: "Confirms which account and organization the token belongs to. The resolved\n" +
+			"region host is printed on stderr, NOT inside the JSON on stdout, so a\n" +
+			"caller parsing stdout still gets a clean provider body. Running this first\n" +
+			"also warms the region probe for the rest of the invocation.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

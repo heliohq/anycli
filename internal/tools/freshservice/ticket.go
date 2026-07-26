@@ -51,8 +51,14 @@ func (s *Service) newTicketListCmd(c *client) *cobra.Command {
 	var updatedSince string
 	var perPage, page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List tickets (GET /tickets)",
+		Use:   "list",
+		Short: "List tickets (GET /tickets)",
+		Long: "Walks the whole ticket dataset. --per-page is 1-100, default 30, and an\n" +
+			"out-of-range value is rejected before the request; --page is 1-based, and\n" +
+			"`next_page` in the envelope is null on the last page. --updated-since\n" +
+			"takes an ISO-8601 timestamp and is the only filter available here — a\n" +
+			"narrower cut by status, priority, group or requester needs `ticket\n" +
+			"search`, which pages under different rules.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -83,8 +89,17 @@ func (s *Service) newTicketSearchCmd(c *client) *cobra.Command {
 	var query string
 	var page int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Filter tickets by query (GET /tickets/filter — 30/page fixed, page 1-10)",
+		Use:   "search",
+		Short: "Filter tickets by query (GET /tickets/filter — 30/page fixed, page 1-10)",
+		Long: "The filter endpoint fixes 30 results per page and ignores per_page, so\n" +
+			"there is no --per-page here and --page is validated to 1-10 locally: 300\n" +
+			"results is the hard ceiling, and a broad query is truncated rather than\n" +
+			"paged. Narrow it with a `created_at:>'2026-06-01'` clause instead of\n" +
+			"reaching for more pages. --query is a Lucene-like expression over ticket\n" +
+			"fields joined by AND/OR (`status:2 AND priority:1`, `group_id:12`,\n" +
+			"`agent_id:0` for unassigned), sent raw — the quoting Freshservice requires\n" +
+			"is added for you. This endpoint returns no link header, so the output\n" +
+			"carries a `total` and `next_page` is derived from it.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -110,8 +125,13 @@ func (s *Service) newTicketSearchCmd(c *client) *cobra.Command {
 func (s *Service) newTicketGetCmd(c *client) *cobra.Command {
 	var withConversations bool
 	cmd := &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one ticket (GET /tickets/{id})",
+		Use:   "get <id>",
+		Short: "Get one ticket (GET /tickets/{id})",
+		Long: "Without --conversations the response is the ticket record alone: its\n" +
+			"description and metadata, and none of the replies or notes added since.\n" +
+			"Any question about what was actually said on the ticket needs\n" +
+			"--conversations. Fields sit at the top level — the provider's\n" +
+			"`{\"ticket\":{…}}` wrapper is stripped before printing.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -136,8 +156,19 @@ func (s *Service) newTicketCreateCmd(c *client) *cobra.Command {
 	var subject, description, email, ticketType string
 	var status, priority, groupID, agentID int
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a ticket (POST /tickets)",
+		Use:   "create",
+		Short: "Create a ticket (POST /tickets)",
+		Long: "--subject, --description and --email are required, and --email is the\n" +
+			"REQUESTER's address: an API-key create is always an agent filing on an\n" +
+			"employee's behalf, never the key's own agent raising it. --status and\n" +
+			"--priority are sent as 2 (Open) and 2 (Medium) when omitted rather than\n" +
+			"left out, because the agent-side path effectively requires them. Omit\n" +
+			"--agent-id to leave the ticket unassigned; a null responder is rejected.\n" +
+			"\n" +
+			"An account priority matrix can override the priority sent, and\n" +
+			"account-mandatory custom fields can still reject a create over a field no\n" +
+			"flag here covers — there is no bypass on create, so read the provider's\n" +
+			"`errors[]`, which names the offending field verbatim.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -184,8 +215,14 @@ func (s *Service) newTicketUpdateCmd(c *client) *cobra.Command {
 	var status, priority, groupID, agentID int
 	var tags []string
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update a ticket (PUT /tickets/{id})",
+		Use:   "update <id>",
+		Short: "Update a ticket (PUT /tickets/{id})",
+		Long: "Only the flags actually passed are sent, so an update never clobbers a\n" +
+			"field it was not given — and equally, no flag here can clear one. At least\n" +
+			"one of --status, --priority, --group-id, --agent-id or --tags is required.\n" +
+			"--tags REPLACES the whole tag set rather than adding to it, so read the\n" +
+			"current tags with `ticket get` before sending. --status and --priority are\n" +
+			"integer codes, not labels.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -227,8 +264,13 @@ func (s *Service) newTicketUpdateCmd(c *client) *cobra.Command {
 func (s *Service) newTicketReplyCmd(c *client) *cobra.Command {
 	var replyBody string
 	cmd := &cobra.Command{
-		Use:         "reply <id>",
-		Short:       "Reply to the requester (POST /tickets/{id}/reply — public)",
+		Use:   "reply <id>",
+		Short: "Reply to the requester (POST /tickets/{id}/reply — public)",
+		Long: "Reaches the requester by email as soon as the call returns; `ticket note`\n" +
+			"is the internal half of the same pair and is what internal context belongs\n" +
+			"in. --body accepts HTML. The response is the created conversation object,\n" +
+			"not the ticket — replying does not move the ticket's status, which is a\n" +
+			"separate `ticket update`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -250,8 +292,12 @@ func (s *Service) newTicketNoteCmd(c *client) *cobra.Command {
 	var noteBody string
 	var private bool
 	cmd := &cobra.Command{
-		Use:         "note <id>",
-		Short:       "Add a note (POST /tickets/{id}/notes — private by default)",
+		Use:   "note <id>",
+		Short: "Add a note (POST /tickets/{id}/notes — private by default)",
+		Long: "--private defaults to TRUE, so a bare note is internal and the requester\n" +
+			"never sees it; --private=false publishes it to the requester much like\n" +
+			"`ticket reply`. --body accepts HTML. The response is the created\n" +
+			"conversation object rather than the updated ticket.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

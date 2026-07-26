@@ -23,8 +23,13 @@ func (s *Service) newAutomationCmd(token string) *cobra.Command {
 func (s *Service) newAutomationListCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List automations (GET /automations)",
+		Use:   "list",
+		Short: "List automations (GET /automations)",
+		Long: "Page-numbered with --page. Automations are read-only over this API: they\n" +
+			"cannot be created, edited, enabled, disabled or deleted here, and no\n" +
+			"command enrolls a subscriber into one. Enrollment happens through the\n" +
+			"automation's own trigger, so the lever available from here is usually\n" +
+			"`group assign`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -44,8 +49,11 @@ func (s *Service) newAutomationListCmd(token string) *cobra.Command {
 
 func (s *Service) newAutomationGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get an automation (GET /automations/{id})",
+		Use:   "get <id>",
+		Short: "Get an automation (GET /automations/{id})",
+		Long: "The flow's configuration — its trigger, its steps and whether it is\n" +
+			"currently enabled. Read-only: the enabled state shown here cannot be\n" +
+			"changed through this API.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,8 +69,12 @@ func (s *Service) newAutomationGetCmd(token string) *cobra.Command {
 func (s *Service) newAutomationActivityCmd(token string) *cobra.Command {
 	var limit, page int
 	cmd := &cobra.Command{
-		Use:         "activity <id>",
-		Short:       "Automation subscriber activity (GET /automations/{id}/activity)",
+		Use:   "activity <id>",
+		Short: "Automation subscriber activity (GET /automations/{id}/activity)",
+		Long: "Which subscribers actually moved through this automation and where they\n" +
+			"are in it — the answer to \"did the welcome flow fire for this person\",\n" +
+			"from the flow's side. Page-numbered with --page. The same question from\n" +
+			"the subscriber's side is `subscriber activity`.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -29,7 +29,15 @@ func (s *Service) newViewCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a view",
-		Args:  cobra.NoArgs,
+		Long: "--data-source-id and --name are required on EVERY parent mode, including\n" +
+			"--create-database; a create without a data source is a 400. Exactly one\n" +
+			"parent flag: --database-id builds the view at a database's top level,\n" +
+			"--view-id adds a widget to an existing dashboard view, and\n" +
+			"--create-database makes a linked database view on a page. --type is\n" +
+			"required and closed to table, board, list, calendar, timeline, gallery,\n" +
+			"form, chart, map and dashboard; whether a given type is legal under a\n" +
+			"given parent is decided by the endpoint, not checked here.",
+		Args: cobra.NoArgs,
 		// POST /views
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
@@ -113,7 +121,13 @@ func (s *Service) newViewUpdateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <view-id>",
 		Short: "Update a view's name, filters, sorts, configuration, or quick filters",
-		Args:  cobra.ExactArgs(1),
+		Long: "There is deliberately no --type: a view's type is fixed at creation, so\n" +
+			"turning a table into a board means creating a second view. At least one of\n" +
+			"--name, --filters, --sorts, --configuration or --quick-filters is\n" +
+			"required. Each JSON flag is Notion's REST wire shape passed through\n" +
+			"verbatim and REPLACES that whole field rather than merging into it, so\n" +
+			"send the complete filter or sort set.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /views/{id}
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}

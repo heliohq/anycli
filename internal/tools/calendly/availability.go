@@ -14,8 +14,15 @@ import (
 func (s *Service) newAvailabilitySlotsCmd(token string) *cobra.Command {
 	var eventType, from, to string
 	cmd := &cobra.Command{
-		Use:         "slots",
-		Short:       "Open slots for an event type (GET /event_type_available_times)",
+		Use:   "slots",
+		Short: "Open slots for an event type (GET /event_type_available_times)",
+		Long: "Returns the slots an invitee would actually be offered, which is not the\n" +
+			"inverse of `availability busy`: the event type's duration, buffers, minimum\n" +
+			"notice and daily caps are already applied here. The window must be in the\n" +
+			"FUTURE and Calendly caps `--from`/`--to` at roughly one week per request.\n" +
+			"The tool passes the range through untouched, so a longer window returns a\n" +
+			"Calendly validation error instead of a trimmed answer — chunk a month into\n" +
+			"week-sized calls.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -43,8 +50,16 @@ func (s *Service) newAvailabilitySlotsCmd(token string) *cobra.Command {
 func (s *Service) newAvailabilityBusyCmd(token string) *cobra.Command {
 	var user, from, to string
 	cmd := &cobra.Command{
-		Use:         "busy",
-		Short:       "Calendar busy view for a user (GET /user_busy_times, ≤7 days)",
+		Use:   "busy",
+		Short: "Calendar busy view for a user (GET /user_busy_times, ≤7 days)",
+		Long: "Merges the user's connected-calendar blocks with their Calendly bookings —\n" +
+			"raw unavailability, saying nothing about meeting duration, buffers or\n" +
+			"notice periods, so a gap here is not necessarily bookable. Use it to answer\n" +
+			"\"when is this person occupied\"; use `availability slots` to answer \"when\n" +
+			"can this meeting be booked\". The range is capped at 7 days and is not\n" +
+			"trimmed by the tool, so a longer one is a validation error. `--user` takes\n" +
+			"`me` (the default), a bare UUID or a URI — `org members` resolves a\n" +
+			"colleague's.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -77,8 +92,13 @@ func (s *Service) newAvailabilityScheduleCmd(token string) *cobra.Command {
 	group := newGroupCmd("schedule", "Working-hours availability schedules")
 	var user string
 	list := &cobra.Command{
-		Use:         "list",
-		Short:       "Working-hours schedules + date overrides (GET /user_availability_schedules)",
+		Use:   "list",
+		Short: "Working-hours schedules + date overrides (GET /user_availability_schedules)",
+		Long: "Returns the RULES behind a user's availability — weekly working hours, the\n" +
+			"schedule's timezone, and date-specific overrides — not the resulting\n" +
+			"openings and not their calendar. It answers \"what are this person's normal\n" +
+			"hours\", where `availability slots` answers \"what can be booked\". Takes no\n" +
+			"date range, since a schedule is standing configuration.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

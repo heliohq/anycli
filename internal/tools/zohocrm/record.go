@@ -20,8 +20,16 @@ func (s *Service) newRecordListCmd(token string) *cobra.Command {
 	var module, fields, pageToken, sortBy, sortOrder string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List records in a module (fields required)",
+		Use:   "list",
+		Short: "List records in a module (fields required)",
+		Long: "`--fields` takes up to 50 comma-separated field API names and the v8 API\n" +
+			"will not serve the call without it; `field list --module <M>` is where\n" +
+			"those names come from. `--page` reaches only the first 2,000 records —\n" +
+			"beyond that feed the response's `next_page_token` back through\n" +
+			"`--page-token`, which cannot be combined with `--page`. `--per-page` tops\n" +
+			"out at 200, and `--sort-by` accepts only `id`, `Created_Time` or\n" +
+			"`Modified_Time`. There is no filtering here at all: any condition means\n" +
+			"`query --coql` or `record search`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 	}
@@ -83,8 +91,14 @@ func (s *Service) newRecordListCmd(token string) *cobra.Command {
 func (s *Service) newRecordGetCmd(token string) *cobra.Command {
 	var module, id, fields string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a single record by id",
+		Use:   "get",
+		Short: "Get a single record by id",
+		Long: "`--module` and `--id` are both required. `--fields` is optional here,\n" +
+			"unlike on `record list`, and only narrows the columns — without it Zoho\n" +
+			"returns the whole record, which is the reliable way to see fields you\n" +
+			"did not know existed. The id is Zoho's own numeric record id, the `id`\n" +
+			"on a record, not an email, name or external key; `record search` is how\n" +
+			"you get from one of those to an id.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 	}
@@ -121,8 +135,17 @@ func (s *Service) newRecordCreateCmd(token string) *cobra.Command {
 	var module, data string
 	var noTriggers bool
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create one or more records",
+		Use:   "create",
+		Short: "Create one or more records",
+		Long: "`--data` is a JSON object for one record or an array for up to 100; the\n" +
+			"tool wraps it into Zoho's `{\"data\":[…]}` envelope, so do not wrap it\n" +
+			"again. Keys are field API names from `field list`, and which of them are\n" +
+			"mandatory differs per module — `Leads` insists on `Last_Name`, `Deals`\n" +
+			"on `Deal_Name` and `Stage`. A bulk call can partly succeed, with each\n" +
+			"element of the response's `data[]` carrying its own `code`, so check\n" +
+			"them rather than the exit status. `--no-triggers` suppresses the org's\n" +
+			"workflows, approvals and blueprints for this write; the default lets\n" +
+			"them run, which may email people or move a record through a blueprint.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 	}
@@ -154,8 +177,16 @@ func (s *Service) newRecordUpdateCmd(token string) *cobra.Command {
 	var module, id, data string
 	var noTriggers bool
 	cmd := &cobra.Command{
-		Use:         "update",
-		Short:       "Update a single record by id",
+		Use:   "update",
+		Short: "Update a single record by id",
+		Long: "One record at a time: `--id` names it and `--data` is a JSON object of\n" +
+			"the fields to change, never an array. Only the keys present are written,\n" +
+			"so everything else keeps its value. Keys are field API names, and a\n" +
+			"picklist value that is not one of the field's configured options is\n" +
+			"rejected as `INVALID_DATA` rather than added — `field list` shows the\n" +
+			"accepted set. `--no-triggers` skips the workflows, approvals and\n" +
+			"blueprints an update would otherwise fire, including the stage\n" +
+			"automations behind a `Deals` change.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 	}
@@ -192,8 +223,14 @@ func (s *Service) newRecordUpdateCmd(token string) *cobra.Command {
 func (s *Service) newRecordDeleteCmd(token string) *cobra.Command {
 	var module, id, ids string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete one record (--id) or several (--ids)",
+		Use:   "delete",
+		Short: "Delete one record (--id) or several (--ids)",
+		Long: "Exactly one of `--id` or `--ids` is required and the CLI enforces it;\n" +
+			"`--ids` is a comma-separated bulk delete. Zoho moves deleted records to\n" +
+			"the org's Recycle Bin rather than erasing them, but nothing here reads\n" +
+			"or restores that bin. A bulk delete reports per-record outcomes the way\n" +
+			"a bulk create does, so a clean exit can still hide an id that was not\n" +
+			"deleted — check each entry's `code`.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 	}
@@ -235,8 +272,17 @@ func (s *Service) newRecordSearchCmd(token string) *cobra.Command {
 	var module, criteria, email, phone, word, fields string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search records by criteria, email, phone, or word",
+		Use:   "search",
+		Short: "Search records by criteria, email, phone, or word",
+		Long: "Exactly one of `--criteria`, `--email`, `--phone` or `--word` is\n" +
+			"required; passing two is a usage error here, where the API would\n" +
+			"silently prefer one. `--criteria` is Zoho's own expression syntax —\n" +
+			"`(Last_Name:equals:Doe)`, joined with `and`/`or` and parentheses, over\n" +
+			"field API names. This reads the search INDEX, which lags writes, so a\n" +
+			"record created moments ago returns an empty 204 while `query --coql`\n" +
+			"already sees it. It also needs the `ZohoSearch.securesearch.READ` scope:\n" +
+			"a 401 `OAUTH_SCOPE_MISMATCH` means the connection lacks it and only\n" +
+			"reconnecting fixes that.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 	}

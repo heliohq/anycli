@@ -22,8 +22,14 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 	var body, bodyFile string
 	var headers []string
 	cmd := &cobra.Command{
-		Use:         "api <method> <path>",
-		Short:       "Make a raw Square API request (path starts at /v2/…)",
+		Use:   "api <method> <path>",
+		Short: "Make a raw Square API request (path starts at /v2/…)",
+		Long: "The escape hatch for endpoints with no first-class command — loyalty,\n" +
+			"subscriptions, team and the rest. Method and path are both POSITIONAL, and the\n" +
+			"path starts at `/v2/`. `Authorization` and the pinned `Square-Version` header\n" +
+			"are injected; `--header` is for anything else. `--body` and `--body-file` are\n" +
+			"mutually exclusive. It issues whatever method it is handed, so this is also the\n" +
+			"only place an unwrapped write reaches the seller's account.",
 		Args:        cobra.ExactArgs(2),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

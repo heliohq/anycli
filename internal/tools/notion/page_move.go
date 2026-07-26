@@ -22,7 +22,15 @@ func (s *Service) newPageMoveCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "move",
 		Short: "Move pages or databases to a new parent",
-		Args:  cobra.NoArgs,
+		Long: "--page-or-database-ids is a JSON array of at most 100 ids, and each is\n" +
+			"routed by TYPE: a page goes through the move endpoint, a database is\n" +
+			"re-parented by an update because databases have no move endpoint, and a\n" +
+			"data-source id is rejected — move the database that owns it instead.\n" +
+			"Every id is typed before anything moves, but the moves themselves run one\n" +
+			"at a time and are NOT atomic; a failure part-way reports what already\n" +
+			"moved on stderr. --new-parent takes a parent JSON object, a URL or a bare\n" +
+			"id.",
+		Args: cobra.NoArgs,
 		// POST /pages/{id}/move, PATCH /databases/{id}
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
@@ -112,7 +120,13 @@ func (s *Service) newPageDuplicateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "duplicate <page-id>",
 		Short: "Duplicate a page via a template",
-		Args:  cobra.ExactArgs(1),
+		Long: "Copies the source page through the template endpoint and returns the new\n" +
+			"page SYNCHRONOUSLY — no async task handle comes back, so polling `task\n" +
+			"get` after this waits for something that will never exist. --new-parent\n" +
+			"defaults to the source page's parent, which costs one extra read of the\n" +
+			"source since the endpoint does not inherit it. --title defaults to the\n" +
+			"source title.",
+		Args: cobra.ExactArgs(1),
 		// GET source + POST /pages
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}

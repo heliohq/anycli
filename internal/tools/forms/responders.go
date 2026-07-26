@@ -51,7 +51,13 @@ func (s *Service) newRespondersListCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list <form-id>",
 		Short: "List who can answer the form (Drive permissions on the published view)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Reads Drive's published-view permissions and reports only responder rows —\n" +
+			"people who can EDIT the form are deliberately excluded, so this is not a\n" +
+			"full sharing picture. An `anyone` row means the form is answerable by\n" +
+			"anyone holding the link, which is the fact worth checking before treating a\n" +
+			"form as private. A form nobody has been granted access to reports no\n" +
+			"responders.",
+		Args: cobra.ExactArgs(1),
 		// GET drive/files/{id}/permissions — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -94,7 +100,16 @@ func (s *Service) newRespondersAddCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <form-id> (--anyone | --to a@b[,c@d])",
 		Short: "Grant answer access (drive.file scope: only forms this assistant created)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Exactly one of `--anyone` or `--to` per call. `--anyone` makes the form\n" +
+			"answerable by every holder of the link with no sign-in, which is not\n" +
+			"reversible for anyone who already opened it; `--to` grants named addresses,\n" +
+			"comma-separated, and Google emails them.\n" +
+			"\n" +
+			"Named responders are granted SERIALLY and the call is NOT atomic: a failure\n" +
+			"part-way leaves the earlier addresses granted, and the per-address outcome\n" +
+			"is reported so the caller can see which. Re-running is idempotent. The\n" +
+			"drive.file scope binds this to forms this connection created.",
+		Args: cobra.ExactArgs(1),
 		// POST drive/files/{id}/permissions — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -167,7 +182,11 @@ func (s *Service) newRespondersRemoveCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove <form-id> (--anyone | --to a@b)",
 		Short: "Revoke answer access for anyone-with-link or a named responder",
-		Args:  cobra.ExactArgs(1),
+		Long: "`--anyone` drops the anyone-with-link grant; `--to` drops one named address,\n" +
+			"exactly as `responders list` spells it. Revoking closes the form to that\n" +
+			"party going forward: answers they already submitted stay, and nobody is\n" +
+			"notified that access was withdrawn.",
+		Args: cobra.ExactArgs(1),
 		// DELETE drive/files/{id}/permissions/{pid} — mutating provider call
 		// (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},

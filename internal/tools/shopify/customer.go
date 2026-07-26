@@ -33,8 +33,13 @@ const customerUpdateMutation = `mutation($input: CustomerInput!) {
 // newCustomerListCmd is `customer list`: paginated customer query.
 func (c *client) newCustomerListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List customers (cursor-paginated)",
+		Use:   "list",
+		Short: "List customers (cursor-paginated)",
+		Long: "Each row carries `id`, `displayName`, `email`, `phone`, `numberOfOrders`\n" +
+			"and `createdAt`. `--query` takes Shopify customer search syntax\n" +
+			"(`email:jane@acme.com`, `country:CA`, `orders_count:>5`). The contact fields\n" +
+			"are the ones Protected Customer Data approval gates, so on an unapproved app\n" +
+			"they read null while the call still succeeds.",
 		Args:        cobra.NoArgs,
 		Annotations: readAnnotation(),
 	}
@@ -52,8 +57,12 @@ func (c *client) newCustomerListCmd() *cobra.Command {
 // newCustomerGetCmd is `customer get <id>`.
 func (c *client) newCustomerGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one customer by numeric id or gid",
+		Use:   "get <id>",
+		Short: "Get one customer by numeric id or gid",
+		Long: "Accepts a bare numeric id or `gid://shopify/Customer/<n>`. Adds\n" +
+			"`firstName`/`lastName`, `note`, `tags` and lifetime `amountSpent` to the\n" +
+			"list fields. It returns no addresses and no order history — reach those\n" +
+			"through `order list --query` or `graphql`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readAnnotation(),
 	}
@@ -72,8 +81,13 @@ func (c *client) newCustomerGetCmd() *cobra.Command {
 func (c *client) newCustomerCreateCmd() *cobra.Command {
 	var email, firstName, lastName, phone, note string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a customer",
+		Use:   "create",
+		Short: "Create a customer",
+		Long: "`--email` is required and must be unique in the store: a duplicate comes\n" +
+			"back as a `userErrors` entry and exits non-zero. `--phone` has to be E.164\n" +
+			"(+15551234567) or the write is rejected the same way. Addresses, tags and\n" +
+			"marketing consent are not settable here. No account-invite email is sent —\n" +
+			"that is a separate mutation, reachable only through `graphql`.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAnnotation(),
 	}
@@ -102,8 +116,13 @@ func (c *client) newCustomerCreateCmd() *cobra.Command {
 func (c *client) newCustomerUpdateCmd() *cobra.Command {
 	var email, firstName, lastName, phone, note string
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update a customer's contact fields or note",
+		Use:   "update <id>",
+		Short: "Update a customer's contact fields or note",
+		Long: "At least one field flag is required. Only the flags passed are sent, so\n" +
+			"omitted fields keep their values, and `--note` OVERWRITES the existing note\n" +
+			"rather than appending to it. Changing `--email` runs the store's uniqueness\n" +
+			"check again and fails with a `userErrors` entry if another customer already\n" +
+			"holds that address.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAnnotation(),
 	}

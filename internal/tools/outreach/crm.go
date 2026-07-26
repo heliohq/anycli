@@ -8,12 +8,24 @@ import (
 
 var prospectResource = resource{path: "prospects", typ: "prospect"}
 
+// longProspectGet and longAccountGet live here because both leaves are built by
+// the shared get constructor, which takes its prose as a parameter.
+const (
+	longProspectGet = "Returns every attribute of the prospect plus the hoisted `account_id`,\n" +
+		"`owner_id` and `stage_id`. Addresses live in an `emails` ARRAY — one\n" +
+		"prospect can hold several, and `prospect list --email` matches any of\n" +
+		"them."
+
+	longAccountGet = "The company record, with `owner_id` hoisted. The people under it are a\n" +
+		"separate read: `prospect list --account-id <id>`."
+)
+
 // newProspectCmd builds the prospect resource group (the core CRM object).
 func (s *Service) newProspectCmd(token string) *cobra.Command {
 	group := newGroupCmd("prospect", "Look up and maintain prospects")
 	group.AddCommand(
 		s.newProspectListCmd(token),
-		s.newGetCmd(token, prospectResource),
+		s.newGetCmd(token, prospectResource, longProspectGet),
 		s.newProspectCreateCmd(token),
 		s.newProspectUpdateCmd(token),
 	)
@@ -23,8 +35,13 @@ func (s *Service) newProspectCmd(token string) *cobra.Command {
 func (s *Service) newProspectListCmd(token string) *cobra.Command {
 	var q, email, accountID, stageID, ownerID string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List prospects (one page)",
+		Use:   "list",
+		Short: "List prospects (one page)",
+		Long: "--q is Outreach's full-text search and exists only here and on\n" +
+			"`account list`; --email matches the emails attribute exactly.\n" +
+			"--account-id, --stage-id and --owner-id are relationship filters and\n" +
+			"combine as AND. Prospect records are wide, so pair this with --fields\n" +
+			"naming only the attributes actually needed.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -52,8 +69,13 @@ func (s *Service) newProspectListCmd(token string) *cobra.Command {
 func (s *Service) newProspectCreateCmd(token string) *cobra.Command {
 	f := &prospectFields{}
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a prospect",
+		Use:   "create",
+		Short: "Create a prospect",
+		Long: "--email sets the `emails` array. Outreach does NOT deduplicate, so creating\n" +
+			"an address that already exists yields a second prospect a sequence can\n" +
+			"then contact twice — check `prospect list --email` first. --account-id,\n" +
+			"--owner-id and --stage-id take ids from `account list`, `user list` and\n" +
+			"`stage list`; anything without a flag goes through --attr.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -71,8 +93,12 @@ func (s *Service) newProspectCreateCmd(token string) *cobra.Command {
 func (s *Service) newProspectUpdateCmd(token string) *cobra.Command {
 	f := &prospectFields{}
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update a prospect",
+		Use:   "update <id>",
+		Short: "Update a prospect",
+		Long: "A PATCH: only the attributes and relationships actually passed change. One\n" +
+			"exception bites — --email REPLACES the whole `emails` array with the single\n" +
+			"address given rather than appending, so a prospect holding two addresses\n" +
+			"loses one. Read the current array with `prospect get` first.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -136,7 +162,7 @@ func (s *Service) newAccountCmd(token string) *cobra.Command {
 	group := newGroupCmd("account", "Look up and maintain accounts")
 	group.AddCommand(
 		s.newAccountListCmd(token),
-		s.newGetCmd(token, accountResource),
+		s.newGetCmd(token, accountResource, longAccountGet),
 		s.newAccountCreateCmd(token),
 		s.newAccountUpdateCmd(token),
 	)
@@ -146,8 +172,12 @@ func (s *Service) newAccountCmd(token string) *cobra.Command {
 func (s *Service) newAccountListCmd(token string) *cobra.Command {
 	var q, domain, name, ownerID string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List accounts (one page)",
+		Use:   "list",
+		Short: "List accounts (one page)",
+		Long: "--q is full-text over accounts; --domain and --name are exact field\n" +
+			"filters, and --domain is the reliable one because the same company is\n" +
+			"often named several ways. --owner-id filters by the seat that owns the\n" +
+			"account.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -173,8 +203,12 @@ func (s *Service) newAccountListCmd(token string) *cobra.Command {
 func (s *Service) newAccountCreateCmd(token string) *cobra.Command {
 	f := &accountFields{}
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create an account",
+		Use:   "create",
+		Short: "Create an account",
+		Long: "--name and --domain are the identity fields and --owner-id assigns a seat\n" +
+			"from `user list`. Nothing deduplicates by domain, so search\n" +
+			"`account list --domain` first — a duplicate account splits that company's\n" +
+			"prospects across two records that nothing later merges.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -192,8 +226,11 @@ func (s *Service) newAccountCreateCmd(token string) *cobra.Command {
 func (s *Service) newAccountUpdateCmd(token string) *cobra.Command {
 	f := &accountFields{}
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Update an account",
+		Use:   "update <id>",
+		Short: "Update an account",
+		Long: "A PATCH: only the fields actually passed change. Re-pointing --owner-id\n" +
+			"reassigns the account itself and does not move the prospects under it —\n" +
+			"each of those carries its own `owner_id`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -26,8 +26,13 @@ func (s *Service) newTemplatesEmailListCmd(c *client) *cobra.Command {
 	var limit, offset int
 	var modifiedAfter, modifiedBefore string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List email templates, paginated",
+		Use:   "list",
+		Short: "List email templates, paginated",
+		Long: "Email templates only — push, SMS and in-app templates are not reachable\n" +
+			"here. --limit caps at 1000 and --offset skips, so paging is offset-based\n" +
+			"rather than cursor-based. --modified-after and --modified-before bound the\n" +
+			"last-modified time, which is the way to find what changed recently.\n" +
+			"Templates cannot be created or edited through this tool.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -62,8 +67,12 @@ func (s *Service) newTemplatesEmailListCmd(c *client) *cobra.Command {
 func (s *Service) newTemplatesEmailInfoCmd(c *client) *cobra.Command {
 	var templateID string
 	cmd := &cobra.Command{
-		Use:         "info",
-		Short:       "Get an email template's content and metadata",
+		Use:   "info",
+		Short: "Get an email template's content and metadata",
+		Long: "--template-id is required and is the identifier from `templates email\n" +
+			"list`. Returns the template's stored subject and body, including any\n" +
+			"Liquid and Content Block references unrendered — this is the source, not\n" +
+			"what a given recipient would see.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -97,8 +106,13 @@ func (s *Service) newContentBlocksListCmd(c *client) *cobra.Command {
 	var limit, offset int
 	var modifiedAfter, modifiedBefore string
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List Content Blocks, paginated",
+		Use:   "list",
+		Short: "List Content Blocks, paginated",
+		Long: "Content Blocks are the reusable fragments templates embed by name. --limit\n" +
+			"caps at 1000 and --offset skips; --modified-after and --modified-before\n" +
+			"bound the last-modified time. Read-only here: a Content Block cannot be\n" +
+			"created or edited through this tool, so changing shared copy is a\n" +
+			"dashboard operation.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -133,8 +147,13 @@ func (s *Service) newContentBlocksListCmd(c *client) *cobra.Command {
 func (s *Service) newContentBlocksInfoCmd(c *client) *cobra.Command {
 	var contentBlockID string
 	cmd := &cobra.Command{
-		Use:         "info",
-		Short:       "Get a Content Block's content and metadata",
+		Use:   "info",
+		Short: "Get a Content Block's content and metadata",
+		Long: "--content-block-id is required and comes from `content-blocks list`.\n" +
+			"Returns the block's stored content and metadata as authored. Which\n" +
+			"templates embed it is not part of this response and no command here\n" +
+			"reports it, so the blast radius of a copy change has to be judged in the\n" +
+			"dashboard.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}

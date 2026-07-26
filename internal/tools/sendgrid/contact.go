@@ -25,8 +25,15 @@ func (s *Service) newContactUpsertCmd(token string, region *string) *cobra.Comma
 	var email, firstName, lastName, fullJSON string
 	var customFields []string
 	cmd := &cobra.Command{
-		Use:         "upsert",
-		Short:       "Add/update marketing contacts, async (PUT /v3/marketing/contacts). Returns job_id; confirm with `contact search`.",
+		Use:   "upsert",
+		Short: "Add/update marketing contacts, async (PUT /v3/marketing/contacts). Returns job_id; confirm with `contact search`.",
+		Long: "The flag form sends exactly one contact and cannot set list membership;\n" +
+			"a bulk upsert, or adding the contact to a marketing list through\n" +
+			"`list_ids`, needs --json-body with a full Marketing Contacts body.\n" +
+			"--email is the identity, so a second upsert of the same address updates\n" +
+			"in place instead of duplicating. The job is queued, not applied, which\n" +
+			"means a lookup fired immediately afterwards can legitimately come back\n" +
+			"empty.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -93,8 +100,13 @@ func parseCustomFields(pairs []string) (map[string]any, error) {
 func (s *Service) newContactSearchCmd(token string, region *string) *cobra.Command {
 	var emails []string
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Look up contacts by email (POST /v3/marketing/contacts/search/emails)",
+		Use:   "search",
+		Short: "Look up contacts by email (POST /v3/marketing/contacts/search/emails)",
+		Long: "--email is repeatable and the addresses travel in one request body, so\n" +
+			"batch them rather than calling once per address. This reads the\n" +
+			"Marketing Campaigns contact store only: an address that has only ever\n" +
+			"received transactional mail through `mail send` was never a contact and\n" +
+			"will not be found here.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -22,8 +22,15 @@ func (s *Service) newUsersExportCmd(c *client) *cobra.Command {
 	var externalIDs, fields []string
 	var email, brazeID string
 	cmd := &cobra.Command{
-		Use:         "export",
-		Short:       "Look up user profiles by identifier (POST /users/export/ids)",
+		Use:   "export",
+		Short: "Look up user profiles by identifier (POST /users/export/ids)",
+		Long: "At least one of --external-id, --email or --braze-id is required.\n" +
+			"--external-id is repeatable up to Braze's batch of 50, but --email and\n" +
+			"--braze-id are single-valued because the endpoint accepts only one of\n" +
+			"each per request. --fields is repeatable and selects which profile fields\n" +
+			"come back (email, custom_attributes, …); omitting it returns Braze's\n" +
+			"default set, which is narrower than everything on the profile. Despite\n" +
+			"being a lookup, this is a POST — no user data is changed by it.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -67,8 +74,16 @@ func (s *Service) newUsersExportCmd(c *client) *cobra.Command {
 func (s *Service) newUsersTrackCmd(c *client) *cobra.Command {
 	var attributesFlag, eventsFlag, purchasesFlag string
 	cmd := &cobra.Command{
-		Use:         "track",
-		Short:       "Identify users and record attributes/events/purchases (permission-gated)",
+		Use:   "track",
+		Short: "Identify users and record attributes/events/purchases (permission-gated)",
+		Long: "At least one of --attributes, --events or --purchases is required, and each\n" +
+			"is a raw JSON ARRAY in Braze's own shape — every element needs its own\n" +
+			"`external_id` or `user_alias`, since the envelope carries no global\n" +
+			"identifier. An attribute object with an unknown external_id CREATES that\n" +
+			"profile rather than failing, so a typo silently manufactures a user.\n" +
+			"Attributes overwrite the fields they name on the live profile, and\n" +
+			"nothing here reverses that. This endpoint has one of the tightest rate\n" +
+			"limits in the API.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}

@@ -15,8 +15,15 @@ func (s *Service) newActivityListCmd(token string) *cobra.Command {
 	var profile, status, since, until, nextCursor string
 	var size int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List account activity (GET /v1/profiles/{id}/activities)",
+		Use:   "list",
+		Short: "List account activity (GET /v1/profiles/{id}/activities)",
+		Long: "The mixed, human-readable feed of everything that happened on a profile —\n" +
+			"transfers, conversions, card spend, top-ups — so it answers \"what moved\n" +
+			"recently\" that `transfer list` alone would miss. `--profile` is required.\n" +
+			"The response is {cursor, activities}: feed that cursor back as\n" +
+			"`--next-cursor` for the next page. `--size` is 1-100. This is a\n" +
+			"presentation feed, not a bookkeeping statement — for reconciliation the\n" +
+			"per-balance statements are not exposed by this tool.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"}, // GET
 		RunE: func(cmd *cobra.Command, _ []string) error {

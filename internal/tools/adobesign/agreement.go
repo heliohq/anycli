@@ -21,8 +21,21 @@ type agreementSummary struct {
 func (s *Service) newAgreementSendCmd(token, baseURI string) *cobra.Command {
 	var document, libraryID, recipientEmail, recipientName, name string
 	cmd := &cobra.Command{
-		Use:         "send",
-		Short:       "Create and send an agreement for signature (from a file or a library document)",
+		Use:   "send",
+		Short: "Create and send an agreement for signature (from a file or a library document)",
+		Long: "Exactly one of `--document` (a local file) or `--library-id` (a reusable\n" +
+			"library document); both or neither is a usage error. `--document` costs two\n" +
+			"calls — the file is uploaded to transient storage first, then the agreement\n" +
+			"is created from that id — so sending the same contract repeatedly is cheaper\n" +
+			"as a library document. `--recipient-email` and `--name` are required;\n" +
+			"`--recipient-name` is optional and cosmetic.\n" +
+			"\n" +
+			"The agreement is created in state IN_PROCESS, which means it goes out\n" +
+			"IMMEDIATELY — there is no draft state to review and no scheduling. Exactly\n" +
+			"one signer is supported: this verb builds a single participant set with role\n" +
+			"SIGNER and signature type ESIGN, and there is no flag for counter-signers,\n" +
+			"CC parties, signing order or form fields. The response carries only the new\n" +
+			"`agreement_id`; undoing a send means `agreement cancel`.",
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -95,8 +108,13 @@ func (s *Service) newAgreementListCmd(token, baseURI string) *cobra.Command {
 	var cursor string
 	var pageSize int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List agreements (what is out for signature / completed)",
+		Use:   "list",
+		Short: "List agreements (what is out for signature / completed)",
+		Long: "Covers agreements the connected user can see, in every state at once — there\n" +
+			"is no status, date or counterparty filter, so narrowing is the caller's job\n" +
+			"after the fact. Under `--json` each row is trimmed to `id`, `status`, `name`\n" +
+			"and `created`, and paging runs off `page_cursor`: feed a non-empty value back\n" +
+			"through `--cursor`, sizing pages with `--page-size`.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -146,8 +164,14 @@ func (s *Service) newAgreementListCmd(token, baseURI string) *cobra.Command {
 
 func (s *Service) newAgreementGetCmd(token, baseURI string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <agreement-id>",
-		Short:       "Get one agreement's status",
+		Use:   "get <agreement-id>",
+		Short: "Get one agreement's status",
+		Long: "Under `--json` this returns the same four fields `agreement list` already\n" +
+			"gives — `id`, `status`, `name`, `created` — so it is worth calling to poll\n" +
+			"one agreement, not to enrich a listed one. Per-signer progress is a\n" +
+			"different call: `agreement members`. Without `--json` the full provider\n" +
+			"payload comes through instead, which is where anything beyond those four\n" +
+			"fields lives.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -174,8 +198,13 @@ func (s *Service) newAgreementGetCmd(token, baseURI string) *cobra.Command {
 
 func (s *Service) newAgreementMembersCmd(token, baseURI string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "members <agreement-id>",
-		Short:       "List per-participant signing status",
+		Use:   "members <agreement-id>",
+		Short: "List per-participant signing status",
+		Long: "Answers who is holding things up, which the agreement-level `status` cannot.\n" +
+			"Under `--json` it flattens Adobe's participant sets into one list of\n" +
+			"`{email, status, order, role}`; `order` is the signing position, so a\n" +
+			"participant later in the sequence stays untouched until the earlier ones\n" +
+			"finish. A participant with no status of its own inherits its set's.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -224,8 +253,15 @@ func (s *Service) newAgreementMembersCmd(token, baseURI string) *cobra.Command {
 func (s *Service) newAgreementCancelCmd(token, baseURI string) *cobra.Command {
 	var comment string
 	cmd := &cobra.Command{
-		Use:         "cancel <agreement-id>",
-		Short:       "Cancel a sent agreement (sender-initiated)",
+		Use:   "cancel <agreement-id>",
+		Short: "Cancel a sent agreement (sender-initiated)",
+		Long: "Sender-initiated cancellation, terminal: the agreement moves to CANCELLED\n" +
+			"and cannot be reopened or resent — a replacement is a fresh `agreement send`.\n" +
+			"It only applies while the agreement is still in flight; one that already\n" +
+			"reached SIGNED is rejected by Adobe. `--comment` is recorded on the\n" +
+			"agreement for the audit trail. Participants are NOT notified: the call pins\n" +
+			"`notifyOthers` to false, so anyone already emailed a signing link has to be\n" +
+			"told separately.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -252,8 +288,13 @@ func (s *Service) newAgreementCancelCmd(token, baseURI string) *cobra.Command {
 func (s *Service) newAgreementDownloadCmd(token, baseURI string) *cobra.Command {
 	var out string
 	cmd := &cobra.Command{
-		Use:         "download <agreement-id>",
-		Short:       "Download the combined signed PDF",
+		Use:   "download <agreement-id>",
+		Short: "Download the combined signed PDF",
+		Long: "Fetches the combined document — the signed original plus Adobe's audit\n" +
+			"trail — as a single PDF. Without `--out` the raw PDF BYTES go to stdout,\n" +
+			"which is rarely what a caller wants; pass `--out <path>` to write a file and\n" +
+			"get the path back instead. Only meaningful once `agreement get` reports\n" +
+			"SIGNED; earlier states have no combined document to return.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

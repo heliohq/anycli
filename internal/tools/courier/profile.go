@@ -11,8 +11,13 @@ import (
 // recipient's channels on file.
 func (s *Service) newProfileGetCmd(key string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <user-id>",
-		Short:       "Get a recipient profile",
+		Use:   "get <user-id>",
+		Short: "Get a recipient profile",
+		Long: "Returns the channel addresses Courier holds for one user id — email, phone,\n" +
+			"push tokens, Slack — which is what decides whether `send --user-id` can be\n" +
+			"delivered at all. A 404 means no profile exists, and a send to that id is\n" +
+			"still accepted with a 202 before failing to deliver, so checking here is\n" +
+			"cheaper than reading the failure out of `message history` afterwards.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -30,8 +35,11 @@ func (s *Service) newProfileGetCmd(key string) *cobra.Command {
 func (s *Service) newProfileSubscriptionsCmd(key string) *cobra.Command {
 	var cursor string
 	cmd := &cobra.Command{
-		Use:         "subscriptions <user-id>",
-		Short:       "List the lists a user is subscribed to",
+		Use:   "subscriptions <user-id>",
+		Short: "List the lists a user is subscribed to",
+		Long: "Cursor-paginated with --cursor. This is the only direction membership can\n" +
+			"be read in — there is no command that enumerates one list's members — so\n" +
+			"answering who receives a list means walking the users, not the list.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {

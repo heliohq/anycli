@@ -21,8 +21,15 @@ func (s *Service) newInboxListCmd(token string) *cobra.Command {
 	var filter, after string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List inbox items (replies, mentions, private messages)",
+		Use:   "list",
+		Short: "List inbox items (replies, mentions, private messages)",
+		Long: "`--filter` is `all` (default), `unread` or `mentions`, and each is a\n" +
+			"different Reddit endpoint rather than a client-side filter. Items come\n" +
+			"back in the comment shape, so a private message and a comment reply look\n" +
+			"alike and are told apart by their fullname prefix — `t4_` versus `t1_`.\n" +
+			"Reading does NOT mark anything read: `--filter unread` keeps returning\n" +
+			"the same items until `inbox mark-read` is called. `--limit` is 1-100,\n" +
+			"`--after` pages.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -61,8 +68,14 @@ func (s *Service) newInboxListCmd(token string) *cobra.Command {
 
 func (s *Service) newInboxMarkReadCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "mark-read <fullname>...",
-		Short:       "Mark one or more inbox items read (t4_/t1_ fullnames)",
+		Use:   "mark-read <fullname>...",
+		Short: "Mark one or more inbox items read (t4_/t1_ fullnames)",
+		Long: "Takes one or more fullnames as positional arguments and marks them all in\n" +
+			"a single request; each is validated as a fullname before anything is\n" +
+			"sent, so one bad argument fails the whole call rather than half of it.\n" +
+			"Since reading never marks anything, this is what stops\n" +
+			"`inbox list --filter unread` from returning the same items forever.\n" +
+			"There is no mark-unread counterpart.",
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

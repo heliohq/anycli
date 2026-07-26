@@ -11,8 +11,12 @@ func (s *Service) newCollectorListCmd(token string) *cobra.Command {
 	var survey string
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List the collectors that gathered a survey's responses",
+		Use:   "list",
+		Short: "List the collectors that gathered a survey's responses",
+		Long: "`--survey` is required. A collector is one distribution channel — a web\n" +
+			"link, an email invitation — and this says how responses were gathered when\n" +
+			"the answers themselves are paywalled. `--page` and `--per-page` page it.\n" +
+			"Free-plan usable.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -33,8 +37,12 @@ func (s *Service) newCollectorListCmd(token string) *cobra.Command {
 
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "me",
-		Short:       "Show the connected SurveyMonkey user (identity, team, plan)",
+		Use:   "me",
+		Short: "Show the connected SurveyMonkey user (identity, team, plan)",
+		Long: "Names the account behind the connection and reports its plan, which is what\n" +
+			"decides whether `response bulk` and `response get` can return answers at\n" +
+			"all. Worth one call before promising an analysis that depends on them.\n" +
+			"Takes no flags.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -53,8 +61,14 @@ func (s *Service) newMeCmd(token string) *cobra.Command {
 func (s *Service) newFetchCmd(token string) *cobra.Command {
 	var path string
 	cmd := &cobra.Command{
-		Use:         "fetch",
-		Short:       "GET any v3 endpoint by path (read-only escape hatch)",
+		Use:   "fetch",
+		Short: "GET any v3 endpoint by path (read-only escape hatch)",
+		Long: "For v3 endpoints this tool does not model — survey rollups, trends,\n" +
+			"templates. `--path` is v3-relative (`surveys/123/rollups`); a leading\n" +
+			"slash and an explicit `v3/` prefix are both tolerated and stripped. GET\n" +
+			"only, so it cannot become a write, and it takes no query flags: anything\n" +
+			"the endpoint needs has to be spelled into `--path` itself. The paid-plan\n" +
+			"gate on answer data still applies to whatever endpoint is reached.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

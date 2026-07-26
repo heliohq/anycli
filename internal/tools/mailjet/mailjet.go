@@ -97,8 +97,30 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(basic string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "mailjet",
-		Short:         "Mailjet built-in service (transactional email, contacts, lists, templates, stats)",
+		Use:   "mailjet",
+		Short: "Mailjet built-in service (transactional email, contacts, lists, templates, stats)",
+		Long: "Two Mailjet APIs behind one tree. `send` rides the Send API v3.1, which is\n" +
+			"transactional delivery — one message to named recipients, no list involved.\n" +
+			"Everything else rides the v3 REST API and manages the address book, templates\n" +
+			"and reporting. Mailjet's campaign/newsletter authoring surface is not exposed\n" +
+			"at all, so campaign ids seen in `message` and `stat` come from elsewhere.\n" +
+			"\n" +
+			"The account is reached with an API key pair sent as HTTP Basic, so a 401 or\n" +
+			"403 means the pair was rejected outright rather than that a scope is missing.\n" +
+			"\n" +
+			"Mailjet runs EU and US hosts and an account lives on exactly one. This tool\n" +
+			"defaults to the EU host; an account provisioned on Mailjet's US architecture\n" +
+			"needs `--region us` (or an explicit `--base-url`) on every call — the same key\n" +
+			"pair works, but against the wrong host it looks like an auth failure.\n" +
+			"\n" +
+			"REST list verbs return `{\"data\":[...],\"count\":N,\"total\":T}` with Mailjet's own\n" +
+			"`{Count,Data,Total}` envelope already unwrapped, and page with `--limit` /\n" +
+			"`--offset` — `--limit` defaults to 10, so an unset limit is a small page, not\n" +
+			"everything. Get verbs return the single record rather than a one-element\n" +
+			"array. `send` is the exception and passes the v3.1 result through verbatim.\n" +
+			"\n" +
+			"`--json` is accepted for uniformity and changes nothing; output is JSON\n" +
+			"regardless.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -24,8 +24,14 @@ func (s *Service) newListCmd(token string) *cobra.Command {
 	var pageToken, sort, fields string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List the user's contacts (people.connections.list)",
+		Use:   "list",
+		Short: "List the user's contacts (people.connections.list)",
+		Long: "Walks My Contacts directly and, unlike `search`, touches no cache — a\n" +
+			"contact saved seconds ago is already here, which makes\n" +
+			"--sort last-modified the reliable way to find a just-added person.\n" +
+			"--max is 1-1000, default 100; continue with --page-token. --fields is a\n" +
+			"personFields mask defaulting to names, emails, phones and organizations,\n" +
+			"and widening it is the only way to see birthdays, addresses or notes.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -95,8 +101,13 @@ func cleanResourceNames(args []string) ([]string, error) {
 func (s *Service) newGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:         "get <resource-name>...",
-		Short:       "Fetch one or more contacts by resource name (people.get / getBatchGet)",
+		Use:   "get <resource-name>...",
+		Short: "Fetch one or more contacts by resource name (people.get / getBatchGet)",
+		Long: "Takes resource names of the people/c123 form — the ids `list`, `search`\n" +
+			"and `resolve` return — never an email address. Several names in one\n" +
+			"invocation collapse into a single batch request, so pass them together\n" +
+			"instead of looping. Names separated by whitespace inside one quoted\n" +
+			"argument work too. --fields is the same personFields mask as `list`.",
 		Args:        cobra.MinimumNArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

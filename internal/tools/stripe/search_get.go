@@ -30,8 +30,16 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var limit int
 	var params []string
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search a resource with Stripe Search Query Language",
+		Use:   "search",
+		Short: "Search a resource with Stripe Search Query Language",
+		Long: "--resource picks which endpoint is searched — customers, charges, invoices,\n" +
+			"subscriptions, prices — and those are the only resources Stripe gives a\n" +
+			"search endpoint at all. --query is Stripe Search Query Language:\n" +
+			"`amount>1000 AND status:'succeeded'`, `metadata['order']:'A17'`. The\n" +
+			"index is EVENTUALLY CONSISTENT and lags writes by up to a minute, so an\n" +
+			"object created seconds ago may be missing — retrieve it by id instead.\n" +
+			"Paging is --page from the previous response's `next_page`, not\n" +
+			"--starting-after.",
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -60,13 +68,14 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 
 // newResourceSearchCmd builds a `search --query` subcommand scoped to one
 // resource's /search endpoint (used inside a resource group, e.g. customer).
-func (s *Service) newResourceSearchCmd(token, basePath string) *cobra.Command {
+func (s *Service) newResourceSearchCmd(token, basePath, long string) *cobra.Command {
 	var query, page string
 	var limit int
 	var params []string
 	cmd := &cobra.Command{
 		Use:         "search",
 		Short:       "Search with Stripe Search Query Language",
+		Long:        long,
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -131,8 +140,14 @@ func searchResourceNames() string {
 func (s *Service) newGetCmd(token string) *cobra.Command {
 	var params []string
 	cmd := &cobra.Command{
-		Use:         "get <path>",
-		Short:       "Raw GET passthrough for any Stripe read (e.g. get account)",
+		Use:   "get <path>",
+		Short: "Raw GET passthrough for any Stripe read (e.g. get account)",
+		Long: "A plain GET against any Stripe read endpoint, with or without the /v1\n" +
+			"prefix: `get account`, `get charges/ch_123`, `get charges --param\n" +
+			"limit=3`. This is the reach for everything without a dedicated verb here —\n" +
+			"coupons, tax rates, checkout sessions, connected accounts. Reads only:\n" +
+			"there is no POST passthrough, so anything that mutates has to go through a\n" +
+			"real verb.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(false),
 		RunE: func(cmd *cobra.Command, args []string) error {

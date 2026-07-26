@@ -10,8 +10,12 @@ import (
 // newCustomerGetCmd: GET /customers/{id}.
 func (s *Service) newCustomerGetCmd(base, token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get a customer by id",
+		Use:   "get <id>",
+		Short: "Get a customer by id",
+		Long: "Takes Kustomer's internal customer id. An email address will not resolve\n" +
+			"here — that is `customer get-by-email`. The record carries the person's\n" +
+			"emails, phones and custom attributes, but not their tickets: those are\n" +
+			"`customer conversations <id>`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -29,8 +33,13 @@ func (s *Service) newCustomerGetCmd(base, token string) *cobra.Command {
 // exact form).
 func (s *Service) newCustomerGetByEmailCmd(base, token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get-by-email <email>",
-		Short:       "Get a customer by email address",
+		Use:   "get-by-email <email>",
+		Short: "Get a customer by email address",
+		Long: "The usual entry point, since an inbound request almost always arrives with\n" +
+			"an address rather than an id. The match is on an email Kustomer has stored\n" +
+			"for the customer, so an alias the customer has never written from does not\n" +
+			"resolve; `search customers` is the fuzzier fallback. The id in the reply\n" +
+			"is what every conversation command then takes.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,8 +55,12 @@ func (s *Service) newCustomerGetByEmailCmd(base, token string) *cobra.Command {
 // newCustomerConversationsCmd: GET /customers/{id}/conversations.
 func (s *Service) newCustomerConversationsCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "conversations <id>",
-		Short:       "List a customer's conversations",
+		Use:   "conversations <id>",
+		Short: "List a customer's conversations",
+		Long: "One customer's whole ticket history, which is the context to read before\n" +
+			"answering them — `conversation list` spans the org and will not narrow to\n" +
+			"a person. Paged with `--page` / `--page-size`; add status or date\n" +
+			"narrowing through repeatable `--query key=value` filters.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 	}
@@ -69,8 +82,13 @@ func (s *Service) newCustomerConversationsCmd(base, token string) *cobra.Command
 // newCustomerCreateCmd: POST /customers with a raw JSON body.
 func (s *Service) newCustomerCreateCmd(base, token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a customer from a JSON body",
+		Use:   "create",
+		Short: "Create a customer from a JSON body",
+		Long: "The body is Kustomer's own customer shape, sent unmodified — typically\n" +
+			"`{\"name\":…,\"emails\":[{\"email\":…}]}`, where emails and phones are ARRAYS of\n" +
+			"objects rather than plain strings. Creating with an address that already\n" +
+			"exists makes a SECOND customer rather than merging, and this tool has no\n" +
+			"merge or delete verb, so check `customer get-by-email` first.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 	}

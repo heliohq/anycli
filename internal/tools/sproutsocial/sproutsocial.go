@@ -154,8 +154,35 @@ var (
 // defaults to the env-injected customer id and overrides it per invocation.
 func (s *Service) newRoot(token, defaultCustomerID string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "sprout-social",
-		Short:         "Sprout Social built-in service (analytics, inbox, publishing)",
+		Use:   "sprout-social",
+		Short: "Sprout Social built-in service (analytics, inbox, publishing)",
+		Long: "Nearly every Sprout path is `/v1/{customer_id}/...`, and the connected\n" +
+			"account's default customer id is already injected, so no command asks for\n" +
+			"one. A token that can see several customers lists them with\n" +
+			"`metadata client` and targets another through the global `--customer-id`.\n" +
+			"\n" +
+			"`analytics profiles`, `analytics posts`, `messages list` and `cases filter`\n" +
+			"are POST endpoints that take a QUERY BODY rather than flags. `--filter` is\n" +
+			"repeatable and speaks Sprout's filter DSL —\n" +
+			"`created_time.in(2026-01-01...2026-02-01)`, `customer_profile_id.eq(1,2)` —\n" +
+			"with operators eq/neq, gt/gte/lt/lte, in (`..` inclusive end, `...`\n" +
+			"exclusive), exists and match. All four REQUIRE at least one filter; without\n" +
+			"one Sprout answers 400 and the tool passes that through unchanged. `--body`\n" +
+			"sends a whole JSON query verbatim and replaces everything the flags\n" +
+			"assembled.\n" +
+			"\n" +
+			"Paging is not uniform. Analytics uses INDEX paging (`--page` against\n" +
+			"`paging.total_pages`); messages and cases use CURSOR paging (`--page-cursor`\n" +
+			"against `paging.next_cursor`). Neither follows pages on its own.\n" +
+			"\n" +
+			"Publishing is DRAFT-ONLY. The public API pins `is_draft` true; scheduling,\n" +
+			"approval and going live happen in the Sprout app, and nothing here can\n" +
+			"publish.\n" +
+			"\n" +
+			"Responses are Sprout's own envelope, `{\"data\": ..., \"paging\": ...}`, passed\n" +
+			"through whole — `--json` is accepted for uniformity and changes nothing.\n" +
+			"Rate limits are 60 requests a minute and 250,000 a month, so one wide\n" +
+			"filtered query paged through beats many narrow ones.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

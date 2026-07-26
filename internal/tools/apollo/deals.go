@@ -25,8 +25,14 @@ func (s *Service) newDealsCreateCmd(token string) *cobra.Command {
 	var body, name, ownerID, accountID, stageID string
 	var amount string
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a deal (POST /opportunities)",
+		Use:   "create",
+		Short: "Create a deal (POST /opportunities)",
+		Long: "Deals are Apollo opportunities. --account-id links the deal to a saved\n" +
+			"account (from `accounts search`), --owner-id to a team member (from `users\n" +
+			"list`) and --stage-id to an opportunity stage — all three are ids, not\n" +
+			"names. --amount is sent as a string in the Apollo account's own currency.\n" +
+			"Unlike `deals search` and `deals update`, create is reachable with the\n" +
+			"connected OAuth token.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -59,8 +65,13 @@ func (s *Service) newDealsCreateCmd(token string) *cobra.Command {
 func (s *Service) newDealsSearchCmd(token string) *cobra.Command {
 	var page, perPage int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "List/search deals (GET /opportunities/search)",
+		Use:   "search",
+		Short: "List/search deals (GET /opportunities/search)",
+		Long: "A GET, so it takes no filters at all beyond --page (1-based) and\n" +
+			"--per-page, and it has no `--body` escape hatch. Apollo documents this\n" +
+			"endpoint as master-API-key-only, so the connected OAuth token can come\n" +
+			"back 403 with a master-key hint; `deals update` is gated the same way\n" +
+			"while `deals create` is not.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -81,8 +92,13 @@ func (s *Service) newDealsSearchCmd(token string) *cobra.Command {
 func (s *Service) newDealsUpdateCmd(token string) *cobra.Command {
 	var body, name, stageID, amount string
 	cmd := &cobra.Command{
-		Use:         "update <opportunity_id>",
-		Short:       "Update a deal (PATCH /opportunities/{id})",
+		Use:   "update <opportunity_id>",
+		Short: "Update a deal (PATCH /opportunities/{id})",
+		Long: "Takes the opportunity id and PATCHes only the fields given; omitted flags\n" +
+			"leave the stored value untouched. Advancing a deal means setting\n" +
+			"--stage-id to another opportunity stage id, not a stage name. Apollo\n" +
+			"documents this endpoint as master-API-key-only, so the connected OAuth\n" +
+			"token can come back 403 with a master-key hint.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

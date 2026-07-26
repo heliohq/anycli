@@ -123,8 +123,32 @@ func (s *Service) renderError(jsonMode bool, err error) {
 
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "jotform",
-		Short:         "Jotform built-in service (API key)",
+		Use:   "jotform",
+		Short: "Jotform built-in service (API key)",
+		Long: "Calls Jotform's v1 REST API with a long-lived personal API key rather than\n" +
+			"OAuth. A Jotform key is minted as either Read Only or Full Access, and that\n" +
+			"choice is baked into the key: every read here works with either, but\n" +
+			"`submission create`, `submission edit` and `submission delete` need Full\n" +
+			"Access. A read-only key attempting a write gets Jotform's 401 \"not\n" +
+			"authorized\", which is a key-PERMISSION problem, not an invalid key — a new\n" +
+			"Full Access key is the only fix. Keys are also region-bound; this connection\n" +
+			"reaches the US API only, so an EU- or HIPAA-residency account's key will not\n" +
+			"authenticate.\n" +
+			"\n" +
+			"Answers are keyed by question id (qid), never by field label. Reading or\n" +
+			"writing a submission correctly therefore starts at\n" +
+			"`form questions <formID>`, which maps each qid to its field. Jotform silently\n" +
+			"IGNORES a write whose key is not a real qid, so a guessed label produces a\n" +
+			"successful-looking submission with the answer missing.\n" +
+			"\n" +
+			"Every response is Jotform's own envelope,\n" +
+			"`{\"responseCode\":200,\"message\":\"success\",\"content\":{...}}` — the payload is\n" +
+			"under `content`.\n" +
+			"\n" +
+			"List verbs take `--limit` and `--offset`, plus `--filter` (a Jotform JSON\n" +
+			"filter object such as `'{\"status\":\"ENABLED\"}'`) and `--orderby`. Jotform caps\n" +
+			"`--limit` at 1000; leaving it unset sends no limit at all, so Jotform's own\n" +
+			"small default page applies.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

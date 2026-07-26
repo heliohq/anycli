@@ -10,8 +10,15 @@ import (
 func (s *Service) newUserUpsertCmd(key, appID string) *cobra.Command {
 	var aliasLabel, aliasID, properties, tags string
 	cmd := &cobra.Command{
-		Use:         "upsert",
-		Short:       "Create or update a user by alias (POST /apps/{app_id}/users)",
+		Use:   "upsert",
+		Short: "Create or update a user by alias (POST /apps/{app_id}/users)",
+		Long: "`--alias-label` and `--alias-id` are both required and together form the\n" +
+			"identity — typically `external_id` plus the application's own user id. An\n" +
+			"existing user with that alias is updated; otherwise one is created.\n" +
+			"`--tags` and `--properties` must each be a JSON OBJECT and are rejected\n" +
+			"locally if they are not. Tags are what filter-based segments match on, so\n" +
+			"this is how a user becomes eligible for a `segment create --filters`\n" +
+			"audience.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -63,8 +70,12 @@ func (s *Service) newUserUpsertCmd(key, appID string) *cobra.Command {
 func (s *Service) newUserGetCmd(key, appID string) *cobra.Command {
 	var aliasLabel, aliasID string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Read a user by alias (GET /apps/{app_id}/users/by/{label}/{id})",
+		Use:   "get",
+		Short: "Read a user by alias (GET /apps/{app_id}/users/by/{label}/{id})",
+		Long: "Users are addressed by an alias PAIR — `--alias-label external_id`\n" +
+			"`--alias-id user-123` — and both flags are required; there is no lookup by\n" +
+			"a bare OneSignal id, by email or by phone number. A user the app never\n" +
+			"stored that alias for is simply not reachable through this command.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

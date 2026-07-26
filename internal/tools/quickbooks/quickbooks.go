@@ -149,8 +149,38 @@ func (s *Service) stderr() io.Writer {
 // top-level; each accounting entity hangs under its own resource group.
 func (s *Service) newRoot(cl *client) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "quickbooks",
-		Short:         "QuickBooks Online built-in service (Accounting + Reports API v3)",
+		Use:   "quickbooks",
+		Short: "QuickBooks Online built-in service (Accounting + Reports API v3)",
+		Long: "Intuit's Accounting API v3 plus the Reports API, scoped to ONE company. The\n" +
+			"realmId was captured at connect time and is applied automatically — it is\n" +
+			"never a flag, and one connection reaches exactly one company's books.\n" +
+			"\n" +
+			"`query` is the workhorse: most \"list / find / how much / who\" questions are\n" +
+			"one QuickBooks SQL statement, and the per-resource `list` verbs are that\n" +
+			"same call behind flags. Pagination lives inside the grammar — `--max` is\n" +
+			"MAXRESULTS (100 by default, 1000 at most) and `--start-position` is a\n" +
+			"1-based STARTPOSITION — so paging is offset arithmetic, with no cursor and\n" +
+			"no link headers.\n" +
+			"\n" +
+			"`create` is an upsert on the entity's POST endpoint: a body with no `Id`\n" +
+			"creates, and a body carrying `Id` plus the record's CURRENT `SyncToken`\n" +
+			"updates it, with `\"sparse\": true` limiting the update to the fields\n" +
+			"present. An update with a missing or stale `SyncToken` fails instead of\n" +
+			"overwriting.\n" +
+			"\n" +
+			"Write payloads are raw QuickBooks entity JSON and the shapes are exact:\n" +
+			"amounts hang off a `Line` with a `DetailType`, and references are objects\n" +
+			"like `\"CustomerRef\": {\"value\": \"42\"}` holding an ID, never a name. Read a\n" +
+			"comparable record with `get` and mirror it rather than composing from\n" +
+			"memory.\n" +
+			"\n" +
+			"Failures return QuickBooks' `Fault` array with a code and a detail string —\n" +
+			"under `--json` at `error.fault`. A ValidationFault names the offending\n" +
+			"field, which is worth reading before any retry.\n" +
+			"\n" +
+			"Accounting and reports only. Payroll and the Payments merchant-processing\n" +
+			"API are out of scope; the `payment` resource here is the accounting entity\n" +
+			"that records money received, not a way to charge a card.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

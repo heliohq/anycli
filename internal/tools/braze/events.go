@@ -23,8 +23,12 @@ func (s *Service) newEventsCmd(c *client) *cobra.Command {
 func (s *Service) newEventsListCmd(c *client) *cobra.Command {
 	var page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List custom-event names, paginated",
+		Use:   "list",
+		Short: "List custom-event names, paginated",
+		Long: "The custom-event NAMES the workspace has recorded, which is where the\n" +
+			"--event value for `events series` comes from — names are workspace-defined\n" +
+			"and cannot be guessed. --page is 0-INDEXED; keep advancing until a page\n" +
+			"comes back empty. No counts here, only names.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}
@@ -49,8 +53,13 @@ func (s *Service) newEventsSeriesCmd(c *client) *cobra.Command {
 	var event, unit, endingAt string
 	var length int
 	cmd := &cobra.Command{
-		Use:         "series",
-		Short:       "Get occurrences of a custom event over time",
+		Use:   "series",
+		Short: "Get occurrences of a custom event over time",
+		Long: "--event is required and must match a name from `events list` exactly.\n" +
+			"--unit is day (Braze's default) or hour, and --length counts that many\n" +
+			"UNITS back from --ending-at — with --unit hour, --length 100 is roughly\n" +
+			"four days, not a hundred. Counts are total occurrences, so one user can\n" +
+			"contribute many.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}

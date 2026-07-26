@@ -21,8 +21,13 @@ func (s *Service) newSessionsSeriesCmd(c *client) *cobra.Command {
 	var endingAt, unit, appID, segmentID string
 	var length int
 	cmd := &cobra.Command{
-		Use:         "series",
-		Short:       "Get app-session counts over time",
+		Use:   "series",
+		Short: "Get app-session counts over time",
+		Long: "--unit is day (Braze's default) or hour and --length counts that many UNITS\n" +
+			"back from --ending-at, capped at 100 — with --unit hour that is about four\n" +
+			"days of history. --app-id and --segment-id narrow the slice; without them\n" +
+			"this covers the whole workspace. Sessions count app opens, not unique\n" +
+			"users, which is `kpi dau`.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 	}

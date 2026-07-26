@@ -13,8 +13,16 @@ func (s *Service) newEmailFinderCmd(key string) *cobra.Command {
 	var domain, company, firstName, lastName, fullName, linkedinHandle string
 	var maxDuration int
 	cmd := &cobra.Command{
-		Use:         "email-finder",
-		Short:       "Find a person's email address (GET /email-finder)",
+		Use:   "email-finder",
+		Short: "Find a person's email address (GET /email-finder)",
+		Long: "Costs one search credit whether or not an address comes back. Identify\n" +
+			"the person either by name plus employer (`--first-name`/`--last-name` or\n" +
+			"`--full-name`, with `--domain`, or the fuzzier `--company`) or by\n" +
+			"`--linkedin-handle` on its own. The reply is a single best guess with a\n" +
+			"`score` and the `sources` behind it; a low score means Hunter inferred\n" +
+			"the address from the domain's pattern rather than observing it, so put\n" +
+			"it through `email-verifier` before anyone sends to it. `--max-duration`\n" +
+			"is 3-20 seconds, default 10, and buys Hunter more time on a hard lookup.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

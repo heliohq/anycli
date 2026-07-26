@@ -45,9 +45,12 @@ func (s *Service) newBatchUpdateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "batch-update <presentation-id-or-url>",
 		Short: "Escape hatch: pass raw batchUpdate requests through verbatim (all 44 request types)",
-		Long: "Pass the full Slides batchUpdate request surface through verbatim. --requests accepts a " +
-			"JSON array of Request objects, a single Request object, or a full {\"requests\":[...]} body. " +
-			"The whole batch is atomic: if any request is invalid, none are applied.",
+		Long: "Reach for this when no typed command covers the request type you need.\n" +
+			"--requests takes a JSON array of Request objects, a single Request\n" +
+			"object, or a full {\"requests\":[...]} body; --requests-file reads the same\n" +
+			"three shapes from a file, and exactly one of the two flags is required.\n" +
+			"The whole batch is atomic: if any request fails validation, none are\n" +
+			"applied.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

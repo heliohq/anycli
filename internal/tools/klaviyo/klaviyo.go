@@ -91,8 +91,35 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "klaviyo",
-		Short:         "Klaviyo built-in service",
+		Use:   "klaviyo",
+		Short: "Klaviyo built-in service",
+		Long: "Everything is JSON:API. Reads return `{\"data\":[…],\"links\":{\"next\":…}}` and\n" +
+			"writes take a `{\"data\":{\"type\":…,\"attributes\":{…}}}` envelope. The common\n" +
+			"single-entity writes build that envelope from convenience flags, and every\n" +
+			"one of them also accepts --data with a full raw body, which WINS over the\n" +
+			"shorthand whenever it is set.\n" +
+			"\n" +
+			"A list returns ONE page. Take `page[cursor]` out of `links.next` and pass\n" +
+			"it as --cursor for the next; --page-size is 1-100 and anything outside\n" +
+			"that is rejected locally.\n" +
+			"\n" +
+			"--filter takes Klaviyo's own grammar verbatim — `equals(email,\"a@b.co\")`,\n" +
+			"`greater-than(created,2024-01-01)` — and nothing here validates or\n" +
+			"translates it. --sort is a field name with a leading minus for descending.\n" +
+			"--include, --fields and repeatable --param name=value pass straight\n" +
+			"through as the JSON:API query parameters they name.\n" +
+			"\n" +
+			"This is a read-and-operate surface, not a builder: campaigns, flows and\n" +
+			"templates are read and triggered but never authored, and catalogs, coupons\n" +
+			"and webhooks are absent entirely.\n" +
+			"\n" +
+			"The consent operations — `profile subscribe`, `unsubscribe`, `suppress`,\n" +
+			"`unsuppress` — wrap bulk JOB endpoints, so they answer a job receipt\n" +
+			"rather than the updated profile. The change lands shortly afterwards;\n" +
+			"confirm by re-reading the profile instead of trusting the receipt.\n" +
+			"\n" +
+			"A 401 means the connection needs re-authorising. A 429 is a rate limit\n" +
+			"and nothing here retries for you.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

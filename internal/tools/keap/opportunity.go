@@ -22,8 +22,11 @@ func (s *Service) newOpportunityCmd(token string) *cobra.Command {
 func (s *Service) newOpportunityListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List opportunities (GET /v2/opportunities)",
+		Use:   "list",
+		Short: "List opportunities (GET /v2/opportunities)",
+		Long: "Opportunities are Keap's deal records, each pinned to a pipeline stage by a\n" +
+			"stage id that `opportunity stages` resolves to a name. There is no delete\n" +
+			"verb for opportunities in this tool.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -41,8 +44,11 @@ func (s *Service) newOpportunityListCmd(token string) *cobra.Command {
 func (s *Service) newOpportunityGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:         "get <opportunity-id>",
-		Short:       "Get an opportunity (GET /v2/opportunities/{id})",
+		Use:   "get <opportunity-id>",
+		Short: "Get an opportunity (GET /v2/opportunities/{id})",
+		Long: "Takes the numeric opportunity id. The stage on the record is a stage id, not\n" +
+			"a name — map it with `opportunity stages`. `--fields` trims the response to\n" +
+			"a comma-separated projection.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -96,8 +102,13 @@ func (f *opportunityBodyFlags) build() (map[string]any, error) {
 func (s *Service) newOpportunityCreateCmd(token string) *cobra.Command {
 	var f *opportunityBodyFlags
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create an opportunity (POST /v2/opportunities)",
+		Use:   "create",
+		Short: "Create an opportunity (POST /v2/opportunities)",
+		Long: "Only `--title` is checked locally, and it is sent as `opportunity_title`.\n" +
+			"`--contact-id`, `--stage-id` and `--user-id` are optional to this CLI even\n" +
+			"though a usable deal normally needs a contact and a stage — Keap decides\n" +
+			"which of them it insists on. Take `--stage-id` from `opportunity stages`;\n" +
+			"the value is passed through unvalidated.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -122,8 +133,12 @@ func (s *Service) newOpportunityCreateCmd(token string) *cobra.Command {
 func (s *Service) newOpportunityUpdateCmd(token string) *cobra.Command {
 	var f *opportunityBodyFlags
 	cmd := &cobra.Command{
-		Use:         "update <opportunity-id>",
-		Short:       "Update an opportunity (PATCH /v2/opportunities/{id})",
+		Use:   "update <opportunity-id>",
+		Short: "Update an opportunity (PATCH /v2/opportunities/{id})",
+		Long: "Only the fields supplied are touched, and at least one — flag or\n" +
+			"`--json-body` — is required. Moving a deal along the pipeline is\n" +
+			"`--stage-id` with an id from `opportunity stages`; reassigning it is\n" +
+			"`--user-id`.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -147,8 +162,11 @@ func (s *Service) newOpportunityUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newOpportunityStagesCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "stages",
-		Short:       "List opportunity stages (GET /v2/opportunities/stages)",
+		Use:   "stages",
+		Short: "List opportunity stages (GET /v2/opportunities/stages)",
+		Long: "Returns the pipeline stages with the ids `opportunity create --stage-id`\n" +
+			"and `opportunity update --stage-id` take. It has no flags and no\n" +
+			"pagination — one call returns the whole set.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

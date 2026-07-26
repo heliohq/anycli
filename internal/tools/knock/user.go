@@ -32,8 +32,14 @@ func (s *Service) newUserIdentifyCmd(key string) *cobra.Command {
 		data string
 	)
 	cmd := &cobra.Command{
-		Use:         "identify",
-		Short:       "Identify (create or update) a user",
+		Use:   "identify",
+		Short: "Identify (create or update) a user",
+		Long: "An upsert keyed on --id, and that id is yours to choose — it is what every\n" +
+			"--recipient elsewhere in the tool refers to. --data REPLACES the user's\n" +
+			"properties rather than merging into them, so send the full set each time;\n" +
+			"omitting `email` on a second call drops the address. Those properties are\n" +
+			"what the workflow templates render and what channel routing reads (email,\n" +
+			"phone_number, timezone).",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -63,8 +69,12 @@ func (s *Service) newUserIdentifyCmd(key string) *cobra.Command {
 func (s *Service) newUserGetCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "get",
-		Short:       "Get a user",
+		Use:   "get",
+		Short: "Get a user",
+		Long: "Requires --id. Returns the user's stored properties only — preferences and\n" +
+			"channel data live behind `user get-preferences` and `user\n" +
+			"get-channel-data`, so a user who looks reachable here may still be opted\n" +
+			"out or have no device registered.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -85,8 +95,12 @@ func (s *Service) newUserListCmd(key string) *cobra.Command {
 		before   string
 	)
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List users",
+		Use:   "list",
+		Short: "List users",
+		Long: "Every user in the connected environment, paged with --page-size (Knock's\n" +
+			"default is 50) and --after. There is no search or filter here, so finding\n" +
+			"somebody by email means scanning — which is why the id passed to `user\n" +
+			"identify` should be one the calling system can reproduce.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -104,8 +118,12 @@ func (s *Service) newUserListCmd(key string) *cobra.Command {
 func (s *Service) newUserDeleteCmd(key string) *cobra.Command {
 	var id string
 	cmd := &cobra.Command{
-		Use:         "delete",
-		Short:       "Delete a user",
+		Use:   "delete",
+		Short: "Delete a user",
+		Long: "Requires --id, and takes the user's preferences and channel data with them,\n" +
+			"so any later workflow addressed to that id reaches nobody. Nothing here\n" +
+			"restores them. To fold a duplicate into a survivor use `user merge`, which\n" +
+			"keeps the history instead of discarding it.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -125,8 +143,12 @@ func (s *Service) newUserMergeCmd(key string) *cobra.Command {
 		fromID string
 	)
 	cmd := &cobra.Command{
-		Use:         "merge",
-		Short:       "Merge one user into another (from-id merged into id)",
+		Use:   "merge",
+		Short: "Merge one user into another (from-id merged into id)",
+		Long: "--id is the SURVIVOR and --from-id is the user merged away and removed.\n" +
+			"Reversing the two destroys the record that was meant to be kept, and\n" +
+			"nothing here undoes it. This is the right command when a duplicate has to\n" +
+			"disappear but its notification history should not.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -151,8 +173,13 @@ func (s *Service) newUserGetPreferencesCmd(key string) *cobra.Command {
 		set string
 	)
 	cmd := &cobra.Command{
-		Use:         "get-preferences",
-		Short:       "Get a user's preference sets (or one set with --set)",
+		Use:   "get-preferences",
+		Short: "Get a user's preference sets (or one set with --set)",
+		Long: "Requires --id. Omitting --set lists every preference set the user has;\n" +
+			"passing --set returns just that one, usually `default`. Preferences are\n" +
+			"opt-outs, so a channel or workflow disabled here suppresses delivery even\n" +
+			"though `workflow trigger` still succeeds and returns a run id — read this\n" +
+			"before concluding that a missing notification was a bug.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -178,8 +205,12 @@ func (s *Service) newUserSetPreferencesCmd(key string) *cobra.Command {
 		data string
 	)
 	cmd := &cobra.Command{
-		Use:         "set-preferences",
-		Short:       "Replace a user's preference set",
+		Use:   "set-preferences",
+		Short: "Replace a user's preference set",
+		Long: "--id, --set and --data are all required. This REPLACES the named preference\n" +
+			"set outright — anything absent from --data is gone, including opt-outs the\n" +
+			"user set themselves — so read the current set with `user get-preferences`\n" +
+			"and send it back modified. `default` is the usual set id.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -211,8 +242,12 @@ func (s *Service) newUserGetChannelDataCmd(key string) *cobra.Command {
 		channelID string
 	)
 	cmd := &cobra.Command{
-		Use:         "get-channel-data",
-		Short:       "Get a user's channel data for a channel",
+		Use:   "get-channel-data",
+		Short: "Get a user's channel data for a channel",
+		Long: "--id and --channel-id are both required, and the channel id comes from the\n" +
+			"Knock dashboard — this tool has no channel listing to look it up in.\n" +
+			"Returns the per-channel routing data, such as the push tokens registered\n" +
+			"for that user.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -237,8 +272,13 @@ func (s *Service) newUserSetChannelDataCmd(key string) *cobra.Command {
 		data      string
 	)
 	cmd := &cobra.Command{
-		Use:         "set-channel-data",
-		Short:       "Set a user's channel data for a channel",
+		Use:   "set-channel-data",
+		Short: "Set a user's channel data for a channel",
+		Long: "--id, --channel-id and --data are all required. --data takes the channel's\n" +
+			"own shape — `{\"tokens\":[…]}` for push, a connection object for Slack — and\n" +
+			"it REPLACES what was stored, so a device registered earlier disappears\n" +
+			"unless its token is re-sent. A user with no channel data for a channel is\n" +
+			"simply unreachable on it, with no error at trigger time.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -271,8 +311,12 @@ func (s *Service) newUserDeleteChannelDataCmd(key string) *cobra.Command {
 		channelID string
 	)
 	cmd := &cobra.Command{
-		Use:         "delete-channel-data",
-		Short:       "Delete a user's channel data for a channel",
+		Use:   "delete-channel-data",
+		Short: "Delete a user's channel data for a channel",
+		Long: "--id and --channel-id are both required. This unregisters the user from\n" +
+			"that one channel — the tokens or connection go away — while the user and\n" +
+			"their other channels stay intact. It is how a signed-out device stops\n" +
+			"receiving notifications.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {

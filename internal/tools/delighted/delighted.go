@@ -69,8 +69,28 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "delighted",
-		Short:         "Delighted built-in service",
+		Use:   "delighted",
+		Short: "Delighted built-in service",
+		Long: "The Delighted product was shut down on 2026-06-30 and its REST API now\n" +
+			"answers every request with HTTP 410 Gone. No command below can complete\n" +
+			"against the live service, and there is no account left to connect. Treat\n" +
+			"Delighted as retired and say so instead of retrying; the surface\n" +
+			"documented here describes the pre-sunset API.\n" +
+			"\n" +
+			"It measured customer experience by survey: a `people` entry is a survey\n" +
+			"recipient, keyed by email, and a `response` is one completed survey — a\n" +
+			"score plus an optional verbatim comment. `metrics` aggregates those scores\n" +
+			"(NPS, CSAT or CES depending on how the project was configured); Autopilot\n" +
+			"was the recurring-enrollment engine that surveyed people on a schedule.\n" +
+			"\n" +
+			"Ids and emails are FLAGS here, not positional arguments: `response get\n" +
+			"--id`, `people delete --id`, `people cancel-pending --email`. Every time\n" +
+			"window (`--since`, `--until`, `--updated-since`) is a Unix timestamp in\n" +
+			"seconds, not a date string.\n" +
+			"\n" +
+			"Pagination is not uniform: most lists take `--per-page` with a numbered\n" +
+			"`--page`, while `people list` is cursor-based and only honours\n" +
+			"`--page-info`. Output is the provider's JSON verbatim on stdout.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

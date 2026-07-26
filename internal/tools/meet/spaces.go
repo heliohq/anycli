@@ -115,7 +115,13 @@ func (s *Service) newSpacesGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <space | meeting-code>",
 		Short: "Show a meeting space: URI, code, access + artifact config, active conference",
-		Args:  cobra.ExactArgs(1),
+		Long: "Accepts a space name or a bare meeting code (`abc-mnop-xyz`), which makes\n" +
+			"it the way in from a meeting link alone. Besides the URI, code, access\n" +
+			"type, the three auto-artifact settings and moderation, it reports the\n" +
+			"ACTIVE conference record when a call is happening right now — that record\n" +
+			"id is what `participants list` needs for a live meeting, and its absence\n" +
+			"is how to tell nobody is in the room.",
+		Args: cobra.ExactArgs(1),
 		// GET /spaces/{s} — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -136,7 +142,17 @@ func (s *Service) newSpacesCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create an ad-hoc meeting space (no calendar event); prints the meeting URI + code",
-		Args:  cobra.NoArgs,
+		Long: "Mints an instant link and nothing else: no event, no time, no invitees and\n" +
+			"no notification to anybody. Scheduling and inviting belong to Calendar.\n" +
+			"The printed meeting URI and code are the whole deliverable.\n" +
+			"\n" +
+			"Every config flag is optional and an unset one keeps the organisation's\n" +
+			"default. `--access-type` is open, trusted or restricted;\n" +
+			"`--auto-recording`, `--auto-transcription`, `--auto-smart-notes` and\n" +
+			"`--moderation` are on or off. All values must be LOWERCASE — a different\n" +
+			"spelling is rejected locally rather than quietly ignored. Turning\n" +
+			"transcription on here is what makes `transcripts text` possible later.",
+		Args: cobra.NoArgs,
 		// POST /spaces — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -169,7 +185,13 @@ func (s *Service) newSpacesUpdateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <space>",
 		Short: "Update a space's access/artifact config (spaces.patch; updateMask built from the set flags)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Only the flags actually passed are changed — the update mask is built from\n" +
+			"them — so every setting left off keeps its current value. Passing no\n" +
+			"config flag at all is an error, not a no-op. Same lowercase enum values as\n" +
+			"`spaces create`. Each change is reversible by patching the opposite value\n" +
+			"back, but it applies to the space itself, so a call already running under\n" +
+			"it is affected.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /spaces/{s} — mutating provider call (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -201,7 +223,13 @@ func (s *Service) newSpacesEndConferenceCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "end-conference <space>",
 		Short: "End the active conference in a space — removes EVERYONE in the call (confirm with the user first)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Ends whatever conference is live in the space at that instant and\n" +
+			"disconnects every participant in real time. There is no undo — the call\n" +
+			"does not resume, people have to rejoin — and it acts on the CURRENT\n" +
+			"conference, which is not necessarily the one under discussion. It takes\n" +
+			"the space, not a conference record. Read `spaces get` first to see which\n" +
+			"conference is active; with none active there is nothing to end.",
+		Args: cobra.ExactArgs(1),
 		// POST /spaces/{s}:endActiveConference — mutating provider call
 		// (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},

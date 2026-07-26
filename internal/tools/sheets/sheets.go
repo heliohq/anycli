@@ -103,8 +103,40 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "sheets",
-		Short:         "Google Sheets built-in service",
+		Use:   "sheets",
+		Short: "Google Sheets built-in service",
+		Long: "Calls Sheets API v4 as the connected Google account, and works strictly by\n" +
+			"id: the Sheets API has no list and no search — that is Drive — so a\n" +
+			"spreadsheet is reachable only from a link the user supplied or from one\n" +
+			"`spreadsheets create` just returned. Every <id> position accepts a bare\n" +
+			"spreadsheetId or a full docs.google.com URL.\n" +
+			"\n" +
+			"Run `spreadsheets get` first on any unfamiliar file. It returns the tab\n" +
+			"titles, their numeric gids and grid sizes with no cell data, and every\n" +
+			"range in this tool names a tab. Guessing a tab title is the most common\n" +
+			"way to earn a 400. Resolving --tab by title costs an extra metadata read\n" +
+			"on each tabs command; passing the gid skips it.\n" +
+			"\n" +
+			"Ranges are Sheets' own A1 notation, passed through verbatim: `Sheet1!A1:D20`,\n" +
+			"`Sheet1!B:B` for a whole column, `Sheet1!A1:D` for columns A-D from row 1\n" +
+			"down. A tab title containing a space or non-ASCII text must be\n" +
+			"single-quoted inside the range, as in `'Q3 Budget'!A1:D10`.\n" +
+			"\n" +
+			"Writes default to USER_ENTERED: every value is parsed as though a person\n" +
+			"typed it into the UI, so `=SUM(A1:A3)` becomes a formula, `1/2` becomes a\n" +
+			"date, and a leading + or 0 can disappear. Pass --raw when writing literal\n" +
+			"text — phone numbers, ids, part numbers, anything starting with =, + or -.\n" +
+			"\n" +
+			"There is no undo. Drive version history can restore data but not\n" +
+			"structure: a deleted tab turns every cross-tab formula that referenced it\n" +
+			"into #REF! permanently.\n" +
+			"\n" +
+			"Output is a human-readable summary; --json emits the provider JSON\n" +
+			"instead. Reads retry themselves on a 429 or 5xx (up to twice, with\n" +
+			"backoff); writes never do, so a failed write surfaces rather than being\n" +
+			"silently repeated. A 403 or 404 on a spreadsheet is almost always a\n" +
+			"sharing problem — the file must be shared with the connected account —\n" +
+			"rather than a missing scope.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

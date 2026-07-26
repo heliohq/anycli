@@ -105,8 +105,30 @@ func hasJSONArg(args []string) bool {
 
 func (s *Service) newRoot(key string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "resend",
-		Short:         "Resend built-in service (transactional & broadcast email)",
+		Use:   "resend",
+		Short: "Resend built-in service (transactional & broadcast email)",
+		Long: "Two planes that do not mix. `email` is transactional: one message to\n" +
+			"named recipients, sent now or scheduled. `audience`, `contact` and\n" +
+			"`broadcast` are the marketing plane, where a broadcast goes to an\n" +
+			"audience and honours each contact's `unsubscribed` flag — a\n" +
+			"transactional send never consults that list.\n" +
+			"\n" +
+			"Every `--from` must be an address on a VERIFIED sending domain. An\n" +
+			"unverified one answers 403 with error name validation_error, which is an\n" +
+			"account-setup fact rather than a bad key; `domain list` states what may\n" +
+			"be sent from before the attempt.\n" +
+			"\n" +
+			"Resend overloads its HTTP statuses, so read the error `name`, not the\n" +
+			"status. Only invalid_api_key and missing_api_key mean the credential is\n" +
+			"dead. restricted_api_key means the key is valid but not permitted for\n" +
+			"that operation, and reissuing the same restricted key changes nothing.\n" +
+			"\n" +
+			"Any --scheduled-at accepts ISO-8601 (2026-08-01T09:00:00Z) or plain\n" +
+			"English (\"in 1 min\", \"tomorrow 9am\").\n" +
+			"\n" +
+			"Output is the provider's JSON verbatim. Exit 1 means the request reached\n" +
+			"Resend and failed; exit 2 means it was rejected locally — bad flag,\n" +
+			"malformed JSON — and nothing was sent.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

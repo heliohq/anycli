@@ -26,7 +26,14 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 		Use:         "api <method> <path>",
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		Short:       "Make a raw Notion API request",
-		Args:        cobra.ExactArgs(2),
+		Long: "The escape hatch for endpoints this tool has no command for; the\n" +
+			"credential and the Notion-Version header are still injected. Method and\n" +
+			"path are positional (`api PATCH /v1/pages/<id>`). --body and --body-file\n" +
+			"are mutually exclusive with each other and with --form/--form-file, which\n" +
+			"build the multipart request the file-upload endpoints need. Every\n" +
+			"invocation counts as a write regardless of the method, so a read issued\n" +
+			"through here is still treated as side-effecting.",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			method := strings.ToUpper(strings.TrimSpace(args[0]))
 			path, err := normalizeAPIPath(args[1])

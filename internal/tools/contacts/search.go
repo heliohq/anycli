@@ -66,8 +66,13 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 	var query, fields string
 	var max int
 	cmd := &cobra.Command{
-		Use:         "search",
-		Short:       "Search My Contacts by prefix phrase (people.searchContacts)",
+		Use:   "search",
+		Short: "Search My Contacts by prefix phrase (people.searchContacts)",
+		Long: "Matches names, nicknames, emails, phones and organizations — a wider\n" +
+			"field set than `other search`, so a company name is a usable query here.\n" +
+			"--max is capped at 30 by the API and silently clamped, with an API\n" +
+			"default of 10. There is no page token on this endpoint, so 30 is the\n" +
+			"hard ceiling on results: narrow the query rather than trying to page.",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

@@ -26,8 +26,16 @@ func (s *Service) newAppointmentListCmd(token string) *cobra.Command {
 	var calendarID, typeID, max int
 	var canceled, excludeForms bool
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List scheduled appointments (GET /appointments)",
+		Use:   "list",
+		Short: "List scheduled appointments (GET /appointments)",
+		Long: "Returns ACTIVE appointments; --canceled swaps the result set to the\n" +
+			"canceled ones rather than adding them. There is no cursor here — the\n" +
+			"result set is bounded by --max (Acuity's own default is 100) and ordered\n" +
+			"by --direction ASC or DESC (Acuity defaults to DESC), so narrow with\n" +
+			"--min-date/--max-date and the --calendar-id, --type-id, --email,\n" +
+			"--first-name and --last-name filters instead of trying to page.\n" +
+			"--exclude-forms drops the intake-form payloads and makes a wide read\n" +
+			"substantially smaller.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -70,8 +78,12 @@ func (s *Service) newAppointmentListCmd(token string) *cobra.Command {
 
 func (s *Service) newAppointmentGetCmd(token string) *cobra.Command {
 	return &cobra.Command{
-		Use:         "get <id>",
-		Short:       "Get one appointment (GET /appointments/:id)",
+		Use:   "get <id>",
+		Short: "Get one appointment (GET /appointments/:id)",
+		Long: "Takes the numeric appointment id returned by `appointment list` or by the\n" +
+			"create and reschedule responses. The response carries the appointment's\n" +
+			"intake-form answers, so this is how to read what a client actually filled\n" +
+			"in at booking time when the listing was run with --exclude-forms.",
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -93,9 +105,18 @@ func (s *Service) newAppointmentCreateCmd(token string) *cobra.Command {
 		Use:         "create",
 		Short:       "Book an appointment (POST /appointments)",
 		Annotations: writeAction,
-		Long: "Book an appointment. --datetime is passed through verbatim (Acuity parses it " +
-			"via strtotime in the business/calendar timezone); ISO-8601 (2026-07-15T09:00:00-0400) " +
-			"is the safe form. --admin bypasses availability checks and requires --calendar-id.",
+		Long: "--type-id, --datetime, --first-name and --last-name are required; Acuity\n" +
+			"also requires an email in client mode, so pass --email unless booking with\n" +
+			"--admin. --datetime is sent verbatim and parsed in the business timezone,\n" +
+			"so give ISO-8601 with an offset (2026-07-15T09:00:00-0400) and take the\n" +
+			"value from `availability times` — a client-mode booking of a slot Acuity\n" +
+			"did not offer is rejected.\n" +
+			"\n" +
+			"--admin bypasses availability and attribute validation and REQUIRES\n" +
+			"--calendar-id. --notes is stored only on an admin booking; Acuity drops it\n" +
+			"on a client-mode create. --field <id>=<value> is repeatable and takes the\n" +
+			"numeric ids from `form list`. The client receives a confirmation as soon\n" +
+			"as this returns unless --no-email is passed.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			fields, err := parseFields(fieldArgs)
@@ -147,8 +168,14 @@ func (s *Service) newAppointmentUpdateCmd(token string) *cobra.Command {
 	var fieldArgs []string
 	var admin, noEmail bool
 	cmd := &cobra.Command{
-		Use:         "update <id>",
-		Short:       "Edit an appointment's client details / intake fields (PUT /appointments/:id)",
+		Use:   "update <id>",
+		Short: "Edit an appointment's client details / intake fields (PUT /appointments/:id)",
+		Long: "Edits who the appointment is for and what they answered — --first-name,\n" +
+			"--last-name, --email, --phone, --notes and repeatable --field\n" +
+			"<id>=<value>. It cannot move the appointment: there is no --datetime here\n" +
+			"and time changes go through `appointment reschedule`. Only the flags\n" +
+			"actually passed are sent, so omitted fields keep their current values. The\n" +
+			"client is notified unless --no-email is passed.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -188,8 +215,15 @@ func (s *Service) newAppointmentRescheduleCmd(token string) *cobra.Command {
 	var calendarID int
 	var admin, noEmail bool
 	cmd := &cobra.Command{
-		Use:         "reschedule <id>",
-		Short:       "Move an appointment to a new time (PUT /appointments/:id/reschedule)",
+		Use:   "reschedule <id>",
+		Short: "Move an appointment to a new time (PUT /appointments/:id/reschedule)",
+		Long: "The only command that changes an appointment's time; `appointment update`\n" +
+			"has no --datetime and silently leaves the time alone. --datetime is\n" +
+			"required and is parsed in the business timezone, so pull the new slot from\n" +
+			"`availability times` first. --calendar-id moves the appointment to another\n" +
+			"calendar and defaults to keeping the current one. --admin skips the\n" +
+			"availability check. The client gets a reschedule notice unless --no-email\n" +
+			"is passed.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -216,8 +250,14 @@ func (s *Service) newAppointmentCancelCmd(token string) *cobra.Command {
 	var note string
 	var admin, noEmail bool
 	cmd := &cobra.Command{
-		Use:         "cancel <id>",
-		Short:       "Cancel an appointment (PUT /appointments/:id/cancel)",
+		Use:   "cancel <id>",
+		Short: "Cancel an appointment (PUT /appointments/:id/cancel)",
+		Long: "--note is sent as Acuity's `cancelNote` and is the text the CLIENT reads on\n" +
+			"the cancellation notification, not an internal comment. The appointment is\n" +
+			"not deleted — it stays retrievable by id and reappears under `appointment\n" +
+			"list --canceled`. --admin overrides the account's cancellation window,\n" +
+			"which otherwise rejects a late cancellation. --no-email suppresses the\n" +
+			"client's notice.",
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

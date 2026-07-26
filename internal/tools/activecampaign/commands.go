@@ -68,6 +68,7 @@ func (s *Service) newContactListCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "list",
 		Short:       "List/search contacts",
+		Long:        longContactList,
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -86,6 +87,7 @@ func (s *Service) newContactGetCmd(c *client) *cobra.Command {
 	return &cobra.Command{
 		Use:         "get <id>",
 		Short:       "Retrieve one contact",
+		Long:        longContactGet,
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -98,6 +100,7 @@ func (s *Service) newContactCreateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "create",
 		Short:       "Create a contact",
+		Long:        longContactCreate,
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -116,6 +119,7 @@ func (s *Service) newContactUpdateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "update <id>",
 		Short:       "Update a contact",
+		Long:        longContactUpdate,
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -134,6 +138,7 @@ func (s *Service) newContactDeleteCmd(c *client) *cobra.Command {
 	return &cobra.Command{
 		Use:         "delete <id>",
 		Short:       "Delete a contact",
+		Long:        longContactDelete,
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -168,6 +173,7 @@ func (s *Service) newContactSubscribeCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "subscribe",
 		Short:       "Add/remove a contact to a list (status 1=subscribe, 2=unsubscribe)",
+		Long:        longContactSubscribe,
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -191,6 +197,7 @@ func (s *Service) newContactTagCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "tag",
 		Short:       "Apply a tag to a contact",
+		Long:        longContactTag,
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -212,6 +219,7 @@ func (s *Service) newContactUntagCmd(c *client) *cobra.Command {
 	return &cobra.Command{
 		Use:         "untag <contactTagId>",
 		Short:       "Remove a tag from a contact (by the contactTag association id)",
+		Long:        longContactUntag,
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -224,6 +232,7 @@ func (s *Service) newContactAutomateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "automate",
 		Short:       "Enroll a contact into an automation",
+		Long:        longContactAutomate,
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -247,6 +256,7 @@ func (s *Service) newTagCreateCmd(c *client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "create",
 		Short:       "Create a segmentation tag",
+		Long:        longTagCreate,
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -274,10 +284,11 @@ func (s *Service) newTagCreateCmd(c *client) *cobra.Command {
 // newSimpleListCmd builds a `list` command over a plain v3 collection resource
 // (contacts→"contacts", lists→"lists", dealGroups, …) with pagination + filter
 // passthrough.
-func (s *Service) newSimpleListCmd(c *client, resource string) *cobra.Command {
+func (s *Service) newSimpleListCmd(c *client, resource, long string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "list",
 		Short:       "List " + resource,
+		Long:        long,
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -293,10 +304,11 @@ func (s *Service) newSimpleListCmd(c *client, resource string) *cobra.Command {
 }
 
 // newSimpleGetCmd builds a `get <id>` command over a plain v3 resource.
-func (s *Service) newSimpleGetCmd(c *client, resource string) *cobra.Command {
+func (s *Service) newSimpleGetCmd(c *client, resource, long string) *cobra.Command {
 	return &cobra.Command{
 		Use:         "get <id>",
 		Short:       "Retrieve one " + strings.TrimSuffix(resource, "s"),
+		Long:        long,
 		Annotations: readOnly,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -307,10 +319,11 @@ func (s *Service) newSimpleGetCmd(c *client, resource string) *cobra.Command {
 
 // newResourceCreateCmd builds a `create` command that wraps --data under the
 // singular resource key (deal → {"deal": …}) and POSTs to the collection.
-func (s *Service) newResourceCreateCmd(c *client, wrapper, resource string) *cobra.Command {
+func (s *Service) newResourceCreateCmd(c *client, wrapper, resource, long string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "create",
 		Short:       "Create a " + wrapper,
+		Long:        long,
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -328,10 +341,11 @@ func (s *Service) newResourceCreateCmd(c *client, wrapper, resource string) *cob
 
 // newResourceUpdateCmd builds an `update <id>` command that wraps --data under
 // the singular resource key and PUTs to the resource.
-func (s *Service) newResourceUpdateCmd(c *client, wrapper, resource string) *cobra.Command {
+func (s *Service) newResourceUpdateCmd(c *client, wrapper, resource, long string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "update <id>",
 		Short:       "Update a " + wrapper,
+		Long:        long,
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

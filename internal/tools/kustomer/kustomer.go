@@ -172,8 +172,29 @@ func (s *Service) stderr() io.Writer {
 // newRoot builds the grouped-by-resource cobra tree.
 func (s *Service) newRoot(base, token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "kustomer",
-		Short:         "Kustomer built-in service (support CRM)",
+		Use:   "kustomer",
+		Short: "Kustomer built-in service (support CRM)",
+		Long: "The object model is four layers deep and worth holding straight: a CUSTOMER\n" +
+			"is the person, a CONVERSATION is one ticket belonging to them, MESSAGES\n" +
+			"are the customer-facing thread inside that conversation, and NOTES are the\n" +
+			"agent-only track alongside it. A note is never seen by the customer; a\n" +
+			"message always is.\n" +
+			"\n" +
+			"Reads print Kustomer's JSON:API envelope verbatim — `data` holds the\n" +
+			"records, `meta` the totals, `links.next` the following page. Page with\n" +
+			"`--page` (1-based) and `--page-size`, or follow `links.next` yourself;\n" +
+			"nothing auto-pages. `--query key=value` is repeatable and appends any\n" +
+			"filter the endpoint accepts, untouched.\n" +
+			"\n" +
+			"Writes take a raw JSON body through `--data` or `--file` and it is sent\n" +
+			"EXACTLY as given — no field is renamed, wrapped or defaulted — so the body\n" +
+			"has to match Kustomer's documented attribute shape for that endpoint. A\n" +
+			"malformed body fails at the provider, not locally.\n" +
+			"\n" +
+			"A 401 marks the stored credential rejected: retrying will not clear it and\n" +
+			"the connection has to be re-authorized. A Kustomer org that lives on a\n" +
+			"non-default pod answers with a routing error until its org subdomain is\n" +
+			"configured — also not something a retry fixes.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

@@ -126,8 +126,34 @@ func (s *Service) stderr() io.Writer {
 // raw-GET passthrough; everything else hangs under a resource group.
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "brex",
-		Short:         "Brex accounts, transactions, expenses, cards, budgets, and users (read)",
+		Use:   "brex",
+		Short: "Brex accounts, transactions, expenses, cards, budgets, and users (read)",
+		Long: "Reads a customer's Brex account as a finance colleague would: what was spent,\n" +
+			"on which cards, by whom, against which budget, and what the balances are.\n" +
+			"\n" +
+			"Every leaf is a GET. There is NO write path anywhere in this tool — it cannot\n" +
+			"issue or freeze a card, move money, edit a memo, or create a budget, and the\n" +
+			"`get` passthrough does not change that because it too issues only GET. When a\n" +
+			"change is wanted in Brex, this tool is the wrong instrument.\n" +
+			"\n" +
+			"Money is returned as integer MINOR units next to a currency code:\n" +
+			"`{\"amount\":12345,\"currency\":\"USD\"}` is $123.45. Report a dollar figure only\n" +
+			"after converting.\n" +
+			"\n" +
+			"List commands are cursor-paginated over Brex's `{\"items\":[...],\"next_cursor\":...}`\n" +
+			"envelope. `--limit` sets the page size, `--cursor` resumes from a prior\n" +
+			"response's `next_cursor`, and `--all` follows the cursor to the end and merges\n" +
+			"everything into one envelope — deliberate on a ledger, since it can be many\n" +
+			"round trips. Without `--all` the first page is returned verbatim, cursor\n" +
+			"intact.\n" +
+			"\n" +
+			"Expenses and transactions are different objects with different id spaces: the\n" +
+			"transaction is the posted movement of money, the expense is the reviewable\n" +
+			"record with the memo and receipt attached to it. An id from one will not\n" +
+			"resolve in the other.\n" +
+			"\n" +
+			"`--json` changes only how errors render. Command output is the provider's JSON\n" +
+			"either way.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

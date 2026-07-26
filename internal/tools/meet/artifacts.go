@@ -51,7 +51,14 @@ func (s *Service) newRecordingsListCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list <record>",
 		Short: "List recordings of a conference record (state + Drive fileId + exportUri; v1 does not download the file)",
-		Args:  cobra.ExactArgs(1),
+		Long: "An INDEX, not a download. Each row carries the recording's state, its Drive\n" +
+			"`file` id and an `exportUri` a person can open in a browser; the bytes\n" +
+			"themselves are out of reach here, so hand the URI over rather than\n" +
+			"promising a file. Recording is off unless the space enabled it, so an\n" +
+			"empty list normally means the meeting was never recorded. There are no\n" +
+			"paging flags — one call asks for the 100-item cap, which a single\n" +
+			"conference never exceeds.",
+		Args: cobra.ExactArgs(1),
 		// GET /conferenceRecords/{r}/recordings — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -101,7 +108,13 @@ func (s *Service) newTranscriptsListCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list <record>",
 		Short: "List transcripts of a conference record (state + Docs documentId + exportUri)",
-		Args:  cobra.ExactArgs(1),
+		Long: "The index of a record's transcripts — state, the Docs `document` id and an\n" +
+			"`exportUri` for a browser — not their contents. Take the transcript\n" +
+			"RESOURCE NAME from here and pass it to `transcripts text` for something\n" +
+			"readable, or `transcripts entries` for structured rows. An empty list\n" +
+			"means transcription was off for that meeting. No paging flags: one call\n" +
+			"asks for the 100-item cap.",
+		Args: cobra.ExactArgs(1),
 		// GET /conferenceRecords/{r}/transcripts — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -152,7 +165,13 @@ func (s *Service) newTranscriptsEntriesCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "entries <transcript>",
 		Short: "List structured transcript entries (speaker resource + text + timestamps), oldest first",
-		Args:  cobra.ExactArgs(1),
+		Long: "Takes the TRANSCRIPT resource name and returns raw rows: start time,\n" +
+			"speaker RESOURCE NAME — not a display name — and text, one page per call.\n" +
+			"For anything a person or a summary will read, use `transcripts text`\n" +
+			"instead: it pages to the end and resolves the speakers. Reach for this one\n" +
+			"only when the timestamps or explicit paging matter. `--max` defaults to\n" +
+			"100; continue with `--page-token`.",
+		Args: cobra.ExactArgs(1),
 		// GET .../transcripts/{t}/entries — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -323,7 +342,13 @@ func (s *Service) newSmartNotesListCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list <record>",
 		Short: "List smart notes of a conference record (v2beta; state + Docs documentId + exportUri)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Google's AI meeting notes for a record, indexed the same way as recordings\n" +
+			"and transcripts: state, Docs `document` id and `exportUri`, with no way to\n" +
+			"read the contents here. It is served from the v2beta base rather than v1,\n" +
+			"so an account whose Workspace edition does not offer smart notes answers\n" +
+			"\"not enabled\" — a capability gap, not something a retry fixes. An empty\n" +
+			"list means the meeting had them switched off. No paging flags.",
+		Args: cobra.ExactArgs(1),
 		// GET v2beta /conferenceRecords/{r}/smartNotes — read-only (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {

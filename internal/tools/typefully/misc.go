@@ -17,8 +17,12 @@ func (s *Service) newLinkedInCmd(token string) *cobra.Command {
 func (s *Service) newLinkedInResolveOrgCmd(token string) *cobra.Command {
 	var socialSet, organizationURL string
 	cmd := &cobra.Command{
-		Use:         "resolve-org",
-		Short:       "Resolve a LinkedIn org URL to a mention (GET /v2/social-sets/{id}/linkedin/organizations/resolve)",
+		Use:   "resolve-org",
+		Short: "Resolve a LinkedIn org URL to a mention (GET /v2/social-sets/{id}/linkedin/organizations/resolve)",
+		Long: "Turns a LinkedIn company page URL into the mention token a post body needs\n" +
+			"in order to actually @-mention that organization; the URL pasted into text\n" +
+			"stays a plain link. Only meaningful on a social set with a LinkedIn\n" +
+			"account connected.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -48,8 +52,13 @@ func (s *Service) newCommentThreadsCmd(token string) *cobra.Command {
 	var socialSet, id, platform, status string
 	var limit int
 	cmd := &cobra.Command{
-		Use:         "threads",
-		Short:       "List comment threads on a draft (GET /v2/social-sets/{id}/drafts/{draft_id}/comment-threads)",
+		Use:   "threads",
+		Short: "List comment threads on a draft (GET /v2/social-sets/{id}/drafts/{draft_id}/comment-threads)",
+		Long: "These are reviewer comments left inside Typefully, not replies from any\n" +
+			"social platform. --status filters open against resolved and --platform\n" +
+			"narrows to one target's copy of the draft. --limit caps the result and\n" +
+			"there is no offset, so a long review history cannot be paged past the\n" +
+			"first page.",
 		Annotations: readOnly,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

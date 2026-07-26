@@ -17,8 +17,11 @@ func (s *Service) newWorkspaceCmd(token string) *cobra.Command {
 func (s *Service) newWorkspaceListCmd(token string) *cobra.Command {
 	var page int
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List workspaces (GET /workspaces)",
+		Use:   "list",
+		Short: "List workspaces (GET /workspaces)",
+		Long: "Workspaces group forms, and the ids here are what `form list --workspace`\n" +
+			"filters by. This is the one list with only `--page` and no `--limit`, so\n" +
+			"the page size is Tally's.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -39,8 +42,11 @@ func (s *Service) newWorkspaceListCmd(token string) *cobra.Command {
 
 func (s *Service) newMeCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "me",
-		Short:       "Get the authenticated user (GET /users/me)",
+		Use:   "me",
+		Short: "Get the authenticated user (GET /users/me)",
+		Long: "Names the Tally user the API key belongs to. Since the key inherits that\n" +
+			"person's workspace access, this is also the cheapest check that the key is\n" +
+			"still live before starting a longer read. Takes no flags.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {

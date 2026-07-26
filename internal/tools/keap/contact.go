@@ -22,8 +22,12 @@ func (s *Service) newContactCmd(token string) *cobra.Command {
 func (s *Service) newContactListCmd(token string) *cobra.Command {
 	var lf *listFlags
 	cmd := &cobra.Command{
-		Use:         "list",
-		Short:       "List contacts (GET /v2/contacts)",
+		Use:   "list",
+		Short: "List contacts (GET /v2/contacts)",
+		Long: "Contacts are the account's central record: tags, notes, tasks,\n" +
+			"opportunities and `email send` all address a contact by the numeric `id`\n" +
+			"returned here. Resolve an address to an id with\n" +
+			"`--filter email==jo@x.com` rather than paging the whole list.",
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -41,8 +45,12 @@ func (s *Service) newContactListCmd(token string) *cobra.Command {
 func (s *Service) newContactGetCmd(token string) *cobra.Command {
 	var fields string
 	cmd := &cobra.Command{
-		Use:         "get <contact-id>",
-		Short:       "Get a contact (GET /v2/contacts/{id})",
+		Use:   "get <contact-id>",
+		Short: "Get a contact (GET /v2/contacts/{id})",
+		Long: "Takes the numeric contact id, not an email address — resolve an address\n" +
+			"with `contact list --filter email==jo@x.com` first. `--fields` trims the\n" +
+			"response to a comma-separated projection of the v2 contact schema\n" +
+			"(`given_name`, `email_addresses`, `custom_fields`, ...).",
 		Args:        cobra.ExactArgs(1),
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -111,8 +119,13 @@ func (f *contactBodyFlags) build() (map[string]any, error) {
 func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 	var f *contactBodyFlags
 	cmd := &cobra.Command{
-		Use:         "create",
-		Short:       "Create a contact (POST /v2/contacts)",
+		Use:   "create",
+		Short: "Create a contact (POST /v2/contacts)",
+		Long: "`--email` and `--phone` are expanded into Keap's `email_addresses` and\n" +
+			"`phone_numbers` arrays in the `EMAIL1` / `PHONE1` slots, so each flag sets\n" +
+			"only the primary entry. Further slots, postal addresses and `custom_fields`\n" +
+			"go through `--json-body`, whose keys overlay and win over the flags. At\n" +
+			"least one field must be supplied or the call is rejected before it is sent.",
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -137,8 +150,12 @@ func (s *Service) newContactCreateCmd(token string) *cobra.Command {
 func (s *Service) newContactUpdateCmd(token string) *cobra.Command {
 	var f *contactBodyFlags
 	cmd := &cobra.Command{
-		Use:         "update <contact-id>",
-		Short:       "Update a contact (PATCH /v2/contacts/{id})",
+		Use:   "update <contact-id>",
+		Short: "Update a contact (PATCH /v2/contacts/{id})",
+		Long: "Only the fields supplied are touched. `--email` and `--phone` send a\n" +
+			"complete `email_addresses` / `phone_numbers` array holding just the EMAIL1 /\n" +
+			"PHONE1 entry, so a contact with several stored addresses needs the full\n" +
+			"array passed through `--json-body` instead. At least one field is required.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -162,8 +179,11 @@ func (s *Service) newContactUpdateCmd(token string) *cobra.Command {
 
 func (s *Service) newContactDeleteCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         "delete <contact-id>",
-		Short:       "Delete a contact (DELETE /v2/contacts/{id})",
+		Use:   "delete <contact-id>",
+		Short: "Delete a contact (DELETE /v2/contacts/{id})",
+		Long: "Irreversible — there is no restore verb, and notes live under the contact\n" +
+			"path (`/v2/contacts/{id}/notes`) so they are not separately recoverable.\n" +
+			"Judge the outcome from the exit code rather than stdout.",
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {

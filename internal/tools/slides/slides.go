@@ -118,8 +118,38 @@ func (s *Service) newObjectID(prefix string) string {
 
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "slides",
-		Short:         "Google Slides built-in service",
+		Use:   "slides",
+		Short: "Google Slides built-in service",
+		Long: "Reads and edits decks the connected Google account can already open. The\n" +
+			"connection carries the presentations scope only, with NO Drive access, so it\n" +
+			"cannot find a deck by name, copy a deck, export to PDF or PPTX, or change\n" +
+			"sharing. Ask for the link rather than searching, and rebuild rather than\n" +
+			"copy a template.\n" +
+			"\n" +
+			"Every `<presentation-id-or-url>` argument accepts the full editor URL\n" +
+			"(https://docs.google.com/presentation/d/<id>/edit) as well as a bare id, so\n" +
+			"paste the link through unchanged.\n" +
+			"\n" +
+			"Object ids are the currency of every edit and cannot be guessed. Read them\n" +
+			"first: `presentations get` prints each slide's object id plus the id of every\n" +
+			"text-bearing element on it, and `pages get` prints one page's complete\n" +
+			"element tree, including the elements the outline skips (images, empty\n" +
+			"shapes). An id that was not read back will be rejected.\n" +
+			"\n" +
+			"Every write funnels through the batchUpdate endpoint, and a batch is ATOMIC:\n" +
+			"one invalid request applies none of them, and the error names the failing\n" +
+			"`requests[N]`. `batch-update` passes the raw request surface through for what\n" +
+			"the named verbs do not cover — tables, shapes, lines, groups, transforms,\n" +
+			"z-order.\n" +
+			"\n" +
+			"There is no undo. The only recovery from `slides delete`, `elements delete`,\n" +
+			"`text delete` or a wrong `text replace` is the deck owner's own Slides\n" +
+			"version history in the browser.\n" +
+			"\n" +
+			"Sheets-linked charts (`createSheetsChart`,\n" +
+			"`replaceAllShapesWithSheetsChart`, `refreshSheetsChart`) need a Sheets scope\n" +
+			"this connection does not carry and return 403 even through `batch-update`;\n" +
+			"render the chart to an image and use `images insert` instead.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

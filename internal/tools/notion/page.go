@@ -122,7 +122,13 @@ func (s *Service) newPageCreateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create one or more pages from a --pages JSON array",
-		Args:  cobra.NoArgs,
+		Long: "--pages is a JSON ARRAY even for a single page, and each element carries\n" +
+			"its own `parent`, `properties`, `content` (markdown), `icon` and `cover`.\n" +
+			"The array is fanned out into ONE request per element, so it is not atomic:\n" +
+			"a failure part-way leaves the earlier pages created and reports their ids\n" +
+			"on stderr. Properties take Notion's REST value shape, not shorthand.\n" +
+			"Without --json the output is only the new page ids, one per line.",
+		Args: cobra.NoArgs,
 		// POST /pages
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
@@ -203,7 +209,18 @@ func (s *Service) newPageUpdateCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <page-id>",
 		Short: "Update a page's content and/or properties",
-		Args:  cobra.ExactArgs(1),
+		Long: "The canonical write. --command picks replace_content, update_content or\n" +
+			"insert_content; omitting --command entirely makes it a properties-only\n" +
+			"update driven by --properties, --icon and --cover. The flag matrix is\n" +
+			"validated before any request, so a content flag without --command is a\n" +
+			"usage error rather than a silent no-op.\n" +
+			"\n" +
+			"`page replace`, `page edit`, `page insert` and `page append` are aliases\n" +
+			"over the same three commands and are easier to get right. Come here for a\n" +
+			"combined content-and-properties write, or for --content-updates when a\n" +
+			"replacement needs `replace_all_matches`, which the `page edit` alias does\n" +
+			"not expose.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /pages/{id} and/or PATCH /pages/{id}/markdown
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
@@ -489,7 +506,13 @@ func (s *Service) newPageReplaceCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "replace <page-id>",
 		Short: "Replace a page's entire content (alias for update --command replace_content)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Overwrites the ENTIRE body with --new-str (or --file); nothing of the old\n" +
+			"content survives, though the page's properties, icon and cover are\n" +
+			"untouched. Notion refuses the write when it would drop existing child\n" +
+			"blocks unless --allow-deleting-content is also passed — that fail-safe is\n" +
+			"the reason a replace can come back rejected. Read the current body with\n" +
+			"`fetch` before overwriting anything not authored here.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /pages/{id}/markdown
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
@@ -522,7 +545,14 @@ func (s *Service) newPageEditCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <page-id>",
 		Short: "Search-and-replace text in a page (alias for update --command update_content)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Repeatable --old and --new are zipped in order, so the two counts must\n" +
+			"match and pair up positionally. Each --old has to match text already on\n" +
+			"the page; this command cannot add content that is not anchored to\n" +
+			"something. Only the first match of each --old is replaced — replacing\n" +
+			"every occurrence needs `page update --command update_content\n" +
+			"--content-updates`, which exposes `replace_all_matches`. --file does not\n" +
+			"apply here and is rejected.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /pages/{id}/markdown
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
@@ -562,7 +592,12 @@ func (s *Service) newPageInsertCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "insert <page-id>",
 		Short: "Insert markdown at the start or end of a page (alias for update --command insert_content)",
-		Args:  cobra.ExactArgs(1),
+		Long: "--at takes start or end and defaults to end, which makes `--at end`\n" +
+			"identical to `page append`. Content comes from --content or --file, one of\n" +
+			"which is required. Existing blocks are never removed, and\n" +
+			"--allow-deleting-content is rejected outright because the insert endpoint\n" +
+			"does not accept it.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /pages/{id}/markdown
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}
@@ -602,7 +637,11 @@ func (s *Service) newPageAppendCmd(token string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "append <page-id>",
 		Short: "Append markdown to the end of a page (alias for update --command insert_content)",
-		Args:  cobra.ExactArgs(1),
+		Long: "Adds to the END of the body and rewrites nothing, which makes it the safe\n" +
+			"write when the current content is unknown. --content or --file is\n" +
+			"required. --allow-deleting-content is rejected: the insert endpoint cannot\n" +
+			"delete blocks, so accepting the flag would be misleading.",
+		Args: cobra.ExactArgs(1),
 		// PATCH /pages/{id}/markdown
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 	}

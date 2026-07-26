@@ -91,10 +91,11 @@ var (
 // leafCmd builds a resource-group leaf command with SilenceUsage/Errors so
 // RunE errors flow through Execute's classifier rather than cobra's own printer.
 // ann is the anycli.side_effect annotation (readOnly or writeAction).
-func leafCmd(use, short string, ann map[string]string, run func(cmd *cobra.Command, args []string) error) *cobra.Command {
+func leafCmd(use, short, long string, ann map[string]string, run func(cmd *cobra.Command, args []string) error) *cobra.Command {
 	return &cobra.Command{
 		Use:           use,
 		Short:         short,
+		Long:          long,
 		Annotations:   ann,
 		SilenceUsage:  true,
 		SilenceErrors: true,

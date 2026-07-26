@@ -146,8 +146,33 @@ func (s *Service) stderr() io.Writer {
 // limits are top-level; record and sobject operations hang under a group.
 func (s *Service) newRoot(token, base string) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "salesforce",
-		Short:         "Salesforce built-in service (SOQL, records, search, describe)",
+		Use:   "salesforce",
+		Short: "Salesforce built-in service (SOQL, records, search, describe)",
+		Long: "Salesforce Platform REST against the connected org's own instance URL.\n" +
+			"Everything is an sObject — `Account`, `Contact`, `Lead`, `Opportunity`,\n" +
+			"`Case`, `Task`, plus per-org custom objects whose API names end in `__c`.\n" +
+			"\n" +
+			"Field names, picklist values and requiredness are ORG-SPECIFIC and cannot\n" +
+			"be guessed. Work describe → query → write: `sobject list` to find the\n" +
+			"object, `sobject describe` for its real field names and picklists, then\n" +
+			"`query` or `record create`. A write rejected with INVALID_FIELD or\n" +
+			"REQUIRED_FIELD_MISSING means the payload was guessed — describe and rebuild\n" +
+			"it rather than retrying the same body.\n" +
+			"\n" +
+			"There are two read paths: `query` for SOQL when the object and fields are\n" +
+			"known, `search` for a fuzzy cross-object match when only a name or term is.\n" +
+			"SOQL string literals are single-quoted and an embedded quote escapes as \\'.\n" +
+			"\n" +
+			"Record ids come in a 15-character case-sensitive form and an 18-character\n" +
+			"case-safe one. Prefer the 18-character id that SOQL returns; the short form\n" +
+			"breaks against anything that changes its case.\n" +
+			"\n" +
+			"Failures arrive as a JSON ARRAY — `[{\"errorCode\": …, \"message\": …}]` — not\n" +
+			"an object. INVALID_SESSION_ID means the connection needs re-authorising and\n" +
+			"no retry fixes it; REQUEST_LIMIT_EXCEEDED means the org's daily API budget\n" +
+			"is spent, which `limits` quantifies.\n" +
+			"\n" +
+			"Calls hit REST API v65.0 unless `--api-version` overrides it per call.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
