@@ -114,7 +114,6 @@ func (s *Service) newRoot(token string) *cobra.Command {
 		s.newCommentCmd(token),
 		s.newUserCmd(token),
 		s.newInboxCmd(token),
-		s.newMessageCmd(token),
 		s.newSubsCmd(token),
 	)
 	return root
