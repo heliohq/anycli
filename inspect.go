@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/heliohq/anycli/internal/dryrun"
 	"github.com/heliohq/anycli/internal/tools"
 )
 
@@ -82,33 +83,26 @@ func Inspect(tool string, args []string) (ActionInvocation, error) {
 	if err != nil {
 		return ActionInvocation{}, fmt.Errorf("inspect %s: %w", tool, err)
 	}
-	// Resolve argv to the deepest reachable command. Find's error (unknown
-	// subcommand at a root with nil Args) only duplicates the fact that the
-	// path stopped on a command with subcommands — the returned command is
-	// still the deepest resolved node, so the error is intentionally
-	// discarded in favor of Runnable=false.
-	cmd, rest, _ := root.Find(args)
+	// Resolve argv to the deepest reachable command and dry-run its flag
+	// parse. The resolve runs regardless of Runnable — Runnable and Parsed
+	// are independent facts. RunE is never invoked.
+	res, err := dryrun.Resolve(root, args)
+	if err != nil {
+		return ActionInvocation{}, fmt.Errorf("inspect %s: %w", tool, err)
+	}
 
 	inv := ActionInvocation{
-		Action:     actionID(tool, root, cmd),
-		SideEffect: cmd.Annotations[sideEffectAnnotation] != "false",
-		Runnable:   !cmd.HasSubCommands(),
+		Action:     actionID(tool, root, res.Cmd),
+		SideEffect: res.Cmd.Annotations[sideEffectAnnotation] != "false",
+		Runnable:   !res.Cmd.HasSubCommands(),
+		Parsed:     res.Parsed,
+		Help:       res.Help,
+		Args:       res.Args,
 	}
-
-	// Dry-run flag parse on the resolved node, regardless of Runnable —
-	// Runnable and Parsed are independent facts. RunE is never invoked.
-	cmd.InitDefaultHelpFlag()
-	if err := cmd.ParseFlags(rest); err != nil {
+	if !res.Parsed {
 		return inv, nil
 	}
-	inv.Parsed = true
-	helpVal, err := cmd.Flags().GetBool("help")
-	if err != nil {
-		return ActionInvocation{}, fmt.Errorf("inspect %s: read built-in help flag: %w", tool, err)
-	}
-	inv.Help = helpVal
-	inv.Args = cmd.Flags().Args()
-	inv.Flags = collectFlags(cmd)
+	inv.Flags = collectFlags(res.Cmd)
 	return inv, nil
 }
 
