@@ -74,7 +74,7 @@ func TestExecuteMissingConnectionString(t *testing.T) {
 }
 
 func TestMongoshArgsFixedFlagSet(t *testing.T) {
-	args := mongoshArgs("db.users.find().toArray()")
+	args := mongoshArgs("db.users.find().toArray()", defaultReadPreference)
 	if len(args) != 6 {
 		t.Fatalf("argv length = %d, want 6 (fixed flags + two --eval=)", len(args))
 	}
@@ -83,7 +83,9 @@ func TestMongoshArgsFixedFlagSet(t *testing.T) {
 			t.Errorf("argv[%d] = %q, want %q", i, args[i], want)
 		}
 	}
-	if args[4] != "--eval="+connectPrelude {
+	wantPrelude := "--eval=" + connectPrelude +
+		`; db.getMongo().setReadPref("secondaryPreferred")`
+	if args[4] != wantPrelude {
 		t.Errorf("argv[4] = %q, want fused connect prelude", args[4])
 	}
 	if args[5] != "--eval=db.users.find().toArray()" {
@@ -97,7 +99,7 @@ func TestMongoshArgsFixedFlagSet(t *testing.T) {
 // reachable path to extra mongosh flags.
 func TestMongoshArgsScriptCannotOccupyFlagPosition(t *testing.T) {
 	for _, script := range []string{"--shell", "--eval 1", "-f evil.js", "'; rm -rf /"} {
-		args := mongoshArgs(script)
+		args := mongoshArgs(script, defaultReadPreference)
 		for i, tok := range args {
 			if i < len(fixedMongoshFlags) {
 				continue
@@ -125,7 +127,9 @@ func TestArgvNeverContainsDSN(t *testing.T) {
 			t.Errorf("argv token %q leaks the DSN", tok)
 		}
 	}
-	if fake.args[4] != "--eval="+connectPrelude {
+	wantPrelude := "--eval=" + connectPrelude +
+		`; db.getMongo().setReadPref("secondaryPreferred")`
+	if fake.args[4] != wantPrelude {
 		t.Errorf("prelude token = %q, want env-variable-name literal only", fake.args[4])
 	}
 }
@@ -156,6 +160,50 @@ func TestEvalPassesScriptAndEnv(t *testing.T) {
 	}
 }
 
+// TestDefaultReadPreferenceUsesSecondaries checks the default mode.
+func TestDefaultReadPreferenceUsesSecondaries(t *testing.T) {
+	fake := &fakeRun{}
+	run(t, fake, testDSN, "eval", "db.users.findOne()")
+
+	if !fake.called {
+		t.Fatal("runner was not invoked")
+	}
+	if got := fake.args[4]; !strings.Contains(got, `db.getMongo().setReadPref("secondaryPreferred")`) {
+		t.Errorf("connection prelude = %q, want secondaryPreferred read preference", got)
+	}
+}
+
+// TestReadPreferenceFlagOverridesDefault checks explicit primary reads.
+func TestReadPreferenceFlagOverridesDefault(t *testing.T) {
+	fake := &fakeRun{}
+	res, _, errOut := run(t, fake, testDSN,
+		"eval", "db.users.findOne()", "--read-preference", "primary")
+
+	if res.ExitCode != 0 || !fake.called {
+		t.Fatalf("result = %+v called=%t stderr=%q, want successful execution", res, fake.called, errOut)
+	}
+	if got := fake.args[4]; !strings.Contains(got, `db.getMongo().setReadPref("primary")`) {
+		t.Errorf("connection prelude = %q, want primary read preference", got)
+	}
+}
+
+// TestInvalidReadPreferenceIsRejectedBeforeSpawning checks validation.
+func TestInvalidReadPreferenceIsRejectedBeforeSpawning(t *testing.T) {
+	fake := &fakeRun{}
+	res, _, errOut := run(t, fake, testDSN,
+		"eval", "db.users.findOne()", "--read-preference", `secondaryPreferred"); quit(0); //`)
+
+	if res.ExitCode != 1 || res.CredentialRejected {
+		t.Errorf("result = %+v, want plain failure", res)
+	}
+	if fake.called {
+		t.Error("runner was invoked despite an invalid read preference")
+	}
+	if !strings.Contains(errOut, "invalid read preference") {
+		t.Errorf("stderr = %q, want invalid read preference guidance", errOut)
+	}
+}
+
 func TestChildEnvDropsParentCollisions(t *testing.T) {
 	t.Setenv(EnvConnectionString, "mongodb://parent-env-leak")
 	t.Setenv("HOME", "/real/home")
@@ -182,6 +230,16 @@ func TestPingRunsPingScript(t *testing.T) {
 	}
 	if !strings.Contains(out, `"ok": 1`) {
 		t.Errorf("stdout = %q, want ping result", out)
+	}
+}
+
+// TestPingDoesNotSetReadPreference keeps query routing out of connectivity checks.
+func TestPingDoesNotSetReadPreference(t *testing.T) {
+	fake := &fakeRun{}
+	run(t, fake, testDSN, "ping")
+
+	if got := fake.args[4]; got != "--eval="+connectPrelude {
+		t.Errorf("ping prelude = %q, want connect-only prelude", got)
 	}
 }
 
@@ -395,6 +453,36 @@ func TestTimeoutFlagAborts(t *testing.T) {
 	}
 	if !strings.Contains(errOut.String(), "timed out") {
 		t.Errorf("stderr = %q, want timeout message", errOut.String())
+	}
+	if !strings.Contains(errOut.String(), "adjust with --timeout") {
+		t.Errorf("stderr = %q, want actionable --timeout guidance", errOut.String())
+	}
+}
+
+// TestCallerDeadlineDoesNotRecommendTimeoutFlag keeps timeout guidance actionable.
+func TestCallerDeadlineDoesNotRecommendTimeoutFlag(t *testing.T) {
+	blocking := func(ctx context.Context, args []string, env []string) (int, []byte, []byte, error) {
+		<-ctx.Done()
+		return -1, nil, nil, ctx.Err()
+	}
+	var out, errOut bytes.Buffer
+	svc := &Service{Run: blocking, Out: &out, Err: &errOut}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	res, err := svc.Execute(ctx, []string{"ping", "--timeout", "5m"},
+		map[string]string{EnvConnectionString: testDSN})
+	if err != nil {
+		t.Fatalf("Execute returned engine error: %v", err)
+	}
+	if res.ExitCode != 1 || res.CredentialRejected {
+		t.Errorf("result = %+v, want plain exit 1", res)
+	}
+	if !strings.Contains(errOut.String(), "caller deadline exceeded") {
+		t.Errorf("stderr = %q, want caller deadline message", errOut.String())
+	}
+	if strings.Contains(errOut.String(), "--timeout") {
+		t.Errorf("stderr = %q, must not recommend an ineffective flag", errOut.String())
 	}
 }
 

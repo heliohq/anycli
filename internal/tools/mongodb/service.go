@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -56,6 +57,36 @@ const pingScript = "db.runCommand({ ping: 1 })"
 // defaultTimeout bounds one mongosh invocation when the engine context has no
 // deadline of its own.
 const defaultTimeout = 2 * time.Minute
+
+// readPreference is a validated MongoDB read preference.
+type readPreference string
+
+const (
+	readPreferencePrimary            readPreference = "primary"
+	readPreferencePrimaryPreferred   readPreference = "primaryPreferred"
+	readPreferenceSecondary          readPreference = "secondary"
+	readPreferenceSecondaryPreferred readPreference = "secondaryPreferred"
+	readPreferenceNearest            readPreference = "nearest"
+
+	defaultReadPreference = readPreferenceSecondaryPreferred
+)
+
+// Set validates the flag value.
+func (p *readPreference) Set(value string) error {
+	switch readPreference(value) {
+	case readPreferencePrimary, readPreferencePrimaryPreferred, readPreferenceSecondary, readPreferenceSecondaryPreferred, readPreferenceNearest:
+		*p = readPreference(value)
+		return nil
+	default:
+		return fmt.Errorf("invalid read preference %q: must be primary, primaryPreferred, secondary, secondaryPreferred, or nearest", value)
+	}
+}
+
+// String returns the selected mode.
+func (p *readPreference) String() string { return string(*p) }
+
+// Type returns the flag value type.
+func (p *readPreference) Type() string { return "readPreference" }
 
 // Runner executes one mongosh subprocess: args is the full mongosh argv (after
 // the binary), env is the complete child environment. Tests inject a fake; the
@@ -134,18 +165,28 @@ mongosh flags are fixed and not passed through.`, pin),
 	root.SetOut(s.stdout())
 	root.SetErr(s.stderr())
 	timeout := root.PersistentFlags().Duration("timeout", defaultTimeout, "mongosh execution timeout")
+	readPref := defaultReadPreference
 
 	evalCmd := &cobra.Command{
 		Use:   "eval <script>",
 		Short: "Run a mongosh JavaScript snippet",
-		Args:  cobra.ExactArgs(1),
+		Long: `Run a mongosh JavaScript snippet.
+
+Reads default to secondaryPreferred. Use --read-preference primary for
+read-after-write consistency.`,
+		Args: cobra.ExactArgs(1),
 		// eval carries arbitrary reads AND writes in one verb — may-mutate
 		// on some input, so the fact is true (design 318 strict side).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return s.runMongosh(cmd.Context(), args[0], dsn, *timeout, inv)
+			return s.runMongosh(cmd.Context(), args[0], dsn, *timeout, readPref, inv)
 		},
 	}
+	evalCmd.Flags().Var(
+		&readPref,
+		"read-preference",
+		"query read preference: primary, primaryPreferred, secondary, secondaryPreferred, or nearest",
+	)
 	pingCmd := &cobra.Command{
 		Use:   "ping",
 		Short: "Verify connectivity and authentication",
@@ -153,7 +194,7 @@ mongosh flags are fixed and not passed through.`, pin),
 		// Connectivity probe (runs a fixed ping script): no input can mutate.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return s.runMongosh(cmd.Context(), pingScript, dsn, *timeout, inv)
+			return s.runMongosh(cmd.Context(), pingScript, dsn, *timeout, "", inv)
 		},
 	}
 	root.AddCommand(evalCmd, pingCmd)
@@ -164,13 +205,17 @@ mongosh flags are fixed and not passed through.`, pin),
 // script. The flag set is fixed; the prelude and the script are fused into
 // --eval= tokens so script content can never occupy a flag position (there is
 // no reachable path to --shell or any other mongosh flag).
-func mongoshArgs(script string) []string {
+func mongoshArgs(script string, readPref readPreference) []string {
+	prelude := connectPrelude
+	if readPref != "" {
+		prelude += "; db.getMongo().setReadPref(" + strconv.Quote(string(readPref)) + ")"
+	}
 	return []string{
 		"--nodb",
 		"--quiet",
 		"--norc",
 		"--json=relaxed",
-		"--eval=" + connectPrelude,
+		"--eval=" + prelude,
 		"--eval=" + script,
 	}
 }
@@ -178,7 +223,7 @@ func mongoshArgs(script string) []string {
 // runMongosh executes one mongosh invocation: fixed argv, credential and
 // scoped HOME in the child env, redacted output, auth classification, and a
 // context deadline.
-func (s *Service) runMongosh(ctx context.Context, script, dsn string, timeout time.Duration, inv *invocation) error {
+func (s *Service) runMongosh(ctx context.Context, script, dsn string, timeout time.Duration, readPref readPreference, inv *invocation) error {
 	run := s.Run
 	if run == nil {
 		// Resolve — and on first call lazy-install — mongosh BEFORE the
@@ -191,6 +236,8 @@ func (s *Service) runMongosh(ctx context.Context, script, dsn string, timeout ti
 		run = mongoshRunner(binary)
 	}
 
+	// Keep the caller deadline so timeout errors can name the effective limit.
+	callerDeadline, hasCallerDeadline := ctx.Deadline()
 	if timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
@@ -203,7 +250,7 @@ func (s *Service) runMongosh(ctx context.Context, script, dsn string, timeout ti
 	}
 	defer os.RemoveAll(scopedHome)
 
-	exitCode, stdout, stderrOut, runErr := run(ctx, mongoshArgs(script), childEnv(dsn, scopedHome))
+	exitCode, stdout, stderrOut, runErr := run(ctx, mongoshArgs(script, readPref), childEnv(dsn, scopedHome))
 	inv.exitCode = exitCode
 
 	if len(stdout) > 0 {
@@ -214,7 +261,11 @@ func (s *Service) runMongosh(ctx context.Context, script, dsn string, timeout ti
 	}
 
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return fmt.Errorf("mongosh timed out after %s", timeout)
+		effectiveDeadline, _ := ctx.Deadline()
+		if !hasCallerDeadline || !effectiveDeadline.Equal(callerDeadline) {
+			return fmt.Errorf("mongosh timed out after %s; adjust with --timeout", timeout)
+		}
+		return errors.New("mongosh caller deadline exceeded")
 	}
 	if runErr != nil {
 		return classifyFailure(runErr, stdout, stderrOut)

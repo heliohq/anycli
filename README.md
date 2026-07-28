@@ -127,7 +127,11 @@ It exposes exactly two commands: `eval '<mongosh JS>'` and `ping`. Database
 selection happens in the script (`db.getSiblingDB(...)`); `db` is
 pre-connected via a `connect(process.env.MONGODB_CONNECTION_STRING)` prelude
 (which then deletes the variable from `process.env`), so the DSN never appears
-on the command line. mongosh flags are fixed
+on the command line. Queries default to `secondaryPreferred`; callers use
+`--read-preference primary` when a script requires immediate read-after-write
+consistency. The default timeout is two minutes and can be changed with
+`--timeout`. Direct `db.runCommand()` calls manage their own read preference.
+mongosh flags are fixed
 (`--nodb --quiet --norc --json=relaxed`) and not passed through — the script
 travels as a fused `--eval=` token, so `--shell` and other flags are
 unreachable. Output is relaxed extended JSON. The first invocation lazily
