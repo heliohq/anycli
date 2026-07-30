@@ -1,7 +1,8 @@
+# AnyCLI - Agent Guidelines
 
 ## Project Overview
 
-AnyCLI is an embeddable Go library (design 002): the engine plus the embedded definitions for the tools it supports. A host embeds it in-process, supplies a `CredentialResolver` (and optionally a `Cache`), and calls `Engine.Execute`. AnyCLI loads the matching embedded tool definition, injects credentials (env / arg / ephemeral file), runs middleware, and execs the underlying binary or built-in service. It is **not** a standalone CLI, and tool definitions are **not** consumer-supplied — they live embedded inside AnyCLI.
+AnyCLI is an embeddable Go library ([docs/design/002](docs/design/002-embeddable-core-and-credential-resolver.md)): the engine plus the embedded definitions for the tools it supports. A host embeds it in-process, supplies a `CredentialResolver` (and optionally a `Cache`), and calls `Engine.Execute`. AnyCLI loads the matching embedded tool definition, injects credentials (env / arg / ephemeral file), runs middleware, and execs the underlying binary or built-in service. It is **not** a standalone CLI, and tool definitions are **not** consumer-supplied — they live embedded inside AnyCLI.
 
 ## Tech Stack
 
@@ -72,14 +73,24 @@ anycli/
 ├── WHY_ANY_CLI.md     # Rationale: why CLI over MCP
 ├── README.md          # Embeddable API overview
 ├── anycli.go          # Public library API: Config, New, Engine.Execute, Cache, CredentialResolver
+├── manifest.go        # ListTools: credential-safe discovery manifest + tool-kind validation
+├── inspect.go         # Inspect: action facts (action id, side effect, flags) without executing
+├── help.go            # RenderToolHelp / CommandTree help face for embedders
+├── resolve.go         # WarmEligibleTools / ResolveToolBinary for host-side pre-warming
+├── cmd/anycli/        # Dev harness binary (tool-definition development aid, not the product)
 ├── definitions/       # Embedded tool definitions (go:embed) — internal to AnyCLI, not consumer-supplied
+├── docs/              # Reference docs + docs/design/ architecture records
 ├── internal/
 │   ├── config/        # Directory helpers (binary PATH resolution)
 │   ├── credential/    # Credential resolver seam, binding/injection, cache interface + in-memory default
+│   ├── dryrun/        # Resolve argv against a cobra tree without executing (shared by Inspect and help)
+│   ├── e2e/           # E2E harness: gateway-backed resolver, affected-tool selection, runner
 │   ├── exec/          # Execution pipeline (Engine)
 │   ├── middleware/    # Before/after hook engine
 │   ├── registry/      # Tool-definition schema
+│   ├── toolhelp/      # Flattened capability-discovery help face
 │   └── tools/         # Built-in service-type tools + custom patchers
-├── Makefile           # Library build/vet/test targets
-└── .github/workflows/ # Go-library CI (build + vet + test)
+├── scripts/           # One-off maintenance scripts
+├── Makefile           # Library build/vet/test targets + dev-harness build
+└── .github/workflows/ # CI: Go library (build + vet + test) and the e2e suite
 ```
