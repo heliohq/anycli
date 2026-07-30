@@ -2,13 +2,7 @@
 
 ## Project Overview
 
-AnyCLI is an embeddable Go library ([docs/design/002](docs/design/002-embeddable-core-and-credential-resolver.md)): the engine plus the embedded definitions for the tools it supports. A host embeds it in-process, supplies a `CredentialResolver` (and optionally a `Cache`), and calls `Engine.Execute`. AnyCLI loads the matching embedded tool definition, injects credentials (env / arg / ephemeral file), runs middleware, and execs the underlying binary or built-in service. It is **not** a standalone CLI, and tool definitions are **not** consumer-supplied — they live embedded inside AnyCLI.
-
-## Tech Stack
-
-- Language: Go
-- Build: Go modules
-- Formatting: `gofmt`
+AnyCLI is an embeddable Go library ([docs/design/002](docs/design/002-embeddable-core-and-credential-resolver.md)): a host embeds it in-process, supplies a `CredentialResolver`, and calls `Engine.Execute`. AnyCLI loads the matching definition, injects credentials (env / arg / ephemeral file), runs middleware, and execs the binary or built-in service. Not a standalone CLI; definitions are embedded here, not consumer-supplied.
 
 ## Language Rule
 
@@ -16,81 +10,39 @@ AnyCLI is an embeddable Go library ([docs/design/002](docs/design/002-embeddable
 
 ## Confidentiality
 
-- **This repository is PUBLIC.** Never expose internal design or engineering detail: internal design-doc numbers and section titles, internal repo/service/skill paths, ticket ids, or downstream product features. A reader outside the org cannot resolve them, and they leak architecture and roadmap.
-- Describe the mechanism in this repo's own terms instead — name the file, the annotation, the contract. The thing itself, never the internal review that decided it.
+- **This repository is PUBLIC.** Never expose internal design-doc numbers or section titles, internal repo/service/skill paths, ticket ids, or downstream product features: an outside reader cannot resolve them, and they leak architecture and roadmap.
+- State the mechanism in this repo's own terms — the file, the annotation, the contract — never the internal review that decided it.
 
 ## Development Rules
 
 - Write tests first, then implement
-- Run tests before marking any task complete
-- Follow existing code patterns
-- Keep it simple — no over-engineering
-- **No interactive prompts** — all input must come from flags or environment variables. AnyCLI is designed for agents, not humans typing into terminals.
+- Run tests before claiming done
+- **No interactive prompts** — input comes from flags or env vars; AnyCLI serves agents, not humans at terminals
+- Definitions target `--json` output and non-interactive flags so agents can consume results
+- Exit codes are load-bearing: 0 success, 2 usage/param error (bad flag combo, invalid JSON, unknown subcommand), 1 runtime/API failure
 
 ## Command Help
 
-A tool's `--help` is the only place an agent learns what the integration covers, and it reads a partial list as "not supported". So the coverage face must be exhaustive, and it must say that it is.
+`--help` is the only place an agent learns what a tool covers, and a partial list reads as "not supported": the coverage face must be exhaustive and say so. `<tool> --help` gets the flattened face from `internal/toolhelp` — every callable leaf plus the derived count, which is never written down anywhere. Any deeper node (`post search --help`) gets cobra's own help: that node's flags and its `Long`.
 
-`--help` is generated, and *which* help you get depends on the node argv resolves to:
+Keep the root face lean: the leaf list is the payload, prose above it pushes the list down — which is also why long-form guides live outside this repo (folding them into `Long` was tried and rejected).
 
-- **root** (`<tool> --help`) — `internal/toolhelp` flattens the whole tree to its callable leaves and states the derived count. Never write that count down anywhere.
-- **any deeper node** (`<tool> post search --help`) — cobra's own help for that node: its flags, and its `Long` if it has one.
+`Short` is required and is what the flattened list echoes, so make it carry real information (`post replies`: "one page, last 7 days"). `Long` is optional — a provider fact the flags cannot express: a pagination window, an API-tier gate, a cheaper path. No lint enforces one; that rule gets satisfied by placeholder prose, worse than an empty field.
 
-Keep the root face lean. It is the coverage surface — the exhaustive leaf list is the payload, and prose above it pushes the list down. Depth belongs on the leaf, where it is fetched only when someone is about to run that command.
-
-`Short` is required and is what the flattened list echoes, so make it carry real information (`post replies` says "one page, last 7 days"). `Long` is optional; write one when there is a provider fact the flags cannot express — a pagination window, an API-tier gate, a cheaper path to the same answer. There is no coverage requirement on `Long` and no lint enforcing one: a rule like that gets satisfied by placeholder prose, which is worse than an empty field.
-
-Long-form per-tool guides live outside this repository, read on demand by the host. Folding them into `Long` was implemented in full and rejected: a service root's `Long` renders on the coverage face and pushes the leaf list down.
-
-Help-ness is decided by `internal/dryrun`, a real cobra `Find` + `ParseFlags` shared with `Inspect` — never by scanning argv for the token `--help`, which both misses `post search --help` and fires on `post create --text "--help"`. Neither path resolves credentials, so an unconnected tool can still answer both. Binary-passthrough tools (`github`, `lark`) have no tree: their help comes from the wrapped binary and anycli must not stamp a completeness claim on it.
+Help-ness comes from `internal/dryrun` — a real cobra `Find` + `ParseFlags`, shared with `Inspect` — never from scanning argv for `--help`, which misses `post search --help` and fires on `post create --text "--help"`. Neither resolves credentials, so an unconnected tool still answers. Binary-passthrough tools (`github`, `lark`) have no tree: help comes from the wrapped binary, and anycli must not claim completeness over it.
 
 ## Side Effects
 
-Every runnable leaf of a service tree declares `anycli.side_effect` (`"true"` | `"false"`): may this command issue a mutating provider API call? A host reads it through `Inspect` — before execution, no network, no credential — to decide what an invocation deserves. Absent means `true`: the failure mode of the other default is an unreviewed write. Group commands carry no annotation and their `RunE` must be nil or help-only, because `Runnable` is derived from "has no subcommands" and a group with a real body would execute while reporting as a help path. `internal/tools/lint_test.go` enforces all of it over every registered tool; pin the *values* per tool in a table test with the endpoint in a trailing comment.
+Every runnable leaf declares `anycli.side_effect` (`"true"` | `"false"`): may this command issue a mutating provider API call? A host reads it through `Inspect`: before execution, no network, no credential. Absent means `true` — the other default's failure mode is an unreviewed write. Groups carry no annotation and their `RunE` must be nil or help-only: `Runnable` means "has no subcommands", so a group with a body would execute while reporting as a help path. `internal/tools/lint_test.go` enforces this; pin the *values* per tool in a table test, endpoint in a trailing comment.
 
-AnyCLI reports the fact and never the judgment — no policy knob, no allow-list, no "is this dangerous" API. See [docs/side-effect.md](docs/side-effect.md) for the classification criterion, the boundary cases, and the consumption pattern.
-
-## Code Style
-
-- Prefer simple, readable code over clever abstractions
-- Use predictable exit codes: 0 for success, non-zero for failure
-- Embedded tool definitions should target `--json` output and non-interactive flags so agents can consume results
+AnyCLI reports the fact, never the judgment — no policy knob, no allow-list. See [docs/side-effect.md](docs/side-effect.md) for the criterion, boundary cases, and consumption pattern.
 
 ## Git Conventions
 
-- Commit format: `type(scope): message`
-- Types: `feat`, `fix`, `refactor`, `chore`, `ci`, `docs`, `test`
-- Prefer small, atomic commits — each commit should be the smallest unit of change that doesn't break integrity (builds pass, tests pass)
-- One logical change per commit; split unrelated changes into separate commits
+- `type(scope): message`, types `feat` `fix` `refactor` `chore` `ci` `docs` `test`
+- Smallest change that keeps builds and tests passing, one logical change per commit
 - **Do not commit unless the user explicitly asks** — never auto-commit
 
-## Project Structure
+## Map
 
-```
-anycli/
-├── AGENTS.md          # Agent guidelines (this file)
-├── CLAUDE.md          # Symlink -> AGENTS.md
-├── WHY_ANY_CLI.md     # Rationale: why CLI over MCP
-├── README.md          # Embeddable API overview
-├── anycli.go          # Public library API: Config, New, Engine.Execute, Cache, CredentialResolver
-├── manifest.go        # ListTools: credential-safe discovery manifest + tool-kind validation
-├── inspect.go         # Inspect: action facts (action id, side effect, flags) without executing
-├── help.go            # RenderToolHelp / CommandTree help face for embedders
-├── resolve.go         # WarmEligibleTools / ResolveToolBinary for host-side pre-warming
-├── cmd/anycli/        # Dev harness binary (tool-definition development aid, not the product)
-├── definitions/       # Embedded tool definitions (go:embed) — internal to AnyCLI, not consumer-supplied
-├── docs/              # Reference docs + docs/design/ architecture records
-├── internal/
-│   ├── config/        # Directory helpers (binary PATH resolution)
-│   ├── credential/    # Credential resolver seam, binding/injection, cache interface + in-memory default
-│   ├── dryrun/        # Resolve argv against a cobra tree without executing (shared by Inspect and help)
-│   ├── e2e/           # E2E harness: gateway-backed resolver, affected-tool selection, runner
-│   ├── exec/          # Execution pipeline (Engine)
-│   ├── middleware/    # Before/after hook engine
-│   ├── registry/      # Tool-definition schema
-│   ├── toolhelp/      # Flattened capability-discovery help face
-│   └── tools/         # Built-in service-type tools + custom patchers
-├── scripts/           # One-off maintenance scripts
-├── Makefile           # Library build/vet/test targets + dev-harness build
-└── .github/workflows/ # CI: Go library (build + vet + test) and the e2e suite
-```
+Root files are the public API: `anycli.go` (Config, New, `Engine.Execute`), `manifest.go` (ListTools), `inspect.go` (action facts without executing), `help.go`, `resolve.go` (binary pre-warming). `definitions/` holds the embedded tool definitions, `cmd/anycli/` is a dev harness rather than the product, and `internal/` is the engine — `ls internal` for the packages.
