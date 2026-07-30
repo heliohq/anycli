@@ -168,6 +168,7 @@ verbatim.
 - [Why AnyCLI](WHY_ANY_CLI.md) — CLI vs MCP for agents
 - [Credential Lifecycle](docs/credential-lifecycle.md) — how credentials are resolved, cached, and injected at runtime
 - [Tool Definition Schema](docs/definition-schema.md) — field reference for the embedded tool definitions
+- [Side Effects](docs/side-effect.md) — the `anycli.side_effect` annotation, how `Inspect` reports it, and how a host consumes it
 - [Design 001: Vault Credential Integration](docs/design/001-vault-credential-integration.md) — superseded historical vault/local design
 - [Design 002: Embeddable Core + Credential Resolver](docs/design/002-embeddable-core-and-credential-resolver.md) — the library architecture
 - [Design 003: Multi-account + Helio toolset](docs/design/003-multi-account-and-helio-toolset.md) — account-aware execution and built-in services

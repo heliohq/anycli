@@ -39,6 +39,12 @@ Per-tool guides live in the Helio repo under `agents/marketplace/heliox/skills/t
 
 Help-ness is decided by `internal/dryrun`, a real cobra `Find` + `ParseFlags` shared with `Inspect` (design 318) — never by scanning argv for the token `--help`, which both misses `post search --help` and fires on `post create --text "--help"`. Neither path resolves credentials, so an unconnected tool can still answer both (design 335 D3). Binary-passthrough tools (`github`, `lark`) have no tree: their help comes from the wrapped binary and anycli must not stamp a completeness claim on it.
 
+## Side Effects
+
+Every runnable leaf of a service tree declares `anycli.side_effect` (`"true"` | `"false"`): may this command issue a mutating provider API call? A host reads it through `Inspect` — before execution, no network, no credential — to decide what an invocation deserves. Absent means `true`: the failure mode of the other default is an unreviewed write. Group commands carry no annotation and their `RunE` must be nil or help-only, because `Runnable` is derived from "has no subcommands" and a group with a real body would execute while reporting as a help path. `internal/tools/lint_test.go` enforces all of it over every registered tool; pin the *values* per tool in a table test with the endpoint in a trailing comment.
+
+AnyCLI reports the fact and never the judgment — no policy knob, no allow-list, no "is this dangerous" API. See [docs/side-effect.md](docs/side-effect.md) for the classification criterion, the boundary cases, and the consumption pattern.
+
 ## Code Style
 
 - Prefer simple, readable code over clever abstractions
