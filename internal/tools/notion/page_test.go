@@ -228,7 +228,7 @@ func TestPageUpdate_UpdateContent(t *testing.T) {
 	}
 }
 
-// TestPageUpdate_Matrix exercises the design-304 §④ fail-fast matrix: illegal
+// TestPageUpdate_Matrix exercises the fail-fast matrix: illegal
 // flag/command combinations are rejected before any request (exit 2).
 func TestPageUpdate_Matrix(t *testing.T) {
 	cases := []struct {
@@ -663,7 +663,7 @@ func TestPageMove_RoutesDatabaseToUpdate(t *testing.T) {
 	}
 }
 
-// TestPageMove_MultipleFanOut: two page ids each become one POST .../move, and
+// TestPageMove_MultipleFanOut: two page ids each become one POST.../move, and
 // both moved ids are listed on stdout.
 func TestPageMove_MultipleFanOut(t *testing.T) {
 	var reqs []capturedRequest
@@ -920,7 +920,7 @@ func TestPageMove_UnresolvableID_Usage(t *testing.T) {
 
 // TestFetch_Probe_CredentialRejected: a 401 on a probe must surface as an API
 // error (exit 1) with CredentialRejected set — not be masked as a "pass --type"
-// usage error — so OAuth token refresh (design 227) can trigger.
+// usage error — so OAuth token refresh can trigger.
 func TestFetch_Probe_CredentialRejected(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusUnauthorized, `{"object":"error","code":"unauthorized","message":"token invalid"}`, &got)

@@ -44,7 +44,7 @@ const EnvServerToken = "POSTMARK_SERVER_TOKEN"
 // requests. Every built-in Postmark call sets it.
 const serverTokenHeader = "X-Postmark-Server-Token"
 
-// readOnly / writeAction carry the design-318 side-effect annotation for a
+// readOnly / writeAction carry the side-effect annotation for a
 // runnable leaf command. readOnly marks side-effect-free reads (GET searches
 // and detail lookups); writeAction marks provider-state mutations (send email,
 // reactivate a recipient).

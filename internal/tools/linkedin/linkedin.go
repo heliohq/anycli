@@ -251,7 +251,7 @@ func apiMessage(body []byte) string {
 }
 
 // NewCommandTree returns the full command tree built with empty credentials
-// for dry-run parsing and traversal (tools.Service seam, design 318). The
+// for dry-run parsing and traversal (tools.Service seam). The
 // credentials are only captured by RunE closures, which are never run on
 // this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("", "") }

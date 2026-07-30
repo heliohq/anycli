@@ -80,7 +80,7 @@ func jsonUnmarshalStrict(raw string, v any) error {
 	return json.Unmarshal([]byte(raw), v)
 }
 
-// readOnly / writeAction are the design-318 anycli.side_effect annotations for
+// readOnly / writeAction are the anycli.side_effect annotations for
 // runnable leaf commands: false = no provider state change (GET/list/get),
 // true = mutates provider state (create/update/delete/trigger/etc.).
 var (

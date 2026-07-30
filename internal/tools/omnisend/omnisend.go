@@ -35,7 +35,7 @@ const omnisendVersion = "2026-03-15"
 // effectively non-expiring.
 const EnvAccessToken = "OMNISEND_ACCESS_TOKEN"
 
-// readOnly / writeAction are the design-318 anycli.side_effect annotations for
+// readOnly / writeAction are the anycli.side_effect annotations for
 // runnable leaf commands: false = no provider state change (GET/list/get),
 // true = mutates provider state (create/update/send).
 var (

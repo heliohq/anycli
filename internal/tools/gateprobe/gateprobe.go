@@ -1,11 +1,10 @@
-// Package gateprobe is the built-in approval-gate E2E probe (design 318 §E2E
-// Testing Harness): a hidden, credential-free test service whose single
-// runnable leaf `probe send` (action gate-probe.probe_send) echoes a local
-// receipt and never makes a network call. It exists so the approval-gate E2E
-// suite can exercise the full intercept → request → consume → execute path
-// without depending on a real provider. The leaf is annotated
-// side_effect=true so the consumer's policy layer gates it exactly like a
-// real mutating command. The definition (definitions/tools/gate-probe.json)
+// Package gateprobe is the built-in policy-gate E2E probe: a hidden,
+// credential-free test service whose single runnable leaf `probe send`
+// (action gate-probe.probe_send) echoes a local receipt and never makes a
+// network call. It exists so an end-to-end suite can exercise a host's full
+// inspect → decide → execute path without depending on a real provider. The
+// leaf is annotated side_effect=true so the consumer's policy layer gates it
+// exactly like a real mutating command. The definition (definitions/tools/gate-probe.json)
 // declares no auth block: execution needs no credentials, the engine never
 // calls the resolver, and RunE reads none.
 package gateprobe
@@ -29,7 +28,7 @@ type Service struct {
 }
 
 // Execute runs one gate-probe subcommand. env is ignored: the probe is
-// credential-free by contract (design 318 — no auth block in its definition).
+// credential-free by contract (no auth block in its definition).
 func (s *Service) Execute(ctx context.Context, args []string, _ map[string]string) (execution.Result, error) {
 	root := s.newRoot()
 	root.SetArgs(args)
@@ -43,7 +42,7 @@ func (s *Service) Execute(ctx context.Context, args []string, _ map[string]strin
 func (s *Service) newRoot() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "gate-probe",
-		Short:         "Approval-gate E2E probe (test-only)",
+		Short:         "Policy-gate E2E probe (test-only)",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -59,7 +58,7 @@ func (s *Service) newRoot() *cobra.Command {
 func (s *Service) newProbeCmd() *cobra.Command {
 	probe := &cobra.Command{
 		Use:    "probe",
-		Short:  "Approval-gate probe verbs",
+		Short:  "Policy-gate probe verbs",
 		Hidden: true,
 	}
 
@@ -69,7 +68,7 @@ func (s *Service) newProbeCmd() *cobra.Command {
 		Short:       "Echo a local probe receipt (no-op, zero network)",
 		Hidden:      true,
 		Args:        cobra.NoArgs,
-		Annotations: map[string]string{"anycli.side_effect": "true"}, // gated like a real mutating command (design 318)
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // gated like a real mutating command
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			receipt := fmt.Sprintf(`{"tool":"gate-probe","action":"gate-probe.probe_send","status":"sent","note":%q}`, note)
 			fmt.Fprintln(cmd.OutOrStdout(), receipt)
@@ -97,6 +96,6 @@ func (s *Service) stderr() io.Writer {
 }
 
 // NewCommandTree returns the full command tree for dry-run parsing and
-// traversal (tools.Service seam, design 318). The returned commands are never
+// traversal (tools.Service seam). The returned commands are never
 // executed by Inspect/lint/policy consumers.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot() }

@@ -32,7 +32,7 @@ const EnvToken = "ACTIVECAMPAIGN_API_TOKEN"
 // input, projected from the connection account key).
 const EnvURL = "ACTIVECAMPAIGN_API_URL"
 
-// readOnly / writeAction carry the design-318 side-effect annotation on runnable
+// readOnly / writeAction carry the side-effect annotation on runnable
 // leaf commands: "false" for side-effect-free reads (GET), "true" for writes
 // that mutate provider state (POST/PUT/DELETE and semantic writes).
 var (

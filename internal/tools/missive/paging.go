@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Missive paginates two different ways (see DESIGN §2). Contacts and contact
+// Missive paginates two different ways. Contacts and contact
 // books use limit+offset; conversations and their sub-resources use a limit
 // plus an `until` timestamp cursor, and a page may return *more* than limit —
 // so the agent must page on the returned cursor, never on the item count.

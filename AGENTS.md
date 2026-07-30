@@ -1,8 +1,7 @@
-# AnyCLI - Agent Guidelines
 
 ## Project Overview
 
-AnyCLI is an embeddable Go library (design 002): the engine plus the embedded definitions for the tools it supports. A host (e.g. Helio's `heliox`) embeds it in-process, supplies a `CredentialResolver` (and optionally a `Cache`), and calls `Engine.Execute`. AnyCLI loads the matching embedded tool definition, injects credentials (env / arg / ephemeral file), runs middleware, and execs the underlying binary or built-in service. It is **not** a standalone CLI, and tool definitions are **not** consumer-supplied — they live embedded inside AnyCLI.
+AnyCLI is an embeddable Go library (design 002): the engine plus the embedded definitions for the tools it supports. A host embeds it in-process, supplies a `CredentialResolver` (and optionally a `Cache`), and calls `Engine.Execute`. AnyCLI loads the matching embedded tool definition, injects credentials (env / arg / ephemeral file), runs middleware, and execs the underlying binary or built-in service. It is **not** a standalone CLI, and tool definitions are **not** consumer-supplied — they live embedded inside AnyCLI.
 
 ## Tech Stack
 
@@ -27,7 +26,7 @@ AnyCLI is an embeddable Go library (design 002): the engine plus the embedded de
 - Keep it simple — no over-engineering
 - **No interactive prompts** — all input must come from flags or environment variables. AnyCLI is designed for agents, not humans typing into terminals.
 
-## Command Help (design 335)
+## Command Help
 
 A tool's `--help` is the only place an agent learns what the integration covers, and it reads a partial list as "not supported". So the coverage face must be exhaustive, and it must say that it is.
 
@@ -40,9 +39,9 @@ Keep the root face lean. It is the coverage surface — the exhaustive leaf list
 
 `Short` is required and is what the flattened list echoes, so make it carry real information (`post replies` says "one page, last 7 days"). `Long` is optional; write one when there is a provider fact the flags cannot express — a pagination window, an API-tier gate, a cheaper path to the same answer. There is no coverage requirement on `Long` and no lint enforcing one: a rule like that gets satisfied by placeholder prose, which is worse than an empty field.
 
-Per-tool guides live in the Helio repo under `agents/marketplace/heliox/skills/tool/`, read on demand. Design 335 §D1 records why they were not folded into `Long` — the migration was implemented in full and rejected, because a service root's `Long` renders on the coverage face.
+Long-form per-tool guides live outside this repository, read on demand by the host. Folding them into `Long` was implemented in full and rejected: a service root's `Long` renders on the coverage face and pushes the leaf list down.
 
-Help-ness is decided by `internal/dryrun`, a real cobra `Find` + `ParseFlags` shared with `Inspect` (design 318) — never by scanning argv for the token `--help`, which both misses `post search --help` and fires on `post create --text "--help"`. Neither path resolves credentials, so an unconnected tool can still answer both (design 335 D3). Binary-passthrough tools (`github`, `lark`) have no tree: their help comes from the wrapped binary and anycli must not stamp a completeness claim on it.
+Help-ness is decided by `internal/dryrun`, a real cobra `Find` + `ParseFlags` shared with `Inspect` — never by scanning argv for the token `--help`, which both misses `post search --help` and fires on `post create --text "--help"`. Neither path resolves credentials, so an unconnected tool can still answer both. Binary-passthrough tools (`github`, `lark`) have no tree: their help comes from the wrapped binary and anycli must not stamp a completeness claim on it.
 
 ## Side Effects
 

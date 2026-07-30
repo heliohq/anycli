@@ -85,7 +85,7 @@ func (s *Service) newResourceGroup(token string, spec resourceSpec) *cobra.Comma
 	return group
 }
 
-// sideEffect renders the anycli.side_effect annotation (design 318): reads are
+// sideEffect renders the anycli.side_effect annotation: reads are
 // "false", writes are "true". Every runnable leaf must declare one.
 func sideEffect(mutates bool) map[string]string {
 	if mutates {

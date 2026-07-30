@@ -36,7 +36,7 @@ import (
 const DefaultBaseURL = "https://api.mailjet.com"
 
 // usBaseURL is the documented host for accounts on Mailjet's US architecture
-// (official .NET/PHP wrapper READMEs). Selected with --region us.
+// (official.NET/PHP wrapper READMEs). Selected with --region us.
 const usBaseURL = "https://api.us.mailjet.com"
 
 // EnvBasicAuth is the env var the credential binding injects
@@ -44,8 +44,8 @@ const usBaseURL = "https://api.us.mailjet.com"
 // "<api_key>:<secret_key>"; this service base64-encodes it per request.
 const EnvBasicAuth = "MAILJET_BASIC_AUTH"
 
-// readOnly / writeAction tag each leaf command for the design-318 approval
-// gate. readOnly marks side-effect-free reads (GET); writeAction marks calls
+// readOnly / writeAction tag each leaf command for host policy.
+// readOnly marks side-effect-free reads (GET); writeAction marks calls
 // that mutate provider state (send a message, create a contact/list, add list
 // membership).
 var (

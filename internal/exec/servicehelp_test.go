@@ -131,7 +131,7 @@ func captureHelp(t *testing.T) *bytes.Buffer {
 // init-time `var helpOut io.Writer = os.Stdout` holds the *os.File from before
 // the swap, so `e2e.RunTool(t, "<tool>", "--help")` would return "" while the
 // whole face went to the original fd and leaked onto the CI log — a silent
-// absence read as a fact, which is the exact failure mode design 335 exists to
+// absence read as a fact, which is the exact failure mode the flattened face exists to
 // remove. So this test reproduces the harness's mechanism rather than the hook.
 func TestExecute_HelpFollowsASwappedStdout(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -479,7 +479,7 @@ func TestExecute_ServiceHelpDiscrimination(t *testing.T) {
 }
 
 // TestExecute_UnconnectedToolReadsLeafProse is the regression this change
-// exists for (design 335 D1+D3): the per-command Long is where the provider
+// exists for: the per-command Long is where the provider
 // API knowledge lives and `<leaf> --help` is the only way to read it, so a
 // tool the user has not connected must still be able to answer it. Before the
 // fix, `post search --help` had positional args ahead of the flag, failed the
@@ -564,7 +564,7 @@ func TestExecute_HelpFaceIsConnectionIndependent(t *testing.T) {
 // (lark-cli) have no in-process cobra tree — anycli downloads the pinned
 // release and passes through, so their help is printed by that binary. AnyCLI
 // must not render a face (and therefore never stamps an exhaustiveness claim
-// on output it did not produce, design 335 D2), and must still skip credential
+// on output it did not produce), and must still skip credential
 // resolution so a bare `--help` is reachable before the tool is connected.
 func TestExecute_BinaryPassthroughNeverReachesTheTreePath(t *testing.T) {
 	if runtime.GOOS == "windows" {

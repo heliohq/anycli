@@ -1,5 +1,5 @@
 // Package anycli is the embeddable core for "run an underlying CLI/API tool
-// with injected credentials + middleware". A host (e.g. heliox) constructs an
+// with injected credentials + middleware". A host constructs an
 // Engine, provides a CredentialResolver, and calls Engine.Execute; AnyCLI loads
 // the embedded tool definition, resolves credentials through the resolver,
 // injects them (env / arg / file), runs before/after middleware, and execs the

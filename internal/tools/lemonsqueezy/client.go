@@ -33,7 +33,7 @@ type apiError struct {
 func (e *apiError) Error() string { return e.msg }
 func (e *apiError) Unwrap() error { return e.err }
 
-// sideEffect builds the design-318 annotation map for a runnable leaf.
+// sideEffect builds the side-effect annotation map for a runnable leaf.
 func sideEffect(mutates bool) map[string]string {
 	if mutates {
 		return map[string]string{"anycli.side_effect": "true"}

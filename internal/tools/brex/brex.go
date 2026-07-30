@@ -197,6 +197,6 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token is
+// dry-run parsing and traversal (tools.Service seam). The token is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

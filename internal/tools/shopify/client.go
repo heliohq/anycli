@@ -74,7 +74,7 @@ func (c *client) endpoint(apiVersion string) (string, error) {
 // gql POSTs a single GraphQL operation and returns the unwrapped `data` object.
 // A non-2xx status, a GraphQL top-level error, or a decode failure surfaces as
 // an apiError; a 401/403 is classified as a credential rejection so the token
-// gateway's refresh path (design 227 A3) engages.
+// gateway's refresh path (A3) engages.
 func (c *client) gql(ctx context.Context, apiVersion, query string, variables map[string]any) (map[string]any, error) {
 	endpoint, err := c.endpoint(apiVersion)
 	if err != nil {

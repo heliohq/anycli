@@ -228,7 +228,7 @@ func TestGet_AcceptsEditURL(t *testing.T) {
 
 // TestSideEffectAnnotations asserts every runnable leaf command of the tree
 // carries an explicit anycli.side_effect annotation with the reviewed value
-// (design 318 may-mutate criterion), and that group commands carry none.
+// (may-mutate criterion), and that group commands carry none.
 func TestSideEffectAnnotations(t *testing.T) {
 	want := map[string]string{
 		"forms get":               "false", // GET /forms/{id}
@@ -279,7 +279,7 @@ func TestSideEffectAnnotations(t *testing.T) {
 	}
 	for path := range got {
 		if _, ok := want[path]; !ok {
-			t.Errorf("%s: new runnable leaf not covered by this table — classify it per the design 318 may-mutate criterion", path)
+			t.Errorf("%s: new runnable leaf not covered by this table — classify it per the may-mutate criterion", path)
 		}
 	}
 }

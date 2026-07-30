@@ -33,8 +33,8 @@ const DefaultBaseURL = "https://api.rocketreach.co"
 // non-expiring per-user API keys sent as the Api-Key header.
 const EnvAPIKey = "ROCKETREACH_API_KEY"
 
-// readOnly marks a leaf command as side-effect-free for the design-318 approval
-// gate. Every RocketReach leaf is a read (account/lookup/status/search), so all
+// readOnly marks a leaf command as side-effect-free for host policy.
+// Every RocketReach leaf is a read (account/lookup/status/search), so all
 // carry it.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 

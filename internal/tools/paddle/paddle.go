@@ -173,7 +173,7 @@ func (s *Service) emit(jsonMode bool, env *successEnvelope) error {
 }
 
 // newGroupCmd is a runnable command group: a bare group shows help (exit 0), an
-// unknown subcommand fails — matching the design-318 group contract.
+// unknown subcommand fails — matching the group contract.
 func newGroupCmd(use, short string) *cobra.Command {
 	return &cobra.Command{
 		Use:   use,
@@ -184,5 +184,5 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full tree built with an empty token for dry-run
-// parsing and traversal (tools.Service seam, design 318).
+// parsing and traversal (tools.Service seam).
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

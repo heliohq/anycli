@@ -34,7 +34,7 @@ const DefaultBaseURL = "https://api.hubapi.com"
 // a currently-valid bearer.
 const EnvAccessToken = "HUBSPOT_ACCESS_TOKEN"
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for state-free reads, "true" for provider
 // mutations. Group commands must not carry either.
 var (

@@ -23,7 +23,7 @@ func (s *Service) newCreateCmd(token string) *cobra.Command {
 		Use:   "create --title T [--document-title D]",
 		Short: "Create an UNPUBLISHED form (title only; add questions with batch-update)",
 		Args:  cobra.NoArgs,
-		// POST /forms — mutating provider call (design 318).
+		// POST /forms — mutating provider call.
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if title == "" {

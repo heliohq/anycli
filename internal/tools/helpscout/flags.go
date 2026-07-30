@@ -39,7 +39,7 @@ func setPage(q url.Values, page int) {
 	}
 }
 
-// splitCSV turns "a, b ,c" into ["a","b","c"], dropping empties. Help Scout's
+// splitCSV turns "a, b,c" into ["a","b","c"], dropping empties. Help Scout's
 // tags PUT replaces the whole set, so an empty input yields an empty slice
 // (clears all tags) rather than nil.
 func splitCSV(raw string) []string {

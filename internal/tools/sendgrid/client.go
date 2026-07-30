@@ -64,7 +64,7 @@ func (s *Service) do(ctx context.Context, token, region, method, path string, qu
 		// Only a genuinely dead/revoked key (401) rejects the credential. A 403
 		// is a normal scope / verified-sender error — the key is valid, it just
 		// lacks permission for this operation (mirrors the connect-time
-		// 401-vs-403 split, DESIGN §4). Everything else is a plain runtime error.
+		// 401-vs-403 split). Everything else is a plain runtime error.
 		if resp.StatusCode == http.StatusUnauthorized {
 			return nil, execution.RejectCredential(apiErr)
 		}

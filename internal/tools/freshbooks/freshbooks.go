@@ -27,7 +27,8 @@ const DefaultBaseURL = "https://api.freshbooks.com"
 // it is harmless on the accounting endpoints, so every call carries it.
 const apiVersion = "alpha"
 
-// EnvToken is the env var the credential binding injects (definitions/tools/freshbooks.json).
+// EnvToken is the env var the credential binding injects
+// (definitions/tools/freshbooks.json).
 const EnvToken = "FRESHBOOKS_TOKEN"
 
 // Service implements the built-in FreshBooks tool. It satisfies tools.Service by
@@ -172,6 +173,6 @@ func (s *Service) newMeCmd(token string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token is
+// dry-run parsing and traversal (tools.Service seam). The token is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

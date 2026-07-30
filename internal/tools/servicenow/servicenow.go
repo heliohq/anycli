@@ -8,7 +8,7 @@
 // Unlike every other built-in service, ServiceNow's target host is per-connection:
 // it is derived from the injected instance_url credential, not a constant base.
 // Authentication is the instance's Inbound REST API Key sent as the x-sn-apikey
-// header (plugin com.glide.tokenbased_auth). See DESIGN.md on tool/servicenow.
+// header (plugin com.glide.tokenbased_auth).
 package servicenow
 
 import (
@@ -148,7 +148,7 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for reads (GET / query), "true" for
 // provider-state mutations (create / update / delete / resolve / raw api).
 var (

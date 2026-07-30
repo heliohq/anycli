@@ -171,6 +171,6 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with empty credentials for
-// dry-run parsing and traversal (tools.Service seam, design 318). The creds are
+// dry-run parsing and traversal (tools.Service seam). The creds are
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot(tbaCreds{}) }

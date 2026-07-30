@@ -97,7 +97,7 @@ func (s *Service) roundtrip(ctx context.Context, token, host, method, path strin
 }
 
 // httpError builds a typed apiError from a non-2xx response. A 401 marks the
-// credential rejected (feeds heliox's stale-credential feedback); every other
+// credential rejected (feeds the host's stale-credential feedback); every other
 // status surfaces PostHog's {"type","code","detail"} body verbatim.
 func (s *Service) httpError(status int, body []byte) error {
 	err := &apiError{

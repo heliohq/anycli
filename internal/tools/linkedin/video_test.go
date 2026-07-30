@@ -19,7 +19,7 @@ const testVideoURN = "urn:li:video:987"
 
 // wantPollPath is the literal percent-encoded path the poll GET must hit.
 // Deliberately a literal — NOT built with the client's encoding helper — so
-// both sides can't share the same bug (design §3.4).
+// both sides can't share the same bug.
 const wantPollPath = "/rest/videos/urn%3Ali%3Avideo%3A987"
 
 // versionedCapture records one request to a versioned /rest/videos action.

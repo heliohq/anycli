@@ -44,7 +44,7 @@ func (s *Service) emitJSON(body []byte) error {
 // auth on every call; a non-2xx surfaces the body's message as an apiError
 // carrying the HTTP status, and a transport failure as an apiError with status
 // 0. A 401 (or a Brex-signalled credential rejection) is classified so the
-// Helio token gateway's refresh path fires (design 227).
+// Helio token gateway's refresh path fires.
 func (s *Service) get(ctx context.Context, token, path string, query url.Values) ([]byte, error) {
 	base := s.BaseURL
 	if base == "" {

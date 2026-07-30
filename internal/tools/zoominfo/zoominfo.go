@@ -36,7 +36,7 @@ import (
 // fields into one secret because the vault face stores a single secret.
 const EnvCredentials = "ZOOMINFO_CREDENTIALS"
 
-// readOnly carries the design-318 anycli.side_effect="false" annotation. Every
+// readOnly carries the anycli.side_effect="false" annotation. Every
 // zoominfo leaf is a read: search and enrich are B2B data lookups (enrich
 // consumes credits but does not mutate provider state), and lookup/usage are
 // pure reads — so no writeAction counterpart is needed.

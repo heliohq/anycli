@@ -6,7 +6,7 @@
 // request-level failures with an HTTP non-2xx or a top-level GraphQL `errors`
 // array, and mutation-level failures with a `MutationError` arm on the payload
 // union — both are surfaced. Verified against developers.buffer.com
-// (2026-07-22); see the tool/buffer DESIGN.md §8.
+// (2026-07-22).
 package buffer
 
 import (

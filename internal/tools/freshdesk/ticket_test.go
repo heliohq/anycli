@@ -38,7 +38,7 @@ func TestTicketList_FiltersAndPaging(t *testing.T) {
 }
 
 func TestTicketList_NoStatusPriorityParams(t *testing.T) {
-	// Divergence from DESIGN: GET /tickets does not accept status/priority
+	// Divergence from the documented shape: GET /tickets does not accept status/priority
 	// filters (search-only). The list command must not expose them.
 	var out, errBuf capturedRequest
 	_ = errBuf

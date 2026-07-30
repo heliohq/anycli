@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly and writeAction carry the design-318 side-effect annotation for
+// readOnly and writeAction carry the side-effect annotation for
 // runnable leaf commands: reads (XRPC *.get*/*.search*/*.list* queries) are
 // side-effect-free; writes create/delete records or mutate state.
 var (
@@ -37,7 +37,7 @@ const (
 	// EnvCredentials is populated by the credential binding in
 	// definitions/tools/bluesky.json. It carries the combined app-password
 	// credential as "<identifier>:<app-password>" — Helio stores a single
-	// secret through the manual-credentials plane (see DESIGN.md §0a), and the
+	// secret through the manual-credentials plane, and the
 	// service splits it on the first colon. Neither a handle/email identifier
 	// nor an xxxx-xxxx-xxxx-xxxx app password contains a colon, so the split is
 	// unambiguous.

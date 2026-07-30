@@ -36,7 +36,7 @@ const EnvAPIKey = "JOTFORM_API_KEY"
 // "Bearer" prefix), matching the provider bundle's auth.api_key.header.
 const authHeader = "APIKEY"
 
-// design-318 side_effect annotation maps shared by every runnable leaf.
+// side_effect annotation maps shared by every runnable leaf.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 var writeAction = map[string]string{"anycli.side_effect": "true"}
 

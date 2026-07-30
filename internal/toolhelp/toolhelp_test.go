@@ -73,9 +73,9 @@ func TestLeaves(t *testing.T) {
 	}
 }
 
-// TestRenderFlattensWithExhaustivenessClaim is the regression for the incident
-// in design 335: help must show the callable commands, not the nouns, and must
-// say the list is complete.
+// TestRenderFlattensWithExhaustivenessClaim is the regression for the
+// incident where help must show the callable commands, not the nouns, and
+// must say the list is complete.
 func TestRenderFlattensWithExhaustivenessClaim(t *testing.T) {
 	var buf bytes.Buffer
 	if err := Render(&buf, sampleTree()); err != nil {
@@ -125,7 +125,7 @@ func TestRenderCountIsDerived(t *testing.T) {
 	}
 }
 
-// TestRenderIncludesRootLong keeps the tool-level mental model (design 335 D1,
+// TestRenderIncludesRootLong keeps the tool-level mental model (D1,
 // service-root Long) on the coverage face.
 func TestRenderIncludesRootLong(t *testing.T) {
 	root := sampleTree()
@@ -182,10 +182,10 @@ func TestRenderIncludesRootFlags(t *testing.T) {
 }
 
 // TestRenderIncludesInheritedFlags: a host that mounts the tree under its own
-// command chain (heliox does) must still see the flags it inherits, under
+// command chain must still see the flags it inherits, under
 // cobra's own second heading.
 func TestRenderIncludesInheritedFlags(t *testing.T) {
-	host := &cobra.Command{Use: "heliox"}
+	host := &cobra.Command{Use: "host"}
 	host.PersistentFlags().String("args-file", "", "read arguments from a file")
 	root := sampleTree()
 	root.Flags().String("account", "", "account to use")
@@ -260,11 +260,11 @@ func TestRenderSingleCommandTreeFallsBackToCobra(t *testing.T) {
 	}
 }
 
-// TestLeavesCountsRunnableRoot pins the shape heliox's built-in `browser`
+// TestLeavesCountsRunnableRoot pins the shape a host's built-in `browser`
 // tool has: the root itself is the primary capability (a passthrough) and the
 // subcommands are side entrances. Walking children only would claim a
 // "complete list" that omits the main thing the tool does — a false claim,
-// which design 335 treats as worse than no claim.
+// which is worse than no claim.
 func TestLeavesCountsRunnableRoot(t *testing.T) {
 	root := &cobra.Command{
 		Use:   "browser [--browser <name|id>] -- <agent-browser args...>",

@@ -19,7 +19,7 @@ import (
 // a handful of each, but the provider default is only 10 (cap 100). Asking for
 // the cap makes silent truncation effectively impossible; on the rare overflow
 // the nextPageToken is surfaced as a hint rather than dropped. These three
-// intentionally expose no --max/--page-token flags (design 303 §命令面).
+// intentionally expose no --max/--page-token flags.
 const artifactPageSize = 100
 
 // listAll paginates a GET list endpoint to exhaustion, invoking collect with
@@ -52,7 +52,7 @@ func (s *Service) newRecordingsListCmd(token string) *cobra.Command {
 		Use:   "list <record>",
 		Short: "List recordings of a conference record (state + Drive fileId + exportUri; v1 does not download the file)",
 		Args:  cobra.ExactArgs(1),
-		// GET /conferenceRecords/{r}/recordings — read-only (design 318).
+		// GET /conferenceRecords/{r}/recordings — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Single-page GET (no pageToken loop): a conference record almost
@@ -102,7 +102,7 @@ func (s *Service) newTranscriptsListCmd(token string) *cobra.Command {
 		Use:   "list <record>",
 		Short: "List transcripts of a conference record (state + Docs documentId + exportUri)",
 		Args:  cobra.ExactArgs(1),
-		// GET /conferenceRecords/{r}/transcripts — read-only (design 318).
+		// GET /conferenceRecords/{r}/transcripts — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Single-page GET (see recordings list): transcripts per record are
@@ -153,7 +153,7 @@ func (s *Service) newTranscriptsEntriesCmd(token string) *cobra.Command {
 		Use:   "entries <transcript>",
 		Short: "List structured transcript entries (speaker resource + text + timestamps), oldest first",
 		Args:  cobra.ExactArgs(1),
-		// GET .../transcripts/{t}/entries — read-only (design 318).
+		// GET.../transcripts/{t}/entries — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}
@@ -221,7 +221,7 @@ func (s *Service) newTranscriptsTextCmd(token string) *cobra.Command {
 			"can differ slightly from the Google Docs transcript file.",
 		Args: cobra.ExactArgs(1),
 		// Synthetic read: GET participants + GET entries only; --save writes a
-		// local file, never a provider mutation (design 318).
+		// local file, never a provider mutation.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			transcript := strings.TrimPrefix(args[0], "/")
@@ -324,7 +324,7 @@ func (s *Service) newSmartNotesListCmd(token string) *cobra.Command {
 		Use:   "list <record>",
 		Short: "List smart notes of a conference record (v2beta; state + Docs documentId + exportUri)",
 		Args:  cobra.ExactArgs(1),
-		// GET v2beta /conferenceRecords/{r}/smartNotes — read-only (design 318).
+		// GET v2beta /conferenceRecords/{r}/smartNotes — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// smartNotes get/list are GA methods, but still served under the

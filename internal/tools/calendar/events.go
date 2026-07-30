@@ -59,7 +59,7 @@ func (s *Service) newEventsListCmd(token string) *cobra.Command {
 		Use:   "list",
 		Short: "List events (native full-text --query; RFC3339 --from/--to time window)",
 		Args:  cobra.NoArgs,
-		// GET /calendars/{cal}/events — read-only (design 318).
+		// GET /calendars/{cal}/events — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if orderBy != "" && orderBy != "startTime" && orderBy != "updated" {
@@ -138,7 +138,7 @@ func (s *Service) newEventsGetCmd(token string) *cobra.Command {
 		Use:   "get <event-id>",
 		Short: "Show one event",
 		Args:  cobra.ExactArgs(1),
-		// GET /calendars/{cal}/events/{id} — read-only (design 318).
+		// GET /calendars/{cal}/events/{id} — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodGet, eventsPath(calendar, args[0]), nil, nil)
@@ -167,7 +167,7 @@ func (s *Service) newEventsInstancesCmd(token string) *cobra.Command {
 		Use:   "instances <event-id>",
 		Short: "List the concrete instances of a recurring event (query one before editing a single occurrence)",
 		Args:  cobra.ExactArgs(1),
-		// GET /calendars/{cal}/events/{id}/instances — read-only (design 318).
+		// GET /calendars/{cal}/events/{id}/instances — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			q := url.Values{}

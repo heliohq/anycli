@@ -12,7 +12,7 @@ import (
 // ordered / unordered lists. Tables and images are NOT written (they are the
 // index-arithmetic and public-URI danger zones — the --requests-file escape
 // hatch covers them); markdown for them degrades to literal text with a
-// warning. See design 303 §markdown 写方向是子集.
+// warning. The markdown write path is a documented subset of the read path.
 
 // blockKind classifies a parsed markdown line.
 type blockKind int
@@ -117,7 +117,7 @@ func markdownToRequests(md string, insertIndex int, prefix, tabID string) ([]map
 	// List nesting is intentionally flattened: the Docs API derives nesting from
 	// leading tab characters that createParagraphBullets counts then strips,
 	// which shifts every downstream index — the index-arithmetic danger zone the
-	// write subset avoids (design 303 §markdown 写方向是子集). blk.level is parsed
+	// write subset avoids. blk.level is parsed
 	// for lists but deliberately not applied here; nested lists need
 	// batch-update --requests-file. Reads still render nesting via indent.
 	for i := len(blocks) - 1; i >= 0; i-- {

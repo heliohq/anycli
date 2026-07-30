@@ -14,7 +14,7 @@ import (
 
 // pollInterval / pollMaxAttempts bound the --allow-async task poll loop: a
 // fixed interval, no backoff, and a hard attempt cap after which the caller
-// gets the task id back plus an explicit timeout error (design 304).
+// gets the task id back plus an explicit timeout error.
 const (
 	pollInterval    = 2 * time.Second
 	pollMaxAttempts = 30
@@ -150,7 +150,7 @@ type asyncPoll struct {
 // and capping at pollMaxAttempts. On success it returns the task's result body
 // (the created/updated resource); on a failed task it returns an apiError. On
 // the attempt cap it writes the task id to stdout — so a caller reading stdout
-// can recover it for a manual `task get` (design 304 §error-convention) — and
+// can recover it for a manual `task get`  — and
 // returns an apiError timeout. pollAfter seeds the first interval from the
 // original async_task handle.
 func (s *Service) pollTask(ctx context.Context, token, taskID string, pollAfter int) ([]byte, error) {

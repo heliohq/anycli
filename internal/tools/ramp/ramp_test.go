@@ -294,7 +294,7 @@ func TestAPIError_JSON(t *testing.T) {
 }
 
 // TestUnauthorized_RejectsCredential: a 401 marks the result as a credential
-// rejection so the token gateway refreshes and retries (design 227).
+// rejection so the token gateway refreshes and retries.
 func TestUnauthorized_RejectsCredential(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusUnauthorized, `{"error":{"message":"token expired"}}`, &got)

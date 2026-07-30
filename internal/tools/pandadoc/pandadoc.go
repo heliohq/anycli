@@ -26,7 +26,7 @@ import (
 // DefaultBaseURL is the production PandaDoc Public API base (v1 prefix included).
 const DefaultBaseURL = "https://api.pandadoc.com/public/v1"
 
-// readOnly / writeAction are the design-318 anycli.side_effect annotations for
+// readOnly / writeAction are the anycli.side_effect annotations for
 // runnable leaf commands: readOnly for retrieval (no provider state change),
 // writeAction for mutations (create/update/delete/send).
 var (

@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly marks a leaf command as side-effect-free for the design-318 approval
-// gate. Every SerpApi command is a search/read GET, so all leaves carry it.
+// readOnly marks a leaf command as side-effect-free for host policy.
+// Every SerpApi command is a search/read GET, so all leaves carry it.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 
 // newSearchCmd builds `serpapi search`: one generic command over every SerpApi

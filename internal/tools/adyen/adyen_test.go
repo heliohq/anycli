@@ -23,7 +23,7 @@ func TestExecute_MissingKey(t *testing.T) {
 	}
 }
 
-// TestCredentialRejectionClassification pins the §2 rule: only 401 (auth
+// TestCredentialRejectionClassification pins the rule: only 401 (auth
 // failure) rejects the credential; a role/permission 403 and every other
 // non-2xx is an ordinary passthrough API error at exit 1.
 func TestCredentialRejectionClassification(t *testing.T) {
@@ -59,7 +59,7 @@ func TestCredentialRejectionClassification(t *testing.T) {
 	}
 }
 
-// TestRoleForbiddenSurfacesErrorCode confirms the §2 actionable text: a 403
+// TestRoleForbiddenSurfacesErrorCode confirms the actionable text: a 403
 // passes through the {"error":...} envelope carrying Adyen's errorCode/message
 // so the agent can add the missing role, never a rejection.
 func TestRoleForbidden_SurfacesErrorCode(t *testing.T) {
@@ -101,7 +101,7 @@ func TestWhoami_Happy(t *testing.T) {
 	}
 }
 
-// TestNoBearerPrefix guards the DESIGN §2 rule: the key is sent raw, never with
+// TestNoBearerPrefix guards the rule: the key is sent raw, never with
 // an Authorization: Bearer header.
 func TestWhoami_NoAuthorizationHeader(t *testing.T) {
 	srv := newServerAsserting(t, func(r *http.Request) {

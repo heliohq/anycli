@@ -185,7 +185,7 @@ func TestJSONErrorEnvelope(t *testing.T) {
 	}
 }
 
-// TestNewCommandTreeDryRun proves the design-318 seam builds the full tree with
+// TestNewCommandTreeDryRun proves the seam builds the full tree with
 // an empty token without executing any RunE.
 func TestNewCommandTreeDryRun(t *testing.T) {
 	root := (&Service{}).NewCommandTree()

@@ -14,7 +14,7 @@ The genuinely useful part — load a tool definition, resolve credentials, injec
 
 ### Problem
 
-Helio's `heliox` needs to drive that exec core **in-process** (embedded, not as a subprocess), and to resolve credentials **itself** — per-assistant, from its own sources (stored OAuth in vault, or backend-minted short-lived tokens) — not from AnyCLI's built-in vault/local resolvers. (Consumer design: Helio `docs/design/227-ai-teammate-oauth-integration`.)
+The host needs to drive that exec core **in-process** (embedded, not as a subprocess), and to resolve credentials **itself** — per-assistant, from its own sources (stored OAuth in vault, or backend-minted short-lived tokens) — not from AnyCLI's built-in vault/local resolvers. (Consumer design: Helio `docs/design/227-ai-teammate-oauth-integration`.)
 
 The standalone-CLI machinery (cobra, shim, installer, the built-in default resolvers) is the wrong layer for embedding and is dead weight for that use.
 
@@ -33,11 +33,11 @@ Non-goals: re-adding a CLI now; consumer-supplied tool definitions / host-inject
 **AnyCLI is an embeddable core library** for "run an underlying CLI/API tool with injected credentials + middleware." It is the engine **plus the embedded definitions for the tools it supports** — not a generic blank engine, and not a standalone binary.
 
 - The product is: the exec engine (`New` + `Engine.Execute`), the `CredentialResolver` seam, the consumer-supplied `Cache` seam, and the declarative tool-definition schema with its **internal embedded** definition set.
-- The **host** (e.g. `heliox`) embeds `github.com/heliohq/anycli`, constructs an engine with `New(Config{Cache})`, provides a `CredentialResolver`, and calls `Engine.Execute`. The host supplies **only** a resolver and (optionally) a cache — never tool definitions.
+- The **host** embeds `github.com/heliohq/anycli`, constructs an engine with `New(Config{Cache})`, provides a `CredentialResolver`, and calls `Engine.Execute`. The host supplies **only** a resolver and (optionally) a cache — never tool definitions.
 - If a standalone CLI is ever wanted again, it is a **thin cobra shell**: it supplies a resolver (e.g. the old HTTP-vault one) and calls `Engine.Execute`. The core stays the single source of truth; the shell adds no logic.
 
 ```
- host (e.g. heliox)                    AnyCLI core (library)
+                host                                    AnyCLI core (library)
  ┌────────────────────┐               ┌──────────────────────────────────────┐
  │ CredentialResolver  │── inject ────▶│ e := New(Config{Cache})                │
  │ Cache (optional)    │               │ e.Execute(ctx, tool, args, resolver)   │
@@ -142,7 +142,7 @@ This is the line that was previously blurred by the `isVaultMode` flag: "where c
 
 001 defined a vault HTTP contract inside AnyCLI. With this design that **HTTP client leaves the core**: a host-specific resolver owns whatever network or storage contract produces `Credential{Data, CacheUntil}`.
 
-- Helio's `heliox` resolver calls integration-service's `/connections/token` gateway and returns its provider-neutral string credential projection as `Credential{Data, CacheUntil}` (Helio design 227).
+- The reference host resolver calls Helio's connections-token gateway and returns its provider-neutral string credential projection as `Credential{Data, CacheUntil}`.
 - A future standalone CLI shell can re-introduce the HTTP client as its resolver.
 
 The core only ever knows `Credential{Data, CacheUntil}`.

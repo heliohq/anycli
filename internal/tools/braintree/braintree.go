@@ -166,7 +166,7 @@ func (s *Service) newRoot(cl *client) *cobra.Command {
 // newGroupCmd is a runnable, help-only command group. cobra skips Args
 // validation on non-runnable commands (help + exit 0 even for an unknown
 // subcommand — a false success for an agent); making the group help-only
-// restores it and satisfies the design-318 lint (group RunE must be help-only).
+// restores it and satisfies the tree lint (group RunE must be help-only).
 func newGroupCmd(use, short string) *cobra.Command {
 	return &cobra.Command{
 		Use:   use,
@@ -177,7 +177,7 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with a nil client for
-// dry-run parsing and traversal (tools.Service seam, design 318). The client is
+// dry-run parsing and traversal (tools.Service seam). The client is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot(nil) }
 

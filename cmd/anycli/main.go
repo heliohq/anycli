@@ -55,7 +55,7 @@ func run(args, environ []string) int {
 }
 
 // parseInvocation splits `<tool> -- <args…>`. Everything after `--` passes
-// to the tool verbatim (same end-of-options convention as heliox tool); the
+// to the tool verbatim (the standard end-of-options convention); the
 // separator is mandatory so tool flags can never collide with harness flags.
 func parseInvocation(args []string) (tool string, toolArgs []string, err error) {
 	if len(args) == 0 {

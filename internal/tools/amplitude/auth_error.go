@@ -14,7 +14,7 @@ import (
 // transport layer from a genuinely dead key.
 const euRetryHint = "; if this is an EU data-residency project, retry with --region eu before reconnecting"
 
-// classifyCredentialError applies the region-aware 401 rule (DESIGN §3.4).
+// classifyCredentialError applies the region-aware 401 rule.
 //
 //   - Non-401: returned unchanged (transport/API/rate-limit failures never
 //     invalidate a credential).

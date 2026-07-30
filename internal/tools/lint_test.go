@@ -14,7 +14,7 @@ import (
 // constant is unexported and this package must not import it (import cycle).
 const lintSideEffectAnnotation = "anycli.side_effect"
 
-// TestServiceToolTreeLint mechanically enforces the design-318 command-tree
+// TestServiceToolTreeLint mechanically enforces the command-tree
 // contracts over EVERY registered service tool, taken through the
 // Service.NewCommandTree seam:
 //
@@ -29,7 +29,7 @@ const lintSideEffectAnnotation = "anycli.side_effect"
 //	(e) no cobra command name contains "_" or "." (keeps action-id
 //	    derivation reversible);
 //	(f) group commands' RunE is nil or help-only (a group with a real
-//	    executing body would escape the approval gate: Inspect classifies
+//	    executing body would escape a host policy gate: Inspect classifies
 //	    it as non-runnable, yet real execution would call the provider).
 //
 // A failure here fails the build; fix the offending tool package, never this
@@ -56,15 +56,15 @@ func TestServiceToolTreeLint(t *testing.T) {
 	}
 }
 
-// lintServiceTree walks one tool's command tree and returns every design-318
-// contract violation as a human-readable message naming the offending
-// tool/command. An empty slice means the tree is clean.
+// lintServiceTree walks one tool's command tree and returns every contract
+// violation as a human-readable message naming the offending tool/command.
+// An empty slice means the tree is clean.
 func lintServiceTree(tool string, root *cobra.Command) []string {
 	var violations []string
 
 	// (c) registry tool id must not contain ".".
 	if strings.Contains(tool, ".") {
-		violations = append(violations, fmt.Sprintf("tool %q: registry tool id contains '.' — the \"<tool id>.\" action prefix must stay unambiguous (design 318)", tool))
+		violations = append(violations, fmt.Sprintf("tool %q: registry tool id contains '.' — the \"<tool id>.\" action prefix must stay unambiguous", tool))
 	}
 
 	actionIDs := map[string]string{} // derived action id -> command path
@@ -74,7 +74,7 @@ func lintServiceTree(tool string, root *cobra.Command) []string {
 
 		// (e) command names must not contain "_" or ".".
 		if name := cmd.Name(); strings.ContainsAny(name, "_.") {
-			violations = append(violations, fmt.Sprintf("tool %q, command %q: command name %q contains '_' or '.' — forbidden, action-id derivation must stay reversible (design 318)", tool, path, name))
+			violations = append(violations, fmt.Sprintf("tool %q, command %q: command name %q contains '_' or '.' — forbidden, action-id derivation must stay reversible", tool, path, name))
 		}
 
 		annotation, annotated := cmd.Annotations[lintSideEffectAnnotation]
@@ -83,12 +83,12 @@ func lintServiceTree(tool string, root *cobra.Command) []string {
 			// Group command (leaf <=> no subcommands, regardless of RunE).
 			// (b) groups must not carry the side-effect annotation.
 			if annotated {
-				violations = append(violations, fmt.Sprintf("tool %q, group command %q: must not carry %s annotation (got %q) — only runnable leaves are annotated (design 318)", tool, path, lintSideEffectAnnotation, annotation))
+				violations = append(violations, fmt.Sprintf("tool %q, group command %q: must not carry %s annotation (got %q) — only runnable leaves are annotated", tool, path, lintSideEffectAnnotation, annotation))
 			}
 			// (f) group RunE must be nil or help-only; Run has no help-only
 			// form, so a non-nil Run on a group is always a violation.
 			if cmd.Run != nil {
-				violations = append(violations, fmt.Sprintf("tool %q, group command %q: has non-nil Run — group commands must have nil or help-only RunE (design 318)", tool, path))
+				violations = append(violations, fmt.Sprintf("tool %q, group command %q: has non-nil Run — group commands must have nil or help-only RunE", tool, path))
 			}
 			if cmd.RunE != nil {
 				if v := checkGroupRunEHelpOnly(tool, cmd); v != "" {
@@ -102,22 +102,22 @@ func lintServiceTree(tool string, root *cobra.Command) []string {
 		}
 
 		// Leaf command. Only runnable leaves (RunE or Run non-nil) are on
-		// the design-318 traversal face; Hidden is included.
+		// the traversal face; Hidden is included.
 		if cmd.RunE == nil && cmd.Run == nil {
 			return
 		}
 
 		// (a) explicit annotation with value "true" | "false".
 		if !annotated {
-			violations = append(violations, fmt.Sprintf("tool %q, runnable leaf %q: missing explicit %s annotation — every runnable leaf must declare \"true\" or \"false\" (design 318)", tool, path, lintSideEffectAnnotation))
+			violations = append(violations, fmt.Sprintf("tool %q, runnable leaf %q: missing explicit %s annotation — every runnable leaf must declare \"true\" or \"false\"", tool, path, lintSideEffectAnnotation))
 		} else if annotation != "true" && annotation != "false" {
-			violations = append(violations, fmt.Sprintf("tool %q, runnable leaf %q: %s = %q — value must be exactly \"true\" or \"false\" (design 318)", tool, path, lintSideEffectAnnotation, annotation))
+			violations = append(violations, fmt.Sprintf("tool %q, runnable leaf %q: %s = %q — value must be exactly \"true\" or \"false\"", tool, path, lintSideEffectAnnotation, annotation))
 		}
 
 		// (d) derived action ids must be unique within the tool.
 		action := deriveActionID(tool, root, cmd)
 		if prev, dup := actionIDs[action]; dup {
-			violations = append(violations, fmt.Sprintf("tool %q: runnable leaves %q and %q both derive action id %q — action ids must be unique per tool (design 318)", tool, prev, path, action))
+			violations = append(violations, fmt.Sprintf("tool %q: runnable leaves %q and %q both derive action id %q — action ids must be unique per tool", tool, prev, path, action))
 		} else {
 			actionIDs[action] = path
 		}
@@ -126,7 +126,7 @@ func lintServiceTree(tool string, root *cobra.Command) []string {
 	return violations
 }
 
-// deriveActionID mirrors the frozen design-318 derivation used by Inspect:
+// deriveActionID mirrors the frozen derivation used by Inspect:
 // "<tool id>." + the cobra command path below the root with spaces replaced
 // by "_"; the root itself derives the bare tool id.
 func deriveActionID(tool string, root, cmd *cobra.Command) string {
@@ -156,16 +156,16 @@ func checkGroupRunEHelpOnly(tool string, cmd *cobra.Command) string {
 	cmd.SetOut(&got)
 	cmd.SetErr(&got)
 	if err := cmd.RunE(cmd, nil); err != nil {
-		return fmt.Sprintf("tool %q, group command %q: RunE returned error %q — group RunE must be nil or help-only (design 318)", tool, path, err)
+		return fmt.Sprintf("tool %q, group command %q: RunE returned error %q — group RunE must be nil or help-only", tool, path, err)
 	}
 	if got.String() != want.String() {
-		return fmt.Sprintf("tool %q, group command %q: RunE output differs from its help output — group RunE must be nil or help-only (design 318)", tool, path)
+		return fmt.Sprintf("tool %q, group command %q: RunE output differs from its help output — group RunE must be nil or help-only", tool, path)
 	}
 	return ""
 }
 
 // TestLintServiceTreeDetectsViolations proves each lint rule actually fires,
-// using synthetic trees that each break exactly one design-318 contract.
+// using synthetic trees that each break exactly one tree contract.
 func TestLintServiceTreeDetectsViolations(t *testing.T) {
 	leaf := func(use, sideEffect string) *cobra.Command {
 		c := &cobra.Command{
@@ -376,7 +376,7 @@ func TestLintServiceTreeDetectsViolations(t *testing.T) {
 	}
 }
 
-// TestDeriveActionID pins the frozen design-318 derivation rule on synthetic
+// TestDeriveActionID pins the frozen derivation rule on synthetic
 // trees, including the root-resolves-to-tool-id edge.
 func TestDeriveActionID(t *testing.T) {
 	root := &cobra.Command{Use: "probe"}

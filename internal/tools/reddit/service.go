@@ -37,8 +37,8 @@ const (
 	userAgent = "helio:im.helio.heliox-reddit:v1.0 (by /u/helio-assistant)"
 )
 
-// readOnly / writeAction annotate leaf commands for the design-318 approval
-// gate: "false" for side-effect-free reads (GET listings, search, get), "true"
+// readOnly / writeAction annotate leaf commands for host policy:
+// "false" for side-effect-free reads (GET listings, search, get), "true"
 // for provider-state mutations (submit, comment, vote, edit, delete, send,
 // mark-read).
 var (

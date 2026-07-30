@@ -31,7 +31,7 @@ const DefaultBaseURL = "https://api.salesloft.com"
 // after 2 hours; the token gateway refreshes them out of band.
 const EnvAccessToken = "SALESLOFT_ACCESS_TOKEN"
 
-// readOnly / writeAction carry the design-318 side-effect annotation for a
+// readOnly / writeAction carry the side-effect annotation for a
 // runnable leaf command. readOnly marks side-effect-free reads (GET/list/get);
 // writeAction marks provider-state mutations (create/update/enroll).
 var (

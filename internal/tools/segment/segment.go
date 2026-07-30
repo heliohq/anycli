@@ -27,7 +27,7 @@ import (
 )
 
 // DefaultBaseURL is the production Segment Public API base for US-resident
-// workspaces. v1 is US-scoped (see DESIGN §1 data residency); an EU workspace
+// workspaces. v1 is US-scoped (data residency); an EU workspace
 // token verifies against eu1.api.segmentapis.com, not this host.
 const DefaultBaseURL = "https://api.segmentapis.com"
 
@@ -36,7 +36,7 @@ const DefaultBaseURL = "https://api.segmentapis.com"
 // workspace-scoped and long-lived (no expiry, no refresh).
 const EnvToken = "SEGMENT_TOKEN"
 
-// readOnly / writeAction tag leaf commands for the design-318 approval gate.
+// readOnly / writeAction tag leaf commands for the host policy gate.
 // Every first-class Segment leaf is a management/observability GET; only the
 // raw `request` escape hatch can issue a non-GET write, so it is a write action.
 var (
@@ -61,7 +61,7 @@ type Service struct {
 // Success is exit 0; usage/param errors (missing required flags, bad values,
 // unknown subcommands) are exit 2; runtime/API errors (Segment non-2xx,
 // transport failure) are exit 1. A 401 additionally rejects the credential so
-// the token gateway refresh path (design 227) triggers.
+// the token gateway refresh path triggers.
 func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
 	token := env[EnvToken]
 	if token == "" {

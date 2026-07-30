@@ -2,7 +2,7 @@
 // the Wise REST surface (https://api.wise.com). Auth is a personal API token
 // passed as "Authorization: Bearer <token>". The tool is scoped to read /
 // monitor plus non-committal pricing — money movement and balance statements
-// are PSD2/SCA-gated and intentionally out of scope (see DESIGN.md). Wise
+// are PSD2/SCA-gated and intentionally out of scope. Wise
 // errors are non-2xx with a JSON body carrying errors[].message / message; a
 // 401/403 rejects the credential. Every command emits the provider JSON on
 // stdout verbatim (passthrough + newline).
@@ -205,6 +205,6 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token is
+// dry-run parsing and traversal (tools.Service seam). The token is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

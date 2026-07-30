@@ -104,7 +104,7 @@ func (s *Service) newInvoiceCreateDraftCmd(cl *client) *cobra.Command {
 		Use:   "create-draft",
 		Short: "Create a DRAFT invoice (safe: not emailed until `invoice send`)",
 		Args:  cobra.NoArgs,
-		// Writes a draft — may-mutate, so the fact is true (design 318). A draft
+		// Writes a draft — may-mutate, so the fact is true. A draft
 		// is inert until send, but it still creates a resource.
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {

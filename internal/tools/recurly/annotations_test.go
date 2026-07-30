@@ -8,7 +8,7 @@ import (
 )
 
 // TestSideEffectAnnotations pins the anycli.side_effect fact on every runnable
-// leaf (design 318): reads are "false", the curated lifecycle writes are "true".
+// leaf: reads are "false", the curated lifecycle writes are "true".
 // Group commands must not carry the annotation.
 func TestSideEffectAnnotations(t *testing.T) {
 	want := map[string]string{

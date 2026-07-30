@@ -43,7 +43,7 @@ const EnvAPIKey = "PHANTOMBUSTER_API_KEY"
 // "X-Phantombuster-Key-1" is intentionally not used.
 const authHeader = "X-Phantombuster-Key"
 
-// side_effect annotations (design 318): readOnly for reads (no provider state
+// side_effect annotations: readOnly for reads (no provider state
 // change), writeAction for commands that mutate provider state.
 var (
 	readOnly    = map[string]string{"anycli.side_effect": "false"}

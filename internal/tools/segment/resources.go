@@ -197,7 +197,7 @@ func (s *Service) newIAMGroupListCmd(token string) *cobra.Command {
 // newEventsVolumeCmd wraps the workspace-scoped GET /events/volume: the whole
 // workspace's event volume over time. Convenience flags map to the
 // recipe-confirmed query params (granularity/startTime/endTime); --param passes
-// any additional query pair through unchanged (exact filter names are L2-gated).
+// any additional query pair through unchanged (exact filter names are live-API-gated).
 func (s *Service) newEventsVolumeCmd(token string) *cobra.Command {
 	var granularity, start, end string
 	var params []string
@@ -237,7 +237,7 @@ func (s *Service) newEventsVolumeCmd(token string) *cobra.Command {
 // newDeliveryMetricsCmd wraps the destination-scoped GET
 // /destinations/{id}/delivery-metrics: a delivery metrics summary for one
 // destination. The associated source and time window are supplied as --param
-// query pairs (exact names are L2-gated).
+// query pairs (exact names are live-API-gated).
 func (s *Service) newDeliveryMetricsCmd(token string) *cobra.Command {
 	var destinationID string
 	var params []string

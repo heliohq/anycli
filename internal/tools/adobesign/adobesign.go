@@ -34,7 +34,7 @@ const (
 // apiPath is the v6 REST path appended to the shard base host.
 const apiPath = "/api/rest/v6"
 
-// readOnly / writeAction carry the design-318 side-effect annotation on runnable
+// readOnly / writeAction carry the side-effect annotation on runnable
 // leaf commands: "false" for side-effect-free reads (GET/download), "true" for
 // writes that mutate provider state (POST/PUT and semantic writes like send).
 var (

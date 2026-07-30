@@ -33,7 +33,7 @@ func TestExecute_UnknownSubcommandIsUsageError(t *testing.T) {
 }
 
 // TestCall_SetsAuthAndUserAgent proves every request carries the Bearer key and
-// an explicit User-Agent (Resend 403s a missing User-Agent — see DESIGN §2.3).
+// an explicit User-Agent (Resend 403s a missing User-Agent).
 func TestCall_SetsAuthAndUserAgent(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"id":"e1"}`, &got)
@@ -51,7 +51,7 @@ func TestCall_SetsAuthAndUserAgent(t *testing.T) {
 	}
 }
 
-// credentialRejectCase pins the name-based reject contract (DESIGN §2.3): the
+// credentialRejectCase pins the name-based reject contract: the
 // decision keys on the parsed error `name`, never the raw HTTP status, because
 // both 401 and 403 are overloaded between credential and non-credential errors.
 type credentialRejectCase struct {

@@ -35,8 +35,8 @@ const DefaultBaseURL = "https://public.missiveapp.com/v1"
 // scheme is composed in call().
 const EnvToken = "MISSIVE_TOKEN"
 
-// readOnly / writeAction tag each leaf command for the design-318 approval
-// gate. readOnly marks side-effect-free reads (GET list/get/thread sub-lists);
+// readOnly / writeAction tag each leaf command for host policy.
+// readOnly marks side-effect-free reads (GET list/get/thread sub-lists);
 // writeAction marks calls that mutate provider state (create/update/send:
 // POST/PATCH).
 var (

@@ -127,7 +127,7 @@ func TestListToolsFigmaManifest(t *testing.T) {
 }
 
 // TestListToolsPostHogManifest guards the cross-repo credential-projection
-// invariant (helio-cli's TestGeneratedToolProvidersMatchPinnedAnyCLI): PostHog
+// invariant: PostHog
 // must expose exactly the fields the Helio provider bundle projects. The region
 // host is resolved at runtime (POSTHOG_API_HOST is an environment override, not
 // a host-supplied credential), so `access_token` is the only credential field.

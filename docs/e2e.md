@@ -41,7 +41,7 @@ will see this more often.
    (e.g. gmail), connect two accounts and note their account labels.
 3. Obtain the assistant's current `HELIO_API_KEY` (a Clerk `ak_*` key from
    its runtime). Set repository secret `HELIO_E2E_API_KEY` to it.
-4. Set repository variable `HELIO_E2E_API_BASE` to the API base heliox uses
+4. Set repository variable `HELIO_E2E_API_BASE` to the API base the host uses
    (including any `/v1` prefix).
 5. Create a fine-grained PAT with `secrets: write` on this repository; set
    it as repository secret `E2E_SECRETS_PAT`.

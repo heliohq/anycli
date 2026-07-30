@@ -47,7 +47,7 @@ const EnvConnectionString = "MONGODB_CONNECTION_STRING"
 // /proc/self/environ on Linux, the Mongo object's own URI). Likewise
 // redactSecret below guards against ACCIDENTAL echo of the DSN, not deliberate
 // exfiltration by the script — the real boundary is a database-side read-only
-// role (design 313 Future Work).
+// role (Future Work).
 const connectPrelude = "db = connect(process.env." + EnvConnectionString + "); " +
 	"delete process.env." + EnvConnectionString
 
@@ -176,7 +176,7 @@ Reads default to secondaryPreferred. Use --read-preference primary for
 read-after-write consistency.`,
 		Args: cobra.ExactArgs(1),
 		// eval carries arbitrary reads AND writes in one verb — may-mutate
-		// on some input, so the fact is true (design 318 strict side).
+		// on some input, so the fact is true (strict side).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return s.runMongosh(cmd.Context(), args[0], dsn, *timeout, readPref, inv)
@@ -434,8 +434,8 @@ var pinnedMongoshVersion = sync.OnceValue(func() string {
 })
 
 // NewCommandTree returns the full command tree built with an empty
-// connection string for dry-run parsing and traversal (tools.Service seam,
-// design 318). The dsn is only captured by RunE closures, which are never
+// connection string for dry-run parsing and traversal (tools.Service seam).
+// The dsn is only captured by RunE closures, which are never
 // run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("", &invocation{}) }
 

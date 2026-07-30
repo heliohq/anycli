@@ -165,7 +165,7 @@ func (s *Service) newRoot(cfg reqConfig) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty request
-// config for dry-run parsing and traversal (tools.Service seam, design 318).
+// config for dry-run parsing and traversal (tools.Service seam).
 // The config is only captured by RunE closures, which are never run on this
 // tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot(reqConfig{}) }

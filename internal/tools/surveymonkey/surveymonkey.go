@@ -131,7 +131,7 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
-// readOnly carries the design-318 anycli.side_effect annotation for runnable
+// readOnly carries the anycli.side_effect annotation for runnable
 // leaf commands. Every SurveyMonkey command is a GET read (surveys, responses,
 // collectors, identity, and the GET-only fetch escape hatch), so all leaves
 // carry it.

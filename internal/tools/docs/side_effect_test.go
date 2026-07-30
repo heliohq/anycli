@@ -8,7 +8,7 @@ import (
 )
 
 // sideEffectAnnotation mirrors the key read by the root-package Inspect API
-// (design 318). "true" ⇔ the command may issue a mutating provider API call
+// "true" ⇔ the command may issue a mutating provider API call
 // under some input; "false" ⇔ read-only under all inputs.
 const sideEffectAnnotation = "anycli.side_effect"
 

@@ -37,10 +37,10 @@ const DefaultBaseURL = "https://api.signnow.com"
 const EnvAccessToken = "SIGNNOW_ACCESS_TOKEN"
 
 // EnvBaseURL is the optional PROCESS env var that overrides the API base
-// (sandbox targeting for the L2 dev harness). It is deliberately NOT a
+// (sandbox targeting for the live-API dev harness). It is deliberately NOT a
 // credential binding: the base URL is a fixed production constant, not a
 // token-gateway-served credential, so projecting it through the connection
-// would be a false contract (and the helio-cli pin-match check requires every
+// would be a false contract (and the host-side pin-match check requires every
 // anycli credential field to be projected by the bundle). The dev harness sets
 // it as an ordinary env var; production never sets it, so the service falls
 // back to DefaultBaseURL.
@@ -152,7 +152,7 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for reads (GET list/get/download), "true" for
 // provider-state mutations (upload / add-fields / delete / invite / template /
 // link create).

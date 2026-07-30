@@ -8,7 +8,7 @@ import (
 )
 
 // TestSideEffectAnnotations pins the anycli.side_effect fact on every runnable
-// leaf of the command tree (design 318 may-mutate criterion) and asserts group
+// leaf of the command tree (may-mutate criterion) and asserts group
 // commands carry no annotation. Notable calls: `search` (POST /search) and
 // `data-source query` (POST /data_sources/{id}/query) are POST-shaped documented
 // read-only lookups → false; every page/db/view/comment write is POST/PATCH →

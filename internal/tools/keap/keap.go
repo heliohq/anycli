@@ -29,7 +29,7 @@ const DefaultBaseURL = "https://api.infusionsoft.com/crm/rest"
 // (definitions/tools/keap.json).
 const EnvAccessToken = "KEAP_ACCESS_TOKEN"
 
-// design-318 side_effect annotation maps shared by every runnable leaf.
+// side_effect annotation maps shared by every runnable leaf.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 var writeAction = map[string]string{"anycli.side_effect": "true"}
 

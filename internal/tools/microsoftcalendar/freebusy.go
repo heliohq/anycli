@@ -24,14 +24,14 @@ var freeShowAs = map[string]bool{"free": true, "unknown": true}
 // newFreebusyCmd computes the signed-in user's OWN busy windows from
 // /me/calendarView (covered by Calendars.ReadWrite). Reading OTHER attendees'
 // free/busy (findMeetingTimes / getSchedule) needs Calendars.Read.Shared and is
-// out of v1 (design 308 §microsoft_calendar), so it is intentionally not here.
+// out of v1, so it is intentionally not here.
 func (s *Service) newFreebusyCmd(token string) *cobra.Command {
 	var start, end string
 	cmd := &cobra.Command{
 		Use:   "freebusy",
 		Short: "Compute your own busy windows in a time range (from /me/calendarView)",
 		Args:  cobra.NoArgs,
-		// GET /me/calendarView (paged) + local merge — read-only (design 318).
+		// GET /me/calendarView (paged) + local merge — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}

@@ -28,7 +28,7 @@ const DefaultBaseURL = "https://api.attio.com"
 // EnvToken is the env var the credential binding injects (definitions/tools/attio.json).
 const EnvToken = "ATTIO_ACCESS_TOKEN"
 
-// readOnly / writeAction carry the design-318 side-effect annotation for a
+// readOnly / writeAction carry the side-effect annotation for a
 // runnable leaf command. readOnly marks side-effect-free reads (GET, plus POST
 // search/query endpoints that only return data); writeAction marks state
 // changes (create/update/delete/upsert/add/remove).

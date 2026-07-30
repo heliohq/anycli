@@ -2,7 +2,7 @@
 // cobra tree projecting the People API v1 resource namespaces
 // (people.connections / people / otherContacts / contactGroups) plus the
 // synthetic `resolve` verb that answers "what is X's address" in one call by
-// merging My Contacts and Other Contacts (design 303 §Google Contacts). v1 is
+// merging My Contacts and Other Contacts. v1 is
 // read-only. Search flags pass the People API's native prefix-phrase query
 // semantics through verbatim. A 401/403 very often means the token lacks a
 // scope the user never granted — those errors carry an explicit reconnect hint.
@@ -168,6 +168,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

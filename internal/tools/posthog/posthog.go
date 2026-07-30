@@ -38,7 +38,7 @@ const (
 	EnvAPIHost     = "POSTHOG_API_HOST"
 )
 
-// anycli.side_effect annotations (design 318): readOnly marks a leaf command
+// anycli.side_effect annotations: readOnly marks a leaf command
 // that only reads provider state; writeAction marks one that mutates it. Note
 // PostHog analytics query endpoints are reads even over HTTP POST.
 var (
@@ -62,7 +62,7 @@ type Service struct {
 	// region host without a probe.
 	apiHost string
 	// region caches the resolved region host for the process lifetime, so at
-	// most one probe happens per heliox invocation.
+	// most one probe happens per host invocation.
 	region string
 	// usHost / euHost override the region-probe targets in tests; empty means
 	// the production USHost / EUHost constants.

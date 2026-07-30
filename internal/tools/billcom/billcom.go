@@ -4,7 +4,7 @@
 // per-org credential login that mints a short-lived sessionId; both devKey and
 // sessionId then ride as HTTP headers on every call. This service owns that
 // login->call "session dance" per invocation (exactly what a service-type tool
-// is for), so the Helio side needs no bespoke token machinery.
+// is for), so the host side needs no bespoke token machinery.
 //
 // Auth modes (BILLCOM_AUTH_MODE):
 //   - "v3" (default): raw / Accountant-Console credential; login via
@@ -189,6 +189,6 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty client for
-// dry-run parsing and traversal (tools.Service seam, design 318). The client is
+// dry-run parsing and traversal (tools.Service seam). The client is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot(&client{}) }

@@ -2,7 +2,7 @@
 // non-interactive cobra tree projecting the Microsoft Graph v1.0 mail resource
 // namespaces (/me/messages, /me/mailFolders) plus the synthetic verbs
 // reply / forward (createReply/createForward + send) and batched move / mark
-// (design 308 §Outlook). Search flags pass Graph $search / $filter (OData)
+// Search flags pass Graph $search / $filter (OData)
 // through verbatim. A 401/403 very often means the token lacks a Mail scope the
 // user never granted — those errors carry an explicit reconnect hint.
 //
@@ -156,6 +156,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

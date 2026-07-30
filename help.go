@@ -1,8 +1,8 @@
-// Capability-discovery help face (design 335). AnyCLI flattens a service
+// Capability-discovery help face. AnyCLI flattens a service
 // tool's cobra tree to its callable leaves and states the leaf count, because
 // a consumer that reads a partial command list treats the missing entries as
 // "not supported" rather than "look deeper". The renderer here is exported so
-// a host embedding AnyCLI (heliox) can render its own built-in command trees
+// a host embedding AnyCLI can render its own built-in command trees
 // with the identical shape instead of forking a second renderer.
 package anycli
 
@@ -21,7 +21,7 @@ import (
 // help/completion commands are excluded; the count is always derived from the
 // walk. A tree with no visible leaves falls back to cobra's own help.
 //
-// A tree whose ROOT is itself runnable (heliox's `browser` passthrough, with
+// A tree whose ROOT is itself runnable (a host's `browser` passthrough, with
 // `list` / `connect` beneath it) counts the root's own form as one of the
 // commands — the claim would otherwise be exhaustive over a set missing the
 // tool's primary capability, and a false completeness claim is worse than

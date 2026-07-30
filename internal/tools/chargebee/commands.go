@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// sideEffectFalse / sideEffectTrue are the design-318 annotation maps a leaf
-// carries so Inspect/approval-gate coverage can classify it without executing.
+// sideEffectFalse / sideEffectTrue are the side-effect annotation maps a leaf
+// carries so Inspect and host policy coverage can classify it without executing.
 func sideEffect(write bool) map[string]string {
 	return map[string]string{"anycli.side_effect": strconv.FormatBool(write)}
 }
@@ -63,7 +63,7 @@ func (s *Service) resourceCommands(cfg reqConfig) []*cobra.Command {
 
 // newGroup is a runnable command group: a bare group prints help; an unknown
 // subcommand fails (cobra.NoArgs). Groups carry no side_effect annotation
-// (design 318 (b)/(f)).
+// ((b)/(f)).
 func newGroup(use, short string) *cobra.Command {
 	return &cobra.Command{
 		Use:   use,

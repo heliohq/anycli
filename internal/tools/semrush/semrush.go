@@ -49,8 +49,8 @@ const DefaultUnitsBaseURL = "https://www.semrush.com"
 // account secrets with no refresh cycle.
 const EnvAPIKey = "SEMRUSH_API_KEY"
 
-// readOnly marks a leaf command as side-effect-free for the design-318 approval
-// gate. Every Semrush leaf is an analytics/SEO report read or the free
+// readOnly marks a leaf command as side-effect-free for host policy.
+// Every Semrush leaf is an analytics/SEO report read or the free
 // API-units balance check, so all carry it.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 

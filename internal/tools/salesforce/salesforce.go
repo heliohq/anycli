@@ -35,7 +35,7 @@ const (
 	EnvInstanceURL = "SALESFORCE_INSTANCE_URL"
 )
 
-// readOnly / writeAction tag leaf commands for the design-318 approval gate.
+// readOnly / writeAction tag leaf commands for the host policy gate.
 // Reads (query, search, whoami, limits, record get, sobject list/describe) are
 // side-effect-free; record create/update/delete/upsert mutate provider state.
 var (

@@ -1,5 +1,5 @@
 // Package notion is the built-in Notion service: a markdown-native,
-// MCP-aligned cobra tree over the api.notion.com REST surface (design 304).
+// MCP-aligned cobra tree over the api.notion.com REST surface.
 // Content is read and written as markdown via the official page-markdown
 // endpoints; parameters mirror the official Notion MCP so pretrained models
 // transfer their tool-call intuition. Notion fails with a non-2xx status and a
@@ -50,7 +50,7 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	token := env[EnvToken]
 	if token == "" {
 		// The token check runs before cobra parses flags, so detect --json in
-		// the raw args to honor the structured error-envelope contract (§error).
+		// the raw args to honor the structured error-envelope contract.
 		s.renderError(hasJSONArg(args), &usageError{msg: "NOTION_TOKEN is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
@@ -210,6 +210,6 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// sideEffectAnnotation is the design-318 side-effect key Inspect reads to decide
-// whether a leaf needs approval. Kept as a literal (the root-package constant is
+// sideEffectAnnotation is the side-effect key Inspect reads to decide
+// whether a leaf may mutate. Kept as a literal (the root-package constant is
 // unexported and importing it would cycle).
 const sideEffectAnnotation = "anycli.side_effect"
 

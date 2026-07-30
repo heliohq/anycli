@@ -10,7 +10,7 @@ import (
 // newSlidesAddCmd creates a slide and, in the same atomic batchUpdate, fills
 // its TITLE / BODY placeholders. createSlide alone only yields empty
 // placeholders; assigning their ids via placeholderIdMappings up front lets a
-// single call also insertText into them (design 303 — the objectId bookkeeping
+// single call also insertText into them (the objectId bookkeeping
 // stays in the tool, the AI only supplies content).
 func (s *Service) newSlidesAddCmd(token string) *cobra.Command {
 	var layout, title, body string

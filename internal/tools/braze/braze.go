@@ -7,7 +7,7 @@
 // cluster and its REST host differs per cluster, so the credential is a
 // DSN-shaped secret that carries BOTH the REST API key (in userinfo) and the
 // cluster host: https://<REST_API_KEY>@rest.iad-05.braze.com. The service
-// reconstructs the Bearer key and the base URL from it (§credential). Auth is
+// reconstructs the Bearer key and the base URL from it. Auth is
 // "Authorization: Bearer <key>" on every request. Braze fails with a non-2xx
 // status and a JSON body carrying a message; 401 (bad/revoked key), 403 (key
 // lacks the endpoint permission) and 429 (rate limited) are surfaced as

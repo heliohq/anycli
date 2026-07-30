@@ -19,7 +19,7 @@ import (
 // access token uses "Authorization: Bearer <tok>", while a Klaviyo private API
 // key (documented "pk_" prefix) uses "Authorization: Klaviyo-API-Key <tok>".
 // This is keyed on Klaviyo's own documented key format, not a silent fallback,
-// and lets the L2 dev harness run against a self-serve private key before the
+// and lets the live-API dev harness run against a self-serve private key before the
 // OAuth app exists.
 //
 // Every request carries the pinned `revision` header and Accept:

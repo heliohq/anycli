@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly / writeAction are the design-318 anycli.side_effect annotation maps
+// readOnly / writeAction are the anycli.side_effect annotation maps
 // attached to runnable leaf commands: "false" for reads (GET), "true" for
 // provider-mutating actions.
 var (

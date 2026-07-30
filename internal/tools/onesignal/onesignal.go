@@ -36,7 +36,7 @@ const (
 	EnvAppID     = "ONESIGNAL_APP_ID"
 )
 
-// readOnly and writeAction are the design-318 side-effect annotations applied to
+// readOnly and writeAction are the side-effect annotations applied to
 // every runnable leaf command: "false" for read-only reads, "true" for calls
 // that mutate provider state.
 var (

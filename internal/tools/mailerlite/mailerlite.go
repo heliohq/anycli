@@ -31,7 +31,7 @@ const DefaultBaseURL = "https://connect.mailerlite.com/api"
 // Bearer strings with no documented expiry.
 const EnvAPIToken = "MAILERLITE_API_TOKEN"
 
-// readOnly / writeAction are the design-318 anycli.side_effect annotation maps
+// readOnly / writeAction are the anycli.side_effect annotation maps
 // attached to runnable leaf commands: "false" for reads (GET), "true" for
 // provider-mutating actions.
 var (

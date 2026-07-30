@@ -8,7 +8,7 @@ import (
 )
 
 // TestSideEffectAnnotations pins the anycli.side_effect fact on every runnable
-// leaf of the command tree (design 318 may-mutate criterion) and asserts group
+// leaf of the command tree (may-mutate criterion) and asserts group
 // commands carry no annotation. Notable calls: order/customer/catalog/invoice
 // `search` and `inventory get` are POST-shaped documented lookups → false; the
 // raw `api` escape hatch takes the method at runtime → true.

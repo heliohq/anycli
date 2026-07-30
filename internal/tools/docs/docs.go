@@ -4,7 +4,7 @@
 // (append / replace-all). Markdown is the read/write lingua franca: reads render
 // the deeply nested document JSON to markdown, writes translate a markdown
 // subset into batchUpdate requests so the caller never touches the UTF-16 index
-// arithmetic (design 303 §Google Docs). A 401 or a scope-insufficient 403
+// arithmetic. A 401 or a scope-insufficient 403
 // carries a reconnect hint; a 404 or a permission 403 carries a sharing hint.
 package docs
 
@@ -132,6 +132,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

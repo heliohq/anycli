@@ -21,8 +21,8 @@ func TestLoadBundled_NotFound(t *testing.T) {
 
 // TestLoadBundled_ShippedDefinitions asserts every shipped definition loads
 // and exposes a complete credential-injection shape. gate-probe is the one
-// pinned exception (design 318 §E2E Testing Harness): the approval-gate probe
-// is credential-free by contract, so it must ship with NO auth block at all.
+// pinned exception: the policy-gate probe is credential-free by contract, so
+// it must ship with NO auth block at all.
 func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 	bundled, err := ListBundled()
 	if err != nil {
@@ -38,7 +38,7 @@ func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 			}
 			if def.Name == "gate-probe" {
 				if def.Auth != nil {
-					t.Fatalf("gate-probe declares an auth block %+v; design 318 pins it credential-free", def.Auth)
+					t.Fatalf("gate-probe declares an auth block %+v; its definition pins it credential-free", def.Auth)
 				}
 				return
 			}
@@ -123,7 +123,7 @@ func TestLoadBundled_FigmaCredentialBinding(t *testing.T) {
 }
 
 // TestLoadBundled_GateProbeShape pins the gate-probe harness definition
-// (design 318 §E2E Testing Harness): service type so execTool's LoadBundled
+// service type so execTool's LoadBundled
 // precondition passes, and no auth block — execution needs no credentials and
 // the engine must never call the resolver for it.
 func TestLoadBundled_GateProbeShape(t *testing.T) {
@@ -169,7 +169,7 @@ func TestLoadBundled_LarkCliShape(t *testing.T) {
 		{field: "app_id", envVar: "LARKSUITE_CLI_APP_ID"},
 		{field: "access_token", envVar: "LARKSUITE_CLI_TENANT_ACCESS_TOKEN"},
 		{field: "brand", envVar: "LARKSUITE_CLI_BRAND"},
-		// The optional design 255 §3.2 user identity: the host projects the
+		// The optional user identity: the host projects the
 		// connection owner's user_access_token only when they granted it —
 		// absent, the empty binding is skipped at inject and the CLI stays
 		// bot-only. Present, lark-cli natively rides it for `--as user`.

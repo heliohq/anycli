@@ -23,8 +23,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly marks a leaf command as side-effect-free for the design-318 approval
-// gate. Every Ahrefs command is a read (GET, or a POST batch-analysis query that
+// readOnly marks a leaf command as side-effect-free for host policy.
+// Every Ahrefs command is a read (GET, or a POST batch-analysis query that
 // returns data without mutating provider state), so all leaves carry it.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 

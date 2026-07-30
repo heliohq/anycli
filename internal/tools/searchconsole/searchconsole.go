@@ -41,7 +41,7 @@ const EnvAccessToken = "SEARCH_CONSOLE_ACCESS_TOKEN"
 // lacks the webmasters scope the user never granted on connect.
 const scopeHint = " (possibly missing scope — reconnect and grant access)"
 
-// readOnly / writeAction tag leaf commands for the design-318 approval gate.
+// readOnly / writeAction tag leaf commands for the host policy gate.
 // Search Console's query (searchAnalytics) and inspect are analytics reads
 // even though they POST; sites/sitemaps list+get are reads; only sitemap
 // submit (PUT) and delete mutate provider state.

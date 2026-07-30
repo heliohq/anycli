@@ -36,7 +36,7 @@ func (e *apiError) Error() string { return e.msg }
 func (e *apiError) Unwrap() error { return e.err }
 
 // normalizeBaseURL turns any accepted paste of the account URL into the
-// canonical request base `<scheme>://<host>[:port]/api/3` (design 317: the
+// canonical request base `<scheme>://<host>[:port]/api/3` (the
 // single normalization site is here in AnyCLI; the bundle stores the value
 // verbatim). Accepts: full URL, trailing slash, a stray /api/3[/], or a bare
 // host (scheme defaults to https). The path/query/fragment the user pasted are

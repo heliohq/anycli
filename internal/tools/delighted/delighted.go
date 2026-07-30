@@ -9,9 +9,8 @@
 // NOTE (provider status): the Delighted product was fully sunset on
 // 2026-06-30 and the production REST API returns HTTP 410 Gone as of
 // 2026-07-22. This service is faithful to the pre-sunset v1 API and is tested
-// entirely against httptest fakes (L1); it ships hidden on the Helio side and
-// can never be exercised against the live API (L2/L4/L5 are permanently
-// unexecutable). See the branch DESIGN.md.
+// entirely against httptest fakes; it ships hidden and can never be
+// exercised against the live API.
 package delighted
 
 import (
@@ -26,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly / writeAction carry the design-318 side-effect annotation for runnable leaves.
+// readOnly / writeAction carry the side-effect annotation for runnable leaves.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 var writeAction = map[string]string{"anycli.side_effect": "true"}
 

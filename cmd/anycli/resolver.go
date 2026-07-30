@@ -15,7 +15,7 @@ const credEnvPrefix = "ANYCLI_CRED_"
 
 // envResolver is the harness's static CredentialResolver: every credential
 // field comes from the caller's environment, no server round-trips. This is
-// a tool-definition development aid only — production embedding (heliox)
+// a tool-definition development aid only — production embedding
 // resolves through the integration token gateway instead.
 type envResolver struct {
 	environ []string

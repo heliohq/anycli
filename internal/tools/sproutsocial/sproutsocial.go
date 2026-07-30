@@ -103,7 +103,8 @@ func hasJSONArg(args []string) bool {
 }
 
 // renderError writes err to stderr. Under --json the shape is
-// {"error":{"message":…,"kind":"usage|api","status":<HTTP or omitted>,"request_id":<Sprout X-Sprout-Request-ID or omitted>}}.
+// {"error":{"message":…,"kind":"usage|api","status":<HTTP or
+// omitted>,"request_id":<Sprout X-Sprout-Request-ID or omitted>}}.
 func (s *Service) renderError(jsonMode bool, err error) {
 	if !jsonMode {
 		fmt.Fprintln(s.stderr(), err)
@@ -142,7 +143,7 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for reads (analytics/inbox/cases queries and
 // metadata GETs), "true" for the draft-post creation that mutates provider state.
 var (

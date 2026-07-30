@@ -2,16 +2,15 @@
 // tree projecting the Forms API v1 resource namespaces (forms / forms.responses)
 // plus a small set of safe synthetic verbs. The editing surface is a faithful
 // pass-through of the batchUpdate Request[] JSON — no second question-type DSL
-// is invented (design 303 §Google Forms).
+// is invented.
 //
 // create always builds an unpublished form; publish and responder sharing are
 // the highest destructive gradient and are gated by a human-in-the-loop soft
-// guardrail carried in the skill doc, not an approval gate in the tool.
+// guardrail carried in the skill doc, not a gate in the tool.
 //
 // Responder sharing (responders add/remove/list) is a cross-API synthesis onto
 // the Drive v3 permissions endpoint using the published view. It is bounded by
-// the drive.file scope: it only reaches forms this client created (design 303
-// §张力 2).
+// the drive.file scope: it only reaches forms this client created.
 //
 // A 401/403 very often means the token lacks a scope the user never granted —
 // those errors carry an explicit reconnect hint.
@@ -169,6 +168,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

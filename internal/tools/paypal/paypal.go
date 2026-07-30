@@ -27,7 +27,7 @@ import (
 )
 
 // Env vars the credential binding injects (definitions/tools/paypal.json). The
-// secret is stored under the field name `api_secret` (integration-service
+// secret is stored under the field name `api_secret` (the host credential store
 // denylists `client_secret`) but its inject env var is the semantically
 // correct PAYPAL_CLIENT_SECRET.
 const (
@@ -212,7 +212,7 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with empty credentials for
-// dry-run parsing and traversal (tools.Service seam, design 318). Credentials
+// dry-run parsing and traversal (tools.Service seam). Credentials
 // are only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command {
 	return s.newRoot(&client{})

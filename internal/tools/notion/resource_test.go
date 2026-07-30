@@ -461,7 +461,7 @@ func TestUserGet_List(t *testing.T) {
 }
 
 // TestUserGet_List_Paginates: the no-arg form must enumerate every user by
-// following next_cursor (spec §user "列出所有用户(分页)"), not return only the
+// following next_cursor, not return only the
 // first page.
 func TestUserGet_List_Paginates(t *testing.T) {
 	var reqs []capturedRequest

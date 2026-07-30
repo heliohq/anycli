@@ -50,7 +50,7 @@ func IsNotConnected(err error) bool {
 	return errors.As(err, &nc)
 }
 
-// tokenResponse mirrors integration-service's dto.TokenResponse (the fields
+// tokenResponse mirrors the token gateway response shape (the fields
 // e2e consumes).
 type tokenResponse struct {
 	AccessToken string            `json:"access_token"`
@@ -59,8 +59,8 @@ type tokenResponse struct {
 }
 
 // Resolver implements anycli.CredentialResolver against Helio's integration
-// token gateway (GET /connections/token), the same contract heliox's
-// internal/toolcred uses. The engine's own Cache handles (tool, account)
+// token gateway (GET /connections/token), the same contract a host credential
+// resolver uses. The engine's own Cache handles (tool, account)
 // caching via CacheUntil, so the resolver holds no cache of its own.
 type Resolver struct {
 	base string
@@ -70,7 +70,7 @@ type Resolver struct {
 
 // NewResolver builds a Resolver from HELIO_E2E_API_KEY and
 // HELIO_E2E_API_BASE. Both are required; the base must be the same API base
-// heliox uses (including any /v1 prefix).
+// the host uses (including any /v1 prefix).
 func NewResolver() (*Resolver, error) {
 	key := os.Getenv(envAPIKey)
 	base := strings.TrimRight(os.Getenv(envAPIBase), "/")

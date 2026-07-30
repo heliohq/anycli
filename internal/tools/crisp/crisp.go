@@ -38,7 +38,7 @@ const DefaultBaseURL = "https://api.crisp.chat/v1"
 
 // tierWebsite is the fixed X-Crisp-Tier header value v1 sends on every request.
 // v1 connects with an owner-generated website token; the plugin tier is a
-// deferred future option (see the provider DESIGN).
+// deferred future option.
 const tierWebsite = "website"
 
 // EnvToken is the env var the credential binding injects

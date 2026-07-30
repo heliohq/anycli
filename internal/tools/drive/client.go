@@ -20,7 +20,7 @@ var retryBackoffs = []time.Duration{200 * time.Millisecond, 800 * time.Milliseco
 
 // driveParams returns the base query every files call carries. supportsAllDrives
 // keeps operations working after a user moves an app-created file into a shared
-// drive (design 303 §shared drive 兼容透传).
+// drive.
 func driveParams() url.Values {
 	q := url.Values{}
 	q.Set("supportsAllDrives", "true")

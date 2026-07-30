@@ -1,7 +1,7 @@
 // Package microsoftcalendar is the built-in Microsoft (Outlook) Calendar
 // service: a non-interactive cobra tree projecting the Microsoft Graph v1.0
 // calendar resources (/me/calendars, /me/events, /me/calendarView) plus the
-// synthetic freebusy / cancel / respond verbs (design 308 §microsoft_calendar).
+// synthetic freebusy / cancel / respond verbs.
 //
 // v1 is locked to a single delegated Graph scope, Calendars.ReadWrite: read
 // events, create/update/cancel events, and reply to invites. Reading OTHER
@@ -147,6 +147,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

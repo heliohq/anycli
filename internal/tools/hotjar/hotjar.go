@@ -48,7 +48,7 @@ const (
 	EnvClientSecret = "HOTJAR_CLIENT_SECRET"
 )
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for state-free reads, "true" for provider
 // mutations. Group commands must not carry either. Hotjar's wrapped surface is
 // read-only (survey enumeration/export + a non-destructive user lookup), so

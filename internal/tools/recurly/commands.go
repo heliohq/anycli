@@ -251,7 +251,7 @@ func (s *Service) newSiteGroup(key, region string) *cobra.Command {
 	return g
 }
 
-// sideEffect builds the design-318 side-effect annotation map for a runnable
+// sideEffect builds the side-effect annotation map for a runnable
 // leaf (write = "true", read = "false").
 func sideEffect(write bool) map[string]string {
 	if write {

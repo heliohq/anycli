@@ -2,7 +2,7 @@ package anycli
 
 import "testing"
 
-// TestInspectGateProbe pins the design-318 harness contract at the public
+// TestInspectGateProbe pins the harness contract at the public
 // Inspect seam: the probe's single runnable leaf resolves to the action id
 // gate-probe.probe_send with SideEffect true, so the consumer's policy layer
 // gates it exactly like a real mutating command.

@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-12
 **Status:** Accepted
-**Scope:** Make the credential pipeline account-aware (`Resolve` / cache / `Execute` all keyed by `(tool, account)`); add the first real embedded tool definitions and built-in services for the Helio round (design 227 on the Helio side). The 002 embeddable-core positioning is unchanged; this design extends its seams, it does not move them.
+**Scope:** Make the credential pipeline account-aware (`Resolve` / cache / `Execute` all keyed by `(tool, account)`); add the first real embedded tool definitions and built-in services for the Helio round. The 002 embeddable-core positioning is unchanged; this design extends its seams, it does not move them.
 
 ## 1. Background
 
@@ -14,7 +14,7 @@ The embedded definition set is empty: `definitions/tools/` ships only a README p
 
 ### Problem
 
-Helio's host (`heliox`) resolves credentials per **connected account**, not just per tool: one assistant may have several Slack workspaces or Google accounts connected at once (Helio design 227, multi-account connections). With a tool-keyed pipeline:
+The host resolves credentials per **connected account**, not just per tool: one assistant may have several Slack workspaces or Google accounts connected at once (multi-account connections). With a tool-keyed pipeline:
 
 - the resolver cannot be told *which* account's credential to return;
 - two accounts of the same tool would collide on one cache entry;
@@ -43,7 +43,7 @@ type CredentialResolver interface {
 }
 ```
 
-AnyCLI is pre-1.0 and its sole consumer is `heliox`, so the signature changes in place — no compat shim, no parallel interface. The empty string is the default-account selector; the resolver decides what "default" means (Helio: the primary connection).
+AnyCLI is pre-1.0 and its sole consumer is the host, so the signature changes in place — no compat shim, no parallel interface. The empty string is the default-account selector; the resolver decides what "default" means (Helio: the primary connection).
 
 ### D2 — cache key = `tool + "\x00" + account`
 
@@ -122,4 +122,4 @@ Service-type tools follow one template (established by `slack`, mirrored by the 
 
 - `docs/design/001-vault-credential-integration.md` — superseded vault/local design retained as historical injection-mode context.
 - `docs/design/002-embeddable-core-and-credential-resolver.md` — embeddable core + resolver/cache seams.
-- Helio `docs/design/227-ai-teammate-oauth-integration/` — the consumer: multi-account connections, token gateway, `heliox tool` portal.
+- The consumer-side design: multi-account connections, token gateway, host tool portal.

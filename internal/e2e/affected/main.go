@@ -1,10 +1,10 @@
 package main
 
-// This file is the `go run ./internal/e2e/affected` entry the e2e workflow
+// This file is the `go run./internal/e2e/affected` entry the e2e workflow
 // calls. Modes:
 //
 //	-base <ref>   diff HEAD against <ref>, print affected tools as JSON
-//	-all          print every tool that has an e2e_test.go, as JSON
+//	-all print every tool that has an e2e_test.go, as JSON
 //
 // On any git failure the program falls back to the smoke subset and says so
 // on stderr — a broken diff must degrade to "run something", never to
@@ -109,7 +109,7 @@ func toolsWithE2ETests(tools []string) []string {
 // -base result, announcing each drop on stderr — never silently (design
 // 008: no silent caps). Without this, a cli-type tool like github (no
 // internal/tools/github package) reaches the workflow matrix and
-// `go test ./internal/tools/github/...` fails with "no such file or
+// `go test./internal/tools/github/...` fails with "no such file or
 // directory".
 func filterHasE2ETests(tools []string) []string {
 	out := make([]string, 0, len(tools))

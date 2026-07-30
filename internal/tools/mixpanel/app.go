@@ -14,7 +14,7 @@ import (
 // authored event/property schemas — a documentation overlay, NOT the discovery
 // primitive. A project that never authored schemas returns a partial/empty list
 // even while events actively fire, so an empty result must not be read as "no
-// events"; use `events-names` for discovery (design §1).
+// events"; use `events-names` for discovery.
 func (s *Service) newLexiconListCmd(c *client) *cobra.Command {
 	return &cobra.Command{
 		Use:         "list",

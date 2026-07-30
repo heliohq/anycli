@@ -165,7 +165,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	return root
 }
 
-// sideEffectAnnotation is the design-318 fact the approval gate reads: "true"
+// sideEffectAnnotation is the side-effect fact a host reads: "true"
 // for verbs that mutate provider state (create/update/cancel/refund/finalize/
 // send), "false" for reads. lintServiceTree requires exactly one on every
 // runnable leaf and none on group commands, so every leaf factory sets it.
@@ -195,6 +195,6 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token is
+// dry-run parsing and traversal (tools.Service seam). The token is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

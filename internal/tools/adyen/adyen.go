@@ -1,8 +1,7 @@
 // Package adyen is the built-in Adyen service: a non-interactive cobra tree
 // over the Adyen Management API v3 (https://management-live.adyen.com/v3).
 //
-// v1 is Management-only and live-only (design 008-300 catalog row 170; the
-// per-tool DESIGN on branch tool/adyen). It exposes read/config introspection
+// v1 is Management-only and live-only. It exposes read/config introspection
 // — API-credential identity, merchant/company config, payment-method settings,
 // webhooks, stores, terminals — and moves no money. The Checkout surface
 // (payment links + refund/capture/cancel) is a documented v2 follow-up.
@@ -32,8 +31,8 @@ import (
 // DefaultBaseURL is the production Adyen Management API v3 base. It is LIVE:
 // the Helio connect verifier is live-fixed, so a connected credential is always
 // a live key, and the connected surface targets the live host. The Adyen test
-// host (management-test.adyen.com/v3) is reached only via the anycli L2 harness
-// overriding Service.BaseURL — never through a heliox-exposed flag.
+// host (management-test.adyen.com/v3) is reached only via the live-API dev harness
+// overriding Service.BaseURL — never through a host-exposed flag.
 const DefaultBaseURL = "https://management-live.adyen.com/v3"
 
 // EnvAPIKey is the env var the credential binding injects
@@ -45,7 +44,7 @@ const EnvAPIKey = "ADYEN_API_KEY"
 // duck typing (this package never imports the registry — no import cycle).
 type Service struct {
 	// BaseURL overrides the Management API base; empty = DefaultBaseURL. Tests
-	// and the L2 harness point it at an httptest server or management-test.
+	// and the live-API dev harness point it at an httptest server or management-test.
 	BaseURL string
 	// HC is the HTTP client; nil = http.DefaultClient.
 	HC *http.Client
@@ -171,6 +170,6 @@ func (s *Service) stderr() io.Writer {
 }
 
 // NewCommandTree returns the full command tree built with an empty key for
-// dry-run parsing and traversal (tools.Service seam, design 318). The key is
+// dry-run parsing and traversal (tools.Service seam). The key is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

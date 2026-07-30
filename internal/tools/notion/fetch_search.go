@@ -81,7 +81,7 @@ func (s *Service) newFetchCmd(token string) *cobra.Command {
 			// workspace + authenticated-user identity. REST's closest equivalent
 			// is GET /v1/users/me: for a bot token the response carries the bot
 			// user plus its workspace name/owner. Kept so a pretrained agent's
-			// `fetch self` reflex works instead of erroring (design 304 §fetch).
+			// `fetch self` reflex works instead of erroring.
 			body, err := s.call(cmd.Context(), token, http.MethodGet, "/users/me", nil)
 			if err != nil {
 				return err
@@ -135,7 +135,7 @@ func (s *Service) newFetchCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// resolveFetchType decides the id kind by design-304 priority: a full URL is
+// resolveFetchType decides the id kind by this priority: a full URL is
 // judged by shape first; an explicit --type wins next; a bare uuid with no
 // --type falls through to the endpoint probe.
 func (s *Service) resolveFetchType(ctx context.Context, token, raw, id, typ string) (string, error) {
@@ -178,7 +178,7 @@ var errIndeterminateType = errors.New("indeterminate id type")
 // (404 / 403 / 400) yields errIndeterminateType for the caller to phrase. A
 // hard failure — 401 / credential rejection, a 5xx, or a transport error — is
 // returned immediately so exit-1 and the credential-rejection classification
-// survive (design 227 OAuth refresh depends on it) instead of being masked as a
+// survive (OAuth refresh depends on it) instead of being masked as a
 // "pass --type" usage error. Shared by fetch, --new-parent wire resolution, and
 // the page move id-type check.
 func (s *Service) probeIDType(ctx context.Context, token, id string) (string, error) {

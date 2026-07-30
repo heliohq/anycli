@@ -78,7 +78,7 @@ func (s *Service) call(ctx context.Context, key, method, path string, payload an
 }
 
 // classifyCredentialError marks 401/403 as a credential rejection so the host
-// (heliox) can prompt a reconnect, per the auth-class error contract.
+// the host can prompt a reconnect, per the auth-class error contract.
 func classifyCredentialError(status int, err error) error {
 	if status == http.StatusUnauthorized || status == http.StatusForbidden {
 		return execution.RejectCredential(err)

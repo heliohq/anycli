@@ -13,7 +13,7 @@ import (
 )
 
 // folderMIME is the Drive mimeType for a folder; `mkdir` is a synthetic verb
-// over files.create with this type (design 303).
+// over files.create with this type.
 const folderMIME = "application/vnd.google-apps.folder"
 
 // listFields is the field mask requested for files.list — enough for a useful
@@ -311,7 +311,7 @@ func (s *Service) newFilesCopyCmd(token string) *cobra.Command {
 // newFilesTrashCmd builds trash (untrash=false) or untrash (untrash=true). Both
 // are synthetic verbs over files.update setting trashed=true/false — trash is
 // the only deletion path this tool exposes (permanent delete is intentionally
-// omitted; design 303).
+// omitted).
 func (s *Service) newFilesTrashCmd(token string, untrash bool) *cobra.Command {
 	verb, past, short := "trash", "trashed", "Move files to the trash (recoverable; the only deletion this tool exposes)"
 	trashed := true

@@ -189,7 +189,7 @@ func TestFilesList_QueryAndParentComposition(t *testing.T) {
 	})
 	stdout := f.runOK(t, "files", "list", "--query", "name contains 'report'", "--parent", "folder9", "--max", "5")
 	got := f.last(t, "GET", "/drive/v3/files")
-	// q must AND the --query and the parent clause; supportsAllDrives透传.
+	// q must AND the --query and the parent clause; supportsAllDrives passthrough.
 	for _, want := range []string{"q=", "in+parents", "name+contains", "supportsAllDrives=true", "includeItemsFromAllDrives=true", "pageSize=5"} {
 		if !strings.Contains(got.Query, want) {
 			t.Errorf("query = %q, want it to contain %q", got.Query, want)

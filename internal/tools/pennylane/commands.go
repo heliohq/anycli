@@ -12,7 +12,7 @@ import (
 )
 
 // sideEffect builds the cobra Annotations map carrying the "anycli.side_effect"
-// fact for a runnable leaf (design 318): true ⇔ the command can issue a
+// fact for a runnable leaf: true ⇔ the command can issue a
 // mutating (non-GET) provider call. Group commands carry no annotation.
 func sideEffect(mayMutate bool) map[string]string {
 	return map[string]string{"anycli.side_effect": strconv.FormatBool(mayMutate)}

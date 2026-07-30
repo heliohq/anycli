@@ -103,7 +103,7 @@ func TestTasksCreate_TitleDueAndPosition(t *testing.T) {
 
 // TestTasksCreate_DueTimeDroppedVisible: a due with a time part passes through,
 // and --json echoes what the API actually stored (time dropped) so the loss is
-// visible rather than silently downgraded (design 303 §due-is-a-date).
+// visible rather than silently downgraded.
 func TestTasksCreate_DueTimeDroppedVisible(t *testing.T) {
 	f := newFixture(t, map[string]route{
 		"POST /tasks/v1/lists/@default/tasks": {http.StatusOK, `{"id":"t9","title":"Remind me","due":"2026-07-20T00:00:00.000Z"}`},

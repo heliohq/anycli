@@ -9,8 +9,8 @@ import (
 )
 
 // newQueryCmd is the raw-GraphQL escape hatch — READ-ONLY in v1. The curated
-// money-movement verbs (refund/void/reverse) exist so the design-318 approval
-// gate can reason over structured action facts before funds move; an
+// money-movement verbs (refund/void/reverse) exist so a host policy gate can reason
+// over structured action facts before funds move; an
 // unrestricted passthrough would re-admit refundTransaction / reverseTransaction
 // under a benign-looking `query` command, bypassing that gate. So this verb
 // parses the supplied document and REJECTS it locally if ANY top-level
@@ -54,7 +54,7 @@ func (s *Service) newQueryCmd(cl *client) *cobra.Command {
 // mutation operation — not just when the first token is `mutation`.
 //
 // This is a money-movement safety boundary: the curated refund/void/reverse
-// verbs route through the design-318 approval gate, and this read-only
+// verbs route through the host policy gate, and this read-only
 // passthrough must never become an un-gated write channel. A single valid
 // document may legally lead with fragment definitions (or comments) before the
 // operation — e.g. `fragment F on Transaction { id } mutation M {

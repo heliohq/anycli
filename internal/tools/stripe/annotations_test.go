@@ -9,8 +9,8 @@ import (
 
 // TestSideEffectAnnotations pins the anycli.side_effect fact on every runnable
 // leaf: mutations (create/update/cancel/finalize/send) are "true", reads are
-// "false". The approval gate (design 318) reads this fact, so a drift here
-// silently mis-gates a Stripe mutation — this test fails the build instead.
+// "false". A host policy layer reads this fact, so a drift here silently
+// mis-gates a Stripe mutation — this test fails the build instead.
 func TestSideEffectAnnotations(t *testing.T) {
 	want := map[string]string{
 		"stripe balance get":          "false",

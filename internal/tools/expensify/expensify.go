@@ -149,6 +149,6 @@ func (s *Service) stderr() io.Writer {
 }
 
 // NewCommandTree returns the full command tree built with empty credentials for
-// dry-run parsing and traversal (tools.Service seam, design 318). The credential
+// dry-run parsing and traversal (tools.Service seam). The credential
 // pair is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot(credentials{}) }

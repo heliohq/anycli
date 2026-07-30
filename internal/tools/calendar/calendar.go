@@ -4,7 +4,7 @@
 // and time-window flags pass native API values (q, timeMin/timeMax RFC3339,
 // RFC 5545 RRULE) through verbatim. A 401/403 very often means the token lacks
 // a scope the user never granted — those errors carry an explicit reconnect
-// hint. Destructive gradient (design 303): reaching an attendee is gated by a
+// hint. Destructive gradient: reaching an attendee is gated by a
 // skill-level confirmation soft-guardrail, not by the tool; the tool only
 // exposes safe verbs and sane defaults.
 package calendar
@@ -148,6 +148,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

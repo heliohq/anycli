@@ -110,7 +110,7 @@ func TestSpacesEndConference(t *testing.T) {
 }
 
 // TestValueValidatorsAreStrictLowercase pins the fail-closed contract for
-// value-conditioned policy (design 318 §equals audit rule): non-canonical
+// value-conditioned policy : non-canonical
 // spellings fail at command validation instead of executing while bypassing
 // an equals condition on the literal argv value.
 func TestValueValidatorsAreStrictLowercase(t *testing.T) {

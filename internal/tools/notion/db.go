@@ -14,7 +14,7 @@ import (
 // container. --properties is a data-source schema object that the CLI wraps
 // into initial_data_source.properties — the 2026-03-11 data model no longer
 // accepts a top-level `properties` field, and this is an intentional divergence
-// from the MCP SQL-DDL `schema` param (design 304 §db/data-source). Output JSON.
+// from the MCP SQL-DDL `schema` param. Output JSON.
 func (s *Service) newDBCreateCmd(token string) *cobra.Command {
 	var parent, title, propertiesFlag string
 	cmd := &cobra.Command{

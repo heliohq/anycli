@@ -33,7 +33,7 @@ const DefaultBaseURL = "https://api.typefully.com/v2"
 // user-scoped bearer tokens created in Settings -> API.
 const EnvAPIKey = "TYPEFULLY_API_KEY"
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaves: "false" for side-effect-free reads (GET), "true" for
 // provider-state mutations (POST/PATCH/PUT/DELETE).
 var (
@@ -97,7 +97,8 @@ func hasJSONArg(args []string) bool {
 }
 
 // renderError writes err to stderr. Under --json the shape is
-// {"error":{"message":…,"kind":"usage|api|permission|rate_limit","status":<HTTP or omitted>}}.
+// {"error":{"message":…,"kind":"usage|api|permission|rate_limit","status":<HTTP
+// or omitted>}}.
 func (s *Service) renderError(jsonMode bool, err error) {
 	if !jsonMode {
 		fmt.Fprintln(s.stderr(), err)

@@ -23,7 +23,7 @@ type entitySpec struct {
 }
 
 // entities is the fixed set of accounting resources the tool exposes, chosen by
-// teammate task frequency (design §1). Reads run through the shared `query`
+// teammate task frequency. Reads run through the shared `query`
 // grammar; get-by-id and create/send are the named verbs.
 var entities = []entitySpec{
 	{command: "customer", queryName: "Customer", canCreate: true},
@@ -69,7 +69,7 @@ func (c *client) newCompanyCmd() *cobra.Command {
 }
 
 // newQueryCmd builds `query --sql "<QBO SQL>"` → GET /query?query=<sql>. This
-// is the read workhorse: one verb covers most read intents (design §1).
+// is the read workhorse: one verb covers most read intents.
 func (c *client) newQueryCmd() *cobra.Command {
 	var sql string
 	cmd := &cobra.Command{
@@ -158,8 +158,8 @@ func (c *client) newEntityCmd(spec entitySpec) *cobra.Command {
 }
 
 // newEntityListCmd builds `<entity> list` as a thin wrapper over the query
-// grammar: SELECT * FROM <Entity> [WHERE ..] [STARTPOSITION n] [MAXRESULTS n].
-// QBO paginates inside the query language, not via header links (design §2).
+// grammar: SELECT * FROM <Entity> [WHERE..] [STARTPOSITION n] [MAXRESULTS n].
+// QBO paginates inside the query language, not via header links.
 func (c *client) newEntityListCmd(spec entitySpec) *cobra.Command {
 	var where string
 	var maxResults, startPosition int
@@ -219,7 +219,7 @@ func (c *client) newEntityGetCmd(spec entitySpec) *cobra.Command {
 
 // newEntityCreateCmd builds `<entity> create --json-body <json>` → POST
 // /<entity>. QBO models create and update as full/sparse upserts on the same
-// POST, so the caller supplies the raw QBO entity JSON (design §2).
+// POST, so the caller supplies the raw QBO entity JSON.
 func (c *client) newEntityCreateCmd(spec entitySpec) *cobra.Command {
 	var jsonBody string
 	cmd := &cobra.Command{

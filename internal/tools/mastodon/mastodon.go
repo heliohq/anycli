@@ -120,7 +120,8 @@ func hasJSONArg(args []string) bool {
 }
 
 // renderError writes err to stderr. Under --json the shape is
-// {"error":{"code":…,"message":…,"status":<HTTP, omitted when 0>,"provider_error":…}}.
+// {"error":{"code":…,"message":…,"status":<HTTP, omitted when
+// 0>,"provider_error":…}}.
 func (s *Service) renderError(jsonMode bool, err error) {
 	if !jsonMode {
 		fmt.Fprintln(s.stderr(), err)
@@ -231,7 +232,7 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty credential
-// for dry-run parsing and traversal (tools.Service seam, design 318). The
+// for dry-run parsing and traversal (tools.Service seam). The
 // credential is only captured by RunE closures, which are never run on this
 // tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("", "") }

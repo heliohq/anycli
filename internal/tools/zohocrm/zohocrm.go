@@ -34,7 +34,7 @@ const apiPrefix = "/crm/v8"
 // (definitions/tools/zoho-crm.json).
 const EnvToken = "ZOHO_CRM_ACCESS_TOKEN"
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaves: "false" for side-effect-free reads (list/get/search and the
 // COQL select query), "true" for provider-state mutations (create/update/
 // delete/add).

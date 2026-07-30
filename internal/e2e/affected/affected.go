@@ -2,7 +2,7 @@
 // There is no checked-in manifest: definition filename == tool name
 // (enforced by definitions.ListBundled) and service package dir == tool
 // name with dashes stripped (enforced by a lint test here). The package is
-// `main` (together with main.go) so `go run ./internal/e2e/affected` works.
+// `main` (together with main.go) so `go run./internal/e2e/affected` works.
 package main
 
 import (

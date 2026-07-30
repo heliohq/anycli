@@ -135,7 +135,7 @@ type perIDOutcome struct {
 }
 
 // applyPerID runs op against each id serially, reporting per-id outcomes and
-// continuing past failures (design 303: "failed ids reported one by one"). It
+// continuing past failures ("failed ids reported one by one"). It
 // returns a non-nil error when any id failed so the exit code is non-zero, and
 // preserves credential rejection when the provider rejected the token.
 func (s *Service) applyPerID(cmd *cobra.Command, ids []string, past string, op func(context.Context, string) error) error {

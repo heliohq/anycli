@@ -17,7 +17,7 @@ func (s *Service) newResponsesListCmd(token string) *cobra.Command {
 		Use:   "list <form-id>",
 		Short: "List responses (forms.responses.list). --filter passes the API's native 'timestamp > / >= <RFC3339>' syntax verbatim",
 		Args:  cobra.ExactArgs(1),
-		// GET /forms/{id}/responses — read-only (design 318).
+		// GET /forms/{id}/responses — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			formID, err := extractFormID(args[0])
@@ -76,7 +76,7 @@ func (s *Service) newResponsesGetCmd(token string) *cobra.Command {
 		Use:   "get <form-id> <response-id>",
 		Short: "Show a single response with its answers (forms.responses.get)",
 		Args:  cobra.ExactArgs(2),
-		// GET /forms/{id}/responses/{id} — read-only (design 318).
+		// GET /forms/{id}/responses/{id} — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			formID, err := extractFormID(args[0])

@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// simpleUploadMaxBytes is the size ceiling for a single PUT ...:/content
+// simpleUploadMaxBytes is the size ceiling for a single PUT...:/content
 // upload; larger files switch to a chunked upload session. Graph's own
 // guidance is <4MB for the simple path.
 const simpleUploadMaxBytes = 4 << 20
@@ -145,7 +145,7 @@ func (s *Service) newUploadCmd(token string) *cobra.Command {
 	return cmd
 }
 
-// uploadSimple PUTs the whole file to ...:/content in one request.
+// uploadSimple PUTs the whole file to...:/content in one request.
 func (s *Service) uploadSimple(ctx context.Context, token, resource string, data []byte) ([]byte, error) {
 	path := resource + "/content"
 	endpoint := s.base() + path

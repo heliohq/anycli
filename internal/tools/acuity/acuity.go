@@ -27,7 +27,7 @@ const DefaultBaseURL = "https://acuityscheduling.com/api/v1"
 // have no refresh grant.
 const EnvAccessToken = "ACUITY_ACCESS_TOKEN"
 
-// readOnly / writeAction carry the design-318 side-effect annotation on runnable
+// readOnly / writeAction carry the side-effect annotation on runnable
 // leaf commands: "false" for side-effect-free reads (GET), "true" for writes
 // that mutate provider state (POST/PUT/DELETE and semantic writes).
 var (

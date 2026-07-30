@@ -19,7 +19,7 @@ func (s *Service) newSitemapsCmd(token string) *cobra.Command {
 	return g
 }
 
-// sitemapPath builds the escaped .../sites/{site}/sitemaps[/{feed}] path.
+// sitemapPath builds the escaped.../sites/{site}/sitemaps[/{feed}] path.
 func (s *Service) sitemapPath(site, feed string) string {
 	p := s.base() + "/sites/" + escapePathSegment(site) + "/sitemaps"
 	if feed != "" {

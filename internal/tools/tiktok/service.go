@@ -52,7 +52,7 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	return execution.Result{}, nil
 }
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for reads (creator info, user info, video
 // list/query, post status), "true" for publishing a video (mutates state).
 var (

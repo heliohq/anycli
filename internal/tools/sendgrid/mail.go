@@ -17,7 +17,7 @@ func (s *Service) newMailCmd(token string, region *string) *cobra.Command {
 // ergonomic flags (--to/--from/--subject/--text/--html or --template-id +
 // --data), and --json is an escape hatch carrying a full v3 Mail Send body.
 //
-// Quirk (DESIGN §2): a successful send returns 202 Accepted with an EMPTY body
+// Quirk: a successful send returns 202 Accepted with an EMPTY body
 // and the tracking id in the X-Message-Id response header. This handler treats
 // 202 as success (never decodes the empty body) and emits a synthetic
 // acceptance object. 202 is API-layer acceptance, not delivery.

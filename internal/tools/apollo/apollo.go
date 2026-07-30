@@ -7,11 +7,11 @@
 // errors are non-2xx with a JSON body carrying an "error"/"errors" message;
 // 401 rejects the credential. Every command emits the provider JSON on stdout
 // verbatim (passthrough + newline) — matching the notion/bitly convention so
-// an agent sees the same output shape across every heliox tool.
+// an agent sees the same output shape across every tool.
 //
 // A subset of Apollo endpoints (people search, sequence add/remove, deal
 // list/update) are documented as master-API-key-only and return 403 to an
-// OAuth token. They are shipped as subcommands regardless; the L2 harness pass
+// OAuth token. They are shipped as subcommands regardless; the live-API dev harness pass
 // determines which are OAuth-reachable and drops any that provably are not
 // (fail-fast, no silent API-key fallback).
 package apollo
@@ -29,7 +29,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly / writeAction carry the design-318 side-effect annotation for leaf
+// readOnly / writeAction carry the side-effect annotation for leaf
 // commands. Apollo mixes reads (search/enrich/list/get — including POST search
 // and enrichment endpoints that only return data) with writes (create/update
 // CRM records, sequence enroll/stop). Enrichment consumes credits but does not

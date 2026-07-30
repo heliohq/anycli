@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly marks a leaf command as side-effect-free for the design-318 approval
-// gate. Every v1 command is a Management GET, so all leaves carry it.
+// readOnly marks a leaf command as side-effect-free for host policy.
+// Every v1 command is a Management GET, so all leaves carry it.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 
 // pageFlags holds the shared Management pagination window. Adyen list endpoints

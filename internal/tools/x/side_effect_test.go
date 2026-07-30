@@ -10,7 +10,7 @@ import (
 const sideEffectAnnotation = "anycli.side_effect"
 
 // TestSideEffectAnnotationValues pins the anycli.side_effect fact of every
-// runnable leaf command per the design-318 may-mutate criterion: true iff the
+// runnable leaf command per the may-mutate criterion: true iff the
 // command can issue a non-GET provider API call under some input.
 func TestSideEffectAnnotationValues(t *testing.T) {
 	cases := []struct {
@@ -91,7 +91,7 @@ func TestSideEffectAnnotationValues(t *testing.T) {
 	})
 }
 
-// TestSideEffectAnnotationHygiene enforces the design-318 annotation contract
+// TestSideEffectAnnotationHygiene enforces the side-effect annotation contract
 // on the x tree: every runnable leaf carries an explicit "true"/"false"
 // annotation, and no group command carries one.
 func TestSideEffectAnnotationHygiene(t *testing.T) {

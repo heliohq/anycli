@@ -388,7 +388,7 @@ func TestUnknownSubcommandExit2(t *testing.T) {
 	}
 }
 
-// TestNewCommandTreeTraversable proves the design-318 seam builds without a
+// TestNewCommandTreeTraversable proves the seam builds without a
 // token (used by Inspect/lint), covering every group.
 func TestNewCommandTreeTraversable(t *testing.T) {
 	root := (&Service{}).NewCommandTree()

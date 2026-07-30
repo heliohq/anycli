@@ -158,7 +158,7 @@ func (s *Service) newPageCreateCmd(token string) *cobra.Command {
 			// string, but REST POST /v1/pages expects markdown text in the
 			// `markdown` field — its `content`/`children` are block-object arrays.
 			// Map a string `content` to `markdown` so MCP-verbatim input is not
-			// rejected as malformed blocks (design 304 §page create). A non-string
+			// rejected as malformed blocks. A non-string
 			// `content` (an explicit block array) is left untouched.
 			if c, ok := page["content"].(string); ok {
 				page["markdown"] = c
@@ -197,7 +197,7 @@ func (s *Service) newPageCreateCmd(token string) *cobra.Command {
 
 // newPageUpdateCmd is the canonical `page update <page-id>`: content op (via
 // --command) and/or a properties-only change. The flag matrix is validated
-// fail-fast (design 304 §④) before any request.
+// fail-fast before any request.
 func (s *Service) newPageUpdateCmd(token string) *cobra.Command {
 	var command, newStr, content, contentUpdatesFlag, position, at, propertiesFlag, icon, cover string
 	cmd := &cobra.Command{
@@ -391,7 +391,7 @@ func (s *Service) patchPageProps(ctx context.Context, token string, u pageUpdate
 // properties-only update or an async result). When the mutation already
 // succeeded (bestEffort), a failed confirmation read is non-fatal: the write
 // stands, so the read failure is noted on stderr and nil is returned rather
-// than turning a successful mutation into an exit-1 failure (design 304).
+// than turning a successful mutation into an exit-1 failure.
 func (s *Service) emitPageMarkdown(ctx context.Context, token, id string, contentBody []byte, bestEffort bool) error {
 	if len(contentBody) > 0 {
 		var pm pageMarkdown
@@ -426,7 +426,7 @@ func partialUpdateError(err error) error {
 	}
 }
 
-// validateUpdateFlags enforces the design-304 §④ --command × flags matrix for
+// validateUpdateFlags enforces the --command × flags matrix for
 // the canonical `page update` (aliases pin a command and cannot mis-combine).
 func validateUpdateFlags(cmd *cobra.Command, command string) error {
 	ch := func(n string) bool { return cmd.Flags().Changed(n) }
@@ -534,7 +534,7 @@ func (s *Service) newPageEditCmd(token string) *cobra.Command {
 			return err
 		}
 		// update_content has no single-content input, so --file does not apply;
-		// reject it rather than silently ignoring a supplied flag (§④ matrix).
+		// reject it rather than silently ignoring a supplied flag.
 		if cmd.Flags().Changed("file") {
 			return &usageError{msg: "--file is not allowed with page edit (update_content takes --old/--new, not single-content input)"}
 		}
@@ -576,8 +576,8 @@ func (s *Service) newPageInsertCmd(token string) *cobra.Command {
 		if !cmd.Flags().Changed("content") && !cmd.Flags().Changed("file") {
 			return &usageError{msg: "page insert requires --content or --file"}
 		}
-		// insert_content does not accept allow_deleting_content (§④ matrix,
-		// endpoint constraint); reject it rather than silently dropping it.
+		// insert_content does not accept allow_deleting_content (endpoint
+		// constraint); reject it rather than silently dropping it.
 		if cmd.Flags().Changed("allow-deleting-content") {
 			return &usageError{msg: "--allow-deleting-content is not allowed with page insert (insert_content does not accept it)"}
 		}
@@ -615,8 +615,8 @@ func (s *Service) newPageAppendCmd(token string) *cobra.Command {
 		if !cmd.Flags().Changed("content") && !cmd.Flags().Changed("file") {
 			return &usageError{msg: "page append requires --content or --file"}
 		}
-		// insert_content does not accept allow_deleting_content (§④ matrix,
-		// endpoint constraint); reject it rather than silently dropping it.
+		// insert_content does not accept allow_deleting_content (endpoint
+		// constraint); reject it rather than silently dropping it.
 		if cmd.Flags().Changed("allow-deleting-content") {
 			return &usageError{msg: "--allow-deleting-content is not allowed with page append (insert_content does not accept it)"}
 		}

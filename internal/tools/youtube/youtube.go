@@ -38,7 +38,7 @@ const EnvAccessToken = "YOUTUBE_ACCESS_TOKEN"
 // lacks a scope the user never granted on connect.
 const scopeHint = " (possibly missing scope — reconnect and grant access)"
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaves: "false" for side-effect-free reads (GET/list/get/search),
 // "true" for provider-state mutations (create/update/delete/rate/add/reply/
 // moderate).

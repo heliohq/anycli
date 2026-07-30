@@ -79,8 +79,8 @@ func countListedLeaves(out string) int {
 	return n
 }
 
-// TestRenderToolHelpSurfacesNestedLeaves is the incident regression from
-// design 335: `x --help` used to advertise the noun "post" and hide the 36
+// TestRenderToolHelpSurfacesNestedLeaves is the incident regression: `x
+// --help` used to advertise the noun "post" and hide the 36
 // commands beneath it, so two agents concluded the X integration had no
 // search. The flattened face must name the callable commands.
 func TestRenderToolHelpSurfacesNestedLeaves(t *testing.T) {
@@ -153,7 +153,7 @@ func TestRenderToolHelpExcludesCobraInjectedCommands(t *testing.T) {
 }
 
 // TestRenderToolHelpExcludesHiddenLeaves keeps the ops/onboarding surface off
-// the AI-callable face (design 335 D2).
+// the AI-callable face.
 func TestRenderToolHelpExcludesHiddenLeaves(t *testing.T) {
 	root := &cobra.Command{Use: "probe", Short: "Probe"}
 	visible := &cobra.Command{Use: "list", Short: "List things", RunE: func(*cobra.Command, []string) error { return nil }}

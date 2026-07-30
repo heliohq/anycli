@@ -26,7 +26,7 @@ const DefaultBaseURL = "https://api.outreach.io/api/v2"
 // EnvToken is the env var the credential binding injects (definitions/tools/outreach.json).
 const EnvToken = "OUTREACH_ACCESS_TOKEN"
 
-// readOnly and writeAction are the design-318 side-effect annotations applied to
+// readOnly and writeAction are the side-effect annotations applied to
 // every runnable leaf command: "false" for read-only reads, "true" for calls
 // that mutate provider state.
 var (

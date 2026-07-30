@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for reads (GET / search lookups), "true" for
 // provider-state mutations (send / upsert).
 var (
@@ -33,7 +33,7 @@ const DefaultBaseURL = "https://api.sendgrid.com/v3"
 
 // EUBaseURL is the SendGrid v3 API base for the EU data-residency region. A
 // key bound to an EU subuser must call this host; calling the global host
-// routes data globally (see DESIGN §1 host divergence).
+// routes data globally (host divergence).
 const EUBaseURL = "https://api.eu.sendgrid.com/v3"
 
 // EnvAPIKey is the env var the credential binding injects

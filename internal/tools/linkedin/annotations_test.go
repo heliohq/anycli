@@ -8,7 +8,7 @@ import (
 )
 
 // TestSideEffectAnnotations pins the anycli.side_effect fact on every runnable
-// leaf of the command tree (design 318 may-mutate criterion) and asserts group
+// leaf of the command tree (may-mutate criterion) and asserts group
 // commands carry no annotation.
 func TestSideEffectAnnotations(t *testing.T) {
 	want := map[string]string{

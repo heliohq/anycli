@@ -31,7 +31,7 @@ const DefaultBaseURL = "https://platform.hootsuite.com/v1"
 // (~1h) OAuth 2.0 bearer tokens refreshed by the Helio token gateway.
 const EnvAccessToken = "HOOTSUITE_ACCESS_TOKEN"
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for state-free reads, "true" for provider
 // mutations. Group commands must not carry either.
 var (

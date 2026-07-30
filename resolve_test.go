@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-// These tests pin the exported warm surface (design: heliox `tool warm`
-// consumes WarmEligibleTools + ResolveToolBinary through a plain go.mod bump
+// These tests pin the exported warm surface (a host consumes
+// WarmEligibleTools + ResolveToolBinary through a plain go.mod bump
 // — no internal packages, no re-derivation of eligibility on the host side).
 
 func TestWarmEligibleToolsIsExactlyGithub(t *testing.T) {

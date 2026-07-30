@@ -30,7 +30,7 @@ import (
 )
 
 // Env vars the credential binding injects (definitions/tools/zuora.json). The
-// secret is stored under the field name `api_secret` (integration-service
+// secret is stored under the field name `api_secret` (the host credential store
 // denylists `client_secret`) but its inject env var is the semantically correct
 // ZUORA_CLIENT_SECRET.
 const (
@@ -118,7 +118,8 @@ func hasJSONArg(args []string) bool {
 }
 
 // renderError writes err to stderr. Under --json the shape is
-// {"error":{"message":…,"kind":"usage|api","status":<HTTP or omitted>,"code":<Zuora code or omitted>}}.
+// {"error":{"message":…,"kind":"usage|api","status":<HTTP or
+// omitted>,"code":<Zuora code or omitted>}}.
 func (s *Service) renderError(jsonMode bool, err error) {
 	if !jsonMode {
 		fmt.Fprintln(s.stderr(), err)
@@ -219,7 +220,7 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with empty credentials for
-// dry-run parsing and traversal (tools.Service seam, design 318). Credentials
+// dry-run parsing and traversal (tools.Service seam). Credentials
 // are only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command {
 	return s.newRoot(&client{})

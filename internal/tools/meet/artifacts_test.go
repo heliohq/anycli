@@ -46,7 +46,7 @@ func TestTranscriptsList_Empty(t *testing.T) {
 	})
 	stdout := f.runOK(t, "transcripts", "list", "r1")
 	if !strings.Contains(stdout, "no transcripts") {
-		t.Errorf("human output = %q, want the empty notice (edition/未开转录 is not an error)", stdout)
+		t.Errorf("human output = %q, want the empty notice (edition, or transcription never enabled, is not an error)", stdout)
 	}
 }
 

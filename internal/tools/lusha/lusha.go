@@ -33,8 +33,8 @@ const EnvAPIKey = "LUSHA_API_KEY"
 // apiKeyHeader is Lusha's custom auth header name (not Authorization: Bearer).
 const apiKeyHeader = "api_key"
 
-// readOnly marks a leaf command as side-effect-free for the design-318 approval
-// gate. Every Lusha verb (account usage, contact/company enrich·search·reveal)
+// readOnly marks a leaf command as side-effect-free for host policy.
+// Every Lusha verb (account usage, contact/company enrich·search·reveal)
 // only retrieves or enriches data, so all leaves carry it.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 

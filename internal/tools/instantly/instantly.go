@@ -31,7 +31,7 @@ const DefaultBaseURL = "https://api.instantly.ai/api/v2"
 // workspace-scoped bearer tokens.
 const EnvAPIKey = "INSTANTLY_API_KEY"
 
-// design-318 side_effect annotation maps shared by every runnable leaf.
+// side_effect annotation maps shared by every runnable leaf.
 var (
 	readOnly    = map[string]string{"anycli.side_effect": "false"}
 	writeAction = map[string]string{"anycli.side_effect": "true"}

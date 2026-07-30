@@ -1,7 +1,7 @@
 // Package tasks is the built-in Google Tasks service: a non-interactive cobra
 // tree projecting the Tasks API v1 resource namespaces — tasklists (`lists
 // ...`) and tasks (top-level verbs) — plus the synthetic complete / reopen
-// verbs (design 303 §Google Tasks). The API has no query language, so there is
+// verbs. The API has no query language, so there is
 // no text-search flag: the filter surface is exactly the date-window and
 // boolean toggles the API exposes. A 401/403 very often means the token lacks a
 // scope the user never granted — those errors carry an explicit reconnect hint.
@@ -150,6 +150,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

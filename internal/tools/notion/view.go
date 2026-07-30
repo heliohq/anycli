@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// viewTypes is the closed --type enum for `view create` (design 304 §view).
+// viewTypes is the closed --type enum for `view create` .
 // This set is distinct from fetch/search --type and gets its own validator.
 var viewTypes = []string{
 	"table", "board", "list", "calendar", "timeline",

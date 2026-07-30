@@ -9,7 +9,7 @@
 //
 // Sage fails with a non-2xx status and a JSON body carrying the error detail;
 // every call surfaces both. OAuth (authorize, refresh, rotating refresh token)
-// lives entirely on the Helio side — this service only receives a ready access
+// lives entirely on the host side — this service only receives a ready access
 // token in SAGE_ACCESS_TOKEN.
 package sage
 
@@ -217,6 +217,6 @@ func newGroupCmd(use, short string) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token is
+// dry-run parsing and traversal (tools.Service seam). The token is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

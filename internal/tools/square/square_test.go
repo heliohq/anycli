@@ -146,7 +146,7 @@ func TestMissingTokenExit1(t *testing.T) {
 }
 
 // TestBaseURLFromEnv proves SQUARE_BASE_URL overrides the host when BaseURL is
-// unset on the struct (the L2 sandbox path).
+// unset on the struct (the sandbox path).
 func TestBaseURLFromEnv(t *testing.T) {
 	var got capturedRequest
 	srv := newServer(t, http.StatusOK, `{"locations":[]}`, &got)

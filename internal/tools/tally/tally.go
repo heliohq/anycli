@@ -108,7 +108,7 @@ func (s *Service) renderError(jsonMode bool, err error) {
 	fmt.Fprintln(s.stderr(), string(b))
 }
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for reads (list/get/questions/analytics/me),
 // "true" for provider-state mutations (form + webhook create/update/delete).
 var (

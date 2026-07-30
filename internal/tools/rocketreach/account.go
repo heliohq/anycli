@@ -9,7 +9,7 @@ import (
 // newAccountCmd is `account` (GET /api/v2/account/): retrieve the authenticated
 // account, including the credit_usage[] balance. Cheap and non-consuming — the
 // agent calls it to check budget before spending credits on lookups. Also the
-// connect-time verify endpoint on the Helio side.
+// connect-time verify endpoint on the host side.
 func (s *Service) newAccountCmd(key string) *cobra.Command {
 	return &cobra.Command{
 		Use:         "account",

@@ -4,8 +4,8 @@
 // is never invoked, no network call is made, and no credential is touched.
 //
 // This is the single seam for "what would cobra do with these args", shared by
-// the design-318 action-fact inspector (anycli.Inspect) and the design-335
-// help short-circuit in internal/exec. Both need the same question answered —
+// the action-fact inspector (anycli.Inspect) and the help short-circuit in
+// internal/exec. Both need the same question answered —
 // most sharply "did cobra consume a built-in -h/--help?" — and the only
 // correct answer comes from cobra's own parse. Scanning argv for the string
 // "--help" is wrong in both directions: it misses `post search --help` (a help

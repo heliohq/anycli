@@ -26,7 +26,7 @@ const (
 	// EnvRealmID is the company id (realmId) captured at connect time; it is
 	// required in every company-scoped URL.
 	EnvRealmID = "QUICKBOOKS_REALM_ID"
-	// EnvEnvironment optionally selects the sandbox host for the L2 dev
+	// EnvEnvironment optionally selects the sandbox host for the live-API dev
 	// harness; absent/"production" means the live API. It is NOT a credential
 	// (there is no Helio credential source for it), so it is read from the
 	// process environment rather than the resolver-supplied credential map:
@@ -106,7 +106,7 @@ func hasJSONArg(args []string) bool {
 
 // renderError writes err to stderr. Under --json the shape is
 // {"error":{"message":…,"kind":"usage|api","status":<HTTP>,"fault":[…]}}; the
-// fault array passes QBO's code/message/detail through (design §2).
+// fault array passes QBO's code/message/detail through.
 func (s *Service) renderError(jsonMode bool, err error) {
 	if !jsonMode {
 		fmt.Fprintln(s.stderr(), err)
@@ -166,7 +166,7 @@ func (s *Service) newRoot(cl *client) *cobra.Command {
 }
 
 // NewCommandTree returns the full command tree built with an empty client for
-// dry-run parsing and traversal (tools.Service seam, design 318). Credentials
+// dry-run parsing and traversal (tools.Service seam). Credentials
 // are only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command {
 	return s.newRoot(&client{out: s.stdout(), err: s.stderr()})

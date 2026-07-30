@@ -6,7 +6,7 @@
 // "Authorization: Bearer <jwt>" on every data request, re-minting once on a
 // 401. The credential is injected as a single combined secret
 // LATER_CREDENTIALS="<clientId>:<clientSecret>" (first-colon split) because the
-// Helio manual-credential storage face is a single secret (design 317 D5).
+// Helio manual-credential storage face is a single secret.
 //
 // This wraps ONLY the reporting surface. Later's social-scheduling product has
 // no public API, so this tool cannot schedule or publish — it reads campaign
@@ -34,7 +34,7 @@ const DefaultBaseURL = "https://reporting.api.later.com"
 // colon (a clientId never contains one, the secret may).
 const EnvCredentials = "LATER_CREDENTIALS"
 
-// design-318 side_effect annotation map shared by every runnable leaf. Every
+// side_effect annotation map shared by every runnable leaf. Every
 // later command is a reporting GET, so all leaves are read-only.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 

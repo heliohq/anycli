@@ -2,7 +2,7 @@
 
 **An embeddable Go core for running authenticated CLI/API tools with injected credentials.**
 
-AnyCLI is a library, not a standalone CLI. A host program (e.g. Helio's `heliox`) embeds it in-process, supplies a `CredentialResolver` for its own credential sources, and calls `Execute`. AnyCLI loads the matching embedded tool definition, resolves and injects credentials (env var / CLI flag / ephemeral config file), runs before/after middleware, and execs the underlying binary or built-in service.
+AnyCLI is a library, not a standalone CLI. A host program embeds it in-process, supplies a `CredentialResolver` for its own credential sources, and calls `Execute`. AnyCLI loads the matching embedded tool definition, resolves and injects credentials (env var / CLI flag / ephemeral config file), runs before/after middleware, and execs the underlying binary or built-in service.
 
 The supported tools and their definitions live **inside** AnyCLI (embedded JSON). The embedder never supplies tool definitions — only a credential resolver and an optional cache.
 
@@ -54,7 +54,7 @@ type CredentialResolver interface {
 }
 
 type Credential struct {
-    Data       map[string]string // credential fields; bindings index into it by field name
+    Data map[string]string // credential fields; bindings index into it by field name
     CacheUntil time.Time      // when this credential goes stale (drives the cache)
 }
 ```
@@ -110,8 +110,7 @@ inside the tool. `--query` passes native Gmail search syntax through verbatim;
 `messages modify` batches multiple ids via `batchModify`; send/reply support
 `--body`/`--body-file`, `--html`, and repeated `--attach` (multipart MIME up
 to 25MB). Every command supports `--json`; list commands page with `--max` and
-`--page-token`. It replaces the retired `google` tool (per-app split, Helio
-design 303).
+`--page-token`. It replaces the retired `google` tool (per-app split).
 
 The `x` service supports OAuth 2.0 user-context identity and user lookup,
 recent post search, timelines, post/reply/thread/repost management, simple

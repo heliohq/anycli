@@ -20,7 +20,7 @@ func (s *Service) newContactCmd(token string, region *string) *cobra.Command {
 // newContactUpsertCmd wraps PUT /v3/marketing/contacts. The call is asynchronous
 // and eventually consistent: it returns 202 with a JSON {job_id}; the contacts
 // are queued, not yet stored. This surfaces the job_id verbatim — confirm with
-// `contact search` (no silent "created" claim, DESIGN §2).
+// `contact search` (no silent "created" claim).
 func (s *Service) newContactUpsertCmd(token string, region *string) *cobra.Command {
 	var email, firstName, lastName, fullJSON string
 	var customFields []string

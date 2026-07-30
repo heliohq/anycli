@@ -16,7 +16,7 @@
 // (verified), so Helio cannot yet capture the orgname to supply it — a
 // credential wiring it is deferred until that capture capability lands. Until
 // then the tool runs on the generic host (correct for default-pod orgs), and
-// L2/operator runs may set KUSTOMER_ORG_NAME directly to exercise pod routing.
+// operator runs may set KUSTOMER_ORG_NAME directly to exercise pod routing.
 package kustomer
 
 import (
@@ -47,7 +47,7 @@ const EnvToken = "KUSTOMER_API_TOKEN"
 
 // EnvOrgName is the env var carrying the org subdomain for pod routing.
 // Optional: absent selects DefaultBaseURL (the generic host). No Helio
-// credential wires it yet (see the package doc); it is an operator/L2 seam.
+// credential wires it yet (see the package doc); it is an operator seam.
 const EnvOrgName = "KUSTOMER_ORG_NAME"
 
 // resolveBaseURL builds the API base from the org subdomain. An empty orgName
@@ -61,7 +61,7 @@ func resolveBaseURL(orgName string) string {
 	return "https://" + orgName + apiHostSuffix
 }
 
-// design-318 side_effect annotation maps shared by every runnable leaf.
+// side_effect annotation maps shared by every runnable leaf.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 var writeAction = map[string]string{"anycli.side_effect": "true"}
 

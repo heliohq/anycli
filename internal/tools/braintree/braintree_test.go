@@ -20,7 +20,7 @@ func lastReq(t *testing.T, fs *fakeServer) capturedRequest {
 	return fs.reqs[len(fs.reqs)-1]
 }
 
-// assertCommonHeaders covers DESIGN §5 L1 (a)/(b): Basic auth header,
+// assertCommonHeaders covers (a)/(b): Basic auth header,
 // Braintree-Version, Content-Type, and POST method.
 func assertCommonHeaders(t *testing.T, req capturedRequest) {
 	t.Helper()
@@ -50,7 +50,7 @@ func TestPingSuccess(t *testing.T) {
 	}
 }
 
-// TestResolveBaseURL covers L1 (c): the host is selected by
+// TestResolveBaseURL covers (c): the host is selected by
 // BRAINTREE_ENVIRONMENT, and any other value is rejected locally.
 func TestResolveBaseURL(t *testing.T) {
 	cases := []struct {
@@ -112,7 +112,7 @@ func TestMissingCredentials(t *testing.T) {
 	}
 }
 
-// TestTransactionSearchFlatten covers L1 (f): edges[].node → items + page_info.
+// TestTransactionSearchFlatten covers (f): edges[].node → items + page_info.
 func TestTransactionSearchFlatten(t *testing.T) {
 	body := `{"data":{"search":{"transactions":{
       "pageInfo":{"hasNextPage":true,"endCursor":"CURSOR2"},
@@ -142,7 +142,7 @@ func TestTransactionSearchFlatten(t *testing.T) {
 	}
 }
 
-// TestVoidAndReverseMapDistinctMutations covers L1 (d): `void` emits
+// TestVoidAndReverseMapDistinctMutations covers (d): `void` emits
 // voidTransaction and `reverse` emits reverseTransaction — never swapped.
 func TestVoidAndReverseMapDistinctMutations(t *testing.T) {
 	t.Run("void", func(t *testing.T) {
@@ -195,7 +195,7 @@ func TestRefundInputShape(t *testing.T) {
 	}
 }
 
-// TestGraphQLErrorsMapToExit1 covers L1 (e): a non-empty errors[] under HTTP
+// TestGraphQLErrorsMapToExit1 covers (e): a non-empty errors[] under HTTP
 // 200 becomes an apiError at exit 1, surfacing message + errorClass.
 func TestGraphQLErrorsMapToExit1(t *testing.T) {
 	body := `{"errors":[{"message":"Transaction cannot be voided in its current state","extensions":{"errorClass":"VALIDATION"}}]}`
@@ -221,7 +221,7 @@ func TestCredentialRejection(t *testing.T) {
 	}
 }
 
-// TestSecretsNeverPrinted covers L1 (g): neither the private nor public key
+// TestSecretsNeverPrinted covers (g): neither the private nor public key
 // appears in stdout or stderr, even on error.
 func TestSecretsNeverPrinted(t *testing.T) {
 	fs := newFakeServer(t, 200, `{"errors":[{"message":"boom"}]}`)
@@ -233,7 +233,7 @@ func TestSecretsNeverPrinted(t *testing.T) {
 	}
 }
 
-// TestQueryRejectsMutationLocally covers L1 (h): a mutation supplied to the
+// TestQueryRejectsMutationLocally covers (h): a mutation supplied to the
 // read-only `query` passthrough is rejected at exit 2 with NO HTTP request,
 // while a read query passes through.
 func TestQueryRejectsMutationLocally(t *testing.T) {

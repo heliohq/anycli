@@ -24,7 +24,7 @@ import (
 // DefaultBaseURL is the production Square Connect API host root (paths carry
 // their own /v2 prefix so the raw `api` escape hatch takes a full "/v2/..."
 // path). The sandbox host is https://connect.squareupsandbox.com — override via
-// BaseURL / the SQUARE_BASE_URL env for L2 harness runs against sandbox.
+// BaseURL / the SQUARE_BASE_URL env for live-API dev harness runs against sandbox.
 const DefaultBaseURL = "https://connect.squareup.com"
 
 // squareVersion pins the Square-Version header sent by every built-in call.
@@ -38,7 +38,7 @@ const squareVersion = "2026-07-15"
 // bearer token.
 const EnvAccessToken = "SQUARE_ACCESS_TOKEN"
 
-// EnvBaseURL optionally overrides the API host (e.g. the sandbox host for L2).
+// EnvBaseURL optionally overrides the API host (e.g. the sandbox host).
 const EnvBaseURL = "SQUARE_BASE_URL"
 
 // Service implements the built-in Square tool. It satisfies tools.Service by
@@ -230,6 +230,6 @@ func (s *Service) stderr() io.Writer {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token is
+// dry-run parsing and traversal (tools.Service seam). The token is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

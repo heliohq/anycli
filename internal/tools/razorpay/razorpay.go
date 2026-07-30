@@ -37,10 +37,10 @@ const DefaultBaseURL = "https://api.razorpay.com/v1"
 // EnvAccessToken is the env var the credential binding injects
 // (definitions/tools/razorpay.json). It carries the merchant's OAuth 2.0
 // access token (Razorpay access tokens expire every 90 days; refresh is owned
-// by integration-service, not this tool).
+// by the host credential store, not this tool).
 const EnvAccessToken = "RAZORPAY_ACCESS_TOKEN"
 
-// sideEffectAnnotation is the design-318 approval-gate annotation key. Every
+// sideEffectAnnotation is the host policy-gate annotation key. Every
 // runnable leaf in this tree is a read, so all carry the value "false".
 const sideEffectAnnotation = "anycli.side_effect"
 
@@ -187,6 +187,6 @@ func (s *Service) stderr() io.Writer {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token is
+// dry-run parsing and traversal (tools.Service seam). The token is
 // only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

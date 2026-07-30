@@ -30,7 +30,7 @@ import (
 // DefaultBaseURL is the production Paperform v1 API base.
 const DefaultBaseURL = "https://api.paperform.co/v1"
 
-// readOnly is the design-318 anycli.side_effect annotation for runnable leaf
+// readOnly is the anycli.side_effect annotation for runnable leaf
 // commands. The Paperform service is entirely read-only (every leaf issues a
 // GET), so all leaves carry this and no writeAction var exists.
 var readOnly = map[string]string{"anycli.side_effect": "false"}

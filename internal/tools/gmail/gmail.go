@@ -1,7 +1,7 @@
 // Package gmail is the built-in Gmail service: a non-interactive cobra tree
 // projecting the Gmail API v1 users.* resource namespaces (profile / messages
 // / threads / drafts / labels) plus the synthetic reply / forward verbs
-// (design 303). Search flags pass the native Gmail query syntax through
+// Search flags pass the native Gmail query syntax through
 // verbatim. A 401/403 very often means the token lacks a scope the user never
 // granted — those errors carry an explicit reconnect hint.
 package gmail
@@ -154,6 +154,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

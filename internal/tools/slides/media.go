@@ -10,7 +10,7 @@ import (
 
 // newImagesInsertCmd inserts an image from a public URL (Google fetches it, so
 // it must be publicly reachable: ≤50MB / ≤25MP / PNG·JPEG·GIF). Local files
-// need a Drive upload surface, which v1 does not have (design 303).
+// need a Drive upload surface, which v1 does not have.
 func (s *Service) newImagesInsertCmd(token string) *cobra.Command {
 	var slideID, imageURL, at, size string
 	cmd := &cobra.Command{

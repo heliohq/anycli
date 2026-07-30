@@ -175,7 +175,7 @@ func jsonOut(cmd *cobra.Command) bool {
 
 // extractPresentationID accepts either a bare presentation id or a full Slides
 // URL (https://docs.google.com/presentation/d/<id>/edit) and returns the id.
-// "User pastes the link" is the most natural input shape (design 303).
+// "User pastes the link" is the most natural input shape.
 func extractPresentationID(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if i := strings.Index(raw, "/d/"); i >= 0 {
@@ -196,6 +196,6 @@ func presentationURL(id string) string {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

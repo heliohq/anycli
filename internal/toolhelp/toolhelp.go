@@ -1,5 +1,5 @@
 // Package toolhelp renders the capability-discovery help face for a service
-// tool's in-process cobra command tree (design 335, D2/D3).
+// tool's in-process cobra command tree.
 //
 // cobra's default help lists a command's *direct children* only, so a tool
 // whose commands are grouped under nouns advertises the nouns and hides every
@@ -32,16 +32,16 @@ const helpHint = "Run `<leaf> --help` for its flags and their ranges."
 // child order (sorted by default).
 //
 // A leaf is a command with no subcommands that has a Run or RunE body. Three
-// things are excluded, per design 335 D2:
+// things are excluded:
 //
 //   - Hidden commands — an ops/onboarding surface, not an AI-callable one.
-//     (This is intentionally a different cut from the design-318 lint, which
+//     (This is intentionally a different cut from the tree lint, which
 //     counts Hidden commands as leaves because it needs full policy coverage.)
 //   - cobra's auto-injected "help" and "completion" commands.
 //   - non-runnable leaves (no Run and no RunE) — nothing to call.
 //
 // A RUNNABLE root is itself one of the callable forms and is returned first.
-// A tree can be runnable at the root and still carry subcommands — heliox's
+// A tree can be runnable at the root and still carry subcommands — a host's
 // built-in `browser` is exactly that shape, where the root passthrough is the
 // primary capability and `list` / `connect` are side entrances. Counting only
 // the children there would print an exhaustiveness claim over a set that omits

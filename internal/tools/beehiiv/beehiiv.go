@@ -30,7 +30,7 @@ const DefaultBaseURL = "https://api.beehiiv.com/v2"
 // access token or a self-serve API key.
 const EnvAPIKey = "BEEHIIV_API_KEY"
 
-// readOnly / writeAction carry the design-318 side-effect annotation for a
+// readOnly / writeAction carry the side-effect annotation for a
 // runnable leaf command. readOnly marks side-effect-free reads (GET);
 // writeAction marks state changes (subscriber create/update via POST/PUT).
 var (

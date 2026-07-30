@@ -26,7 +26,6 @@ type Service interface {
 	// an empty token is sufficient for dry-run flag parsing and tree
 	// traversal — the returned commands must never be executed. Inspect,
 	// lint, and policy coverage tests all take the tree through this seam
-	// (design 318).
 	NewCommandTree() *cobra.Command
 }
 

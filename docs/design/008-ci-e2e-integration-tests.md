@@ -10,9 +10,9 @@ CI today (`.github/workflows/ci.yml`) only runs `go build` / `go vet` / `go test
 
 There are ~148 embedded tool definitions (`definitions/tools/*.json`) backed by built-in services under `internal/tools/<pkg>/`. Running all of them on every commit is impossible (speed, provider rate limits), and storing per-field secrets is impossible too (GitHub caps repositories at 100 secrets).
 
-Credential lifecycle (OAuth consent, refresh, rotation) is already solved in production by Helio's integration token gateway: heliox's resolver (`helio-cli/internal/toolcred`) is a plain authenticated `GET /connections/token?provider=X&account=Y` returning `{access_token, expires_at, credential{...}}`, where `credential` is the bundle-projected, provider-neutral AnyCLI input and the server lazy-refreshes before handing tokens out. E2E reuses that instead of building a parallel credential-ops stack.
+Credential lifecycle (OAuth consent, refresh, rotation) is already solved in production by Helio's integration token gateway: the host resolver is a plain authenticated `GET /connections/token?provider=X&account=Y` returning `{access_token, expires_at, credential{...}}`, where `credential` is the bundle-projected, provider-neutral AnyCLI input and the server lazy-refreshes before handing tokens out. E2E reuses that instead of building a parallel credential-ops stack.
 
-An alternative considered and rejected: driving tests through the heliox CLI itself (with an `ANYCLI_PATH` passthrough seam so the PR's anycli binary is exercised). It works, but couples anycli's tests to heliox's CLI surface, coarsens assertions to subprocess output parsing, and tests an integration face that belongs in the heliox repo. Resolving credentials from the gateway while keeping tests in-process gets the same credential-ops win without the coupling.
+An alternative considered and rejected: driving tests through the host CLI itself (with an `ANYCLI_PATH` passthrough seam so the PR's anycli binary is exercised). It works, but couples anycli's tests to the host's CLI surface, coarsens assertions to subprocess output parsing, and tests an integration face that belongs in the host repo. Resolving credentials from the gateway while keeping tests in-process gets the same credential-ops win without the coupling.
 
 ## 2. Decisions
 
@@ -20,9 +20,9 @@ An alternative considered and rejected: driving tests through the heliox CLI its
 
 A dedicated **e2e assistant** in a dedicated Helio org holds all test connections: each service is connected once through Helio's normal connect flow (OAuth consent, API-key entry) by a human and granted to that assistant; the gateway owns provider-token refresh and rotation from then on. Counterpart accounts are just multiple connections of the same tool (e.g. two Gmail test users), selected by their connection account label.
 
-The anycli repository stores exactly one secret: `HELIO_E2E_API_KEY` — the e2e assistant's AI-user Clerk `ak_*` key, the same kind of key the runtime injects into assistant pods. `GET /connections/token` requires the caller to *be* an assistant AI user (`integration-service`: the caller IS the assistant whose connections are resolved), which is why the key must belong to the e2e assistant, not to a human user or daemon.
+The anycli repository stores exactly one secret: `HELIO_E2E_API_KEY` — the e2e assistant's AI-user Clerk `ak_*` key, the same kind of key the runtime injects into assistant pods. `GET /connections/token` requires the caller to *be* an assistant AI user (the caller IS the assistant whose connections are resolved), which is why the key must belong to the e2e assistant, not to a human user or daemon.
 
-**Key lifetime**: runtime keys expire after 48h by design (design 206); a static secret would die in two days. The key therefore self-rotates: a human bootstraps once with a live key from the e2e assistant's runtime; from then on the nightly job (D6) exchanges the current key for a fresh one via `POST /users/ai/<id>/api-key-refresh` (the runtime self-renewal endpoint — a key can only rotate itself; the AI-user id comes from `GET /user/me` with the same key, so nothing is hardcoded) and writes it back with `gh secret set`. This needs a repo token with `secrets:write` — one write-back for one key, not per-provider machinery. If CI is down past the 48h window the chain breaks and a human re-bootstraps (minutes of work).
+**Key lifetime**: runtime keys expire after 48h by design; a static secret would die in two days. The key therefore self-rotates: a human bootstraps once with a live key from the e2e assistant's runtime; from then on the nightly job (D6) exchanges the current key for a fresh one via `POST /users/ai/<id>/api-key-refresh` (the runtime self-renewal endpoint — a key can only rotate itself; the AI-user id comes from `GET /user/me` with the same key, so nothing is hardcoded) and writes it back with `gh secret set`. This needs a repo token with `secrets:write` — one write-back for one key, not per-provider machinery. If CI is down past the 48h window the chain breaks and a human re-bootstraps (minutes of work).
 
 Consequences accepted:
 
@@ -33,23 +33,23 @@ Consequences accepted:
 
 ### D2 — E2E resolver: direct token-gateway client
 
-A shared test helper package implements `anycli.CredentialResolver` against the gateway, mirroring `helio-cli/internal/toolcred`:
+A shared test helper package implements `anycli.CredentialResolver` against the gateway, mirroring the host's own resolver:
 
 - `GET /connections/token?provider=<key>&account=<name>` with `Authorization: Bearer $HELIO_E2E_API_KEY`; the response's `credential` map is the provider-neutral AnyCLI input, used directly as `anycli.Credential.Data`.
 - `(tool, account)` maps straight onto the design-003 selector: `""` selects the primary connection; a connection's account label (as shown/renamed in Helio) selects a counterpart account. Selection misses surface as the gateway's 404/409 (with candidate list), not silent fallbacks.
 - Tokens are cached in-process until `expires_at` (minus a safety margin), matching toolcred's TTL behavior.
 - A "not connected" gateway response surfaces as a distinguishable error so tests `t.Skip` uniformly instead of failing.
-- The anycli-id ↔ provider-key mapping (`drive`→`google_drive`, `bill-com`→`bill_com`, …) lives in helio-cli's internal `toolToProvider` table and is not importable; the helper carries a copy with a comment pointing at the source of truth. The table is static and small (~25 entries); promote it to an exported anycli package later only if drift actually bites.
+- The anycli-id ↔ provider-key mapping (`drive`→`google_drive`, `bill-com`→`bill_com`, …) lives in the host's internal `toolToProvider` table and is not importable; the helper carries a copy with a comment pointing at the source of truth. The table is static and small (~25 entries); promote it to an exported anycli package later only if drift actually bites.
 
 The base URL comes from `HELIO_E2E_API_BASE` (defaulting to the production API base). `ANYCLI_CRED_*` in `cmd/anycli` stays as-is for human debugging.
 
 **Local credential override.** The helper also accepts credentials from environment variables (`ANYCLI_E2E_CRED_<ACCOUNT>_<FIELD>`, e.g. `ANYCLI_E2E_CRED_PRIMARY_ACCESS_TOKEN`), taking precedence over the gateway. This exists for the anycli-first sequencing gap (see D9): the author of a new tool holds a real token during development and runs the same e2e cases locally against it before the provider exists in Helio at all. CI never sets these variables — in CI the gateway is the only source.
 
-**Risk — endpoint privatization.** Helio may someday restrict `/connections/token`. Note the dependency is shared: heliox itself (including BYOA daemons outside Helio's network) is a public-path client of the same endpoint with the same key kind, so any restriction must ship a heliox replacement path — and e2e, being "a heliox impersonating an assistant", follows that path. Two guards: (1) the endpoint dependency is confined to this one helper package, so a contract change has a one-file blast radius; (2) anycli e2e must be registered alongside heliox in any Helio-side consumer inventory for this endpoint. Worst-case fallbacks, in order: self-hosted runner inside the network → drive tests through heliox's replacement mechanism → self-managed credential store (the rejected alternative).
+**Risk — endpoint privatization.** Helio may someday restrict `/connections/token`. Note the dependency is shared: the host itself (including BYOA daemons outside Helio's network) is a public-path client of the same endpoint with the same key kind, so any restriction must ship a the host replacement path — and e2e, being "a the host impersonating an assistant", follows that path. Two guards: (1) the endpoint dependency is confined to this one helper package, so a contract change has a one-file blast radius; (2) anycli e2e must be registered alongside the host in any Helio-side consumer inventory for this endpoint. Worst-case fallbacks, in order: self-hosted runner inside the network → drive tests through the host's replacement mechanism → self-managed credential store (the rejected alternative).
 
-### D3 — heliox and Helio server: zero changes
+### D3 — host and server: zero changes
 
-Nothing is added to heliox or the Helio server for this design. The gateway endpoint, lazy refresh, and account selection already exist as production behavior; e2e is just another authenticated client of them. (A heliox-side `ANYCLI_PATH` execution seam remains a reasonable idea *for the heliox repo's own integration tests* — pinning a known anycli binary — but it is not part of this design.)
+Nothing is added to the host or the Helio server for this design. The gateway endpoint, lazy refresh, and account selection already exist as production behavior; e2e is just another authenticated client of them. (A host-side `ANYCLI_PATH` execution seam remains a reasonable idea *for the host repo's own integration tests* — pinning a known anycli binary — but it is not part of this design.)
 
 ### D4 — Test layout: per-service, build-tagged, closed-loop
 
@@ -114,4 +114,4 @@ Infrastructure first (gateway resolver helper, manifest, workflow, the e2e assis
 - Any credential storage or acquisition in this repo — the gateway owns credential lifecycle (D1); providers Helio cannot connect yet are out of e2e scope.
 - Fork-PR e2e (`pull_request_target` is a known security foot-gun; not worth it).
 - Load/performance testing against providers; e2e asserts correctness only.
-- heliox↔anycli integration testing (the `ANYCLI_PATH` seam idea) — belongs in the heliox repo.
+- Host↔anycli integration testing (the `ANYCLI_PATH` seam idea) — belongs in the host repo.

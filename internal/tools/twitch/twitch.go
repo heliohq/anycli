@@ -136,7 +136,7 @@ func (s *Service) stderr() io.Writer {
 	return os.Stderr
 }
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaf commands: "false" for reads (Helix GET list/get/search),
 // "true" for provider-state mutations (chat send, clip create, channel update).
 var (

@@ -11,7 +11,7 @@ import (
 
 // resourceDef describes one Razorpay gateway resource that is exposed as a
 // `list`/`get` command pair. word is the cobra command word (no underscores —
-// the design-318 lint forbids them); path is the API collection path, which
+// the tree lint forbids them); path is the API collection path, which
 // keeps its underscore form (e.g. /payment_links) because that is the provider
 // route.
 type resourceDef struct {
@@ -21,7 +21,7 @@ type resourceDef struct {
 }
 
 // resources is the AI-relevant, read-mostly gateway surface a payments/finance
-// teammate reasons over (design §2). Money-moving writes (capture, refund
+// teammate reasons over. Money-moving writes (capture, refund
 // create, payment-link create, order create) are intentionally deferred to a
 // second pass and are not registered here. RazorpayX banking (payouts) is a
 // separate, higher-risk scope family and is out of this tool's first scope.
@@ -36,7 +36,7 @@ var resources = []resourceDef{
 }
 
 // newResourceCmd builds the `<resource>` group with its `list` and `get`
-// leaves. The group carries no side-effect annotation (design-318: only
+// leaves. The group carries no side-effect annotation (only
 // runnable leaves are annotated).
 func (s *Service) newResourceCmd(token string, r resourceDef) *cobra.Command {
 	group := &cobra.Command{

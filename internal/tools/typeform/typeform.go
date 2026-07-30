@@ -34,7 +34,7 @@ const DefaultBaseURL = "https://api.typeform.com"
 // (definitions/tools/typeform.json).
 const EnvToken = "TYPEFORM_TOKEN"
 
-// readOnly / writeAction carry the design-318 anycli.side_effect annotation for
+// readOnly / writeAction carry the anycli.side_effect annotation for
 // runnable leaves: "false" for side-effect-free reads (GET/list/get), "true"
 // for provider-state mutations (create/update/patch/delete/set).
 var (

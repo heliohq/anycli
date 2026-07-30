@@ -36,7 +36,7 @@ const (
 	EnvAPIDomain   = "PIPEDRIVE_API_DOMAIN"
 )
 
-// anycli.side_effect annotations (design 318): readOnly marks a leaf command
+// anycli.side_effect annotations: readOnly marks a leaf command
 // that only reads provider state; writeAction marks one that mutates it.
 var (
 	readOnly    = map[string]string{"anycli.side_effect": "false"}

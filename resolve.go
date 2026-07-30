@@ -1,6 +1,6 @@
 // resolve.go is the exported binary-resolution surface for host-side
-// pre-warming (design: Helio 313 §gh 纳入懒安装). A host (heliox `tool warm`)
-// enumerates WarmEligibleTools, resolves each with ResolveToolBinary — which
+// pre-warming. A host enumerates WarmEligibleTools, resolves each with
+// ResolveToolBinary — which
 // triggers the sha256-verified lazy install when levels ①/② miss — and
 // symlinks the resulting binary onto the engine PATH. Nothing here duplicates
 // the engine's own resolution: both funnel into internal/exec.ResolveBinary.

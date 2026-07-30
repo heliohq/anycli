@@ -3,7 +3,7 @@
 // about) plus a few safe synthetic verbs (mkdir / trash / untrash / share).
 // Search flags pass Drive's native `q` query syntax through verbatim.
 //
-// v1 runs on the non-sensitive drive.file scope (design 303 §Google Drive): the
+// v1 runs on the non-sensitive drive.file scope : the
 // tool only sees files it created or the user explicitly granted it — a 404 on
 // an existing file is the scope boundary, not a bug. A 401/403 very often means
 // the token lacks a scope the user never granted; those errors carry an
@@ -44,7 +44,7 @@ const scopeHint = " (possibly missing scope — reconnect and grant access)"
 const visibilityHint = " (file is outside this tool's authorization — drive.file only sees files Helio created or the user explicitly shared with it; do not retry)"
 
 // defaultResumableThreshold is the media size above which upload switches from
-// a single multipart request to a resumable session (design 303 §upload).
+// a single multipart request to a resumable session.
 const defaultResumableThreshold int64 = 5 * 1024 * 1024
 
 // Service implements the built-in Google Drive tool. It satisfies tools.Service
@@ -184,6 +184,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly and writeAction carry the design-318 side-effect annotation for
+// readOnly and writeAction carry the side-effect annotation for
 // runnable leaf commands: GET reads are side-effect-free; POST/PUT/DELETE
 // mutations (send, remind, revoke) create/change state.
 var (

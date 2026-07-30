@@ -14,7 +14,7 @@ import (
 )
 
 // exportFormats maps the --format flag to the Workspace export MIME type and
-// the on-disk extension (design 303; strings verified against Drive's export
+// the on-disk extension (strings verified against Drive's export
 // format reference).
 var exportFormats = map[string]struct {
 	mime string

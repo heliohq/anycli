@@ -70,7 +70,7 @@ func TestExecute(t *testing.T) {
 	}
 }
 
-// TestCommandTreeShape pins the design-318 harness contract on the tree
+// TestCommandTreeShape pins the harness contract on the tree
 // itself: the probe path is hidden, the leaf carries an explicit
 // side_effect=true annotation, and the group is help-only (nil RunE, no
 // annotation) per the annotation lint predicates.

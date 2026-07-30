@@ -2,7 +2,7 @@ package shopify
 
 import "github.com/spf13/cobra"
 
-// side-effect annotation values (design 318). Reads are "false"; writes and the
+// side-effect annotation values. Reads are "false"; writes and the
 // raw graphql passthrough (which can mutate) are "true".
 const (
 	sideEffectRead  = "false"

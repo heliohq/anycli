@@ -32,7 +32,7 @@ const DefaultBaseURL = "https://api.lemlist.com/api"
 const EnvAPIKey = "LEMLIST_API_KEY"
 
 // readOnly / writeAction mark a leaf command's side-effect class for the
-// design-318 approval gate (anycli.side_effect).
+// host policy gate (anycli.side_effect).
 var (
 	readOnly    = map[string]string{"anycli.side_effect": "false"}
 	writeAction = map[string]string{"anycli.side_effect": "true"}

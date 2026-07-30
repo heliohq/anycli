@@ -40,7 +40,7 @@ func (e *apiError) Unwrap() error { return e.err }
 // This is the SINGLE place the pagination encoding is defined. Segment's own
 // materials disagree (the observability recipe uses bracket notation,
 // pagination[count]); the OpenAPI reference — the authoritative spec — uses dot
-// notation, so that is what ships. L2 against the live API is the final
+// notation, so that is what ships. A run against the live API is the final
 // arbiter: if the live API rejects dot notation, only this function changes.
 func paginationQuery(count int, cursor string) url.Values {
 	q := url.Values{}

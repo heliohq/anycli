@@ -1,8 +1,8 @@
 // Package microsoftonedrive is the built-in Microsoft OneDrive service: a
 // non-interactive cobra tree projecting the Microsoft Graph v1.0 /me/drive
 // resources (items browse/get, search, download, upload, mkdir, move, rename,
-// create-link, delete) plus a small set of safe synthetic verbs (design 308
-// §OneDrive). Path addressing uses Graph's /me/drive/root:/path form; the
+// create-link, delete) plus a small set of safe synthetic verbs. Path
+// addressing uses Graph's /me/drive/root:/path form; the
 // search query passes through verbatim. A 401/403 very often means the token
 // lacks a scope the user never granted — those errors carry an explicit
 // reconnect hint.
@@ -148,6 +148,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

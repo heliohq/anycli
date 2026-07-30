@@ -1,7 +1,7 @@
 // Package sheets is the built-in Google Sheets service: a non-interactive
 // cobra tree projecting the Sheets API v4 resource namespaces (spreadsheets /
 // spreadsheets.values / spreadsheets.sheets) plus a small set of safe
-// synthetic verbs (design 303). Ranges pass Sheets' native A1 notation through
+// synthetic verbs. Ranges pass Sheets' native A1 notation through
 // verbatim; the tabs.* verbs assemble the batchUpdate requests they map to, and
 // `spreadsheets batch-update` is the raw escape hatch for everything else. A
 // 401/403 very often means the token lacks a scope the user never granted —
@@ -160,6 +160,6 @@ func jsonOut(cmd *cobra.Command) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

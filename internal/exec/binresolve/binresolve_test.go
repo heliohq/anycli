@@ -74,7 +74,7 @@ func bytesDownloader(data []byte, calls *atomic.Int64) Downloader {
 	}
 }
 
-// makeTgz builds an in-memory .tgz fixture.
+// makeTgz builds an in-memory.tgz fixture.
 func makeTgz(t *testing.T, entries map[string][]byte) []byte {
 	t.Helper()
 	var buf bytes.Buffer
@@ -97,7 +97,7 @@ func makeTgz(t *testing.T, entries map[string][]byte) []byte {
 	return buf.Bytes()
 }
 
-// makeZip builds an in-memory .zip fixture.
+// makeZip builds an in-memory.zip fixture.
 func makeZip(t *testing.T, entries map[string][]byte) []byte {
 	t.Helper()
 	var buf bytes.Buffer

@@ -52,7 +52,7 @@ func (s *Service) newRespondersListCmd(token string) *cobra.Command {
 		Use:   "list <form-id>",
 		Short: "List who can answer the form (Drive permissions on the published view)",
 		Args:  cobra.ExactArgs(1),
-		// GET drive/files/{id}/permissions — read-only (design 318).
+		// GET drive/files/{id}/permissions — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			formID, err := extractFormID(args[0])
@@ -95,7 +95,7 @@ func (s *Service) newRespondersAddCmd(token string) *cobra.Command {
 		Use:   "add <form-id> (--anyone | --to a@b[,c@d])",
 		Short: "Grant answer access (drive.file scope: only forms this assistant created)",
 		Args:  cobra.ExactArgs(1),
-		// POST drive/files/{id}/permissions — mutating provider call (design 318).
+		// POST drive/files/{id}/permissions — mutating provider call.
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			formID, err := extractFormID(args[0])
@@ -169,7 +169,6 @@ func (s *Service) newRespondersRemoveCmd(token string) *cobra.Command {
 		Short: "Revoke answer access for anyone-with-link or a named responder",
 		Args:  cobra.ExactArgs(1),
 		// DELETE drive/files/{id}/permissions/{pid} — mutating provider call
-		// (design 318).
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			formID, err := extractFormID(args[0])

@@ -1,4 +1,4 @@
-// Action-fact inspection for service tools (design 318). Inspect dry-runs a
+// Action-fact inspection for service tools. Inspect dry-runs a
 // tool's cobra command tree to report *facts* about one invocation — the
 // stable action id, whether the command may mutate provider state, the
 // effective flag values — without executing anything and without any network

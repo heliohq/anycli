@@ -10,8 +10,8 @@ import (
 // are kept to those the official docs reference (account: id, email;
 // organization: id, name) to stay fail-fast against unverified schema fields.
 // `email` appears in the auth-guide example but NOT in the data-model example,
-// so treat it as pending live-schema confirmation on the mandatory L2 real-API
-// harness run before the visible flip. If L2 shows `email` is not a valid
+// so treat it as pending live-schema confirmation on the mandatory live-API
+// harness run before the visible flip. If the live API shows `email` is not a valid
 // Account field, drop it here and in the Helio identity query and rely on
 // `account.id` (the stable identity key). `id` and `organizations` are the
 // docs-confirmed fields.

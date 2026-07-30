@@ -3,9 +3,9 @@
 // conferenceRecords and its participants / participantSessions / recordings /
 // transcripts / transcripts.entries) plus the v2beta smartNotes read and the
 // synthetic `transcripts text` verb that stitches paginated entries into a
-// readable transcript (design 303 §Google Meet). Meet is read-heavy: the only
+// readable transcript. Meet is read-heavy: the only
 // high-blast-radius verb is `spaces end-conference`, which is gated by the
-// skill's soft guardrail, not an approval gate (086 decided against). A
+// skill's soft guardrail, not a gate in the tool. A
 // 401/403 usually means the token lacks a scope the user never granted — those
 // errors carry an explicit reconnect hint.
 package meet
@@ -188,6 +188,6 @@ func spaceName(arg string) string {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

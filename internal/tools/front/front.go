@@ -5,7 +5,7 @@
 //
 // Auth is a bearer token injected as FRONT_TOKEN (definitions/tools/front.json).
 // The same bearer works whether it is an OAuth access token (production, minted
-// by the Helio token gateway) or a Settings→Developers API token (handy for L2
+// by the Helio token gateway) or a Settings→Developers API token (handy for local
 // harness runs) — both are company-scoped.
 //
 // Output contract: every command emits a provider-neutral JSON envelope on
@@ -30,7 +30,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly / writeAction carry the design-318 side-effect annotation for runnable leaves.
+// readOnly / writeAction carry the side-effect annotation for runnable leaves.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 var writeAction = map[string]string{"anycli.side_effect": "true"}
 

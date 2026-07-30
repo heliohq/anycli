@@ -148,7 +148,7 @@ func (s *Service) uploadMultipart(ctx context.Context, token string, meta map[st
 }
 
 // uploadResumable initiates a resumable session then PUTs the media in a single
-// request (design 303: >5MB path).
+// request (>5MB path).
 func (s *Service) uploadResumable(ctx context.Context, token string, meta map[string]any, srcMime string, data []byte) ([]byte, error) {
 	metaJSON, err := json.Marshal(meta)
 	if err != nil {

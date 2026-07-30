@@ -18,7 +18,7 @@
 - No interactive prompts anywhere.
 - Key facts from the design doc (verified against the Helio codebase):
   - Gateway: `GET <base>/connections/token?provider=<key>&account=<label>` with `Authorization: Bearer $HELIO_E2E_API_KEY`; 2xx body is `{"data": {"access_token": "...", "expires_at": "...", "credential": {...}, "account_key": "..."}}`; 404 = not connected, 409 = ambiguous account (carries candidates).
-  - `HELIO_E2E_API_BASE` is the same base URL heliox uses (including any `/v1` prefix); it is **required** — the helper errors when it's unset rather than guessing a production URL.
+  - `HELIO_E2E_API_BASE` is the same base URL the host uses (including any `/v1` prefix); it is **required** — the helper errors when it's unset rather than guessing a production URL.
   - Key rotation: `GET <base>/user/me` → `data.id` (the AI-user id) → `POST <base>/users/ai/<id>/api-key-refresh` → `data.secret` is the fresh key.
   - Tool naming: definition filename == tool name (enforced by `definitions.ListBundled`); service package dir == tool name with `-` removed (e.g. `adobe-sign` → `internal/tools/adobesign/`, `gate-probe` → `gateprobe`).
 
@@ -85,7 +85,7 @@ package e2e
 
 // toolToProvider maps anycli tool names to Helio provider catalog keys
 // where the two differ. Identity holds for every other tool. This is a
-// copy of helio-cli/internal/toolcred.toolToProvider (not importable:
+// copy of the host-side mapping (not importable:
 // internal package of another module), updated for anycli's current tool
 // ids (bill-com→billcom, customer-io→customerio were folded by c269a6e).
 // Keep in sync with that table; the source of truth for the provider keys
@@ -108,7 +108,7 @@ var toolToProvider = map[string]string{
 	"sprout-social":      "sprout_social",
 	"zoho-books":         "zoho_books",
 	"zoho-crm":           "zoho_crm",
-	// Google short-name family (design 303 on the Helio side).
+	// Google short-name family (on the host side).
 	"calendar": "google_calendar",
 	"contacts": "google_contacts",
 	"docs":     "google_docs",
@@ -351,7 +351,7 @@ func IsNotConnected(err error) bool {
 	return errors.As(err, &nc)
 }
 
-// tokenResponse mirrors integration-service's dto.TokenResponse (the fields
+// tokenResponse mirrors the token gateway response shape (the fields
 // e2e consumes).
 type tokenResponse struct {
 	AccessToken string            `json:"access_token"`
@@ -360,8 +360,7 @@ type tokenResponse struct {
 }
 
 // Resolver implements anycli.CredentialResolver against Helio's integration
-// token gateway (GET /connections/token), the same contract heliox's
-// internal/toolcred uses. The engine's own Cache handles (tool, account)
+// token gateway (GET /connections/token), the same contract a host credential resolver uses. The engine's own Cache handles (tool, account)
 // caching via CacheUntil, so the resolver holds no cache of its own.
 type Resolver struct {
 	base string
@@ -371,7 +370,7 @@ type Resolver struct {
 
 // NewResolver builds a Resolver from HELIO_E2E_API_KEY and
 // HELIO_E2E_API_BASE. Both are required; the base must be the same API base
-// heliox uses (including any /v1 prefix).
+// the host uses (including any /v1 prefix).
 func NewResolver() (*Resolver, error) {
 	key := os.Getenv(envAPIKey)
 	base := strings.TrimRight(os.Getenv(envAPIBase), "/")
@@ -1538,7 +1537,7 @@ Design: [design 008](design/008-ci-e2e-integration-tests.md).
    (e.g. gmail), connect two accounts and note their account labels.
 3. Obtain the assistant's current `HELIO_API_KEY` (a Clerk `ak_*` key from
    its runtime). Set repository secret `HELIO_E2E_API_KEY` to it.
-4. Set repository variable `HELIO_E2E_API_BASE` to the API base heliox uses
+4. Set repository variable `HELIO_E2E_API_BASE` to the API base the host uses
    (including any `/v1` prefix).
 5. Create a fine-grained PAT with `secrets: write` on this repository; set
    it as repository secret `E2E_SECRETS_PAT`.

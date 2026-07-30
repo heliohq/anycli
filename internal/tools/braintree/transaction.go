@@ -7,7 +7,7 @@ import (
 )
 
 // GraphQL documents. One pinned document per verb: a schema-field rename or a
-// Braintree-Version regression surfaces as an L1 diff here (and an L2 errors[]
+// Braintree-Version regression surfaces as a unit-test diff here (and a live-API errors[]
 // unknown-field entry against the live sandbox). The node field selections are
 // deliberately modest — the operational facts a teammate reads.
 

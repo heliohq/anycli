@@ -11,14 +11,14 @@ import (
 	"strings"
 )
 
-// QuickBooks Online API bases (design: §1). Every Accounting/Reports call is
+// QuickBooks Online API bases. Every Accounting/Reports call is
 // company-scoped under /v3/company/<realmId>/. The sandbox base is selected
-// only for the L2 dev harness via QUICKBOOKS_ENVIRONMENT=sandbox.
+// only for the live-API dev harness via QUICKBOOKS_ENVIRONMENT=sandbox.
 const (
 	prodBaseURL    = "https://quickbooks.api.intuit.com"
 	sandboxBaseURL = "https://sandbox-quickbooks.api.intuit.com"
 	// minorVersion pins the response schema so output is stable across Intuit's
-	// rolling schema bumps (§1). Sent on every request as ?minorversion=.
+	// rolling schema bumps. Sent on every request as ?minorversion=.
 	minorVersion = "75"
 )
 
@@ -41,7 +41,7 @@ func (e *usageError) Error() string { return e.msg }
 
 // faultDetail is one entry of QuickBooks' error envelope
 // ({"Fault":{"Error":[{"Message","Detail","code"}]}}). Passed through so the
-// teammate sees the code and detail, not just the HTTP status (§2).
+// teammate sees the code and detail, not just the HTTP status.
 type faultDetail struct {
 	Message string `json:"message,omitempty"`
 	Detail  string `json:"detail,omitempty"`

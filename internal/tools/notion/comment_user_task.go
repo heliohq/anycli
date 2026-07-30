@@ -113,8 +113,8 @@ func (s *Service) newCommentListCmd(token string) *cobra.Command {
 // GET /v1/users/{id} (resolve a specific user, incl. guests, that list omits);
 // --query → list every user and keep case-insensitive substring matches on
 // name OR email (0 hits is an empty list, not an error); no arg → GET /v1/users
-// paginated through every page, aggregated into one list envelope (design 304
-// §user "列出所有用户(分页)"). A positional and --query together is a usage
+// paginated through every page, aggregated into one list envelope. A
+// positional and --query together is a usage
 // error. Output JSON.
 func (s *Service) newUserGetCmd(token string) *cobra.Command {
 	var query string

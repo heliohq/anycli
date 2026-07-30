@@ -12,7 +12,7 @@ import (
 
 const operationIDAnnotation = "figma-operation-id"
 
-// sideEffectAnnotation is the anycli side-effect fact key (design 318): "true"
+// sideEffectAnnotation is the anycli side-effect fact key: "true"
 // when the command may issue a mutating provider API call under any input.
 const sideEffectAnnotation = "anycli.side_effect"
 

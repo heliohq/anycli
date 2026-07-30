@@ -115,7 +115,7 @@ func (rt *runContext) runPostCreate(cmd *cobra.Command, _ []string) error {
 }
 
 // postStatus POSTs /api/v1/statuses with a deterministic Idempotency-Key so a
-// retried invocation (each heliox tool call is a fresh process) never
+// retried invocation (each tool call is a fresh process) never
 // double-posts: identical parameters within Mastodon's idempotency window
 // return the already-created status instead of a duplicate.
 func (rt *runContext) postStatus(ctx context.Context, req statusCreateRequest) ([]byte, http.Header, error) {

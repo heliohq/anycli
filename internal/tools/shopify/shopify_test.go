@@ -454,7 +454,7 @@ func TestOrderUpdateForwardsTagsAndNote(t *testing.T) {
 }
 
 func TestNewCommandTreeTraversable(t *testing.T) {
-	// The design-318 dry-run seam must build without credentials.
+	// The dry-run seam must build without credentials.
 	root := (&Service{}).NewCommandTree()
 	if root == nil {
 		t.Fatal("NewCommandTree returned nil")

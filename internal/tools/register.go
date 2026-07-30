@@ -242,7 +242,7 @@ func init() {
 	RegisterService("xero", &xero.Service{})
 	RegisterService("zoho-books", &zohobooks.Service{})
 	RegisterService("zuora", &zuora.Service{})
-	// gate-probe is the approval-gate E2E harness (design 318): hidden,
+	// gate-probe is the policy-gate E2E harness: hidden,
 	// credential-free, local-echo-only. Registered like every other service
 	// so Inspect/lint/policy coverage traverse it; consumer-side visibility
 	// is gated by the consumer, not here.

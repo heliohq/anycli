@@ -7,12 +7,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// sideEffectAnnotation mirrors the key Inspect reads (design 318 §anycli
-// Inspect); the root anycli package is not importable from internal/tools.
+// sideEffectAnnotation mirrors the key Inspect reads; the root anycli package
+// is not importable from internal/tools.
 const sideEffectAnnotation = "anycli.side_effect"
 
 // TestSideEffectAnnotations pins every runnable leaf command's
-// anycli.side_effect annotation to the may-mutate verdict (design 318): true
+// anycli.side_effect annotation to the may-mutate verdict: true
 // iff the command can issue a mutating provider API call under any input.
 // The walk also asserts exact coverage (no unannotated leaf, no stale table
 // row) and that group commands carry no annotation.

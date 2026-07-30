@@ -69,7 +69,7 @@ func TestRouting(t *testing.T) {
 
 // TestPaginationDotNotation pins the pagination query encoding: dot notation
 // (pagination.count / pagination.cursor), per the canonical Segment OpenAPI
-// reference. This is the single encoding assertion; L2 against the live API is
+// reference. This is the single encoding assertion; A run against the live API is
 // the final arbiter and only paginationQuery changes if it disagrees.
 func TestPaginationDotNotation(t *testing.T) {
 	var reqs []capturedRequest
@@ -130,7 +130,7 @@ func TestEventsVolumeConvenienceFlags(t *testing.T) {
 }
 
 // TestParamPassthrough asserts repeatable --param name=value query pairs reach
-// the request unchanged (the escape hatch for L2-gated delivery query params).
+// the request unchanged (the escape hatch for live-API-gated delivery query params).
 func TestParamPassthrough(t *testing.T) {
 	var reqs []capturedRequest
 	srv := newMux(t, &reqs, map[string]stub{"GET /destinations/d1/delivery-metrics": {status: 200, body: okBody}})
@@ -233,7 +233,7 @@ func TestJSONErrorEnvelope(t *testing.T) {
 }
 
 // TestUnauthorizedRejectsCredential asserts a 401 both exits 1 and flags the
-// credential rejected so the token gateway refresh path (design 227) triggers.
+// credential rejected so the token gateway refresh path triggers.
 func TestUnauthorizedRejectsCredential(t *testing.T) {
 	var reqs []capturedRequest
 	srv := newMux(t, &reqs, map[string]stub{

@@ -28,7 +28,7 @@ const (
 // under one schema — the Dispute type postdates 2019-10-03, so a pre-dispute
 // pin would make `dispute` verbs dead on arrival.
 //
-// Bump policy: raise this to a newer YYYY-MM-DD only after L2 re-confirms every
+// Bump policy: raise this to a newer YYYY-MM-DD only after a live-API run re-confirms every
 // in-scope verb still resolves under the new date against the live sandbox.
 const braintreeVersion = "2025-06-01"
 

@@ -3,14 +3,14 @@
 // for local pre-integration testing, and a stdout-capturing tool runner.
 //
 // The package carries no build tag so it is compiled and unit-tested by the
-// normal `go test ./...` run; only the per-service e2e_test.go files (which
+// normal `go test./...` run; only the per-service e2e_test.go files (which
 // hit real provider APIs) are behind the `e2e` build tag.
 package e2e
 
 // toolToProvider maps anycli tool names to Helio provider catalog keys
 // where the two differ. Identity holds for every other tool. This is a
-// copy of helio-cli/internal/toolcred.toolToProvider (not importable:
-// internal package of another module), updated for anycli's current tool
+// copy of the host-side mapping (not importable: internal package of
+// another module), updated for anycli's current tool
 // ids (bill-com→billcom, customer-io→customerio were folded by c269a6e).
 // Keep in sync with that table; the source of truth for the provider keys
 // is Helio's provider catalog.
@@ -32,7 +32,7 @@ var toolToProvider = map[string]string{
 	"sprout-social":      "sprout_social",
 	"zoho-books":         "zoho_books",
 	"zoho-crm":           "zoho_crm",
-	// Google short-name family (design 303 on the Helio side).
+	// Google short-name family (on the host side).
 	"calendar": "google_calendar",
 	"contacts": "google_contacts",
 	"docs":     "google_docs",

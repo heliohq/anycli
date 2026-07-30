@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// readOnly is the design-318 side-effect annotation shared by every Brex leaf:
+// readOnly is the side-effect annotation shared by every Brex leaf:
 // the tool is read-mostly and wraps only GET endpoints.
 var readOnly = map[string]string{"anycli.side_effect": "false"}
 

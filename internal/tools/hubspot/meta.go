@@ -8,7 +8,7 @@ import (
 )
 
 // newAccountCmd is the whoami / smoke command: it returns the portal (hub)
-// details, including the portal id. Used as the L2 harness smoke check.
+// details, including the portal id. Used as the live-API dev harness smoke check.
 func (s *Service) newAccountCmd(token string) *cobra.Command {
 	return &cobra.Command{
 		Use:         "account",

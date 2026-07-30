@@ -89,7 +89,7 @@ func TestExecute_MissingToken(t *testing.T) {
 
 func TestExecute_MissingToken_JSON(t *testing.T) {
 	// The missing-token check runs before cobra parses flags, but --json in the
-	// raw args must still yield the structured error envelope on stderr (§error).
+	// raw args must still yield the structured error envelope on stderr.
 	var errBuf bytes.Buffer
 	svc := &Service{Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"search", "--query", "x", "--json"}, map[string]string{})

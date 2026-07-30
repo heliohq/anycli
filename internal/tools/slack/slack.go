@@ -99,7 +99,7 @@ func (s *Service) newChatPostCmd(token string) *cobra.Command {
 		Use:   "post",
 		Short: "Post a message to a channel",
 		Args:  cobra.NoArgs,
-		// POST /chat.postMessage — mutating provider call (design 318).
+		// POST /chat.postMessage — mutating provider call.
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body, err := s.call(cmd.Context(), token, http.MethodPost, "/chat.postMessage", nil,
@@ -124,7 +124,7 @@ func (s *Service) newChatHistoryCmd(token string) *cobra.Command {
 		Use:   "history",
 		Short: "Fetch a channel's message history",
 		Args:  cobra.NoArgs,
-		// GET /conversations.history — read-only (design 318).
+		// GET /conversations.history — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
@@ -148,7 +148,7 @@ func (s *Service) newChannelsListCmd(token string) *cobra.Command {
 		Use:   "list",
 		Short: "List channels",
 		Args:  cobra.NoArgs,
-		// GET /conversations.list — read-only (design 318).
+		// GET /conversations.list — read-only.
 		Annotations: map[string]string{"anycli.side_effect": "false"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			q := url.Values{}
@@ -245,6 +245,6 @@ func slackCredentialErrorCode(code string) bool {
 }
 
 // NewCommandTree returns the full command tree built with an empty token for
-// dry-run parsing and traversal (tools.Service seam, design 318). The token
+// dry-run parsing and traversal (tools.Service seam). The token
 // is only captured by RunE closures, which are never run on this tree.
 func (s *Service) NewCommandTree() *cobra.Command { return s.newRoot("") }

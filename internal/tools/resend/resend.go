@@ -36,8 +36,8 @@ const EnvAPIKey = "RESEND_API_KEY"
 // missing User-Agent with 403, so we never rely on Go's default.
 const userAgent = "helio-anycli/resend"
 
-// readOnly / writeAction annotate leaf commands for the design-318 approval
-// gate: "false" for side-effect-free reads (GET list/get), "true" for
+// readOnly / writeAction annotate leaf commands for host policy:
+// "false" for side-effect-free reads (GET list/get), "true" for
 // provider-state mutations (send, create, update, verify, delete, cancel).
 var (
 	readOnly    = map[string]string{"anycli.side_effect": "false"}
