@@ -14,6 +14,11 @@ AnyCLI is an embeddable Go library (design 002): the engine plus the embedded de
 
 - **All content must be in English** — code, comments, documentation, commit messages, PR descriptions, and error messages. No exceptions.
 
+## Confidentiality
+
+- **This repository is PUBLIC.** Never expose internal design or engineering detail: internal design-doc numbers and section titles, internal repo/service/skill paths, ticket ids, or downstream product features. A reader outside the org cannot resolve them, and they leak architecture and roadmap.
+- Describe the mechanism in this repo's own terms instead — name the file, the annotation, the contract. The thing itself, never the internal review that decided it.
+
 ## Development Rules
 
 - Write tests first, then implement
