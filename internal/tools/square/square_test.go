@@ -2,6 +2,7 @@ package square
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -166,5 +167,37 @@ func TestBaseURLFromEnv(t *testing.T) {
 	}
 	if got.Auth != "Bearer tok-xyz" {
 		t.Errorf("Authorization = %q, want Bearer tok-xyz", got.Auth)
+	}
+}
+
+// TestBaseURLFromEnvIsInvocationLocal proves a reused Service routes each call
+// with that invocation's credential environment without retaining endpoint
+// state from an earlier account.
+func TestBaseURLFromEnvIsInvocationLocal(t *testing.T) {
+	var first, second capturedRequest
+	firstServer := newServer(t, http.StatusOK, `{"locations":[]}`, &first)
+	defer firstServer.Close()
+	secondServer := newServer(t, http.StatusOK, `{"locations":[]}`, &second)
+	defer secondServer.Close()
+
+	svc := &Service{Out: io.Discard, Err: io.Discard}
+	for _, baseURL := range []string{firstServer.URL, secondServer.URL} {
+		result, err := svc.Execute(t.Context(), []string{"location", "list"}, map[string]string{
+			EnvAccessToken: "tok-xyz",
+			EnvBaseURL:     baseURL,
+		})
+		if err != nil {
+			t.Fatalf("Execute with base URL %q: %v", baseURL, err)
+		}
+		if result.ExitCode != 0 {
+			t.Fatalf("Execute with base URL %q exited %d", baseURL, result.ExitCode)
+		}
+	}
+
+	if first.Path != "/v2/locations" || second.Path != "/v2/locations" {
+		t.Fatalf("requests reached first=%q second=%q, want both invocation endpoints", first.Path, second.Path)
+	}
+	if svc.BaseURL != "" {
+		t.Fatalf("Service.BaseURL = %q after execution, want no retained credential state", svc.BaseURL)
 	}
 }

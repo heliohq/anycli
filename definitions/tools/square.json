@@ -7,6 +7,10 @@
       {
         "source": {"field": "access_token"},
         "inject": {"type": "env", "env_var": "SQUARE_ACCESS_TOKEN"}
+      },
+      {
+        "source": {"field": "base_url"},
+        "inject": {"type": "env", "env_var": "SQUARE_BASE_URL"}
       }
     ]
   }

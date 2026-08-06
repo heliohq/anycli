@@ -67,10 +67,13 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 		s.renderError(hasJSONArg(args), &usageError{msg: "SQUARE_ACCESS_TOKEN is not set"})
 		return execution.Result{ExitCode: 1}, nil
 	}
-	if v := env[EnvBaseURL]; v != "" && s.BaseURL == "" {
-		s.BaseURL = v
+	// Keep credential-scoped endpoint selection invocation-local because the
+	// registry reuses one Service across accounts and concurrent executions.
+	run := *s
+	if v := env[EnvBaseURL]; v != "" && run.BaseURL == "" {
+		run.BaseURL = v
 	}
-	root := s.newRoot(token)
+	root := run.newRoot(token)
 	root.SetArgs(args)
 	err := root.ExecuteContext(ctx)
 	if err == nil {
@@ -78,7 +81,7 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	}
 
 	jsonMode, _ := root.PersistentFlags().GetBool("json")
-	s.renderError(jsonMode, err)
+	run.renderError(jsonMode, err)
 
 	var apiErr *apiError
 	if errors.As(err, &apiErr) {
