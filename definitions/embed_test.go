@@ -82,6 +82,22 @@ func TestLoadBundled_XCredentialBindings(t *testing.T) {
 	}
 }
 
+// TestLoadBundled_SquareCredentialBindings pins Square's token and API origin
+// to their repository-local environment bindings.
+func TestLoadBundled_SquareCredentialBindings(t *testing.T) {
+	def, err := LoadBundled("square")
+	if err != nil {
+		t.Fatalf("LoadBundled(square) failed: %v", err)
+	}
+	if def.Auth == nil || len(def.Auth.Credentials) != 2 {
+		t.Fatalf("credentials = %+v, want access_token and base_url bindings", def.Auth)
+	}
+	baseURL := def.Auth.Credentials[1]
+	if baseURL.Source.Field != "base_url" || baseURL.Inject.Type != "env" || baseURL.Inject.EnvVar != "SQUARE_BASE_URL" {
+		t.Fatalf("base_url binding = %+v, want SQUARE_BASE_URL env injection", baseURL)
+	}
+}
+
 func TestLoadBundled_BitlyCredentialBinding(t *testing.T) {
 	def, err := LoadBundled("bitly")
 	if err != nil {

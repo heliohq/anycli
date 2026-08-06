@@ -71,6 +71,8 @@ label (`ANYCLI_E2E_CRED_SECONDARY_<FIELD>`, selected by passing account
    `<pkg>_test`. Copy the pattern from `internal/tools/attio/e2e_test.go`:
    one read smoke test, then closed-loop write chains (create → verify →
    delete → verify gone). Name every created object with `e2e.Prefix()`.
+   If the command surface cannot reliably delete or restore created data,
+   keep the e2e read-only instead of accumulating permanent test objects.
 2. Verify locally with a real token (env override above) before merging.
 3. After the provider is connected in Helio, the nightly sweep picks the
    tool up automatically. Until then its tests skip and appear in the
