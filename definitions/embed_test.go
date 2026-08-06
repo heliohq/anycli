@@ -82,8 +82,8 @@ func TestLoadBundled_XCredentialBindings(t *testing.T) {
 	}
 }
 
-// TestLoadBundled_SquareCredentialBindings pins both the OAuth token and the
-// environment-specific API origin projected by Helio into the Square tool.
+// TestLoadBundled_SquareCredentialBindings pins Square's token and API origin
+// to their repository-local environment bindings.
 func TestLoadBundled_SquareCredentialBindings(t *testing.T) {
 	def, err := LoadBundled("square")
 	if err != nil {

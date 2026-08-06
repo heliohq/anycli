@@ -52,6 +52,19 @@ type crmRecord struct {
 	LastName string `json:"Last_Name"`
 }
 
+// crmErrorEnvelope carries the machine-readable failure emitted under --json
+// so deletion verification can distinguish not-found from unrelated errors.
+type crmErrorEnvelope struct {
+	Error crmError `json:"error"`
+}
+
+// crmError carries the provider error classification used after delete.
+type crmError struct {
+	Message string `json:"message"`
+	Kind    string `json:"kind"`
+	Status  int    `json:"status"`
+}
+
 // TestE2EIdentity confirms the credential reaches the authenticated CRM user.
 func TestE2EIdentity(t *testing.T) {
 	out := mustRunCRM(t, "user", "me", "--json")
@@ -101,15 +114,24 @@ func TestE2ELeadClosedLoop(t *testing.T) {
 	}
 	deleted = true
 
-	// Zoho may report a missing record as either a nonzero API error or a
-	// successful empty response. Only an actual returned record means cleanup failed.
-	out, _, exit := e2e.RunToolWithStderr(t, "zoho-crm", "", "record", "get", "--module", "Leads", "--id", recordID, "--json")
-	if exit == 0 && strings.TrimSpace(out) != "" {
+	// Zoho may report a deleted record as either an explicit not-found API error
+	// or a successful empty response; unrelated failures must not prove cleanup.
+	out, stderr, exit := e2e.RunToolWithStderr(t, "zoho-crm", "", "record", "get", "--module", "Leads", "--id", recordID, "--json")
+	if exit == 0 {
+		if strings.TrimSpace(out) == "" {
+			return
+		}
 		var afterDelete crmRecordResponse
 		decodeCRMJSON(t, out, &afterDelete)
 		if len(afterDelete.Data) != 0 {
 			t.Fatalf("get after delete still returned Lead %s:\n%s", recordID, out)
 		}
+		return
+	}
+	var notFound crmErrorEnvelope
+	decodeCRMJSON(t, stderr, &notFound)
+	if notFound.Error.Kind != "api" || notFound.Error.Status != 404 || !strings.Contains(notFound.Error.Message, "RESOURCE_NOT_FOUND") {
+		t.Fatalf("get after delete returned an unexpected error for Lead %s:\n%s", recordID, stderr)
 	}
 }
 

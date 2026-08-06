@@ -32,6 +32,19 @@ type typeformDeleteReceipt struct {
 	FormID  string `json:"form_id"`
 }
 
+// typeformErrorEnvelope carries the machine-readable failure emitted under
+// --json so cleanup verification can distinguish not-found from other errors.
+type typeformErrorEnvelope struct {
+	Error typeformError `json:"error"`
+}
+
+// typeformError carries the provider error classification used after delete.
+type typeformError struct {
+	Message string `json:"message"`
+	Kind    string `json:"kind"`
+	Status  int    `json:"status"`
+}
+
 // TestE2EIdentity confirms the credential reaches the authenticated account.
 func TestE2EIdentity(t *testing.T) {
 	out := mustRunTypeform(t, "me")
@@ -53,11 +66,12 @@ func TestE2EFormClosedLoop(t *testing.T) {
 
 	var created typeformForm
 	decodeTypeformJSON(t, out, &created)
-	if created.ID == "" || created.Title != name {
-		t.Fatalf("form create returned no matching form id/title:\n%s", out)
+	if created.ID == "" {
+		t.Fatalf("form create returned no form id:\n%s", out)
 	}
 
-	// Cleanup still runs when a later assertion fails, preventing test residue.
+	// Register cleanup as soon as deletion is possible so metadata assertions
+	// cannot leave a successfully created form behind.
 	deleted := false
 	t.Cleanup(func() {
 		if deleted {
@@ -67,6 +81,9 @@ func TestE2EFormClosedLoop(t *testing.T) {
 			t.Errorf("cleanup delete for form %s exited %d", created.ID, exit)
 		}
 	})
+	if created.Title != name {
+		t.Fatalf("form create returned title %q, want %q:\n%s", created.Title, name, out)
+	}
 
 	out = mustRunTypeform(t, "form", "get", created.ID)
 	var fetched typeformForm
@@ -83,10 +100,16 @@ func TestE2EFormClosedLoop(t *testing.T) {
 	}
 	deleted = true
 
-	// A successful read after deletion would prove the cleanup did not take effect.
-	out, _, exit := e2e.RunToolWithStderr(t, "typeform", "", "form", "get", created.ID)
+	// Only Typeform's explicit not-found response proves deletion; unrelated
+	// credential, rate-limit, transport, or server failures must fail the test.
+	out, stderr, exit := e2e.RunToolWithStderr(t, "typeform", "", "--json", "form", "get", created.ID)
 	if exit == 0 {
 		t.Fatalf("form get after delete succeeded for %s:\n%s", created.ID, out)
+	}
+	var notFound typeformErrorEnvelope
+	decodeTypeformJSON(t, stderr, &notFound)
+	if notFound.Error.Kind != "api" || notFound.Error.Status != 404 || !strings.Contains(notFound.Error.Message, "FORM_NOT_FOUND") {
+		t.Fatalf("form get after delete returned an unexpected error for %s:\n%s", created.ID, stderr)
 	}
 }
 
