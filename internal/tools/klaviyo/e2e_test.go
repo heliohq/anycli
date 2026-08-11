@@ -47,6 +47,9 @@ func TestE2EListRead(t *testing.T) {
 	out := mustRunKlaviyo(t, "list", "list", "--page-size", "1", "--json")
 	var lists klaviyoCollectionResponse
 	decodeKlaviyoJSON(t, out, &lists)
+	if lists.Data == nil {
+		t.Fatalf("list discovery response omitted data:\n%s", out)
+	}
 	if len(lists.Data) == 0 {
 		return
 	}

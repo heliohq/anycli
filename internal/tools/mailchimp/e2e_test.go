@@ -52,6 +52,9 @@ func TestE2EAudienceRead(t *testing.T) {
 	out := mustRunMailchimp(t, "audience", "list", "--count", "5", "--json")
 	var response mailchimpAudienceListResponse
 	decodeMailchimpJSON(t, out, &response)
+	if response.Lists == nil {
+		t.Fatalf("audience list response omitted lists:\n%s", out)
+	}
 	if response.TotalItems < len(response.Lists) {
 		t.Fatalf("audience list total_items=%d is smaller than returned lists=%d:\n%s", response.TotalItems, len(response.Lists), out)
 	}

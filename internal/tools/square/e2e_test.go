@@ -93,10 +93,10 @@ func TestE2ECustomerClosedLoop(t *testing.T) {
 	// Create an isolated customer whose run-scoped name identifies it.
 	out := mustRunSquare(t, "customer", "create", "--body", encodeSquareJSON(t, squareCustomerRequest{GivenName: name}), "--json")
 	created := decodeSquareCustomer(t, "customer create", out)
-	if created.ID == "" || created.GivenName != name {
+	customerID = created.ID
+	if customerID == "" || created.GivenName != name {
 		t.Fatalf("customer create returned unexpected data: %+v", created)
 	}
-	customerID = created.ID
 
 	// Read the customer back to verify creation was durably visible.
 	out = mustRunSquare(t, "customer", "get", "--customer-id", customerID, "--json")

@@ -82,10 +82,10 @@ func TestE2EActivityClosedLoop(t *testing.T) {
 		t.Fatalf("activity create: exit = %d\nstderr: %s\nstdout: %s", exit, stderr, out)
 	}
 	created := decodePipedriveActivity(t, "activity create", out)
-	if created.ID == 0 || created.Subject != subject {
+	activityID = created.ID
+	if activityID == 0 || created.Subject != subject {
 		t.Fatalf("activity create returned unexpected data: %+v", created)
 	}
-	activityID = created.ID
 
 	// Read the activity back to verify creation was durably visible.
 	out, stderr, exit = e2e.RunToolWithStderr(t, "pipedrive", "", "--json", "activity", "get", formatID(activityID))
