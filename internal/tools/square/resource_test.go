@@ -93,6 +93,25 @@ func TestCustomerUpdateUsesPut(t *testing.T) {
 	}
 }
 
+// TestCustomerDeleteUsesDelete proves delete maps to
+// DELETE /v2/customers/{id} without a request body.
+func TestCustomerDeleteUsesDelete(t *testing.T) {
+	var got capturedRequest
+	srv := newServer(t, http.StatusOK, `{}`, &got)
+	defer srv.Close()
+
+	exit, _, stderr := run(t, srv, "customer", "delete", "--customer-id", "C1")
+	if exit != 0 {
+		t.Fatalf("exit = %d, want 0 (stderr %s)", exit, stderr)
+	}
+	if got.Method != http.MethodDelete || got.Path != "/v2/customers/C1" {
+		t.Fatalf("got %s %s, want DELETE /v2/customers/C1", got.Method, got.Path)
+	}
+	if len(got.Body) != 0 {
+		t.Fatalf("body = %q, want empty", got.Body)
+	}
+}
+
 // TestInvoiceListRequiresLocation proves list sends location_id and rejects its
 // absence as a usage error (never reaching the server).
 func TestInvoiceListRequiresLocation(t *testing.T) {

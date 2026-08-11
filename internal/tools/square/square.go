@@ -174,6 +174,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 		s.newCustomerGetCmd(token),
 		s.newCustomerCreateCmd(token),
 		s.newCustomerUpdateCmd(token),
+		s.newCustomerDeleteCmd(token),
 	)
 
 	catalog := newGroupCmd("catalog", "Browse the product catalog")
