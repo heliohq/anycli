@@ -131,3 +131,25 @@ func (s *Service) newCustomerUpdateCmd(token string) *cobra.Command {
 	_ = cmd.MarkFlagRequired("body")
 	return cmd
 }
+
+// newCustomerDeleteCmd removes one customer profile so callers can clean up
+// records created by automated workflows and tests.
+func (s *Service) newCustomerDeleteCmd(token string) *cobra.Command {
+	var customerID string
+	cmd := &cobra.Command{
+		Use:         "delete",
+		Short:       "Delete a customer (DELETE /v2/customers/{customer_id})",
+		Args:        cobra.NoArgs,
+		Annotations: map[string]string{"anycli.side_effect": "true"}, // DELETE removes a profile
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			resp, err := s.call(cmd.Context(), token, http.MethodDelete, "/v2/customers/"+url.PathEscape(customerID), nil, nil)
+			if err != nil {
+				return err
+			}
+			return s.emit(resp)
+		},
+	}
+	cmd.Flags().StringVar(&customerID, "customer-id", "", "customer id")
+	_ = cmd.MarkFlagRequired("customer-id")
+	return cmd
+}

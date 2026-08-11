@@ -23,6 +23,7 @@ func TestSideEffectAnnotations(t *testing.T) {
 		"customer get":    "false",
 		"customer create": "true",
 		"customer update": "true",
+		"customer delete": "true",
 		"catalog list":    "false",
 		"catalog search":  "false", // POST /v2/catalog/search — documented lookup
 		"catalog get":     "false",
