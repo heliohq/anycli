@@ -26,15 +26,17 @@ var (
 	prefix     string
 )
 
-// Prefix returns the run-scoped test-data prefix "anycli-e2e-<runid>-"
-// (design 008 D4): GITHUB_RUN_ID in CI, a timestamp locally. All data an
-// e2e test creates must carry it so interrupted-run leftovers are
-// identifiable by the nightly sweep.
+// Prefix returns a workflow-attempt-scoped test-data prefix. CI uses
+// GITHUB_RUN_ID plus GITHUB_RUN_ATTEMPT so a re-run cannot collide with
+// archived provider data; local runs use a timestamp. All data an e2e test
+// creates must carry it so interrupted-run leftovers remain identifiable.
 func Prefix() string {
 	prefixOnce.Do(func() {
 		id := os.Getenv("GITHUB_RUN_ID")
 		if id == "" {
 			id = fmt.Sprintf("%d", time.Now().Unix())
+		} else if attempt := os.Getenv("GITHUB_RUN_ATTEMPT"); attempt != "" {
+			id += "-" + attempt
 		}
 		prefix = "anycli-e2e-" + id + "-"
 	})

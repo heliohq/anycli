@@ -2,8 +2,24 @@ package e2e
 
 import (
 	"strings"
+	"sync"
 	"testing"
 )
+
+func TestPrefixIncludesWorkflowAttempt(t *testing.T) {
+	t.Setenv("GITHUB_RUN_ID", "123")
+	t.Setenv("GITHUB_RUN_ATTEMPT", "2")
+	prefixOnce = sync.Once{}
+	prefix = ""
+	t.Cleanup(func() {
+		prefixOnce = sync.Once{}
+		prefix = ""
+	})
+
+	if got := Prefix(); got != "anycli-e2e-123-2-" {
+		t.Fatalf("Prefix() = %q, want workflow attempt in prefix", got)
+	}
+}
 
 func TestPrefixIsStableAndTagged(t *testing.T) {
 	p1, p2 := Prefix(), Prefix()

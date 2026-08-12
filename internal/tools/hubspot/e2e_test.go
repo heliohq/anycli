@@ -1,7 +1,8 @@
 //go:build e2e
 
 // Real-API e2e for HubSpot: verify the OAuth-bound portal, then exercise a
-// contact lifecycle that archives every record it creates.
+// contact lifecycle whose archived test record is permanently deleted after
+// HubSpot's 90-day recycling-bin retention period.
 package hubspot_test
 
 import (
@@ -43,7 +44,9 @@ func TestE2EAccountRead(t *testing.T) {
 }
 
 // TestE2EContactClosedLoop catches broken contact write verbs and cleanup by
-// exercising create, get, update, archive, then get-after-archive.
+// exercising create, get, update, archive, then get-after-archive. HubSpot
+// permanently deletes archived contacts after its 90-day retention period, so
+// this lifecycle does not accumulate permanent test records.
 func TestE2EContactClosedLoop(t *testing.T) {
 	prefix := e2e.Prefix()
 	email := prefix + "hubspot-contact@example.com"
