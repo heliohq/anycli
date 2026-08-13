@@ -1,7 +1,9 @@
 // Package mercury is the built-in Mercury service: a read-first cobra tree over
 // the Mercury Banking API (https://api.mercury.com/api/v1). It exposes the nouns
 // an AI finance teammate reasons over — accounts, transactions, recipients,
-// treasury, and cards — and normalizes every response into a provider-neutral
+// treasury, cards, and IO credit card accounts (GET /credit; Mercury filters
+// credit accounts out of GET /accounts server-side, so `credit list` is the
+// only way to discover their ids) — and normalizes every response into a provider-neutral
 // {"data": ...} envelope (a JSON array for list verbs, a JSON object for get
 // verbs) so an agent can consume results uniformly.
 //
@@ -12,11 +14,16 @@
 //
 // Output is always JSON. The persistent --json flag controls the ERROR envelope
 // format (a structured {"error": {...}} on stderr under --json, plain text
-// otherwise); data on stdout is always the normalized {"data": ...} envelope.
+// otherwise); data on stdout is the normalized {"data": ...} envelope for every
+// first-class command (the `api` escape hatch below is the one exception — it
+// emits the provider body verbatim).
 //
-// This first pass is read-only: money-movement writes (send money, internal
-// transfer, recipient create/update) are deliberately deferred behind a
-// review of Mercury's idempotency-key and approval-request semantics.
+// The first-class commands are read-only: money-movement writes (send money,
+// internal transfer, recipient create/update) are deliberately deferred behind
+// a review of Mercury's idempotency-key and approval-request semantics. The
+// `api <method> <path>` escape hatch can reach any Mercury endpoint (raw
+// verbatim response, annotated side-effecting because the method is runtime
+// input).
 package mercury
 
 import (
@@ -138,7 +145,7 @@ func (s *Service) stderr() io.Writer {
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "mercury",
-		Short:         "Mercury built-in service (banking accounts, transactions, recipients, treasury, cards)",
+		Short:         "Mercury built-in service (banking accounts, transactions, recipients, treasury, cards, credit, raw api)",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -171,8 +178,12 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	card.AddCommand(
 		s.newCardListCmd(token),
 	)
+	credit := newGroupCmd("credit", "List IO credit card accounts")
+	credit.AddCommand(
+		s.newCreditListCmd(token),
+	)
 
-	root.AddCommand(account, transaction, recipient, treasury, card)
+	root.AddCommand(account, transaction, recipient, treasury, card, credit, s.newAPICmd(token))
 	return root
 }
 
