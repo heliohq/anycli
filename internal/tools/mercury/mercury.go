@@ -16,9 +16,12 @@
 // format (a structured {"error": {...}} on stderr under --json, plain text
 // otherwise); data on stdout is always the normalized {"data": ...} envelope.
 //
-// This first pass is read-only: money-movement writes (send money, internal
-// transfer, recipient create/update) are deliberately deferred behind a
-// review of Mercury's idempotency-key and approval-request semantics.
+// The first-class commands are read-only: money-movement writes (send money,
+// internal transfer, recipient create/update) are deliberately deferred behind
+// a review of Mercury's idempotency-key and approval-request semantics. The
+// `api <method> <path>` escape hatch can reach any Mercury endpoint (raw
+// verbatim response, annotated side-effecting because the method is runtime
+// input).
 package mercury
 
 import (
@@ -140,7 +143,7 @@ func (s *Service) stderr() io.Writer {
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "mercury",
-		Short:         "Mercury built-in service (banking accounts, transactions, recipients, treasury, cards, credit)",
+		Short:         "Mercury built-in service (banking accounts, transactions, recipients, treasury, cards, credit, raw api)",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -178,7 +181,7 @@ func (s *Service) newRoot(token string) *cobra.Command {
 		s.newCreditListCmd(token),
 	)
 
-	root.AddCommand(account, transaction, recipient, treasury, card, credit)
+	root.AddCommand(account, transaction, recipient, treasury, card, credit, s.newAPICmd(token))
 	return root
 }
 

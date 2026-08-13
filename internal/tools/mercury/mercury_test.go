@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,10 +13,13 @@ import (
 
 // capturedRequest records one request the fake Mercury server received.
 type capturedRequest struct {
-	Method string
-	Path   string
-	Auth   string
-	Query  map[string][]string
+	Method      string
+	Path        string
+	Auth        string
+	Query       map[string][]string
+	Body        string
+	ContentType string
+	Headers     http.Header
 }
 
 // stub is one canned answer for a "METHOD /path" route.
@@ -28,11 +32,15 @@ type stub struct {
 func newMux(t *testing.T, reqs *[]capturedRequest, routes map[string]stub) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
 		*reqs = append(*reqs, capturedRequest{
-			Method: r.Method,
-			Path:   r.URL.Path,
-			Auth:   r.Header.Get("Authorization"),
-			Query:  r.URL.Query(),
+			Method:      r.Method,
+			Path:        r.URL.Path,
+			Auth:        r.Header.Get("Authorization"),
+			Query:       r.URL.Query(),
+			Body:        string(body),
+			ContentType: r.Header.Get("Content-Type"),
+			Headers:     r.Header.Clone(),
 		})
 		w.Header().Set("Content-Type", "application/json")
 		if s, ok := routes[r.Method+" "+r.URL.Path]; ok {
@@ -442,7 +450,7 @@ func TestNewCommandTreeTraversable(t *testing.T) {
 	for _, c := range root.Commands() {
 		groups[c.Name()] = true
 	}
-	for _, want := range []string{"account", "transaction", "recipient", "treasury", "card", "credit"} {
+	for _, want := range []string{"account", "transaction", "recipient", "treasury", "card", "credit", "api"} {
 		if !groups[want] {
 			t.Errorf("missing group %q", want)
 		}
