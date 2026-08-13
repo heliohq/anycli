@@ -14,7 +14,9 @@
 //
 // Output is always JSON. The persistent --json flag controls the ERROR envelope
 // format (a structured {"error": {...}} on stderr under --json, plain text
-// otherwise); data on stdout is always the normalized {"data": ...} envelope.
+// otherwise); data on stdout is the normalized {"data": ...} envelope for every
+// first-class command (the `api` escape hatch below is the one exception — it
+// emits the provider body verbatim).
 //
 // The first-class commands are read-only: money-movement writes (send money,
 // internal transfer, recipient create/update) are deliberately deferred behind
