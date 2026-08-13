@@ -214,19 +214,27 @@ func exeSuffixFor(goos string) string {
 // httpDownload is the production Downloader: plain HTTPS against the official
 // host, no mirror, no fallback.
 func httpDownload(ctx context.Context, url string) (io.ReadCloser, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
+	return HTTPDownloader(http.DefaultClient)(ctx, url)
+}
+
+// HTTPDownloader returns a Downloader backed by hc, so an engine-level
+// injected HTTP client also covers lazy binary downloads.
+func HTTPDownloader(hc *http.Client) Downloader {
+	return func(ctx context.Context, url string) (io.ReadCloser, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := hc.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return nil, fmt.Errorf("download %s: HTTP %d", url, resp.StatusCode)
+		}
+		return resp.Body, nil
 	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("download %s: HTTP %d", url, resp.StatusCode)
-	}
-	return resp.Body, nil
 }
 
 // verifySHA256 compares a computed digest with the pinned hex digest.

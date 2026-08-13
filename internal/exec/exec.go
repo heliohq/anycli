@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -54,16 +55,21 @@ func helpWriter() io.Writer {
 // internal embedded set, not from the engine's configuration.
 type Engine struct {
 	cache credential.Cache
+	// httpClient, when non-nil, is used for every outbound HTTP request the
+	// engine makes (built-in service provider calls, lazy binary
+	// downloads). nil keeps each call site's production default.
+	httpClient *http.Client
 }
 
-// NewEngine constructs an Engine with the given credential cache. cache must be
-// non-nil; the public constructor installs the in-memory default when the
-// consumer supplies none.
-func NewEngine(cache credential.Cache) (*Engine, error) {
+// NewEngine constructs an Engine with the given credential cache and optional
+// HTTP client. cache must be non-nil; the public constructor installs the
+// in-memory default when the consumer supplies none. A nil httpClient keeps
+// the default per-call-site HTTP behavior.
+func NewEngine(cache credential.Cache, httpClient *http.Client) (*Engine, error) {
 	if cache == nil {
 		return nil, fmt.Errorf("credential cache must not be nil")
 	}
-	return &Engine{cache: cache}, nil
+	return &Engine{cache: cache, httpClient: httpClient}, nil
 }
 
 // Execute runs a tool through the full credential + middleware pipeline.
@@ -160,6 +166,11 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 	// 4. If service type, delegate to built-in service. Help already
 	// short-circuited above, so anything reaching here is a real invocation.
 	if def.Type == "service" {
+		if e.httpClient != nil {
+			// Run a copy of the registered service with the injected
+			// HTTP client — the registry singleton is never mutated.
+			svc = tools.WithHTTPClient(svc, e.httpClient)
+		}
 		result, err := svc.Execute(ctx, mctx.Args, mctx.Env)
 		if result.CredentialRejected && hasCredentials {
 			e.markCredentialsStale(tool, account)
@@ -176,7 +187,7 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 	// DOWNLOAD — the pinned release first. Skipping credential resolution is
 	// what makes that help reachable at all before the tool is connected; the
 	// download is the price of asking the real binary.
-	binaryPath, err := ResolveBinary(ctx, def)
+	binaryPath, err := ResolveBinaryWith(ctx, def, e.httpClient)
 	if err != nil {
 		return 1, fmt.Errorf("cannot find %q binary: %w", tool, err)
 	}
@@ -394,6 +405,12 @@ func (e *Engine) markCredentialsStale(tool, account string) {
 // an official direct-download source. Definitions without one (e.g. lark-cli)
 // keep the historical PATH-only behavior and error.
 func ResolveBinary(ctx context.Context, def *registry.Definition) (string, error) {
+	return ResolveBinaryWith(ctx, def, nil)
+}
+
+// ResolveBinaryWith is ResolveBinary with an optional HTTP client for the
+// lazy-install download; nil keeps the default HTTPS downloader.
+func ResolveBinaryWith(ctx context.Context, def *registry.Definition, httpClient *http.Client) (string, error) {
 	if def.Resolve != "" && def.Resolve != "which" {
 		// Absolute path provided
 		if _, err := os.Stat(def.Resolve); err != nil {
@@ -401,9 +418,13 @@ func ResolveBinary(ctx context.Context, def *registry.Definition) (string, error
 		}
 		return def.Resolve, nil
 	}
-	return binresolve.Resolve(ctx, def.Name, def.Binary, def.Source, binresolve.Options{
+	opts := binresolve.Options{
 		SkipPATHDir: config.BinDir(),
-	})
+	}
+	if httpClient != nil {
+		opts.Downloader = binresolve.HTTPDownloader(httpClient)
+	}
+	return binresolve.Resolve(ctx, def.Name, def.Binary, def.Source, opts)
 }
 
 // executePassthrough runs the binary with stdin/stdout/stderr connected directly.
