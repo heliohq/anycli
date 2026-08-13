@@ -305,6 +305,49 @@ func TestCardList(t *testing.T) {
 	}
 }
 
+func TestCreditList(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"GET /api/v1/credit": {status: 200, body: `{"accounts":[{"id":"cr1","status":"active","createdAt":"2025-01-01T00:00:00Z","availableBalance":5000,"currentBalance":-250}]}`},
+	})
+	defer srv.Close()
+	code, out, _ := run(t, srv, "credit", "list")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	req := findReq(reqs, "GET", "/api/v1/credit")
+	if req == nil {
+		t.Fatal("no GET /api/v1/credit request")
+	}
+	if req.Auth != "Bearer test-token" {
+		t.Errorf("Authorization = %q, want Bearer test-token", req.Auth)
+	}
+	env := decodeEnvelope(t, out)
+	var accts []map[string]any
+	if err := json.Unmarshal(env["data"], &accts); err != nil {
+		t.Fatalf("data not array: %v", err)
+	}
+	if len(accts) != 1 || accts[0]["id"] != "cr1" {
+		t.Errorf("credit data = %v, want [cr1]", accts)
+	}
+}
+
+func TestCreditListEmptyBecomesArray(t *testing.T) {
+	var reqs []capturedRequest
+	srv := newMux(t, &reqs, map[string]stub{
+		"GET /api/v1/credit": {status: 200, body: `{}`},
+	})
+	defer srv.Close()
+	code, out, _ := run(t, srv, "credit", "list")
+	if code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	env := decodeEnvelope(t, out)
+	if string(env["data"]) != "[]" {
+		t.Errorf("data = %s, want [] for a missing list", env["data"])
+	}
+}
+
 func TestMissingToken(t *testing.T) {
 	var out, errb bytes.Buffer
 	svc := &Service{Out: &out, Err: &errb}
@@ -399,7 +442,7 @@ func TestNewCommandTreeTraversable(t *testing.T) {
 	for _, c := range root.Commands() {
 		groups[c.Name()] = true
 	}
-	for _, want := range []string{"account", "transaction", "recipient", "treasury", "card"} {
+	for _, want := range []string{"account", "transaction", "recipient", "treasury", "card", "credit"} {
 		if !groups[want] {
 			t.Errorf("missing group %q", want)
 		}

@@ -1,7 +1,9 @@
 // Package mercury is the built-in Mercury service: a read-first cobra tree over
 // the Mercury Banking API (https://api.mercury.com/api/v1). It exposes the nouns
 // an AI finance teammate reasons over — accounts, transactions, recipients,
-// treasury, and cards — and normalizes every response into a provider-neutral
+// treasury, cards, and IO credit card accounts (GET /credit; Mercury filters
+// credit accounts out of GET /accounts server-side, so `credit list` is the
+// only way to discover their ids) — and normalizes every response into a provider-neutral
 // {"data": ...} envelope (a JSON array for list verbs, a JSON object for get
 // verbs) so an agent can consume results uniformly.
 //
@@ -138,7 +140,7 @@ func (s *Service) stderr() io.Writer {
 func (s *Service) newRoot(token string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "mercury",
-		Short:         "Mercury built-in service (banking accounts, transactions, recipients, treasury, cards)",
+		Short:         "Mercury built-in service (banking accounts, transactions, recipients, treasury, cards, credit)",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -171,8 +173,12 @@ func (s *Service) newRoot(token string) *cobra.Command {
 	card.AddCommand(
 		s.newCardListCmd(token),
 	)
+	credit := newGroupCmd("credit", "List IO credit card accounts")
+	credit.AddCommand(
+		s.newCreditListCmd(token),
+	)
 
-	root.AddCommand(account, transaction, recipient, treasury, card)
+	root.AddCommand(account, transaction, recipient, treasury, card, credit)
 	return root
 }
 
