@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -103,6 +104,10 @@ type Service struct {
 	// Out / Err override stdout / stderr; nil = the process streams.
 	Out io.Writer
 	Err io.Writer
+	// HC, when non-nil, carries the lazy mongosh download — this service's
+	// only outbound HTTP; nil downloads from the official source directly.
+	// Set by engine-level HTTP injection (tools.WithHTTPClient).
+	HC *http.Client
 }
 
 // Execute runs one mongodb subcommand with the resolved connection string in env.
@@ -305,10 +310,14 @@ func (s *Service) resolveMongoshBinary(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	binary, err := binresolve.Resolve(ctx, def.Name, def.Binary, def.Source, binresolve.Options{
+	opts := binresolve.Options{
 		SkipPATHDir: config.BinDir(),
 		Notice:      s.stderr(),
-	})
+	}
+	if s.HC != nil {
+		opts.Downloader = binresolve.HTTPDownloader(s.HC)
+	}
+	binary, err := binresolve.Resolve(ctx, def.Name, def.Binary, def.Source, opts)
 	if err != nil {
 		return "", fmt.Errorf("resolve mongosh: %w", err)
 	}

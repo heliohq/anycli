@@ -2,6 +2,8 @@ package anycli
 
 import (
 	"context"
+	"io"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
@@ -61,6 +63,52 @@ func TestExecuteFigmaCapabilitiesThroughEmbeddedService(t *testing.T) {
 	}
 	if exitCode != 0 {
 		t.Errorf("exit code = %d, want 0", exitCode)
+	}
+}
+
+// recordingTransport records every request it sees and answers each with a
+// canned response, never touching the network.
+type recordingTransport struct {
+	requests []*http.Request
+	body     string
+}
+
+func (rt *recordingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.requests = append(rt.requests, req)
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(rt.body)),
+		Request:    req,
+	}, nil
+}
+
+// TestConfigHTTPClientInterceptsServiceHTTP pins the Config.HTTPClient seam:
+// a consumer-injected client carries every provider HTTP call a built-in
+// service execution makes (the e2e upstream-mock seam).
+func TestConfigHTTPClientInterceptsServiceHTTP(t *testing.T) {
+	rt := &recordingTransport{body: `{"emailAddress":"fixture@example.com","messagesTotal":1,"threadsTotal":1}`}
+	engine, err := New(Config{HTTPClient: &http.Client{Transport: rt}})
+	if err != nil {
+		t.Fatalf("New failed: %v", err)
+	}
+	resolver := staticResolver{data: map[string]string{"access_token": "test-token"}}
+	exitCode, err := engine.Execute(context.Background(), Tool("gmail"), []string{"profile", "--json"}, resolver)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+	if exitCode != 0 {
+		t.Fatalf("exit code = %d, want 0", exitCode)
+	}
+	if len(rt.requests) == 0 {
+		t.Fatal("no HTTP request went through the injected client")
+	}
+	req := rt.requests[0]
+	if req.URL.Host != "gmail.googleapis.com" {
+		t.Errorf("request host = %q, want the production Gmail host (the seam must carry, not rewrite)", req.URL.Host)
+	}
+	if got := req.Header.Get("Authorization"); got != "Bearer test-token" {
+		t.Errorf("Authorization = %q, want the resolver-injected token", got)
 	}
 }
 

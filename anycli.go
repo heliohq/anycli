@@ -15,6 +15,7 @@ package anycli
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/heliohq/anycli/internal/credential"
 	"github.com/heliohq/anycli/internal/exec"
@@ -47,13 +48,21 @@ type Cache = credential.Cache
 // metadata the engine uses to decide whether to re-resolve.
 type CacheEntry = credential.CacheEntry
 
-// Config carries the consumer-supplied initialization for an Engine. It carries
-// only a Cache — tool definitions are internal to AnyCLI (embedded) and are
-// never consumer-supplied.
+// Config carries the consumer-supplied initialization for an Engine. Tool
+// definitions are internal to AnyCLI (embedded) and are never
+// consumer-supplied.
 type Config struct {
 	// Cache is the credential cache the engine uses. Optional: a nil Cache
 	// installs an in-memory default (see NewMemoryCache).
 	Cache Cache
+
+	// HTTPClient, when non-nil, is used for every outbound HTTP request the
+	// engine makes: built-in service provider calls and lazy binary
+	// downloads alike. nil keeps the default behavior (each call site's
+	// production client, typically http.DefaultClient). The seam exists so
+	// a host can interpose a RoundTripper — e.g. an e2e harness rewriting
+	// provider upstreams to a local fixture server.
+	HTTPClient *http.Client
 }
 
 // NewMemoryCache returns an empty in-memory Cache — the default the engine
@@ -79,7 +88,7 @@ func New(cfg Config) (*Engine, error) {
 	if cache == nil {
 		cache = credential.NewMemoryCache()
 	}
-	inner, err := exec.NewEngine(cache)
+	inner, err := exec.NewEngine(cache, cfg.HTTPClient)
 	if err != nil {
 		return nil, err
 	}
