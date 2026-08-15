@@ -1,6 +1,8 @@
 {
   "name": "pipedrive",
   "type": "service",
+  "title": "Pipedrive",
+  "category": "Sales",
   "description": "Pipedrive CRM as a tool (OAuth)",
   "auth": {
     "credentials": [

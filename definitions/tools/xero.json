@@ -1,6 +1,8 @@
 {
   "name": "xero",
   "type": "service",
+  "title": "Xero",
+  "category": "Finance",
   "description": "Xero accounting: invoices, bills, contacts, payments, accounts, and reports",
   "auth": {
     "credentials": [

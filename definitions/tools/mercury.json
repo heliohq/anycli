@@ -1,6 +1,8 @@
 {
   "name": "mercury",
   "type": "service",
+  "title": "Mercury",
+  "category": "Finance",
   "description": "Mercury as a tool (banking accounts, transactions, recipients, treasury, cards, IO credit accounts, plus a raw api escape hatch, via OAuth2 access token)",
   "auth": {
     "credentials": [

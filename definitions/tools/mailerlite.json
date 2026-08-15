@@ -1,6 +1,8 @@
 {
   "name": "mailerlite",
   "type": "service",
+  "title": "MailerLite",
+  "category": "Marketing",
   "description": "MailerLite email marketing as a tool (Connect API, Bearer token)",
   "auth": {
     "credentials": [

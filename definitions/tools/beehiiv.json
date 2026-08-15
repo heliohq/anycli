@@ -1,6 +1,8 @@
 {
   "name": "beehiiv",
   "type": "service",
+  "title": "beehiiv",
+  "category": "Marketing",
   "description": "beehiiv newsletter platform (publications, posts, subscribers, segments)",
   "auth": {
     "credentials": [

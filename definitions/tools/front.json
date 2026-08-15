@@ -1,6 +1,8 @@
 {
   "name": "front",
   "type": "service",
+  "title": "Front",
+  "category": "Support",
   "description": "Front shared inbox (conversations, replies, drafts, comments, contacts)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "surveymonkey",
   "type": "service",
+  "title": "SurveyMonkey",
+  "category": "Forms & Signing",
   "description": "SurveyMonkey surveys and responses (OAuth token)",
   "auth": {
     "credentials": [

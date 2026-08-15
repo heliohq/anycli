@@ -1,6 +1,8 @@
 {
   "name": "fillout",
   "type": "service",
+  "title": "Fillout",
+  "category": "Forms & Signing",
   "description": "Fillout forms and submissions (OAuth)",
   "auth": {
     "credentials": [

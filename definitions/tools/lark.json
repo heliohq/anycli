@@ -1,5 +1,7 @@
 {
   "name": "lark",
+  "title": "Lark",
+  "category": "Productivity",
   "description": "Feishu / Lark via the official lark-cli (bot identity by default; `lark-cli auth login` device-flow grants user identity for `--as user`)",
   "binary": "lark-cli",
   "source": {

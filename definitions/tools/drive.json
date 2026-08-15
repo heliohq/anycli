@@ -1,6 +1,8 @@
 {
   "name": "drive",
   "type": "service",
+  "title": "Google Drive",
+  "category": "Productivity",
   "description": "Google Drive as a tool (user access token)",
   "auth": {
     "credentials": [

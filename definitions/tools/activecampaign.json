@@ -1,6 +1,8 @@
 {
   "name": "activecampaign",
   "type": "service",
+  "title": "ActiveCampaign",
+  "category": "Marketing",
   "description": "ActiveCampaign marketing automation & CRM (API v3, Api-Token header)",
   "auth": {
     "credentials": [

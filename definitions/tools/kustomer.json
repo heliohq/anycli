@@ -1,6 +1,8 @@
 {
   "name": "kustomer",
   "type": "service",
+  "title": "Kustomer",
+  "category": "Support",
   "description": "Kustomer as a tool (support CRM: customers, conversations, messages, notes)",
   "auth": {
     "credentials": [

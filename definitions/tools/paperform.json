@@ -1,6 +1,8 @@
 {
   "name": "paperform",
   "type": "service",
+  "title": "Paperform",
+  "category": "Forms & Signing",
   "description": "Paperform as a tool: read forms, fields, submissions, spaces, and commerce config (api.paperform.co v1)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "docs",
   "type": "service",
+  "title": "Google Docs",
+  "category": "Productivity",
   "description": "Google Docs as a tool (user access token)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "savvycal",
   "type": "service",
+  "title": "SavvyCal",
+  "category": "Productivity",
   "description": "SavvyCal scheduling as a tool (OAuth user token)",
   "auth": {
     "credentials": [

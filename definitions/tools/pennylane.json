@@ -1,6 +1,8 @@
 {
   "name": "pennylane",
   "type": "service",
+  "title": "Pennylane",
+  "category": "Finance",
   "description": "Pennylane accounting: customers, suppliers, invoices, transactions, and ledger.",
   "auth": {
     "credentials": [

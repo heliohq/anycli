@@ -1,6 +1,8 @@
 {
   "name": "adobe-sign",
   "type": "service",
+  "title": "Adobe Acrobat Sign",
+  "category": "Forms & Signing",
   "description": "Adobe Acrobat Sign as a tool (send / track / retrieve e-signature agreements via REST API v6)",
   "auth": {
     "credentials": [

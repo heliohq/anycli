@@ -1,6 +1,8 @@
 {
   "name": "lemon-squeezy",
   "type": "service",
+  "title": "Lemon Squeezy",
+  "category": "Finance",
   "description": "Lemon Squeezy as a tool (API key) — stores, products, orders, subscriptions, customers, discounts, license keys, checkouts",
   "auth": {
     "credentials": [

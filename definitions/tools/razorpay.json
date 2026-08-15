@@ -1,6 +1,8 @@
 {
   "name": "razorpay",
   "type": "service",
+  "title": "Razorpay",
+  "category": "Finance",
   "description": "Razorpay payments, refunds, customers, and payment links (OAuth 2.0 access token)",
   "auth": {
     "credentials": [

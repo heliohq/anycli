@@ -1,6 +1,8 @@
 {
   "name": "omnisend",
   "type": "service",
+  "title": "Omnisend",
+  "category": "Marketing",
   "description": "Omnisend as a tool (email/SMS marketing automation; OAuth token)",
   "auth": {
     "credentials": [

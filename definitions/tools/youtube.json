@@ -1,6 +1,8 @@
 {
   "name": "youtube",
   "type": "service",
+  "title": "YouTube",
+  "category": "Social & Ads",
   "description": "YouTube as a tool (OAuth 2.0 user access token)",
   "auth": {
     "credentials": [

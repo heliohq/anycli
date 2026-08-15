@@ -1,6 +1,8 @@
 {
   "name": "mongodb",
   "type": "service",
+  "title": "MongoDB",
+  "category": "Developer",
   "description": "MongoDB database operations via the official mongosh shell (eval + ping)",
   "binary": "mongosh",
   "source": {

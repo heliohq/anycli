@@ -1,6 +1,8 @@
 {
   "name": "hunter",
   "type": "service",
+  "title": "Hunter.io",
+  "category": "Sales",
   "description": "Hunter.io email finding, verification, and lead enrichment (API key)",
   "auth": {
     "credentials": [

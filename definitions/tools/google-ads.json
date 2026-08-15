@@ -1,6 +1,8 @@
 {
   "name": "google-ads",
   "type": "service",
+  "title": "Google Ads",
+  "category": "Social & Ads",
   "description": "Google Ads as a tool (user access token + app developer token)",
   "auth": {
     "credentials": [

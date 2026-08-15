@@ -1,6 +1,8 @@
 {
   "name": "semrush",
   "type": "service",
+  "title": "Semrush",
+  "category": "Analytics",
   "description": "Semrush SEO analytics (domain, keyword, backlink research; v3 API key)",
   "auth": {
     "credentials": [

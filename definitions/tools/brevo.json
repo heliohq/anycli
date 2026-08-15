@@ -1,6 +1,8 @@
 {
   "name": "brevo",
   "type": "service",
+  "title": "Brevo",
+  "category": "Marketing",
   "description": "Brevo (email marketing, transactional email, contacts, CRM) as a tool",
   "auth": {
     "credentials": [

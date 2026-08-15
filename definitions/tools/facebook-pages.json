@@ -1,6 +1,8 @@
 {
   "name": "facebook-pages",
   "type": "service",
+  "title": "Facebook Pages",
+  "category": "Social & Ads",
   "description": "Facebook Pages as a tool (Graph API; long-lived user OAuth token)",
   "auth": {
     "credentials": [

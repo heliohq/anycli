@@ -1,6 +1,8 @@
 {
   "name": "attio",
   "type": "service",
+  "title": "Attio",
+  "category": "Sales",
   "description": "Attio CRM as a tool (records, lists, notes, tasks via OAuth token)",
   "auth": {
     "credentials": [

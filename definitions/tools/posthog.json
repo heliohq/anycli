@@ -1,6 +1,8 @@
 {
   "name": "posthog",
   "type": "service",
+  "title": "PostHog",
+  "category": "Analytics",
   "description": "PostHog product analytics as a tool (OAuth access token or personal API key)",
   "auth": {
     "credentials": [

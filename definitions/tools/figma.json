@@ -1,6 +1,8 @@
 {
   "name": "figma",
   "type": "service",
+  "title": "Figma",
+  "category": "Productivity",
   "description": "Complete PAT-accessible Figma REST API with design context and asset downloads",
   "auth": {
     "credentials": [

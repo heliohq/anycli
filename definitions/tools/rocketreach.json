@@ -1,6 +1,8 @@
 {
   "name": "rocketreach",
   "type": "service",
+  "title": "RocketReach",
+  "category": "Sales",
   "description": "RocketReach as a tool (contact enrichment + prospecting; API key)",
   "auth": {
     "credentials": [

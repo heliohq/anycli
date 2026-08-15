@@ -1,6 +1,8 @@
 {
   "name": "shopify",
   "type": "service",
+  "title": "Shopify",
+  "category": "Finance",
   "description": "Shopify store admin (GraphQL Admin API) as a tool",
   "auth": {
     "credentials": [

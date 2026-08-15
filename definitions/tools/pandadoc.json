@@ -1,6 +1,8 @@
 {
   "name": "pandadoc",
   "type": "service",
+  "title": "PandaDoc",
+  "category": "Forms & Signing",
   "description": "PandaDoc as a tool (documents, templates, eSignature)",
   "auth": {
     "credentials": [

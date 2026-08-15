@@ -1,6 +1,8 @@
 {
   "name": "resend",
   "type": "service",
+  "title": "Resend",
+  "category": "Marketing",
   "description": "Resend as a tool (send transactional & broadcast email via API key)",
   "auth": {
     "credentials": [

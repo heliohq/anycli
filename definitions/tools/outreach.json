@@ -1,6 +1,8 @@
 {
   "name": "outreach",
   "type": "service",
+  "title": "Outreach",
+  "category": "Sales",
   "description": "Outreach sales engagement as a tool (OAuth 2.0 user token)",
   "auth": {
     "credentials": [

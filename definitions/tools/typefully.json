@@ -1,6 +1,8 @@
 {
   "name": "typefully",
   "type": "service",
+  "title": "Typefully",
+  "category": "Social & Ads",
   "description": "Typefully social-writing tool (drafts, scheduling/publishing, queue, tags, X analytics)",
   "auth": {
     "credentials": [

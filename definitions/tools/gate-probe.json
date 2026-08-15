@@ -1,5 +1,7 @@
 {
   "name": "gate-probe",
   "type": "service",
+  "title": "Gate probe",
+  "category": "Developer",
   "description": "Approval-gate E2E probe (test-only): hidden local no-op echo, no credentials, no network"
 }

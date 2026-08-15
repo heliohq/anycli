@@ -1,6 +1,8 @@
 {
   "name": "slack",
   "type": "service",
+  "title": "Slack",
+  "category": "Productivity",
   "description": "Slack as a tool (bot token)",
   "auth": {
     "credentials": [

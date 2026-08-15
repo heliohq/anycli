@@ -1,6 +1,8 @@
 {
   "name": "contacts",
   "type": "service",
+  "title": "Google Contacts",
+  "category": "Productivity",
   "description": "Google Contacts as a tool (user access token): resolve names to emails/phones, read My Contacts and Other Contacts (read-only)",
   "auth": {
     "credentials": [

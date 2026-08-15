@@ -1,6 +1,8 @@
 {
   "name": "delighted",
   "type": "service",
+  "title": "Delighted",
+  "category": "Analytics",
   "description": "Delighted NPS/CSAT/CES survey platform (metrics, responses, people, suppression, autopilot)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "ramp",
   "type": "service",
+  "title": "Ramp",
+  "category": "Finance",
   "description": "Ramp transactions, reimbursements, cards, users, departments, locations, and business (OAuth)",
   "auth": {
     "credentials": [

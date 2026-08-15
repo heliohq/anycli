@@ -1,6 +1,8 @@
 {
   "name": "missive",
   "type": "service",
+  "title": "Missive",
+  "category": "Support",
   "description": "Missive collaborative shared inbox as a tool (personal API token)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "salesforce",
   "type": "service",
+  "title": "Salesforce",
+  "category": "Sales",
   "description": "Salesforce CRM as a tool (SOQL queries, record CRUD, search, describe)",
   "auth": {
     "credentials": [

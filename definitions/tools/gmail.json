@@ -1,6 +1,8 @@
 {
   "name": "gmail",
   "type": "service",
+  "title": "Gmail",
+  "category": "Productivity",
   "description": "Gmail as a tool (user access token)",
   "auth": {
     "credentials": [

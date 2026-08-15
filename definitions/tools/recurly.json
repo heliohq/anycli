@@ -1,6 +1,8 @@
 {
   "name": "recurly",
   "type": "service",
+  "title": "Recurly",
+  "category": "Finance",
   "description": "Recurly subscription billing as a tool (V3 REST API, private API key)",
   "auth": {
     "credentials": [

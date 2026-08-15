@@ -1,6 +1,8 @@
 {
   "name": "postmark",
   "type": "service",
+  "title": "Postmark",
+  "category": "Marketing",
   "description": "Postmark transactional email: send, message activity, templates, bounces (Server API token)",
   "auth": {
     "credentials": [

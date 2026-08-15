@@ -1,6 +1,8 @@
 {
   "name": "jotform",
   "type": "service",
+  "title": "Jotform",
+  "category": "Forms & Signing",
   "description": "Jotform as a tool (API key)",
   "auth": {
     "credentials": [

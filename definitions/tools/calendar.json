@@ -1,6 +1,8 @@
 {
   "name": "calendar",
   "type": "service",
+  "title": "Google Calendar",
+  "category": "Productivity",
   "description": "Google Calendar as a tool (user access token)",
   "auth": {
     "credentials": [

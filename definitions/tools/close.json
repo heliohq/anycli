@@ -1,6 +1,8 @@
 {
   "name": "close",
   "type": "service",
+  "title": "Close",
+  "category": "Sales",
   "description": "Close CRM as a tool (OAuth or API key): leads, contacts, opportunities, activities, tasks, search",
   "auth": {
     "credentials": [

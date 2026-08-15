@@ -1,6 +1,8 @@
 {
   "name": "iterable",
   "type": "service",
+  "title": "Iterable",
+  "category": "Marketing",
   "description": "Iterable cross-channel marketing: users, events, lists, campaigns, transactional email",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "mailchimp",
   "type": "service",
+  "title": "Mailchimp",
+  "category": "Marketing",
   "description": "Mailchimp Marketing (audiences, members, campaigns, reports)",
   "auth": {
     "credentials": [

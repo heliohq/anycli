@@ -1,6 +1,8 @@
 {
   "name": "sage",
   "type": "service",
+  "title": "Sage",
+  "category": "Finance",
   "description": "Sage Accounting (Business Cloud) as a tool (OAuth token)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "intercom",
   "type": "service",
+  "title": "Intercom",
+  "category": "Support",
   "description": "Intercom as a tool (workspace OAuth token)",
   "auth": {
     "credentials": [

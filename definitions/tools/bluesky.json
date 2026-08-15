@@ -1,6 +1,8 @@
 {
   "name": "bluesky",
   "type": "service",
+  "title": "Bluesky",
+  "category": "Social & Ads",
   "description": "Bluesky as a tool (AT Protocol, app-password session)",
   "auth": {
     "credentials": [

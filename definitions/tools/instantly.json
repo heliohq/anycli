@@ -1,6 +1,8 @@
 {
   "name": "instantly",
   "type": "service",
+  "title": "Instantly",
+  "category": "Sales",
   "description": "Instantly cold-email platform (campaigns, leads, Unibox, warmup analytics)",
   "auth": {
     "credentials": [

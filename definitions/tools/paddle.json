@@ -1,6 +1,8 @@
 {
   "name": "paddle",
   "type": "service",
+  "title": "Paddle",
+  "category": "Finance",
   "description": "Paddle Billing as a tool (merchant-of-record subscription billing; API key)",
   "auth": {
     "credentials": [

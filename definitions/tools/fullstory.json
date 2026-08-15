@@ -1,6 +1,8 @@
 {
   "name": "fullstory",
   "type": "service",
+  "title": "FullStory",
+  "category": "Analytics",
   "description": "FullStory digital-experience analytics: user sessions, profiles, and events via the Server API v2",
   "auth": {
     "credentials": [

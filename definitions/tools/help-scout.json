@@ -1,6 +1,8 @@
 {
   "name": "help-scout",
   "type": "service",
+  "title": "Help Scout",
+  "category": "Support",
   "description": "Help Scout shared-inbox support tool (conversations, replies, customers)",
   "auth": {
     "credentials": [
