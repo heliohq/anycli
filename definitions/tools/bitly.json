@@ -1,6 +1,8 @@
 {
   "name": "bitly",
   "type": "service",
+  "title": "Bitly",
+  "category": "Marketing",
   "description": "Bitly as a tool (OAuth 2.0 access token)",
   "auth": {
     "credentials": [

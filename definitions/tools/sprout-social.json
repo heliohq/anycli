@@ -1,6 +1,8 @@
 {
   "name": "sprout-social",
   "type": "service",
+  "title": "Sprout Social",
+  "category": "Social & Ads",
   "description": "Sprout Social as a tool: read analytics, triage the inbox, and draft posts (account-scoped API token)",
   "auth": {
     "credentials": [

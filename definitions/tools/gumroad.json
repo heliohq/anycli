@@ -1,6 +1,8 @@
 {
   "name": "gumroad",
   "type": "service",
+  "title": "Gumroad",
+  "category": "Finance",
   "description": "Gumroad creator commerce (products, sales, subscribers, offer codes, licenses) via API v2 (OAuth token)",
   "auth": {
     "credentials": [

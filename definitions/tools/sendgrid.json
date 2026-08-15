@@ -1,6 +1,8 @@
 {
   "name": "sendgrid",
   "type": "service",
+  "title": "SendGrid",
+  "category": "Marketing",
   "description": "SendGrid as a tool (transactional mail send, templates, marketing contacts, suppressions, stats; API key)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "tiktok",
   "type": "service",
+  "title": "TikTok",
+  "category": "Social & Ads",
   "description": "TikTok as a tool (creator content: profile, videos, posting)",
   "auth": {
     "credentials": [

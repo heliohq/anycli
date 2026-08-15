@@ -1,6 +1,8 @@
 {
   "name": "expensify",
   "type": "service",
+  "title": "Expensify",
+  "category": "Finance",
   "description": "Expensify Integration Server API (policies, reports, expenses) via a partnerUserID:partnerUserSecret pair",
   "auth": {
     "credentials": [

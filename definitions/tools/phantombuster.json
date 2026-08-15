@@ -1,6 +1,8 @@
 {
   "name": "phantombuster",
   "type": "service",
+  "title": "PhantomBuster",
+  "category": "Sales",
   "description": "PhantomBuster as a tool (workspace API key): list/launch/observe Phantoms and fetch run results",
   "auth": {
     "credentials": [

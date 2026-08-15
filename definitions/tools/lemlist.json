@@ -1,6 +1,8 @@
 {
   "name": "lemlist",
   "type": "service",
+  "title": "lemlist",
+  "category": "Sales",
   "description": "Lemlist as a tool (cold outreach: campaigns, leads, activities, unsubscribes)",
   "auth": {
     "credentials": [

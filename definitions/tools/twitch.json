@@ -1,6 +1,8 @@
 {
   "name": "twitch",
   "type": "service",
+  "title": "Twitch",
+  "category": "Social & Ads",
   "description": "Twitch as a tool (Helix API / OAuth user token)",
   "auth": {
     "credentials": [

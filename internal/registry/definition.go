@@ -2,8 +2,15 @@ package registry
 
 // Definition represents a wrapper definition for a CLI tool.
 type Definition struct {
-	Name        string        `json:"name"`
-	Type        string        `json:"type,omitempty"` // "" (default, = "cli") or "service"
+	Name string `json:"name"`
+	Type string `json:"type,omitempty"` // "" (default, = "cli") or "service"
+	// Title is the vendor's own name for the tool ("Google Sheets", "BILL"),
+	// for a host that lists tools to a person. Name is a wire identifier and
+	// reads as one.
+	Title string `json:"title"`
+	// Category shelves the tool in a host's catalogue. The vocabulary is
+	// closed and pinned by definitions/embed_test.go.
+	Category    string        `json:"category"`
 	Description string        `json:"description"`
 	Binary      string        `json:"binary,omitempty"`
 	Resolve     string        `json:"resolve,omitempty"` // "which" (default) or absolute path

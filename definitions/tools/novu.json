@@ -1,6 +1,8 @@
 {
   "name": "novu",
   "type": "service",
+  "title": "Novu",
+  "category": "Marketing",
   "description": "Novu notification infrastructure as a tool (environment secret key)",
   "auth": {
     "credentials": [

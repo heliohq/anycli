@@ -1,6 +1,8 @@
 {
   "name": "mailjet",
   "type": "service",
+  "title": "Mailjet",
+  "category": "Marketing",
   "description": "Mailjet email as a tool: send transactional email, manage contacts/lists/templates, read messages and stats",
   "auth": {
     "credentials": [

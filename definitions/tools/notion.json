@@ -1,6 +1,8 @@
 {
   "name": "notion",
   "type": "service",
+  "title": "Notion",
+  "category": "Productivity",
   "description": "Notion as a tool (internal integration / OAuth token)",
   "auth": {
     "credentials": [

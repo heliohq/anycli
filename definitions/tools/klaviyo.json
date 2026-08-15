@@ -1,6 +1,8 @@
 {
   "name": "klaviyo",
   "type": "service",
+  "title": "Klaviyo",
+  "category": "Marketing",
   "description": "Klaviyo as a tool (OAuth 2.0 access token)",
   "auth": {
     "credentials": [

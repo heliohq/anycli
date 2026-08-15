@@ -1,6 +1,8 @@
 {
   "name": "pinterest",
   "type": "service",
+  "title": "Pinterest",
+  "category": "Social & Ads",
   "description": "Pinterest as a tool (OAuth 2.0 access token) — account, boards, and pins on api.pinterest.com/v5",
   "auth": {
     "credentials": [

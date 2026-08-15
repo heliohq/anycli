@@ -1,6 +1,8 @@
 {
   "name": "onesignal",
   "type": "service",
+  "title": "OneSignal",
+  "category": "Marketing",
   "description": "OneSignal as a tool (App API Key + App ID)",
   "auth": {
     "credentials": [

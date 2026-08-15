@@ -1,6 +1,8 @@
 {
   "name": "freshbooks",
   "type": "service",
+  "title": "FreshBooks",
+  "category": "Finance",
   "description": "FreshBooks cloud accounting (invoices, clients, expenses, estimates, payments) via OAuth token",
   "auth": {
     "credentials": [

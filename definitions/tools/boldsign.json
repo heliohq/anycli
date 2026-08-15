@@ -1,6 +1,8 @@
 {
   "name": "boldsign",
   "type": "service",
+  "title": "BoldSign",
+  "category": "Forms & Signing",
   "description": "BoldSign e-signature as a tool (OAuth 2.0 access token)",
   "auth": {
     "credentials": [

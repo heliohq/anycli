@@ -1,6 +1,8 @@
 {
   "name": "apollo",
   "type": "service",
+  "title": "Apollo.io",
+  "category": "Sales",
   "description": "Apollo.io as a tool (sales intelligence: people/org search + enrich, contacts, sequences, tasks, deals via OAuth token)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "gorgias",
   "type": "service",
+  "title": "Gorgias",
+  "category": "Support",
   "description": "Gorgias helpdesk as a tool (OAuth token, per-account subdomain)",
   "auth": {
     "credentials": [

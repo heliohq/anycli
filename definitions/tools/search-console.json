@@ -1,6 +1,8 @@
 {
   "name": "search-console",
   "type": "service",
+  "title": "Google Search Console",
+  "category": "Analytics",
   "description": "Google Search Console as a tool (user access token)",
   "auth": {
     "credentials": [

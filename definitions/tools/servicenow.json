@@ -1,6 +1,8 @@
 {
   "name": "servicenow",
   "type": "service",
+  "title": "ServiceNow",
+  "category": "Support",
   "description": "ServiceNow ITSM as a tool (Table API: incidents, tasks, CMDB, knowledge) via an instance-scoped REST API key",
   "auth": {
     "credentials": [

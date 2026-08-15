@@ -1,6 +1,8 @@
 {
   "name": "snov",
   "type": "service",
+  "title": "Snov.io",
+  "category": "Sales",
   "description": "Snov.io sales intelligence — email finder, verifier, enrichment, and account balance (OAuth client_credentials)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "signnow",
   "type": "service",
+  "title": "SignNow",
+  "category": "Forms & Signing",
   "description": "SignNow e-signature: send documents for signing, track invites, download signed PDFs",
   "auth": {
     "credentials": [

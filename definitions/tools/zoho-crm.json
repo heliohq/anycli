@@ -1,6 +1,8 @@
 {
   "name": "zoho-crm",
   "type": "service",
+  "title": "Zoho CRM",
+  "category": "Sales",
   "description": "Zoho CRM as a tool (OAuth user access token)",
   "auth": {
     "credentials": [

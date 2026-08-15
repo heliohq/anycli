@@ -1,6 +1,8 @@
 {
   "name": "ahrefs",
   "type": "service",
+  "title": "Ahrefs",
+  "category": "Analytics",
   "description": "Ahrefs SEO data as a tool (API v3, OAuth/API-key bearer token)",
   "auth": {
     "credentials": [

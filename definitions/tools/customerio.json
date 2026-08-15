@@ -1,6 +1,8 @@
 {
   "name": "customerio",
   "type": "service",
+  "title": "Customer.io",
+  "category": "Marketing",
   "description": "Customer.io messaging automation as a tool (App API key)",
   "auth": {
     "credentials": [

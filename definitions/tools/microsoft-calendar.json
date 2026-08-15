@@ -1,6 +1,8 @@
 {
   "name": "microsoft-calendar",
   "type": "service",
+  "title": "Outlook Calendar",
+  "category": "Productivity",
   "description": "Microsoft Outlook Calendar as a tool (user access token)",
   "auth": {
     "credentials": [

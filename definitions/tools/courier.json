@@ -1,6 +1,8 @@
 {
   "name": "courier",
   "type": "service",
+  "title": "Courier",
+  "category": "Marketing",
   "description": "Courier as a tool (notification infrastructure API key)",
   "auth": {
     "credentials": [

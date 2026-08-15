@@ -1,6 +1,8 @@
 {
   "name": "hubspot",
   "type": "service",
+  "title": "HubSpot",
+  "category": "Sales",
   "description": "HubSpot CRM as a tool (OAuth access token)",
   "auth": {
     "credentials": [

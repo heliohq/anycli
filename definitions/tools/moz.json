@@ -1,6 +1,8 @@
 {
   "name": "moz",
   "type": "service",
+  "title": "Moz",
+  "category": "Analytics",
   "description": "Moz SEO data API (Domain Authority, backlinks, keyword metrics; JSON-RPC v2 token)",
   "auth": {
     "credentials": [

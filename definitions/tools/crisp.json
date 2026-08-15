@@ -1,6 +1,8 @@
 {
   "name": "crisp",
   "type": "service",
+  "title": "Crisp",
+  "category": "Support",
   "description": "Crisp customer support as a tool: website inbox conversations, messages, and contacts (website token)",
   "auth": {
     "credentials": [

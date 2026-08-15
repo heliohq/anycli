@@ -1,6 +1,8 @@
 {
   "name": "chargebee",
   "type": "service",
+  "title": "Chargebee",
+  "category": "Finance",
   "description": "Chargebee subscription billing (customers, subscriptions, invoices, catalog) via the v2 REST API",
   "auth": {
     "credentials": [

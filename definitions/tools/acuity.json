@@ -1,6 +1,8 @@
 {
   "name": "acuity",
   "type": "service",
+  "title": "Acuity Scheduling",
+  "category": "Productivity",
   "description": "Acuity Scheduling as a tool (appointments, availability, clients)",
   "auth": {
     "credentials": [

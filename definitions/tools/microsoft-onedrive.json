@@ -1,6 +1,8 @@
 {
   "name": "microsoft-onedrive",
   "type": "service",
+  "title": "OneDrive",
+  "category": "Productivity",
   "description": "Microsoft OneDrive as a tool (user access token)",
   "auth": {
     "credentials": [

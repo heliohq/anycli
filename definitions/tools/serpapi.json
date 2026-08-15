@@ -1,6 +1,8 @@
 {
   "name": "serpapi",
   "type": "service",
+  "title": "SerpApi",
+  "category": "Analytics",
   "description": "SerpApi as a tool (search engine results API, private API key)",
   "auth": {
     "credentials": [

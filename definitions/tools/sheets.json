@@ -1,6 +1,8 @@
 {
   "name": "sheets",
   "type": "service",
+  "title": "Google Sheets",
+  "category": "Productivity",
   "description": "Google Sheets as a tool (user access token)",
   "auth": {
     "credentials": [

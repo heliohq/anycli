@@ -1,6 +1,8 @@
 {
   "name": "zoho-books",
   "type": "service",
+  "title": "Zoho Books",
+  "category": "Finance",
   "description": "Zoho Books as a tool (OAuth user access token)",
   "auth": {
     "credentials": [

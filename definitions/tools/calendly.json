@@ -1,6 +1,8 @@
 {
   "name": "calendly",
   "type": "service",
+  "title": "Calendly",
+  "category": "Productivity",
   "description": "Calendly as a tool (OAuth 2.0 access token)",
   "auth": {
     "credentials": [

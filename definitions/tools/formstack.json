@@ -1,6 +1,8 @@
 {
   "name": "formstack",
   "type": "service",
+  "title": "Formstack",
+  "category": "Forms & Signing",
   "description": "Formstack as a tool (OAuth 2.0 access token)",
   "auth": {
     "credentials": [

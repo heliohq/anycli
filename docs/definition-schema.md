@@ -19,6 +19,8 @@ definitions. It never exposes injection details or credential values.
 ```json
 {
   "name": "github",
+  "title": "GitHub",
+  "category": "Developer",
   "description": "GitHub CLI",
   "binary": "gh",
   "resolve": "which",
@@ -61,6 +63,8 @@ upstream ships differently-shaped archives per platform (gh's windows zip has
 {
   "name": "figma",
   "type": "service",
+  "title": "Figma",
+  "category": "Productivity",
   "description": "Complete PAT-accessible Figma REST API with design context and asset downloads",
   "auth": {
     "credentials": [
@@ -83,6 +87,8 @@ incomplete.
 | --- | --- | --- | --- |
 | `name` | string | yes | Stable embedded tool name and execution selector. |
 | `type` | string | no | `cli` (or empty) for an external binary; `service` for an in-process client. |
+| `title` | string | yes | The vendor's own name for the tool (`Google Sheets`, `BILL`), for a host that lists tools to a person. |
+| `category` | string | yes | Shelves the tool in a host's catalogue. Closed vocabulary — see below. |
 | `description` | string | yes | Human-readable capability description. |
 | `binary` | string | for `cli` | Executable name. |
 | `resolve` | string | no | Empty or `which` searches `PATH`; an absolute path selects that binary directly. |
@@ -90,6 +96,15 @@ incomplete.
 | `auth` | object | no | Credential bindings supplied by the host resolver. |
 | `before` | array | no | Middleware applied before an external CLI runs. |
 | `after` | array | no | Middleware applied after an external CLI runs. |
+
+## Categories
+
+`category` is a closed vocabulary, pinned by `definitions/embed_test.go`:
+`Sales`, `Marketing`, `Social & Ads`, `Finance`, `Analytics`, `Support`,
+`Productivity`, `Forms & Signing`, `Developer`. It is a shelving scheme for a
+host that lists tools to a person, so it stays small enough to read as a row of
+tabs — a tenth category is a decision made in that test, not a value a new
+definition can introduce on its own.
 
 ## Source metadata
 

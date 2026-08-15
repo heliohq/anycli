@@ -1,6 +1,8 @@
 {
   "name": "adyen",
   "type": "service",
+  "title": "Adyen",
+  "category": "Finance",
   "description": "Adyen as a tool (Management API v3, X-API-Key)",
   "auth": {
     "credentials": [

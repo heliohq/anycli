@@ -57,6 +57,48 @@ func TestLoadBundled_ShippedDefinitions(t *testing.T) {
 	}
 }
 
+// toolCategories is the closed vocabulary a definition may declare. It is a
+// shelving scheme for a host that lists tools to a person, so it stays small
+// enough to read as a row of tabs: a tenth category is a decision, not a typo,
+// and adding one here is where that decision gets made.
+var toolCategories = map[string]bool{
+	"Sales":           true,
+	"Marketing":       true,
+	"Social & Ads":    true,
+	"Finance":         true,
+	"Analytics":       true,
+	"Support":         true,
+	"Productivity":    true,
+	"Forms & Signing": true,
+	"Developer":       true,
+}
+
+// TestLoadBundled_TitleAndCategory pins the two display fields on every
+// shipped definition. `name` is a wire identifier ("microsoft-onedrive",
+// "billcom") and reads as one; a host that shows it to a person needs the name
+// the vendor uses. Both are required — a definition that omits them lands
+// unnamed and unshelved in every catalogue downstream, which no test after
+// this one would catch.
+func TestLoadBundled_TitleAndCategory(t *testing.T) {
+	bundled, err := ListBundled()
+	if err != nil {
+		t.Fatalf("ListBundled failed: %v", err)
+	}
+	for _, def := range bundled {
+		t.Run(def.Name, func(t *testing.T) {
+			if def.Title == "" {
+				t.Error("Title is empty")
+			}
+			if def.Category == "" {
+				t.Fatal("Category is empty")
+			}
+			if !toolCategories[def.Category] {
+				t.Errorf("Category = %q, which is not one of the shipped categories", def.Category)
+			}
+		})
+	}
+}
+
 func TestLoadBundled_XCredentialBindings(t *testing.T) {
 	def, err := LoadBundled("x")
 	if err != nil {

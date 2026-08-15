@@ -1,6 +1,8 @@
 {
   "name": "keap",
   "type": "service",
+  "title": "Keap",
+  "category": "Sales",
   "description": "Keap CRM as a tool (OAuth 2.0 access token)",
   "auth": {
     "credentials": [

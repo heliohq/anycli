@@ -1,6 +1,8 @@
 {
   "name": "mastodon",
   "type": "service",
+  "title": "Mastodon",
+  "category": "Social & Ads",
   "description": "Mastodon as a tool (post, read timelines, search, engage; per-instance access token)",
   "auth": {
     "credentials": [

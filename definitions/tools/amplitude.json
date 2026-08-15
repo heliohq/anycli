@@ -1,6 +1,8 @@
 {
   "name": "amplitude",
   "type": "service",
+  "title": "Amplitude",
+  "category": "Analytics",
   "description": "Amplitude product analytics (read/query: segmentation, funnels, retention, cohorts, user activity, chart/export)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "dropbox-sign",
   "type": "service",
+  "title": "Dropbox Sign",
+  "category": "Forms & Signing",
   "description": "Dropbox Sign (HelloSign) e-signature: send, track, and download signature requests (OAuth token)",
   "auth": {
     "credentials": [

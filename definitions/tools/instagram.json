@@ -1,6 +1,8 @@
 {
   "name": "instagram",
   "type": "service",
+  "title": "Instagram",
+  "category": "Social & Ads",
   "description": "Instagram professional account as a tool (Instagram API with Instagram Login / OAuth token)",
   "auth": {
     "credentials": [

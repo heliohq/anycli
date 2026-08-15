@@ -1,6 +1,8 @@
 {
   "name": "tally",
   "type": "service",
+  "title": "Tally",
+  "category": "Forms & Signing",
   "description": "Tally forms and submissions (personal API key)",
   "auth": {
     "credentials": [

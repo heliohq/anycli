@@ -1,6 +1,8 @@
 {
   "name": "google-analytics",
   "type": "service",
+  "title": "Google Analytics",
+  "category": "Analytics",
   "description": "Google Analytics (GA4) reporting as a tool (user access token)",
   "auth": {
     "credentials": [

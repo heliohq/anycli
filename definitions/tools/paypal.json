@@ -1,6 +1,8 @@
 {
   "name": "paypal",
   "type": "service",
+  "title": "PayPal",
+  "category": "Finance",
   "description": "PayPal as a tool — invoicing, transaction reporting, subscriptions (REST client-credentials)",
   "auth": {
     "credentials": [

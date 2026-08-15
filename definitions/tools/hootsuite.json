@@ -1,6 +1,8 @@
 {
   "name": "hootsuite",
   "type": "service",
+  "title": "Hootsuite",
+  "category": "Social & Ads",
   "description": "Hootsuite as a tool (schedule and manage social posts; OAuth 2.0 user token)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "docusign",
   "type": "service",
+  "title": "DocuSign",
+  "category": "Forms & Signing",
   "description": "DocuSign eSignature as a tool: send envelopes for signature, track status, download signed documents, and list templates (user OAuth token)",
   "auth": {
     "credentials": [

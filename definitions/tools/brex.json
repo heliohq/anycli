@@ -1,6 +1,8 @@
 {
   "name": "brex",
   "type": "service",
+  "title": "Brex",
+  "category": "Finance",
   "description": "Brex accounts, transactions, expenses, cards, budgets, and users (OAuth)",
   "auth": {
     "credentials": [

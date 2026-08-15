@@ -1,6 +1,8 @@
 {
   "name": "loops",
   "type": "service",
+  "title": "Loops",
+  "category": "Marketing",
   "description": "Loops as a tool (transactional email, contacts, events; API key)",
   "auth": {
     "credentials": [

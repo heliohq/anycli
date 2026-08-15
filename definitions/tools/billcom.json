@@ -1,6 +1,8 @@
 {
   "name": "billcom",
   "type": "service",
+  "title": "BILL",
+  "category": "Finance",
   "description": "BILL (Bill.com) AP/AR: bills, vendors, invoices, customers, payments (read-only), and session/org lookups",
   "auth": {
     "credentials": [

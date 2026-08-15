@@ -1,6 +1,8 @@
 {
   "name": "salesloft",
   "type": "service",
+  "title": "Salesloft",
+  "category": "Sales",
   "description": "Salesloft sales engagement (people, cadences, tasks, activity)",
   "auth": {
     "credentials": [

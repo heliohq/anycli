@@ -1,6 +1,8 @@
 {
   "name": "microsoft-outlook",
   "type": "service",
+  "title": "Outlook",
+  "category": "Productivity",
   "description": "Microsoft Outlook mail as a tool (user access token)",
   "auth": {
     "credentials": [

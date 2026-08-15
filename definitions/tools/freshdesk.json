@@ -1,6 +1,8 @@
 {
   "name": "freshdesk",
   "type": "service",
+  "title": "Freshdesk",
+  "category": "Support",
   "description": "Freshdesk support desk as a tool (tickets, contacts, companies, agents) via the v2 REST API",
   "auth": {
     "credentials": [

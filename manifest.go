@@ -24,8 +24,13 @@ const (
 // tool. It exposes capability metadata only; definitions and injection details
 // remain internal to AnyCLI.
 type ToolManifest struct {
-	Name             Tool
-	Kind             ToolKind
+	Name Tool
+	Kind ToolKind
+	// Title is the vendor's own name for the tool, and Category shelves it —
+	// both for a host that lists tools to a person rather than resolving them
+	// by name.
+	Title            string
+	Category         string
 	Description      string
 	CredentialFields []string
 }
@@ -97,6 +102,8 @@ func manifestFor(definition *registry.Definition) (ToolManifest, error) {
 	return ToolManifest{
 		Name:             Tool(definition.Name),
 		Kind:             kind,
+		Title:            definition.Title,
+		Category:         definition.Category,
 		Description:      definition.Description,
 		CredentialFields: fields,
 	}, nil

@@ -1,6 +1,8 @@
 {
   "name": "slides",
   "type": "service",
+  "title": "Google Slides",
+  "category": "Productivity",
   "description": "Google Slides as a tool (user access token)",
   "auth": {
     "credentials": [

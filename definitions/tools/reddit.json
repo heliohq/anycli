@@ -1,6 +1,8 @@
 {
   "name": "reddit",
   "type": "service",
+  "title": "Reddit",
+  "category": "Social & Ads",
   "description": "Reddit as a tool (OAuth 2.0 user token)",
   "auth": {
     "credentials": [

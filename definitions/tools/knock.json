@@ -1,6 +1,8 @@
 {
   "name": "knock",
   "type": "service",
+  "title": "Knock",
+  "category": "Marketing",
   "description": "Knock as a tool (notification infrastructure; environment-scoped secret API key)",
   "auth": {
     "credentials": [

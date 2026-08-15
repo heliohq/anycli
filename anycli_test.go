@@ -125,6 +125,9 @@ func TestListToolsReturnsValidatedManifests(t *testing.T) {
 		if manifest.Name == "" || manifest.Description == "" {
 			t.Errorf("manifest %d is incomplete: %+v", i, manifest)
 		}
+		if manifest.Title == "" || manifest.Category == "" {
+			t.Errorf("manifest %q has no display title or category: %+v", manifest.Name, manifest)
+		}
 		if manifest.Kind != ToolKindCLI && manifest.Kind != ToolKindService {
 			t.Errorf("manifest %q has invalid kind %q", manifest.Name, manifest.Kind)
 		}
@@ -172,6 +175,41 @@ func TestListToolsFigmaManifest(t *testing.T) {
 		return
 	}
 	t.Fatal("figma manifest not found")
+}
+
+// TestListToolsCarriesDisplayFields pins the passthrough of the two display
+// fields for a handful of tools whose name and title differ in every way they
+// can: an unprefixed Google surface, a name that drops the vendor's dot, and a
+// vendor whose own capitalisation is lowercase.
+func TestListToolsCarriesDisplayFields(t *testing.T) {
+	want := map[Tool]struct{ title, category string }{
+		"slack":   {"Slack", "Productivity"},
+		"sheets":  {"Google Sheets", "Productivity"},
+		"billcom": {"BILL", "Finance"},
+		"beehiiv": {"beehiiv", "Marketing"},
+		"x":       {"X", "Social & Ads"},
+	}
+
+	manifests, err := ListTools()
+	if err != nil {
+		t.Fatalf("ListTools failed: %v", err)
+	}
+	for _, manifest := range manifests {
+		expected, ok := want[manifest.Name]
+		if !ok {
+			continue
+		}
+		if manifest.Title != expected.title {
+			t.Errorf("%s title = %q, want %q", manifest.Name, manifest.Title, expected.title)
+		}
+		if manifest.Category != expected.category {
+			t.Errorf("%s category = %q, want %q", manifest.Name, manifest.Category, expected.category)
+		}
+		delete(want, manifest.Name)
+	}
+	for name := range want {
+		t.Errorf("%s manifest not found", name)
+	}
 }
 
 // TestListToolsPostHogManifest guards the cross-repo credential-projection

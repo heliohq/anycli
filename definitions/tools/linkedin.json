@@ -1,6 +1,8 @@
 {
   "name": "linkedin",
   "type": "service",
+  "title": "LinkedIn",
+  "category": "Social & Ads",
   "description": "LinkedIn as a tool (member token)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "braintree",
   "type": "service",
+  "title": "Braintree",
+  "category": "Finance",
   "description": "Braintree payments operations via the GraphQL API (transactions, refunds, customers, disputes)",
   "auth": {
     "credentials": [

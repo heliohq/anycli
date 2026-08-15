@@ -1,6 +1,8 @@
 {
   "name": "buffer",
   "type": "service",
+  "title": "Buffer",
+  "category": "Social & Ads",
   "description": "Buffer as a tool (social publishing via the Buffer GraphQL API)",
   "auth": {
     "credentials": [

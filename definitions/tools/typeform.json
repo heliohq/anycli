@@ -1,6 +1,8 @@
 {
   "name": "typeform",
   "type": "service",
+  "title": "Typeform",
+  "category": "Forms & Signing",
   "description": "Typeform forms and survey responses (OAuth token)",
   "auth": {
     "credentials": [

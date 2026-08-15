@@ -1,6 +1,8 @@
 {
   "name": "wise",
   "type": "service",
+  "title": "Wise",
+  "category": "Finance",
   "description": "Wise as a tool (personal API token; read/monitor + non-committal pricing)",
   "auth": {
     "credentials": [

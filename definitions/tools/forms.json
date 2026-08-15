@@ -1,6 +1,8 @@
 {
   "name": "forms",
   "type": "service",
+  "title": "Google Forms",
+  "category": "Forms & Signing",
   "description": "Google Forms as a tool (user access token)",
   "auth": {
     "credentials": [

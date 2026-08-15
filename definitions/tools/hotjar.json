@@ -1,6 +1,8 @@
 {
   "name": "hotjar",
   "type": "service",
+  "title": "Hotjar",
+  "category": "Analytics",
   "description": "Hotjar (Contentsquare) as a tool — survey responses export + GDPR user lookup (OAuth client_credentials)",
   "auth": {
     "credentials": [

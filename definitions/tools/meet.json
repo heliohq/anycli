@@ -1,6 +1,8 @@
 {
   "name": "meet",
   "type": "service",
+  "title": "Google Meet",
+  "category": "Productivity",
   "description": "Google Meet as a tool (user access token)",
   "auth": {
     "credentials": [

@@ -1,6 +1,8 @@
 {
   "name": "zuora",
   "type": "service",
+  "title": "Zuora",
+  "category": "Finance",
   "description": "Zuora Billing as a tool — accounts, subscriptions, invoices, payments, product catalog, and ZOQL queries (OAuth 2.0 client-credentials)",
   "auth": {
     "credentials": [

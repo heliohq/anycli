@@ -1,5 +1,7 @@
 {
   "name": "github",
+  "title": "GitHub",
+  "category": "Developer",
   "description": "GitHub CLI with minted installation token",
   "binary": "gh",
   "source": {

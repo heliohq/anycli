@@ -1,6 +1,8 @@
 {
   "name": "meta-ads",
   "type": "service",
+  "title": "Meta Ads",
+  "category": "Social & Ads",
   "description": "Meta Ads (Marketing API over Facebook Graph, OAuth 2.0 user token)",
   "auth": {
     "credentials": [

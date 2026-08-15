@@ -1,6 +1,8 @@
 {
   "name": "stripe",
   "type": "service",
+  "title": "Stripe",
+  "category": "Finance",
   "description": "Stripe payments, invoicing, and customer data (OAuth)",
   "auth": {
     "credentials": [
