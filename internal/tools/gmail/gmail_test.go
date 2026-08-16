@@ -79,7 +79,7 @@ func (f *fixture) last(t *testing.T, method, path string) recordedRequest {
 func (f *fixture) run(t *testing.T, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{
+	svc := &Service{FS: execution.OS{},
 		BaseURL: f.srv.URL + "/gmail/v1",
 		HC:      f.srv.Client(),
 		Out:     &out,
@@ -104,7 +104,7 @@ func (f *fixture) runOK(t *testing.T, args ...string) string {
 
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
-	svc := &Service{Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"profile"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

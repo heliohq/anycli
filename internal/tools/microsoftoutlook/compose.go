@@ -53,7 +53,7 @@ func (o *composeOptions) resolveComposeBody() (string, error) {
 	if o.bodyFile == "" {
 		return o.body, nil
 	}
-	data, err := execution.ReadFile(o.fs, o.bodyFile)
+	data, err := o.fs.ReadFile(o.bodyFile)
 	if err != nil {
 		return "", fmt.Errorf("microsoft-outlook: read body file: %w", err)
 	}
@@ -108,7 +108,7 @@ func fileAttachments(fs execution.FileSystem, paths []string) ([]map[string]any,
 	out := make([]map[string]any, 0, len(paths))
 	var total int
 	for _, path := range paths {
-		data, err := execution.ReadFile(fs, path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("microsoft-outlook: read attachment %s: %w", path, err)
 		}

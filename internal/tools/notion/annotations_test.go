@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -70,7 +71,7 @@ func TestSideEffectAnnotations(t *testing.T) {
 		}
 		seen[key] = got
 	}
-	root := (&Service{}).NewCommandTree()
+	root := (&Service{FS: execution.OS{}}).NewCommandTree()
 	walk(root, nil)
 
 	for key, wantVal := range want {

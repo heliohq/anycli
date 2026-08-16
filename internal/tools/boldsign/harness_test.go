@@ -68,7 +68,7 @@ func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdo
 func runResult(t *testing.T, srv *httptest.Server, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), args, map[string]string{EnvAccessToken: "tok-123"})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)

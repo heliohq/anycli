@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -237,7 +236,7 @@ func (s *Service) newBinaryDownloadCmd(token, use, short, path string) *cobra.Co
 			if err != nil {
 				return err
 			}
-			if err := execution.WriteFile(s.FS, out, data, 0o644); err != nil {
+			if err := s.FS.WriteFile(out, data, 0o644); err != nil {
 				return &usageError{msg: fmt.Sprintf("boldsign: write %s: %v", out, err)}
 			}
 			return s.emitValue(downloadReceipt{OK: true, Path: out, Bytes: len(data)})

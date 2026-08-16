@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -53,7 +53,7 @@ func (s *Service) downloadAssets(ctx context.Context, sources []assetSource, out
 	if outputDir == "" {
 		return assetManifest{}, fmt.Errorf("output directory is required")
 	}
-	if err := execution.MkdirAll(s.FS, outputDir, 0o755); err != nil {
+	if err := s.FS.MkdirAll(outputDir, 0o755); err != nil {
 		return assetManifest{}, fmt.Errorf("create asset output directory: %w", err)
 	}
 	sort.Slice(sources, func(left, right int) bool { return sources[left].ID < sources[right].ID })
@@ -119,43 +119,31 @@ func (s *Service) downloadAsset(ctx context.Context, source assetSource, outputD
 	}
 	targetName := source.BaseName + extension
 	targetPath := filepath.Join(outputDir, targetName)
-	// On a real disk the asset lands in a sibling temp file and is renamed, so a
-	// failed download never leaves a half-written asset behind. A host
-	// filesystem has no sibling to rename from — it commits on close — so there
-	// the asset is written straight to its name.
-	spool, tempPath, err := openAssetSpool(s.FS, outputDir, targetPath)
+	// --overwrite is figma's own semantic, so figma is what expresses it. The
+	// check is not atomic against another writer, which is fine here: the four
+	// download workers are given distinct names, and the race that remains is
+	// with something outside this process entirely.
+	if !overwrite {
+		if _, statErr := s.FS.Stat(targetPath); statErr == nil {
+			return downloadedAsset{}, fmt.Errorf("%s already exists; pass --overwrite to replace it", targetName)
+		} else if !errors.Is(statErr, execution.ErrNotExist) {
+			return downloadedAsset{}, fmt.Errorf("install asset %s: %w", targetName, statErr)
+		}
+	}
+	// Create commits on Close, so a copy that fails or overruns the limit
+	// leaves whatever was at targetPath untouched.
+	asset, err := s.FS.Create(targetPath)
 	if err != nil {
-		return downloadedAsset{}, err
+		return downloadedAsset{}, fmt.Errorf("create asset: %w", err)
 	}
-	if tempPath != "" {
-		defer os.Remove(tempPath) //anycli:oshost — the spool opened just above
-	}
-	written, copyErr := io.Copy(spool, io.LimitReader(response.Body, maxAssetBytes+1))
-	closeErr := spool.Close()
+	written, copyErr := io.Copy(asset, io.LimitReader(response.Body, maxAssetBytes+1))
 	if copyErr != nil {
-		return downloadedAsset{}, fmt.Errorf("write temporary asset: %w", copyErr)
-	}
-	if closeErr != nil {
-		return downloadedAsset{}, fmt.Errorf("close temporary asset: %w", closeErr)
+		return downloadedAsset{}, fmt.Errorf("write asset: %w", copyErr)
 	}
 	if written > maxAssetBytes {
 		return downloadedAsset{}, fmt.Errorf("asset exceeds %d bytes", maxAssetBytes)
 	}
-	if tempPath == "" {
-		return downloadedAsset{ID: source.ID, File: targetName, Bytes: written, ContentType: contentType}, nil
-	}
-	if err := os.Chmod(tempPath, 0o644); err != nil { //anycli:oshost — the spool
-		return downloadedAsset{}, fmt.Errorf("set asset permissions: %w", err)
-	}
-	if overwrite {
-		err = os.Rename(tempPath, targetPath) //anycli:oshost — the spool
-	} else {
-		err = os.Link(tempPath, targetPath) //anycli:oshost — the spool
-	}
-	if err != nil {
-		if !overwrite && os.IsExist(err) {
-			return downloadedAsset{}, fmt.Errorf("%s already exists; pass --overwrite to replace it", targetName)
-		}
+	if err := asset.Close(); err != nil {
 		return downloadedAsset{}, fmt.Errorf("install asset %s: %w", targetName, err)
 	}
 	return downloadedAsset{ID: source.ID, File: targetName, Bytes: written, ContentType: contentType}, nil
@@ -230,22 +218,4 @@ func extensionForContentType(contentType string) string {
 	default:
 		return ".bin"
 	}
-}
-
-// openAssetSpool opens where the asset bytes go. With a host filesystem that is
-// the asset's own name and there is nothing to clean up, so the returned temp
-// path is empty; without one it is a sibling temp file the caller renames.
-func openAssetSpool(fs execution.FileSystem, outputDir, targetPath string) (io.WriteCloser, string, error) {
-	if fs != nil {
-		spool, err := fs.Create(targetPath)
-		if err != nil {
-			return nil, "", fmt.Errorf("create asset: %w", err)
-		}
-		return spool, "", nil
-	}
-	spool, err := os.CreateTemp(outputDir, ".figma-asset-*") //anycli:oshost — no host filesystem is installed
-	if err != nil {
-		return nil, "", fmt.Errorf("create temporary asset: %w", err)
-	}
-	return spool, spool.Name(), nil
 }

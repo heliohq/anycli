@@ -309,7 +309,7 @@ func resourcePayload(fs execution.FileSystem, singular, data, file string) (map[
 	}
 	raw := data
 	if file != "" {
-		b, err := execution.ReadFile(fs, file)
+		b, err := fs.ReadFile(file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --file %s: %v", file, err)}
 		}

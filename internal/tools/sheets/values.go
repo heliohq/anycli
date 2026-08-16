@@ -275,7 +275,7 @@ func loadValues(fs execution.FileSystem, valuesJSON, csvFile string) ([][]any, e
 }
 
 func readCSVGrid(fs execution.FileSystem, path string) ([][]any, error) {
-	f, err := execution.Open(fs, path)
+	f, err := fs.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("sheets: open csv file: %w", err)
 	}

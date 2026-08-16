@@ -8,11 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
-
-	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 const maxErrorBodyBytes = 8 << 10
@@ -91,30 +87,17 @@ func (s *Service) download(ctx context.Context, token, path, output string) (int
 		return 0, newAPIError(resp.StatusCode, body, token)
 	}
 
-	// On a real disk the bytes land in a sibling temp file and are renamed, so
-	// an interrupted download never leaves a half-written file under the name
-	// the caller asked for. A host filesystem has no sibling to rename from —
-	// it commits on close — so there the download is written straight to name.
-	spool, tempName, err := openDownloadSpool(s.FS, output)
+	// Create commits on Close, so an interrupted download leaves whatever was
+	// at output untouched rather than truncating it.
+	file, err := s.FS.Create(output)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("x: create download file: %w", err)
 	}
-	if tempName != "" {
-		defer os.Remove(tempName) //anycli:oshost — the spool opened just above
-	}
-
-	written, copyErr := io.Copy(spool, resp.Body)
-	closeErr := spool.Close()
+	written, copyErr := io.Copy(file, resp.Body)
 	if copyErr != nil {
 		return 0, fmt.Errorf("x: write download: %w", copyErr)
 	}
-	if closeErr != nil {
-		return 0, fmt.Errorf("x: close download: %w", closeErr)
-	}
-	if tempName == "" {
-		return written, nil
-	}
-	if err := os.Rename(tempName, output); err != nil { //anycli:oshost — the spool
+	if err := file.Close(); err != nil {
 		return 0, fmt.Errorf("x: finalize download: %w", err)
 	}
 	return written, nil
@@ -141,22 +124,4 @@ func newAPIError(status int, body []byte, token string) error {
 	}
 	apiErr := fmt.Errorf("x API error (HTTP %d %s): %s%s", status, http.StatusText(status), raw, hint)
 	return classifyXCredentialError(status, body, apiErr)
-}
-
-// openDownloadSpool opens where the downloaded bytes go. With a host filesystem
-// that is the caller's name and there is nothing to rename, so the returned
-// temp name is empty; without one it is a sibling temp file.
-func openDownloadSpool(fs execution.FileSystem, output string) (io.WriteCloser, string, error) {
-	if fs != nil {
-		spool, err := fs.Create(output)
-		if err != nil {
-			return nil, "", fmt.Errorf("x: create download file: %w", err)
-		}
-		return spool, "", nil
-	}
-	spool, err := os.CreateTemp(filepath.Dir(output), ".x-download-*") //anycli:oshost — no host filesystem is installed
-	if err != nil {
-		return nil, "", fmt.Errorf("x: create download file: %w", err)
-	}
-	return spool, spool.Name(), nil
 }

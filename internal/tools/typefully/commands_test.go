@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestSocialSetList_Paging(t *testing.T) {
@@ -194,7 +196,7 @@ func TestMediaUpload_TwoStep(t *testing.T) {
 	serverURL = srv.URL // set before Execute drives any request
 
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"media", "upload", "--social-set", "ss1", "--file", file}, map[string]string{EnvAPIKey: "key-123"})
 	if err != nil {
 		t.Fatalf("Execute error: %v", err)

@@ -363,5 +363,5 @@ func (s *Service) downloadFiles(ctx context.Context, token, id string, q url.Val
 // writeFile writes b to path with owner-only permissions (signed documents may
 // be confidential).
 func writeFile(fs execution.FileSystem, path string, b []byte) error {
-	return execution.WriteFile(fs, path, b, 0o600)
+	return fs.WriteFile(path, b, 0o600)
 }

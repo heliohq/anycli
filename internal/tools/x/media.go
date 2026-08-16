@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -45,14 +43,14 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 			if err := requireMediaCategory(category); err != nil {
 				return err
 			}
-			info, err := os.Stat(file)
+			info, err := s.FS.Stat(file)
 			if err != nil {
 				return fmt.Errorf("read media file: %w", err)
 			}
-			if info.IsDir() {
+			if info.IsDir {
 				return fmt.Errorf("--file %q is a directory", file)
 			}
-			if info.Size() == 0 {
+			if info.Size == 0 {
 				return fmt.Errorf("--file %q is empty", file)
 			}
 			sniff, err := sniffMediaFile(s.FS, file)
@@ -68,7 +66,7 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 			}
 			var body []byte
 			_, simple := supportedSimpleImageTypes[mediaType]
-			if simple && info.Size() <= maxSimpleImageBytes && strings.HasSuffix(category, "_image") {
+			if simple && info.Size <= maxSimpleImageBytes && strings.HasSuffix(category, "_image") {
 				body, err = s.simpleUpload(cmd.Context(), token, file, mediaType, category)
 			} else {
 				body, err = s.chunkedUpload(cmd.Context(), token, file, category)
@@ -146,7 +144,7 @@ func (s *Service) newMediaMetadataCmd(token string) *cobra.Command {
 // simpleUpload posts one small JPEG, PNG, or WebP through the one-shot
 // /2/media/upload endpoint and returns the response body.
 func (s *Service) simpleUpload(ctx context.Context, token, file, mediaType, category string) ([]byte, error) {
-	contents, err := execution.ReadFile(s.FS, file)
+	contents, err := s.FS.ReadFile(file)
 	if err != nil {
 		return nil, fmt.Errorf("read media file: %w", err)
 	}

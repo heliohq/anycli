@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +43,7 @@ func TestSideEffectAnnotations(t *testing.T) {
 		"labels create":        "true",  // POST /users/me/labels
 	}
 
-	s := &Service{}
+	s := &Service{FS: execution.OS{}}
 	root := s.NewCommandTree()
 	seen := map[string]bool{}
 	walkCommands(root, func(cmd *cobra.Command) {

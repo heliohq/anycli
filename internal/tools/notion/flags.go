@@ -76,7 +76,7 @@ func readContent(fs execution.FileSystem, inline, file, inlineFlag string) (stri
 		return "", &usageError{msg: fmt.Sprintf("--file and --%s are mutually exclusive", inlineFlag)}
 	}
 	if file != "" {
-		b, err := execution.ReadFile(fs, file)
+		b, err := fs.ReadFile(file)
 		if err != nil {
 			return "", &usageError{msg: fmt.Sprintf("read --file %s: %v", file, err)}
 		}

@@ -114,7 +114,7 @@ func templateSendPayload(templateID, email, name, role, subject, status string) 
 // documentSendPayload builds a POST /envelopes body that sends a local document
 // to one signer, placing a signHere tab at the anchor string.
 func documentSendPayload(fs execution.FileSystem, path, email, name, subject, anchor, status string) (map[string]any, error) {
-	data, err := execution.ReadFile(fs, path)
+	data, err := fs.ReadFile(path)
 	if err != nil {
 		return nil, &usageError{msg: "read --document: " + err.Error()}
 	}
@@ -315,7 +315,7 @@ func (s *Service) newEnvelopeDownloadCmd(c *apiClient) *cobra.Command {
 				_, werr := cmd.OutOrStdout().Write(body)
 				return werr
 			}
-			if err := execution.WriteFile(s.FS, outPath, body, 0o600); err != nil {
+			if err := s.FS.WriteFile(outPath, body, 0o600); err != nil {
 				return &apiError{msg: "docusign: write --out: " + err.Error(), err: err}
 			}
 			if jsonMode(cmd) {

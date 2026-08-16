@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -84,12 +83,12 @@ func (s *Service) newDownloadCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := execution.MkdirAll(s.FS, saveDir, 0o755); err != nil {
+			if err := s.FS.MkdirAll(saveDir, 0o755); err != nil {
 				return fmt.Errorf("microsoft-onedrive: create save dir: %w", err)
 			}
 			name := downloadName(meta.Name)
 			dest := filepath.Join(saveDir, name)
-			if err := execution.WriteFile(s.FS, dest, data, 0o644); err != nil {
+			if err := s.FS.WriteFile(dest, data, 0o644); err != nil {
 				return fmt.Errorf("microsoft-onedrive: write %s: %w", name, err)
 			}
 			saved := savedFile{ID: meta.ID, Name: name, Path: dest, Size: len(data)}
@@ -114,7 +113,7 @@ func (s *Service) newUploadCmd(token string) *cobra.Command {
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			local := args[0]
-			data, err := execution.ReadFile(s.FS, local)
+			data, err := s.FS.ReadFile(local)
 			if err != nil {
 				return fmt.Errorf("microsoft-onedrive: read %s: %w", local, err)
 			}

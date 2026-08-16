@@ -133,7 +133,7 @@ func (s *Service) newSpreadsheetsBatchUpdateCmd(token string) *cobra.Command {
 // either a full request object (passed through verbatim) or a bare array of
 // requests (wrapped into {"requests": [...]}).
 func loadBatchUpdatePayload(fs execution.FileSystem, path string) (any, error) {
-	raw, err := execution.ReadFile(fs, path)
+	raw, err := fs.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("sheets: read request file: %w", err)
 	}

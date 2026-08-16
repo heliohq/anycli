@@ -68,7 +68,7 @@ func readFileOrStdin(fs execution.FileSystem, cmd *cobra.Command, path string) (
 	if path == "-" {
 		return io.ReadAll(cmd.InOrStdin())
 	}
-	return execution.ReadFile(fs, path)
+	return fs.ReadFile(path)
 }
 
 // newProjectListCmd builds a project-scoped list command keyed on a path

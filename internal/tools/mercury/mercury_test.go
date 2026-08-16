@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // capturedRequest records one request the fake Mercury server received.
@@ -57,7 +59,7 @@ func newMux(t *testing.T, reqs *[]capturedRequest, routes map[string]stub) *http
 func run(t *testing.T, srv *httptest.Server, args ...string) (int, string, string) {
 	t.Helper()
 	var out, errb bytes.Buffer
-	svc := &Service{BaseURL: srv.URL + "/api/v1", HC: srv.Client(), Out: &out, Err: &errb}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL + "/api/v1", HC: srv.Client(), Out: &out, Err: &errb}
 	res, err := svc.Execute(context.Background(), args, map[string]string{EnvToken: "test-token"})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)
@@ -358,7 +360,7 @@ func TestCreditListEmptyBecomesArray(t *testing.T) {
 
 func TestMissingToken(t *testing.T) {
 	var out, errb bytes.Buffer
-	svc := &Service{Out: &out, Err: &errb}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errb}
 	res, err := svc.Execute(context.Background(), []string{"account", "list"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("Execute error: %v", err)
@@ -393,7 +395,7 @@ func TestCredentialRejectedOn401(t *testing.T) {
 	})
 	defer srv.Close()
 	var out, errb bytes.Buffer
-	svc := &Service{BaseURL: srv.URL + "/api/v1", HC: srv.Client(), Out: &out, Err: &errb}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL + "/api/v1", HC: srv.Client(), Out: &out, Err: &errb}
 	res, _ := svc.Execute(context.Background(), []string{"account", "list"}, map[string]string{EnvToken: "bad"})
 	if res.ExitCode != 1 {
 		t.Fatalf("exit = %d, want 1", res.ExitCode)
@@ -442,7 +444,7 @@ func TestUnknownSubcommandExit2(t *testing.T) {
 // TestNewCommandTreeTraversable proves the seam builds without a
 // token (used by Inspect/lint), covering every group.
 func TestNewCommandTreeTraversable(t *testing.T) {
-	root := (&Service{}).NewCommandTree()
+	root := (&Service{FS: execution.OS{}}).NewCommandTree()
 	if root == nil {
 		t.Fatal("NewCommandTree returned nil")
 	}

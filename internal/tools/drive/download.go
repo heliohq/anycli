@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -125,11 +124,11 @@ func (s *Service) fileNameType(ctx context.Context, token, id string) (name, mim
 
 // writeDownload writes bytes to saveDir/name, creating the directory.
 func (s *Service) writeDownload(saveDir, name, id string, data []byte, format string) (savedFile, error) {
-	if err := execution.MkdirAll(s.FS, saveDir, 0o755); err != nil {
+	if err := s.FS.MkdirAll(saveDir, 0o755); err != nil {
 		return savedFile{}, fmt.Errorf("drive: create save dir: %w", err)
 	}
 	path := filepath.Join(saveDir, name)
-	if err := execution.WriteFile(s.FS, path, data, 0o644); err != nil {
+	if err := s.FS.WriteFile(path, data, 0o644); err != nil {
 		return savedFile{}, fmt.Errorf("drive: write %s: %w", name, err)
 	}
 	return savedFile{ID: id, Name: name, Path: path, Size: len(data), Format: format}, nil

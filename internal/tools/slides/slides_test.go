@@ -86,7 +86,7 @@ func (f *fixture) last(t *testing.T, method, path string) recordedRequest {
 }
 
 func (f *fixture) newService(out, errBuf *bytes.Buffer) *Service {
-	return &Service{
+	return &Service{FS: execution.OS{},
 		BaseURL: f.srv.URL + "/v1",
 		HC:      f.srv.Client(),
 		Out:     out,
@@ -128,7 +128,7 @@ func decodeBody(t *testing.T, raw []byte) map[string]any {
 
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
-	svc := &Service{Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"presentations", "get", "pid"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

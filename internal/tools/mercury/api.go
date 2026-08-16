@@ -41,7 +41,7 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 			}
 			var payload []byte
 			if cmd.Flags().Changed("body-file") {
-				payload, err = execution.ReadFile(s.FS, bodyFile)
+				payload, err = s.FS.ReadFile(bodyFile)
 				if err != nil {
 					return &usageError{msg: fmt.Sprintf("mercury api: read --body-file %s: %v", bodyFile, err)}
 				}

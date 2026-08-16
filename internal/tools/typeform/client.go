@@ -161,7 +161,7 @@ func readJSONArg(fs execution.FileSystem, flag, val string) (json.RawMessage, er
 		return nil, &usageError{msg: fmt.Sprintf("--%s is required", flag)}
 	}
 	if strings.HasPrefix(v, "@") {
-		b, err := execution.ReadFile(fs, v[1:])
+		b, err := fs.ReadFile(v[1:])
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --%s %s: %v", flag, v[1:], err)}
 		}

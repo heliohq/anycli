@@ -87,7 +87,7 @@ type fileEntry struct {
 // BoldSign's JSON Files array expects. The MIME type is derived from the
 // extension, defaulting to application/pdf (BoldSign's preferred format).
 func readFileEntry(fs execution.FileSystem, path string) (fileEntry, error) {
-	data, err := execution.ReadFile(fs, path)
+	data, err := fs.ReadFile(path)
 	if err != nil {
 		return fileEntry{}, &usageError{msg: fmt.Sprintf("boldsign: read %s: %v", path, err)}
 	}

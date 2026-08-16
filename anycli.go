@@ -65,12 +65,16 @@ type Config struct {
 	// provider upstreams to a local fixture server.
 	HTTPClient *http.Client
 
-	// FS, when non-nil, is where every local file a tool reads or writes goes
-	// instead of the os package. nil keeps the ordinary behavior, which is the
-	// right one for a person running AnyCLI on their own machine: `--out
-	// ./contract.pdf` writes to their disk. A host running AnyCLI on shared
-	// infrastructure has a different machine underneath, and this is how it
-	// decides what "local" means there.
+	// FS is where every local file a tool reads or writes goes. Optional: a nil
+	// FS installs the machine the process runs on (see execution.OS), which is
+	// the right implementation for a person at a terminal. A host running
+	// AnyCLI on shared infrastructure has a different machine underneath, and
+	// this is how it decides what "local" means there.
+	//
+	// The seam governs the files a tool opens itself. A tool that hands a path
+	// to a subprocess — mongodb, and the passthrough CLI tools — is outside it
+	// by construction; a host that cares about isolation declines to run those
+	// rather than assume this covers them.
 	FS FileSystem
 }
 

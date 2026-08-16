@@ -64,7 +64,7 @@ func run(t *testing.T, srv *httptest.Server, env map[string]string, args ...stri
 func runResult(t *testing.T, srv *httptest.Server, env map[string]string, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	if srv != nil {
 		svc.BaseURL = srv.URL
 		svc.HC = srv.Client()

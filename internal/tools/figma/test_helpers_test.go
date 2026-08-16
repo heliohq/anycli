@@ -57,7 +57,7 @@ func runService(t *testing.T, server *httptest.Server, args ...string) (exitCode
 func runServiceResult(t *testing.T, server *httptest.Server, args ...string) (result execution.Result, stdout, stderr string) {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	service := &Service{BaseURL: server.URL, HC: server.Client(), Out: &out, Err: &errOut}
+	service := &Service{FS: execution.OS{}, BaseURL: server.URL, HC: server.Client(), Out: &out, Err: &errOut}
 	result, err := service.Execute(context.Background(), args, map[string]string{EnvAccessToken: "figd_test_token"})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)

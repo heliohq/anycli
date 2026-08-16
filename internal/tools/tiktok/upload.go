@@ -7,11 +7,8 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // uploadSpec carries what the post-init call needs to complete a FILE_UPLOAD:
@@ -34,14 +31,14 @@ func (s *Service) buildSource(file, videoURL string) (map[string]any, *uploadSpe
 		}, nil, nil
 	}
 
-	info, err := os.Stat(file)
+	info, err := s.FS.Stat(file)
 	if err != nil {
 		return nil, nil, fmt.Errorf("tiktok: read video file: %w", err)
 	}
-	if info.IsDir() {
+	if info.IsDir {
 		return nil, nil, fmt.Errorf("tiktok: --file %q is a directory", file)
 	}
-	size := info.Size()
+	size := info.Size
 	source := map[string]any{
 		"source":            "FILE_UPLOAD",
 		"video_size":        size,
@@ -64,7 +61,7 @@ func (s *Service) uploadFile(ctx context.Context, data json.RawMessage, spec *up
 		return fmt.Errorf("tiktok: init response missing upload_url for file upload")
 	}
 
-	f, err := execution.Open(s.FS, spec.path)
+	f, err := s.FS.Open(spec.path)
 	if err != nil {
 		return fmt.Errorf("tiktok: open video file: %w", err)
 	}

@@ -83,7 +83,7 @@ func (f *fixture) last(t *testing.T, method, path string) recordedRequest {
 }
 
 func (f *fixture) newService() *Service {
-	return &Service{
+	return &Service{FS: execution.OS{},
 		BaseURL:       f.srv.URL + "/drive/v3",
 		UploadBaseURL: f.srv.URL + "/upload/drive/v3",
 		HC:            f.srv.Client(),
@@ -115,7 +115,7 @@ func (f *fixture) runOK(t *testing.T, args ...string) string {
 
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
-	svc := &Service{Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"about"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

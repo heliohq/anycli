@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"sync"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // capturedRequest records one request the fake SignNow server received.
@@ -66,7 +68,7 @@ func newMux(t *testing.T, reqs *[]capturedRequest, routes map[string]stub) *http
 func runSN(t *testing.T, srv *httptest.Server, args ...string) (result execResult, stdout, stderr string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	r, err := svc.Execute(context.Background(), args, map[string]string{EnvAccessToken: "secret"})
 	if err != nil {
 		t.Fatalf("Execute returned a transport error: %v", err)

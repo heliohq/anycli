@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -153,7 +152,7 @@ func idempotencyKey(req statusCreateRequest) string {
 // case the id is usable for attachment but we poll GET /api/v1/media/:id until
 // the URL is ready (bounded) so the status create does not race processing.
 func (rt *runContext) uploadMedia(ctx context.Context, path, description string) (string, error) {
-	file, err := execution.Open(rt.svc.FS, path)
+	file, err := rt.svc.FS.Open(path)
 	if err != nil {
 		return "", &usageError{msg: fmt.Sprintf("open image %q: %v", path, err)}
 	}

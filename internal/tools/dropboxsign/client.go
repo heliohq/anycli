@@ -130,7 +130,7 @@ func (s *Service) callMultipart(ctx context.Context, token, path string, parts [
 // name. A missing/unreadable file is surfaced as an error the caller maps to a
 // usage error (a bad --file path is the operator's mistake, not the API's).
 func writeFilePart(fs execution.FileSystem, mw *multipart.Writer, field, path string) error {
-	f, err := execution.Open(fs, path)
+	f, err := fs.Open(path)
 	if err != nil {
 		return fmt.Errorf("dropbox-sign: open --file %q: %w", path, err)
 	}

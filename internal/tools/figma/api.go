@@ -230,7 +230,7 @@ func findOperation(id string) (operation, error) {
 }
 
 func readBoundedFile(fs execution.FileSystem, path string, limit int64) ([]byte, error) {
-	file, err := execution.Open(fs, path)
+	file, err := fs.Open(path)
 	if err != nil {
 		return nil, err
 	}

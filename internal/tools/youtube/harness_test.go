@@ -86,7 +86,7 @@ func (f *fixture) count(method, path string) int {
 func (f *fixture) run(t *testing.T, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{
+	svc := &Service{FS: execution.OS{},
 		BaseURL: f.srv.URL + "/youtube/v3",
 		HC:      f.srv.Client(),
 		Out:     &out,

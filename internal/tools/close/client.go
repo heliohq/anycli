@@ -132,7 +132,7 @@ func readData(fs execution.FileSystem, flag, raw string) (any, error) {
 	}
 	src := []byte(raw)
 	if strings.HasPrefix(raw, "@") {
-		b, err := execution.ReadFile(fs, raw[1:])
+		b, err := fs.ReadFile(raw[1:])
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("close: --%s: read file: %v", flag, err)}
 		}

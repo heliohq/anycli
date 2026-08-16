@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"path/filepath"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -84,7 +83,7 @@ func (s *Service) newPagesThumbnailCmd(token string) *cobra.Command {
 			if thumb.ContentURL == "" {
 				return fmt.Errorf("slides: thumbnail response had no contentUrl")
 			}
-			if err := execution.MkdirAll(s.FS, saveDir, 0o755); err != nil {
+			if err := s.FS.MkdirAll(saveDir, 0o755); err != nil {
 				return fmt.Errorf("slides: create save dir: %w", err)
 			}
 			path := filepath.Join(saveDir, safeThumbName(pageID))
@@ -124,7 +123,7 @@ func (s *Service) downloadThumbnail(ctx context.Context, contentURL, path string
 	if err != nil {
 		return 0, fmt.Errorf("slides: read thumbnail body: %w", err)
 	}
-	if err := execution.WriteFile(s.FS, path, data, 0o644); err != nil {
+	if err := s.FS.WriteFile(path, data, 0o644); err != nil {
 		return 0, fmt.Errorf("slides: write thumbnail: %w", err)
 	}
 	return len(data), nil

@@ -4,7 +4,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -39,7 +38,7 @@ func (s *Service) newRequestCmd(token string) *cobra.Command {
 			}
 			var payload []byte
 			if cmd.Flags().Changed("body-file") {
-				payload, err = execution.ReadFile(s.FS, bodyFile)
+				payload, err = s.FS.ReadFile(bodyFile)
 				if err != nil {
 					return &usageError{msg: "read --body-file " + bodyFile + ": " + err.Error()}
 				}

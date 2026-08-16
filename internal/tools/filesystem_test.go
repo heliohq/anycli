@@ -5,31 +5,43 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
-// osFileCalls are the os functions that open a path the caller named. Reaching
-// one directly bypasses Config.FS, which is the seam a host uses to decide what
-// "local" means when AnyCLI runs somewhere other than the machine of the person
-// who typed the command.
-var osFileCalls = regexp.MustCompile(`\bos\.(ReadFile|WriteFile|Open|OpenFile|Create|CreateTemp|Remove|RemoveAll|Rename|MkdirAll|Mkdir)\b`)
+// osFileCalls are the os functions that touch a file. A tool package must not
+// call any of them: execution.FileSystem is where local files go, and
+// execution.OS is the implementation that reaches the real disk. Two paths
+// would mean a caller-named path could escape the seam, and a behavior that
+// exists only when a host declines to install one.
+var osFileCalls = regexp.MustCompile(`\bos\.(ReadFile|WriteFile|Open|OpenFile|Create|CreateTemp|Remove|RemoveAll|Rename|MkdirAll|Mkdir|MkdirTemp|Stat|Lstat|Chmod|Chown|Link|Symlink|Truncate|ReadDir)\b`)
 
-// TestServiceFileAccessGoesThroughTheSeam mechanically enforces the filesystem
-// contract over every registered service: a package that touches a local file
-// must route it through execution.FileSystem and expose `FS` for injection.
+// scratchMarker exempts one line. It means: this path carries no caller input
+// — it is scratch the function just made for itself — so routing it through
+// the seam would give a host something to configure without giving a caller
+// anything to reach. Every use must say why on the same line, and the count
+// below pins how many exist so a new one is a deliberate edit rather than a
+// habit.
+const scratchMarker = "//anycli:scratch"
+
+// expectedScratchSites is the whole of the exempt set:
 //
-// A failure here fails the build; fix the offending tool package, never this
-// test. Either replace the os call with the execution helper, or — if the path
-// is genuinely not caller-named — say so at the call site with a
-// `//anycli:oshost` comment on the same line.
+//   - figma's response spool, which holds up to 1 GiB while the JSON is
+//     validated and then re-read, in a directory no flag names;
+//   - mongodb's scoped HOME, which exists to be handed to mongosh. That one is
+//     a subprocess: it reads with its own system calls, so no Go interface
+//     could cover it, and a host that cares declines to run mongodb at all.
+const expectedScratchSites = 4
+
 func TestServiceFileAccessGoesThroughTheSeam(t *testing.T) {
 	names := ServiceNames()
 	if len(names) == 0 {
 		t.Fatal("no built-in service tools registered — registry seam broken")
 	}
+	scratch := 0
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			svc, err := GetService(name)
@@ -37,27 +49,29 @@ func TestServiceFileAccessGoesThroughTheSeam(t *testing.T) {
 				t.Fatalf("get service: %v", err)
 			}
 			directory := packageDirectory(t, svc)
-			offenders := directOSFileCalls(t, directory)
-			field, hasField := reflect.ValueOf(svc).Elem().Type().FieldByName(fsFieldName)
-
+			offenders, exempt := scanOSFileCalls(t, directory)
+			scratch += exempt
 			if len(offenders) > 0 {
 				t.Errorf("%s reaches the host filesystem directly:\n  %s",
 					name, strings.Join(offenders, "\n  "))
 			}
+			field, hasField := reflect.ValueOf(svc).Elem().Type().FieldByName(fsFieldName)
 			if !hasField {
 				return
 			}
 			if !fileSystemType.AssignableTo(field.Type) {
 				t.Fatalf("%s has an FS field of type %s; it must accept execution.FileSystem", name, field.Type)
 			}
-			if got := WithFS(svc, stubFS{}); got == svc {
+			if got := WithFS(svc, execution.OS{}); got == svc {
 				t.Fatalf("%s was returned unchanged by WithFS — the FS field is not injectable", name)
 			}
 		})
 	}
+	if scratch != expectedScratchSites {
+		t.Errorf("%d %s sites, want %d — adding one is a decision, not a detail",
+			scratch, scratchMarker, expectedScratchSites)
+	}
 }
-
-type stubFS struct{ execution.FileSystem }
 
 func packageDirectory(t *testing.T, svc Service) string {
 	t.Helper()
@@ -69,43 +83,37 @@ func packageDirectory(t *testing.T, svc Service) string {
 	return filepath.Join(".", path[index+len("/internal/tools/"):])
 }
 
-func directOSFileCalls(t *testing.T, directory string) []string {
+// scanOSFileCalls returns the unmarked os file calls in a package's
+// non-test sources, and how many marked ones it skipped.
+func scanOSFileCalls(t *testing.T, directory string) ([]string, int) {
 	t.Helper()
-	entries, err := os.ReadDir(directory) //anycli:oshost — the test reads its own tree
+	entries, err := os.ReadDir(directory)
 	if err != nil {
 		t.Fatalf("read %s: %v", directory, err)
 	}
 	var offenders []string
+	exempt := 0
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
 		path := filepath.Join(directory, name)
-		data, err := os.ReadFile(path) //anycli:oshost — the test reads its own tree
+		data, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
 		}
 		for number, line := range strings.Split(string(data), "\n") {
-			if strings.Contains(line, "//anycli:oshost") {
+			match := osFileCalls.FindString(line)
+			if match == "" {
 				continue
 			}
-			if match := osFileCalls.FindString(line); match != "" {
-				offenders = append(offenders, filepath.Join(path)+":"+itoa(number+1)+" "+match)
+			if strings.Contains(line, scratchMarker) {
+				exempt++
+				continue
 			}
+			offenders = append(offenders, path+":"+strconv.Itoa(number+1)+" "+match)
 		}
 	}
-	return offenders
-}
-
-func itoa(value int) string {
-	if value == 0 {
-		return "0"
-	}
-	var digits []byte
-	for value > 0 {
-		digits = append([]byte{byte('0' + value%10)}, digits...)
-		value /= 10
-	}
-	return string(digits)
+	return offenders, exempt
 }

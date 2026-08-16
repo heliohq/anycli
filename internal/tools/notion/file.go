@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +27,7 @@ func (s *Service) newFileUploadCmd(token string) *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := args[0]
-			data, err := execution.ReadFile(s.FS, path)
+			data, err := s.FS.ReadFile(path)
 			if err != nil {
 				return &usageError{msg: fmt.Sprintf("file upload: read %s: %v", path, err)}
 			}

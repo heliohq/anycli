@@ -57,7 +57,7 @@ func (o *composeOptions) resolveComposeBody() (string, error) {
 	if o.bodyFile == "" {
 		return o.body, nil
 	}
-	data, err := execution.ReadFile(o.fs, o.bodyFile)
+	data, err := o.fs.ReadFile(o.bodyFile)
 	if err != nil {
 		return "", fmt.Errorf("gmail: read body file: %w", err)
 	}
@@ -137,7 +137,7 @@ func writeMultipart(fs execution.FileSystem, buf *bytes.Buffer, textType, body s
 }
 
 func writeAttachmentPart(fs execution.FileSystem, w *multipart.Writer, path string) error {
-	data, err := execution.ReadFile(fs, path)
+	data, err := fs.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("gmail: read attachment %s: %w", path, err)
 	}

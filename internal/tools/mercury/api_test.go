@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestAPI_GetVerbatim(t *testing.T) {
@@ -183,7 +185,7 @@ func TestAPI_CredentialRejectedOn401(t *testing.T) {
 	})
 	defer srv.Close()
 	var out, errb bytes.Buffer
-	svc := &Service{BaseURL: srv.URL + "/api/v1", HC: srv.Client(), Out: &out, Err: &errb}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL + "/api/v1", HC: srv.Client(), Out: &out, Err: &errb}
 	res, _ := svc.Execute(context.Background(), []string{"api", "GET", "/accounts"}, map[string]string{EnvToken: "bad"})
 	if res.ExitCode != 1 {
 		t.Fatalf("exit = %d, want 1", res.ExitCode)

@@ -243,7 +243,7 @@ func readBody(fs execution.FileSystem, data, file string) ([]byte, error) {
 	}
 	raw := []byte(data)
 	if file != "" {
-		b, err := execution.ReadFile(fs, file)
+		b, err := fs.ReadFile(file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --file: %v", err)}
 		}

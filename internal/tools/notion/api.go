@@ -59,7 +59,7 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 			}
 			var payload []byte
 			if cmd.Flags().Changed("body-file") {
-				payload, err = execution.ReadFile(s.FS, bodyFile)
+				payload, err = s.FS.ReadFile(bodyFile)
 				if err != nil {
 					return &usageError{msg: fmt.Sprintf("notion api: read --body-file %s: %v", bodyFile, err)}
 				}
@@ -150,7 +150,7 @@ func buildMultipartPayload(fs execution.FileSystem, forms, formFiles []string) (
 			_ = mw.Close()
 			return nil, "", &usageError{msg: fmt.Sprintf("notion api: --form-file must be name=path, got %q", f)}
 		}
-		data, err := execution.ReadFile(fs, path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			_ = mw.Close()
 			return nil, "", &usageError{msg: fmt.Sprintf("notion api: read --form-file %s: %v", path, err)}

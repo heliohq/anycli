@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestPageCreate_Happy(t *testing.T) {
@@ -68,7 +70,7 @@ func TestPageCreate_MultipleFanOut(t *testing.T) {
 	defer srv.Close()
 
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"page", "create",
 		"--pages", `[{"parent":{"page_id":"a"},"content":"one"},{"parent":{"page_id":"b"},"content":"two"}]`},
 		map[string]string{EnvToken: "t"})

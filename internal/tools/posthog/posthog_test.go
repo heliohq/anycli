@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestMissingTokenFailsBeforeAnyRequest(t *testing.T) {
-	svc := &Service{BaseURL: "https://unused.example"}
+	svc := &Service{FS: execution.OS{}, BaseURL: "https://unused.example"}
 	exit, stdout, stderr := runService(t, svc, map[string]string{}, "whoami")
 	if exit != 1 {
 		t.Fatalf("exit = %d, want 1", exit)
@@ -21,7 +23,7 @@ func TestMissingTokenFailsBeforeAnyRequest(t *testing.T) {
 }
 
 func TestUnknownSubcommandIsUsageErrorExit2(t *testing.T) {
-	svc := &Service{BaseURL: "https://unused.example"}
+	svc := &Service{FS: execution.OS{}, BaseURL: "https://unused.example"}
 	exit, _, _ := runService(t, svc, map[string]string{EnvAccessToken: testToken}, "nonsense")
 	if exit != 2 {
 		t.Fatalf("exit = %d, want 2 for unknown subcommand", exit)
@@ -29,7 +31,7 @@ func TestUnknownSubcommandIsUsageErrorExit2(t *testing.T) {
 }
 
 func TestUsageErrorJSONEnvelope(t *testing.T) {
-	svc := &Service{BaseURL: "https://unused.example"}
+	svc := &Service{FS: execution.OS{}, BaseURL: "https://unused.example"}
 	// query run with neither --hogql nor --query-json is a usage error.
 	exit, _, stderr := runService(t, svc, map[string]string{EnvAccessToken: testToken},
 		"query", "run", "--project", "1", "--json")

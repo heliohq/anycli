@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestExecute_MissingKey(t *testing.T) {
 	var errBuf bytes.Buffer
-	svc := &Service{Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"workspace", "list"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -26,7 +28,7 @@ func TestExecute_MissingKey(t *testing.T) {
 
 func TestExecute_MissingKey_JSONEnvelope(t *testing.T) {
 	var errBuf bytes.Buffer
-	svc := &Service{Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Err: &errBuf}
 	_, err := svc.Execute(context.Background(), []string{"--json", "workspace", "list"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -68,7 +70,7 @@ func TestBearerAuthAndAccept(t *testing.T) {
 func TestRegionEU_SwitchesBaseURL(t *testing.T) {
 	// With no BaseURL override, --region eu must resolve the EU host. We can't
 	// reach the real host in a unit test, so assert the resolver directly.
-	svc := &Service{}
+	svc := &Service{FS: execution.OS{}}
 	root := svc.newRoot("k")
 	root.SetArgs([]string{"--region", "eu", "workspace", "list"})
 	// Resolve region from a child command's flag set via the persistent flag.
@@ -85,7 +87,7 @@ func TestRegionEU_SwitchesBaseURL(t *testing.T) {
 }
 
 func TestRegionInvalid_UsageError(t *testing.T) {
-	svc := &Service{}
+	svc := &Service{FS: execution.OS{}}
 	root := svc.newRoot("k")
 	if err := root.PersistentFlags().Set("region", "apac"); err != nil {
 		t.Fatalf("set region: %v", err)

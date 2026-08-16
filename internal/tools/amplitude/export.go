@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
@@ -81,7 +80,9 @@ func (s *Service) download(cmd *cobra.Command, inv *invocation, path string, que
 	if err != nil {
 		return 0, "", err
 	}
-	defer f.Close()
+	// Abandoning the writer on an error path is what discards a partial
+	// archive; Close is the commit, and calling it twice is not something an
+	// io.Closer has to tolerate.
 	written, err := io.Copy(f, resp.Body)
 	if err != nil {
 		return 0, "", &apiError{msg: fmt.Sprintf("amplitude: write export archive: %v", err), err: err}
@@ -92,28 +93,18 @@ func (s *Service) download(cmd *cobra.Command, inv *invocation, path string, que
 	return written, path, nil
 }
 
-// createOutput opens the requested output path, or a temp file when empty. A
-// host filesystem has no scratch directory to fall back to — it decides where
-// bytes land — so an omitted --output becomes a named archive there.
+// createOutput opens the archive the export is written to. --output is
+// required: the previous fallback picked a temporary name for the caller, which
+// only reads as a convenience while "temporary" means a scratch directory on
+// the caller's own disk. It is not a name a filesystem can be asked to invent,
+// and any fixed one would have successive exports overwrite each other.
 func createOutput(fs execution.FileSystem, output string) (io.WriteCloser, string, error) {
-	if output != "" {
-		f, err := execution.Create(fs, output)
-		if err != nil {
-			return nil, "", &usageError{msg: fmt.Sprintf("cannot create --output %s: %v", output, err)}
-		}
-		return f, output, nil
+	if output == "" {
+		return nil, "", &usageError{msg: "export requires --output: the path to write the archive to"}
 	}
-	if fs != nil {
-		const name = "amplitude-export.zip"
-		f, err := fs.Create(name)
-		if err != nil {
-			return nil, "", &apiError{msg: fmt.Sprintf("amplitude: create export file: %v", err), err: err}
-		}
-		return f, name, nil
-	}
-	f, err := os.CreateTemp("", "amplitude-export-*.zip") //anycli:oshost — no host filesystem is installed, so this is the caller's own machine
+	f, err := fs.Create(output)
 	if err != nil {
-		return nil, "", &apiError{msg: fmt.Sprintf("amplitude: create temp export file: %v", err), err: err}
+		return nil, "", &usageError{msg: fmt.Sprintf("cannot create --output %s: %v", output, err)}
 	}
-	return f, f.Name(), nil
+	return f, output, nil
 }

@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -92,7 +91,7 @@ func (s *Service) newVideoGetCmd(token string) *cobra.Command {
 // finalizeUpload → waitVideoAvailable. The returned body is the final GET
 // video object (id + status AVAILABLE), emitted verbatim.
 func (s *Service) uploadVideo(ctx context.Context, token, personURN, file string) ([]byte, error) {
-	size, err := checkVideoFile(file)
+	size, err := checkVideoFile(s.FS, file)
 	if err != nil {
 		return nil, err
 	}
@@ -237,39 +236,43 @@ func encodeVideoURN(urn string) string {
 // non-directory, non-empty, size cap) and returns the file size. Everything
 // else (duration, codec, resolution) is the platform's call — its error is
 // surfaced verbatim.
-func checkVideoFile(file string) (int64, error) {
+func checkVideoFile(fs execution.FileSystem, file string) (int64, error) {
 	if ext := strings.ToLower(filepath.Ext(file)); ext != ".mp4" {
 		return 0, fmt.Errorf("linkedin: only MP4 video is supported (got %s)", ext)
 	}
-	info, err := os.Stat(file)
+	info, err := fs.Stat(file)
 	if err != nil {
 		return 0, fmt.Errorf("linkedin: read video file: %w", err)
 	}
-	if info.IsDir() {
+	if info.IsDir {
 		return 0, fmt.Errorf("linkedin: --file %q is a directory", file)
 	}
-	if info.Size() == 0 {
+	if info.Size == 0 {
 		return 0, fmt.Errorf("linkedin: --file %q is empty", file)
 	}
-	if info.Size() > maxVideoBytes {
+	if info.Size > maxVideoBytes {
 		return 0, fmt.Errorf("linkedin: --file %q exceeds the 500MB limit", file)
 	}
-	return info.Size(), nil
+	return info.Size, nil
 }
 
-// seekableSource opens file as an io.ReaderAt: the file itself when no host
-// filesystem is installed, a buffer of it when one is.
+// seekableSource opens file for the ranged upload. Open may hand back
+// something that already supports random access — a file on a disk does — and
+// only when it does not is the video buffered. A video is large enough that
+// reading one into memory when a handle would do is not a cost to pay for
+// uniformity.
 func seekableSource(fs execution.FileSystem, file string) (io.ReaderAt, func(), error) {
-	if fs == nil {
-		f, err := os.Open(file) //anycli:oshost — no host filesystem is installed, so this is the caller's own machine
-		if err != nil {
-			return nil, nil, fmt.Errorf("linkedin: open video file: %w", err)
-		}
-		return f, func() { _ = f.Close() }, nil
-	}
-	data, err := fs.ReadFile(file)
+	source, err := fs.Open(file)
 	if err != nil {
 		return nil, nil, fmt.Errorf("linkedin: open video file: %w", err)
+	}
+	if at, ok := source.(io.ReaderAt); ok {
+		return at, func() { _ = source.Close() }, nil
+	}
+	defer source.Close()
+	data, err := io.ReadAll(source)
+	if err != nil {
+		return nil, nil, fmt.Errorf("linkedin: read video file: %w", err)
 	}
 	return bytes.NewReader(data), func() {}, nil
 }

@@ -60,7 +60,7 @@ type Engine struct {
 	// engine makes (built-in service provider calls, lazy binary
 	// downloads). nil keeps each call site's production default.
 	httpClient *http.Client
-	// fs is the host's filesystem seam; nil = the os package.
+	// fs is where tools reach local files; never nil once New installs one.
 	fs execution.FileSystem
 }
 
@@ -69,6 +69,12 @@ type Engine struct {
 // in-memory default when the consumer supplies none. A nil httpClient keeps
 // the default per-call-site HTTP behavior.
 func NewEngine(cache credential.Cache, httpClient *http.Client, fs execution.FileSystem) (*Engine, error) {
+	if fs == nil {
+		// One place decides what "local" means when a host says nothing, so no
+		// caller — including a test — can end up with a service that has no
+		// filesystem at all.
+		fs = execution.OS{}
+	}
 	if cache == nil {
 		return nil, fmt.Errorf("credential cache must not be nil")
 	}
@@ -174,9 +180,7 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 			// HTTP client — the registry singleton is never mutated.
 			svc = tools.WithHTTPClient(svc, e.httpClient)
 		}
-		if e.fs != nil {
-			svc = tools.WithFS(svc, e.fs)
-		}
+		svc = tools.WithFS(svc, e.fs)
 		result, err := svc.Execute(ctx, mctx.Args, mctx.Env)
 		if result.CredentialRejected && hasCredentials {
 			e.markCredentialsStale(tool, account)

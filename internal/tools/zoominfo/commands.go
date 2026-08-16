@@ -121,7 +121,7 @@ func readJSONBody(fs execution.FileSystem, body, file string) ([]byte, error) {
 		}
 		raw = b
 	case file != "":
-		b, err := execution.ReadFile(fs, file)
+		b, err := fs.ReadFile(file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read body file: %v", err)}
 		}

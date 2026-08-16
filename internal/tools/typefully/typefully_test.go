@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
-	svc := &Service{Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"me"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

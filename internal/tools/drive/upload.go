@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -86,7 +85,7 @@ func (s *Service) newFilesUploadCmd(token string) *cobra.Command {
 // size. It returns a savedFile whose Path field carries the webViewLink (the
 // delivery link is the meaningful "location" for an upload).
 func (s *Service) uploadOne(ctx context.Context, token, path, name, parent string, convert bool) (savedFile, error) {
-	data, err := execution.ReadFile(s.FS, path)
+	data, err := s.FS.ReadFile(path)
 	if err != nil {
 		return savedFile{}, fmt.Errorf("drive: read %s: %w", path, err)
 	}

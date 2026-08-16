@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +57,7 @@ func TestSideEffectAnnotationValues(t *testing.T) {
 		{"dm media download", "false"},
 	}
 
-	root := (&Service{}).NewCommandTree()
+	root := (&Service{FS: execution.OS{}}).NewCommandTree()
 	seen := make(map[string]bool, len(cases))
 	for _, tc := range cases {
 		t.Run(strings.ReplaceAll(tc.path, " ", "_"), func(t *testing.T) {
@@ -95,7 +96,7 @@ func TestSideEffectAnnotationValues(t *testing.T) {
 // on the x tree: every runnable leaf carries an explicit "true"/"false"
 // annotation, and no group command carries one.
 func TestSideEffectAnnotationHygiene(t *testing.T) {
-	root := (&Service{}).NewCommandTree()
+	root := (&Service{FS: execution.OS{}}).NewCommandTree()
 	walk(root, nil, func(path []string, cmd *cobra.Command) {
 		joined := strings.Join(path, " ")
 		if cmd.HasSubCommands() {

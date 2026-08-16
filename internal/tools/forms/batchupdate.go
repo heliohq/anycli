@@ -63,7 +63,7 @@ func readRequests(fs execution.FileSystem, inline, file string) ([]byte, error) 
 	case inline != "":
 		return []byte(inline), nil
 	case file != "":
-		b, err := execution.ReadFile(fs, file)
+		b, err := fs.ReadFile(file)
 		if err != nil {
 			return nil, fmt.Errorf("forms: read --requests-file: %w", err)
 		}

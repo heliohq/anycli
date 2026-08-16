@@ -30,7 +30,7 @@ func readData(fs execution.FileSystem, value string) ([]byte, error) {
 		}
 		raw = b
 	case strings.HasPrefix(value, "@"):
-		b, err := execution.ReadFile(fs, value[1:])
+		b, err := fs.ReadFile(value[1:])
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --data file: %v", err)}
 		}

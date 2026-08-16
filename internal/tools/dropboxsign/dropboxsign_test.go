@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestMissingTokenExitsOne(t *testing.T) {
 	var out, errBuf strings.Builder
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	res, err := svc.Execute(context.Background(), []string{"account", "get"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("Execute error: %v", err)
@@ -22,7 +24,7 @@ func TestMissingTokenExitsOne(t *testing.T) {
 
 func TestMissingTokenJSONEnvelope(t *testing.T) {
 	var out, errBuf strings.Builder
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	_, err := svc.Execute(context.Background(), []string{"--json", "account", "get"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("Execute error: %v", err)

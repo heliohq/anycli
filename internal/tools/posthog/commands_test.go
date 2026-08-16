@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestQueryRunWrapsHogQL(t *testing.T) {
@@ -55,7 +57,7 @@ func TestQueryRunPassesThroughRawQueryNode(t *testing.T) {
 }
 
 func TestQueryRunRejectsBothQuerySources(t *testing.T) {
-	exit, _, _ := runService(t, &Service{BaseURL: "https://unused.example"},
+	exit, _, _ := runService(t, &Service{FS: execution.OS{}, BaseURL: "https://unused.example"},
 		map[string]string{EnvAccessToken: testToken},
 		"query", "run", "--project", "1", "--hogql", "select 1", "--query-json", "-")
 	if exit != 2 {
@@ -64,7 +66,7 @@ func TestQueryRunRejectsBothQuerySources(t *testing.T) {
 }
 
 func TestProjectScopedCommandRequiresProject(t *testing.T) {
-	exit, _, stderr := runService(t, &Service{BaseURL: "https://unused.example"},
+	exit, _, stderr := runService(t, &Service{FS: execution.OS{}, BaseURL: "https://unused.example"},
 		map[string]string{EnvAccessToken: testToken}, "insight", "list")
 	if exit != 2 {
 		t.Fatalf("exit = %d, want 2 when --project missing", exit)
@@ -125,7 +127,7 @@ func TestFlagToggleSendsActivePatch(t *testing.T) {
 }
 
 func TestFlagToggleRequiresActive(t *testing.T) {
-	exit, _, _ := runService(t, &Service{BaseURL: "https://unused.example"},
+	exit, _, _ := runService(t, &Service{FS: execution.OS{}, BaseURL: "https://unused.example"},
 		map[string]string{EnvAccessToken: testToken},
 		"flag", "toggle", "--project", "1", "--id", "55")
 	if exit != 2 {
@@ -177,7 +179,7 @@ func TestAnnotationCreateBuildsPayload(t *testing.T) {
 }
 
 func TestAnnotationCreateRequiresContent(t *testing.T) {
-	exit, _, _ := runService(t, &Service{BaseURL: "https://unused.example"},
+	exit, _, _ := runService(t, &Service{FS: execution.OS{}, BaseURL: "https://unused.example"},
 		map[string]string{EnvAccessToken: testToken},
 		"annotation", "create", "--project", "1")
 	if exit != 2 {

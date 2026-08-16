@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestWhoami_Happy(t *testing.T) {
@@ -35,7 +37,7 @@ func TestWhoami_Happy(t *testing.T) {
 
 func TestMissingToken_Exit1(t *testing.T) {
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	res, err := svc.Execute(context.Background(), []string{"whoami"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected transport error: %v", err)
@@ -60,7 +62,7 @@ func TestBaseURLFromEnv_Override(t *testing.T) {
 	// and the env override reaches the request path.
 	t.Setenv(EnvBaseURL, srv.URL)
 	var out, errBuf bytes.Buffer
-	svc := &Service{HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, HC: srv.Client(), Out: &out, Err: &errBuf}
 	res, err := svc.Execute(context.Background(), []string{"whoami"},
 		map[string]string{EnvAccessToken: "secret"})
 	if err != nil {

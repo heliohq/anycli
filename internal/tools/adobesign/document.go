@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +41,7 @@ func (s *Service) newDocumentUploadCmd(token, baseURI string) *cobra.Command {
 // transientDocumentId. Shared by `document upload` and the file-based
 // `agreement send` two-step.
 func (s *Service) uploadTransient(ctx context.Context, token, baseURI, path, name, contentType string) (string, error) {
-	data, err := execution.ReadFile(s.FS, path)
+	data, err := s.FS.ReadFile(path)
 	if err != nil {
 		return "", &usageError{msg: fmt.Sprintf("document upload: read %s: %v", path, err)}
 	}

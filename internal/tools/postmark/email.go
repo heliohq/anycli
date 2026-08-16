@@ -221,7 +221,7 @@ func parseHeaders(entries []string) ([]map[string]string, error) {
 func readAttachments(fs execution.FileSystem, paths []string) ([]map[string]string, error) {
 	attachments := make([]map[string]string, 0, len(paths))
 	for _, path := range paths {
-		data, err := execution.ReadFile(fs, path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			return nil, usagef("postmark: cannot read attachment %q: %v", path, err)
 		}
