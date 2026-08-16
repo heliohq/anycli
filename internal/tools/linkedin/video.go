@@ -136,14 +136,16 @@ func (s *Service) uploadVideo(ctx context.Context, token, personURN, file string
 // uploadParts PUTs each server-defined byte range to its pre-signed URL, in
 // instruction order, and returns the collected part ids in the same order.
 func (s *Service) uploadParts(ctx context.Context, file string, instructions []uploadInstruction) ([]string, error) {
-	// The ranges are server-defined and arrive out of order, so the source has
-	// to be seekable. A host filesystem hands back a stream, not a file, so the
-	// video is buffered rather than assumed to sit on a disk.
-	data, err := execution.ReadFile(s.FS, file)
+	// The ranges are server-defined, so the source has to be seekable. On a
+	// disk that is the file itself; a host filesystem hands back a stream with
+	// nothing to seek, and only there is the video buffered. A video is large
+	// enough that reading one into memory when a file would do is not a cost
+	// to pay for uniformity.
+	f, closeSource, err := seekableSource(s.FS, file)
 	if err != nil {
-		return nil, fmt.Errorf("linkedin: open video file: %w", err)
+		return nil, err
 	}
-	f := bytes.NewReader(data)
+	defer closeSource()
 
 	etags := make([]string, 0, len(instructions))
 	for i, in := range instructions {
@@ -253,4 +255,21 @@ func checkVideoFile(file string) (int64, error) {
 		return 0, fmt.Errorf("linkedin: --file %q exceeds the 500MB limit", file)
 	}
 	return info.Size(), nil
+}
+
+// seekableSource opens file as an io.ReaderAt: the file itself when no host
+// filesystem is installed, a buffer of it when one is.
+func seekableSource(fs execution.FileSystem, file string) (io.ReaderAt, func(), error) {
+	if fs == nil {
+		f, err := os.Open(file) //anycli:oshost — no host filesystem is installed, so this is the caller's own machine
+		if err != nil {
+			return nil, nil, fmt.Errorf("linkedin: open video file: %w", err)
+		}
+		return f, func() { _ = f.Close() }, nil
+	}
+	data, err := fs.ReadFile(file)
+	if err != nil {
+		return nil, nil, fmt.Errorf("linkedin: open video file: %w", err)
+	}
+	return bytes.NewReader(data), func() {}, nil
 }
