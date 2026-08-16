@@ -47,10 +47,10 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("read media file: %w", err)
 			}
-			if info.IsDir {
+			if info.IsDir() {
 				return fmt.Errorf("--file %q is a directory", file)
 			}
-			if info.Size == 0 {
+			if info.Size() == 0 {
 				return fmt.Errorf("--file %q is empty", file)
 			}
 			sniff, err := sniffMediaFile(s.FS, file)
@@ -66,7 +66,7 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 			}
 			var body []byte
 			_, simple := supportedSimpleImageTypes[mediaType]
-			if simple && info.Size <= maxSimpleImageBytes && strings.HasSuffix(category, "_image") {
+			if simple && info.Size() <= maxSimpleImageBytes && strings.HasSuffix(category, "_image") {
 				body, err = s.simpleUpload(cmd.Context(), token, file, mediaType, category)
 			} else {
 				body, err = s.chunkedUpload(cmd.Context(), token, file, category)

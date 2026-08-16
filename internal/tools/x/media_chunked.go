@@ -38,7 +38,7 @@ func (s *Service) chunkedUpload(ctx context.Context, token, file, category strin
 	if err != nil {
 		return nil, fmt.Errorf("read media file: %w", err)
 	}
-	size := info.Size
+	size := info.Size()
 	sniff, err := sniffMediaFile(s.FS, file)
 	if err != nil {
 		return nil, err

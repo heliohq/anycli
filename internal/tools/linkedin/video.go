@@ -244,16 +244,16 @@ func checkVideoFile(fs execution.FileSystem, file string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("linkedin: read video file: %w", err)
 	}
-	if info.IsDir {
+	if info.IsDir() {
 		return 0, fmt.Errorf("linkedin: --file %q is a directory", file)
 	}
-	if info.Size == 0 {
+	if info.Size() == 0 {
 		return 0, fmt.Errorf("linkedin: --file %q is empty", file)
 	}
-	if info.Size > maxVideoBytes {
+	if info.Size() > maxVideoBytes {
 		return 0, fmt.Errorf("linkedin: --file %q exceeds the 500MB limit", file)
 	}
-	return info.Size, nil
+	return info.Size(), nil
 }
 
 // seekableSource opens file for the ranged upload. Open may hand back

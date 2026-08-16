@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 const maxErrorBodyBytes = 8 << 10
@@ -97,7 +95,6 @@ func (s *Service) download(ctx context.Context, token, path, output string) (int
 	}
 	written, copyErr := io.Copy(file, resp.Body)
 	if copyErr != nil {
-		execution.Abandon(file)
 		return 0, fmt.Errorf("x: write download: %w", copyErr)
 	}
 	if err := file.Close(); err != nil {

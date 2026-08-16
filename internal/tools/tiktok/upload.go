@@ -35,10 +35,10 @@ func (s *Service) buildSource(file, videoURL string) (map[string]any, *uploadSpe
 	if err != nil {
 		return nil, nil, fmt.Errorf("tiktok: read video file: %w", err)
 	}
-	if info.IsDir {
+	if info.IsDir() {
 		return nil, nil, fmt.Errorf("tiktok: --file %q is a directory", file)
 	}
-	size := info.Size
+	size := info.Size()
 	source := map[string]any{
 		"source":            "FILE_UPLOAD",
 		"video_size":        size,

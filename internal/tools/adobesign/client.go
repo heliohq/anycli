@@ -164,7 +164,6 @@ func (s *Service) download(ctx context.Context, token, baseURI, path, outPath st
 		return &usageError{msg: fmt.Sprintf("adobe-sign: create %s: %v", outPath, err)}
 	}
 	if _, err := io.Copy(f, resp.Body); err != nil {
-		execution.Abandon(f)
 		return &apiError{msg: fmt.Sprintf("adobe-sign: write document: %v", err), err: err}
 	}
 	// Close is where the write is committed, so its error is the difference

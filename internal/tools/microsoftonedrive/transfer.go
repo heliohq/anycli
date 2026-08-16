@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -83,7 +84,7 @@ func (s *Service) newDownloadCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := s.FS.MkdirAll(saveDir, 0o755); err != nil {
+			if err := execution.MkdirAll(s.FS, saveDir, 0o755); err != nil {
 				return fmt.Errorf("microsoft-onedrive: create save dir: %w", err)
 			}
 			name := downloadName(meta.Name)

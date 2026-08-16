@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"net/url"
@@ -53,7 +54,7 @@ func (s *Service) downloadAssets(ctx context.Context, sources []assetSource, out
 	if outputDir == "" {
 		return assetManifest{}, fmt.Errorf("output directory is required")
 	}
-	if err := s.FS.MkdirAll(outputDir, 0o755); err != nil {
+	if err := execution.MkdirAll(s.FS, outputDir, 0o755); err != nil {
 		return assetManifest{}, fmt.Errorf("create asset output directory: %w", err)
 	}
 	sort.Slice(sources, func(left, right int) bool { return sources[left].ID < sources[right].ID })
@@ -132,23 +133,24 @@ func (s *Service) downloadAsset(ctx context.Context, source assetSource, outputD
 	if !overwrite {
 		if _, statErr := s.FS.Stat(targetPath); statErr == nil {
 			return downloadedAsset{}, fmt.Errorf("%s already exists; pass --overwrite to replace it", targetName)
-		} else if !errors.Is(statErr, execution.ErrNotExist) {
+		} else if !errors.Is(statErr, fs.ErrNotExist) {
 			return downloadedAsset{}, fmt.Errorf("install asset %s: %w", targetName, statErr)
 		}
 	}
-	// Create commits on Close, so a copy that fails or overruns the limit
-	// leaves whatever was at targetPath untouched.
+	// A failed copy leaves a partial asset under this name, the same as any
+	// download tool writing where it was told to. The alternative — staging
+	// every write and swapping it in — is a transaction, and it would have to
+	// be honored by every filesystem this runs on, including one that is
+	// relaying the bytes to another machine.
 	asset, err := s.FS.Create(targetPath)
 	if err != nil {
 		return downloadedAsset{}, fmt.Errorf("create asset: %w", err)
 	}
 	written, copyErr := io.Copy(asset, io.LimitReader(response.Body, maxAssetBytes+1))
 	if copyErr != nil {
-		execution.Abandon(asset)
 		return downloadedAsset{}, fmt.Errorf("write asset: %w", copyErr)
 	}
 	if written > maxAssetBytes {
-		execution.Abandon(asset)
 		return downloadedAsset{}, fmt.Errorf("asset exceeds %d bytes", maxAssetBytes)
 	}
 	if err := asset.Close(); err != nil {

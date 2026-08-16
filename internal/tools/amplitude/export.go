@@ -91,7 +91,6 @@ func (s *Service) download(cmd *cobra.Command, inv *invocation, path string, que
 	// io.Closer has to tolerate.
 	written, err := io.Copy(f, resp.Body)
 	if err != nil {
-		execution.Abandon(f)
 		return 0, "", &apiError{msg: fmt.Sprintf("amplitude: write export archive: %v", err), err: err}
 	}
 	if err := f.Close(); err != nil {

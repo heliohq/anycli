@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -47,7 +48,7 @@ func (s *Service) newMessagesAttachmentsCmd(token string) *cobra.Command {
 				fmt.Fprintln(s.stdout(), "no attachments")
 				return nil
 			}
-			if err := s.FS.MkdirAll(saveDir, 0o755); err != nil {
+			if err := execution.MkdirAll(s.FS, saveDir, 0o755); err != nil {
 				return fmt.Errorf("microsoft-outlook: create save dir: %w", err)
 			}
 			saved, err := s.downloadAttachments(cmd.Context(), token, messageID, selected, saveDir)

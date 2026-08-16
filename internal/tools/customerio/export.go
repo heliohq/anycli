@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -179,7 +178,6 @@ func (s *Service) downloadFile(ctx context.Context, rawURL, path string) (int64,
 	}
 	n, err := io.Copy(f, resp.Body)
 	if err != nil {
-		execution.Abandon(f)
 		return 0, &apiError{msg: fmt.Sprintf("customer-io: write %s: %v", path, err), err: err}
 	}
 	// Close commits the file; discarding its error would report a download

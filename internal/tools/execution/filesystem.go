@@ -2,9 +2,8 @@ package execution
 
 import (
 	"errors"
-	"fmt"
 	"io"
-	"math/rand/v2"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -18,11 +17,24 @@ import (
 // different machine underneath: "local" is the server, its files are not the
 // caller's, and a path in argv is the caller choosing which of the server's
 // files to read or overwrite. Supplying a FileSystem is how such a host makes
-// that choice its own.
+// that choice its own — by answering these calls from wherever the caller's
+// files actually are.
 //
 // There is no second path. Tool packages never call the os package, so there is
 // no arrangement under which a caller-named path reaches the host directly, and
 // no behavior that exists only when a host declines to install one.
+//
+// The types are io/fs's — fs.File, fs.FileInfo, fs.FileMode, fs.ErrNotExist —
+// and the method names are os.Root's, which is Go's own vocabulary for
+// filesystem access confined to a scope.
+//
+// The io/fs *interfaces* are deliberately not embedded. fs.FS is a virtual
+// namespace: fs.ValidPath requires unrooted, slash-separated names with no "."
+// or ".." element, and a conforming fs.FS must reject anything else. What
+// arrives here is whatever a tool was handed in argv — `--out ./contract.pdf`,
+// `--attach /tmp/photo.png` — which is an operating-system path, and rejecting
+// those is the opposite of the job. Claiming fs.FS would be claiming a contract
+// this cannot keep.
 //
 // # Scope
 //
@@ -30,8 +42,8 @@ import (
 // subprocess is outside it by construction: the child reads with its own system
 // calls, and no Go interface can intervene. mongodb (which runs mongosh) and
 // the passthrough CLI tools are the whole of that category, and a host that
-// cares about isolation should decline to run them rather than assume this
-// covers them.
+// cares about isolation declines to run them rather than assume this covers
+// them.
 //
 // # Concurrency
 //
@@ -39,144 +51,87 @@ import (
 // call it from several goroutines at once — figma's asset download runs four —
 // and a host may share one FileSystem across concurrent executions.
 type FileSystem interface {
+	// Open reports fs.ErrNotExist for a name that is not there. io/fs puts the
+	// rest better than a paraphrase would: "a file may implement io.ReaderAt or
+	// io.Seeker as optimizations". linkedin's ranged video upload asserts for
+	// io.ReaderAt and buffers when the assertion fails, so an implementation
+	// able to offer random access spares it from reading a whole video into
+	// memory.
+	Open(name string) (fs.File, error)
+
+	// Stat reports what a tool checks before opening a path: how large it is,
+	// and whether it is a directory.
+	Stat(name string) (fs.FileInfo, error)
+
+	// ReadFile is here rather than left to a helper over Open because most
+	// callers need the whole file anyway — they base64 it into a JSON request
+	// body — and asking for it once spares an implementation that fetches the
+	// bytes from elsewhere a round trip per chunk.
 	ReadFile(name string) ([]byte, error)
-	WriteFile(name string, data []byte, perm os.FileMode) error
 
-	// Open returns the file's contents as a stream. The returned value may
-	// also implement io.ReaderAt; a caller that needs random access should
-	// assert for it and fall back to buffering when the assertion fails.
-	// linkedin's video upload is the one caller that does, because it sends
-	// server-defined byte ranges.
-	Open(name string) (io.ReadCloser, error)
-
-	// Create returns a writer for name. It is atomic: the contents become
-	// visible under name only after Close returns nil, so a tool can abandon a
-	// half-written download without destroying whatever was there before.
+	// Create returns a writer for name, replacing whatever was there. It
+	// promises nothing about when the contents become visible: a write that
+	// fails partway can leave a partial file, the same as every download tool
+	// that writes where it was told to.
 	//
-	// A tool that gives up must say so by calling Abandon on the writer, which
-	// is how the partial write is released. Close and Abandon are each safe to
-	// call once; whichever comes first decides the outcome.
+	// Staging a write and swapping it in at the end is a thing an
+	// implementation may do, not a thing this interface asks for. Promising it
+	// here would oblige every implementation to be transactional, and a
+	// transaction needs a way to roll back — a second verb no filesystem has.
 	//
-	// Create replaces an existing name. A tool that must not replace one
-	// checks with Stat first; that is its own semantic (figma's --overwrite),
-	// not something every caller of this interface should have to express.
+	// A tool that must not replace an existing name checks with Stat first;
+	// that is its own semantic (figma's --overwrite), not something every
+	// caller of this interface should have to express.
 	Create(name string) (io.WriteCloser, error)
 
-	// Stat reports what a tool needs before it opens a path: how large it is
-	// and whether it is a directory. ErrNotExist is returned for a name that
-	// is not there.
-	Stat(name string) (FileInfo, error)
+	// WriteFile exists beside Create because it carries a mode, and Create
+	// cannot: docusign and dropbox-sign write signed documents 0600. The os
+	// package keeps both for the same reason.
+	WriteFile(name string, data []byte, perm fs.FileMode) error
 
-	MkdirAll(name string, perm os.FileMode) error
+	// Mkdir makes one directory, like os.Root.Mkdir. MkdirAll is a function
+	// over it, the way io/fs keeps an interface to one operation.
+	Mkdir(name string, perm fs.FileMode) error
+
 	Remove(name string) error
 }
-
-// FileInfo is the metadata tools actually use, as plain data. It is not
-// fs.FileInfo: a host has no modification time or mode bits to invent, and
-// requiring six methods to report a size would be a tax on every implementer.
-type FileInfo struct {
-	Size  int64
-	IsDir bool
-}
-
-// ErrNotExist is what Stat and Open report for a name that is not there. A
-// host may return its own error wrapping this one.
-var ErrNotExist = os.ErrNotExist
 
 // OS is the FileSystem for the machine the process runs on: the implementation
 // a person at a terminal gets, and the one an Engine installs when its host
 // supplies none.
 type OS struct{}
 
-func (OS) ReadFile(name string) ([]byte, error) { return os.ReadFile(name) }
+func (OS) Open(name string) (fs.File, error)     { return os.Open(name) }
+func (OS) Stat(name string) (fs.FileInfo, error) { return os.Stat(name) }
+func (OS) ReadFile(name string) ([]byte, error)  { return os.ReadFile(name) }
 
-func (OS) WriteFile(name string, data []byte, perm os.FileMode) error {
+func (OS) Create(name string) (io.WriteCloser, error) { return os.Create(name) }
+
+func (OS) WriteFile(name string, data []byte, perm fs.FileMode) error {
 	return os.WriteFile(name, data, perm)
 }
 
-func (OS) Open(name string) (io.ReadCloser, error) { return os.Open(name) }
-
-func (OS) MkdirAll(name string, perm os.FileMode) error { return os.MkdirAll(name, perm) }
+func (OS) Mkdir(name string, perm fs.FileMode) error { return os.Mkdir(name, perm) }
 
 func (OS) Remove(name string) error { return os.Remove(name) }
 
-func (OS) Stat(name string) (FileInfo, error) {
-	info, err := os.Stat(name)
-	if err != nil {
-		return FileInfo{}, err
-	}
-	return FileInfo{Size: info.Size(), IsDir: info.IsDir()}, nil
-}
-
-// Create writes through a sibling temporary file and renames it into place on
-// Close, which is what makes an interrupted download leave the previous file
-// alone. Every tool used to spell this out for itself; it belongs here, once.
-//
-// The temporary file is opened 0666, so the process umask decides the mode the
-// caller ends up with — the same mode os.Create would have produced, and the
-// reason this does not chmod afterwards. A tool that needs a tighter one says
-// so with WriteFile.
-func (OS) Create(name string) (io.WriteCloser, error) {
-	directory, base := filepath.Dir(name), filepath.Base(name)
-	for attempt := 0; ; attempt++ {
-		candidate := filepath.Join(directory, fmt.Sprintf(".%s.%d.tmp", base, rand.Uint64()))
-		file, err := os.OpenFile(candidate, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o666)
-		if err == nil {
-			return &atomicFile{file: file, target: name}, nil
+// MkdirAll makes name and every parent it needs. It is a function for the same
+// reason fs.ReadFile is one: it is Mkdir in a loop, and every implementation
+// would otherwise write that loop again.
+func MkdirAll(fsys FileSystem, name string, perm fs.FileMode) error {
+	if info, err := fsys.Stat(name); err == nil {
+		if info.IsDir() {
+			return nil
 		}
-		// O_EXCL means an existing name is the one error worth retrying, and
-		// only so many times: a directory that is not writable fails the same
-		// way forever.
-		if !errors.Is(err, os.ErrExist) || attempt >= 10 {
-			return nil, err
+		return &fs.PathError{Op: "mkdir", Path: name, Err: errors.New("not a directory")}
+	}
+	if parent := filepath.Dir(name); parent != name {
+		if err := MkdirAll(fsys, parent, perm); err != nil {
+			return err
 		}
 	}
-}
-
-type atomicFile struct {
-	file   *os.File
-	target string
-	closed bool
-}
-
-func (a *atomicFile) Write(data []byte) (int, error) { return a.file.Write(data) }
-
-func (a *atomicFile) Close() error {
-	if a.closed {
-		return errors.New("close of an already closed file")
-	}
-	a.closed = true
-	if err := a.file.Close(); err != nil {
-		_ = os.Remove(a.file.Name())
-		return err
-	}
-	if err := os.Rename(a.file.Name(), a.target); err != nil {
-		_ = os.Remove(a.file.Name())
+	if err := fsys.Mkdir(name, perm); err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
 	}
 	return nil
-}
-
-// Abandon discards a partial write.
-func (a *atomicFile) Abandon() {
-	if a.closed {
-		return
-	}
-	a.closed = true
-	_ = a.file.Close()
-	_ = os.Remove(a.file.Name())
-}
-
-// Abandon releases a writer a tool is giving up on. A writer that does not know
-// how to be abandoned is closed instead, which is the most any io.WriteCloser
-// promises; the atomic one produced by OS discards its partial file.
-func Abandon(w io.WriteCloser) {
-	if w == nil {
-		return
-	}
-	if a, ok := w.(interface{ Abandon() }); ok {
-		a.Abandon()
-		return
-	}
-	_ = w.Close()
 }

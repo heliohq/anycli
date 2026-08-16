@@ -46,13 +46,13 @@ func (s *Service) newVideosUploadCmd(token string) *cobra.Command {
 			if err != nil {
 				return &usageError{msg: fmt.Sprintf("read video file: %v", err)}
 			}
-			if info.IsDir {
+			if info.IsDir() {
 				return &usageError{msg: fmt.Sprintf("--file %q is a directory", file)}
 			}
-			if info.Size == 0 {
+			if info.Size() == 0 {
 				return &usageError{msg: fmt.Sprintf("--file %q is empty", file)}
 			}
-			size := info.Size
+			size := info.Size()
 			ctype := videoContentType(file)
 
 			snippet := map[string]any{"title": title}

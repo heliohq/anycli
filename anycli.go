@@ -79,17 +79,10 @@ type Config struct {
 }
 
 // FileSystem is the seam Config.FS is set to; see execution.FileSystem for the
-// contract. FileInfo is exported beside it because a host implements this
-// interface from outside the module, where the defining package is not
-// importable — without a name for every type in the method set, Config.FS
-// could be set to nothing at all.
-type (
-	FileSystem = execution.FileSystem
-	FileInfo   = execution.FileInfo
-)
-
-// ErrNotExist is what a FileSystem reports for a name that is not there.
-var ErrNotExist = execution.ErrNotExist
+// contract. Every other type in its method set comes from io/fs or io, so a
+// host outside this module can name all of them without anything being
+// re-exported here.
+type FileSystem = execution.FileSystem
 
 // NewMemoryCache returns an empty in-memory Cache — the default the engine
 // installs when Config.Cache is nil. Exposed so a consumer can construct one
