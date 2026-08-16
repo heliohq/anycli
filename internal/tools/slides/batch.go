@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +56,7 @@ func (s *Service) newBatchUpdateCmd(token string) *cobra.Command {
 			}
 			raw := []byte(requestsInline)
 			if requestsFile != "" {
-				b, err := os.ReadFile(requestsFile)
+				b, err := execution.ReadFile(s.FS, requestsFile)
 				if err != nil {
 					return fmt.Errorf("slides: read requests file: %w", err)
 				}

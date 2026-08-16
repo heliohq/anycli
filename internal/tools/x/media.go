@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -54,7 +55,7 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 			if info.Size() == 0 {
 				return fmt.Errorf("--file %q is empty", file)
 			}
-			sniff, err := sniffMediaFile(file)
+			sniff, err := sniffMediaFile(s.FS, file)
 			if err != nil {
 				return err
 			}
@@ -145,7 +146,7 @@ func (s *Service) newMediaMetadataCmd(token string) *cobra.Command {
 // simpleUpload posts one small JPEG, PNG, or WebP through the one-shot
 // /2/media/upload endpoint and returns the response body.
 func (s *Service) simpleUpload(ctx context.Context, token, file, mediaType, category string) ([]byte, error) {
-	contents, err := os.ReadFile(file)
+	contents, err := execution.ReadFile(s.FS, file)
 	if err != nil {
 		return nil, fmt.Errorf("read media file: %w", err)
 	}

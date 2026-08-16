@@ -66,7 +66,7 @@ func (s *Service) newOperationCommand(token string, spec operationCommandSpec) *
 					params = append(params, name+"="+parameterValues[index])
 				}
 			}
-			payload, err := bodyOptions.payload()
+			payload, err := bodyOptions.payload(s.FS)
 			if err != nil {
 				return err
 			}

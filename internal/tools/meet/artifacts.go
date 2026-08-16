@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -254,7 +254,7 @@ func (s *Service) newTranscriptsTextCmd(token string) *cobra.Command {
 				fmt.Fprintf(&b, "%s: %s\n", l.Speaker, l.Text)
 			}
 			if save != "" {
-				if err := os.WriteFile(save, []byte(b.String()), 0o644); err != nil {
+				if err := execution.WriteFile(s.FS, save, []byte(b.String()), 0o644); err != nil {
 					return fmt.Errorf("meet: save transcript: %w", err)
 				}
 				fmt.Fprintf(s.stdout(), "saved %d line(s) to %s\n", len(lines), save)

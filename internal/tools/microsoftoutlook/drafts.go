@@ -12,6 +12,7 @@ import (
 
 func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 	var o composeOptions
+	o.fs = s.FS
 	cmd := &cobra.Command{
 		Use:         "create",
 		Short:       "Create a draft (same parameters as messages send)",
@@ -22,7 +23,7 @@ func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			msg, err := buildGraphMessage(&o, bodyText)
+			msg, err := buildGraphMessage(s.FS, &o, bodyText)
 			if err != nil {
 				return err
 			}
@@ -41,6 +42,7 @@ func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newDraftsUpdateCmd(token string) *cobra.Command {
 	var o composeOptions
+	o.fs = s.FS
 	cmd := &cobra.Command{
 		Use:         "update <draft-id>",
 		Short:       "Replace a draft's content (same parameters as messages send)",
@@ -51,7 +53,7 @@ func (s *Service) newDraftsUpdateCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			msg, err := buildGraphMessage(&o, bodyText)
+			msg, err := buildGraphMessage(s.FS, &o, bodyText)
 			if err != nil {
 				return err
 			}

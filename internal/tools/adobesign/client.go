@@ -10,7 +10,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -156,7 +155,7 @@ func (s *Service) download(ctx context.Context, token, baseURI, path, outPath st
 	}
 	var out io.Writer = s.stdout()
 	if strings.TrimSpace(outPath) != "" {
-		f, err := os.Create(outPath)
+		f, err := execution.Create(s.FS, outPath)
 		if err != nil {
 			return &usageError{msg: fmt.Sprintf("adobe-sign: create %s: %v", outPath, err)}
 		}

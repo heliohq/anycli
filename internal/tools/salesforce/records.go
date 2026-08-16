@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +17,7 @@ import (
 // reads a file ("@-" reads stdin); anything else is a literal JSON string. The
 // payload is validated as JSON before it is sent so a malformed body is a usage
 // error (exit 2), not a wasted round-trip.
-func readData(value string) ([]byte, error) {
+func readData(fs execution.FileSystem, value string) ([]byte, error) {
 	if strings.TrimSpace(value) == "" {
 		return nil, &usageError{msg: "--data is required (literal JSON, @file, or @- for stdin)"}
 	}
@@ -29,7 +30,7 @@ func readData(value string) ([]byte, error) {
 		}
 		raw = b
 	case strings.HasPrefix(value, "@"):
-		b, err := os.ReadFile(value[1:])
+		b, err := execution.ReadFile(fs, value[1:])
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --data file: %v", err)}
 		}
@@ -74,7 +75,7 @@ func (s *Service) newRecordCreateCmd(c *client) *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := readData(data)
+			payload, err := readData(s.FS, data)
 			if err != nil {
 				return err
 			}
@@ -98,7 +99,7 @@ func (s *Service) newRecordUpdateCmd(c *client) *cobra.Command {
 		Args:        cobra.ExactArgs(2),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := readData(data)
+			payload, err := readData(s.FS, data)
 			if err != nil {
 				return err
 			}
@@ -139,7 +140,7 @@ func (s *Service) newRecordUpsertCmd(c *client) *cobra.Command {
 		Args:        cobra.ExactArgs(3),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := readData(data)
+			payload, err := readData(s.FS, data)
 			if err != nil {
 				return err
 			}

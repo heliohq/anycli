@@ -26,8 +26,10 @@ const (
 type Service struct {
 	BaseURL string
 	HC      *http.Client
-	Out     io.Writer
-	Err     io.Writer
+	// FS is where assets are written and --file inputs are read; nil = the os package.
+	FS  execution.FileSystem
+	Out io.Writer
+	Err io.Writer
 }
 
 // Execute runs one Figma command with a resolver-injected personal access token.

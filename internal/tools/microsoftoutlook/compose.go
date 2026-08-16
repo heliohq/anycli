@@ -3,9 +3,9 @@ package microsoftoutlook
 import (
 	"encoding/base64"
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +15,8 @@ const maxMessageBytes = 3 << 20
 
 // composeOptions carries the shared send / reply / drafts flag values.
 type composeOptions struct {
+	// fs is the host filesystem seam for --body-file and --attach.
+	fs          execution.FileSystem
 	to          []string
 	cc          []string
 	bcc         []string
@@ -51,7 +53,7 @@ func (o *composeOptions) resolveComposeBody() (string, error) {
 	if o.bodyFile == "" {
 		return o.body, nil
 	}
-	data, err := os.ReadFile(o.bodyFile)
+	data, err := execution.ReadFile(o.fs, o.bodyFile)
 	if err != nil {
 		return "", fmt.Errorf("microsoft-outlook: read body file: %w", err)
 	}
@@ -69,7 +71,7 @@ func recipients(addrs []string) []map[string]any {
 
 // buildGraphMessage assembles a Graph message resource from compose options.
 // bodyText overrides o.body/o.bodyFile (already resolved by the caller).
-func buildGraphMessage(o *composeOptions, bodyText string) (map[string]any, error) {
+func buildGraphMessage(fs execution.FileSystem, o *composeOptions, bodyText string) (map[string]any, error) {
 	contentType := "text"
 	if o.html {
 		contentType = "html"
@@ -91,7 +93,7 @@ func buildGraphMessage(o *composeOptions, bodyText string) (map[string]any, erro
 		msg["bccRecipients"] = recipients(o.bcc)
 	}
 	if len(o.attachments) > 0 {
-		atts, err := fileAttachments(o.attachments)
+		atts, err := fileAttachments(fs, o.attachments)
 		if err != nil {
 			return nil, err
 		}
@@ -102,11 +104,11 @@ func buildGraphMessage(o *composeOptions, bodyText string) (map[string]any, erro
 
 // fileAttachments reads local files into Graph fileAttachment objects
 // (base64-encoded contentBytes). Total size is capped at maxMessageBytes.
-func fileAttachments(paths []string) ([]map[string]any, error) {
+func fileAttachments(fs execution.FileSystem, paths []string) ([]map[string]any, error) {
 	out := make([]map[string]any, 0, len(paths))
 	var total int
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
+		data, err := execution.ReadFile(fs, path)
 		if err != nil {
 			return nil, fmt.Errorf("microsoft-outlook: read attachment %s: %w", path, err)
 		}

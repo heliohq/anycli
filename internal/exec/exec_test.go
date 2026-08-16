@@ -47,7 +47,7 @@ func useDefinitions(t *testing.T, defs map[string]*registry.Definition) {
 func newTestEngine(t *testing.T) (*Engine, credential.Cache) {
 	t.Helper()
 	cache := credential.NewMemoryCache()
-	e, err := NewEngine(cache, nil)
+	e, err := NewEngine(cache, nil, nil)
 	if err != nil {
 		t.Fatalf("NewEngine failed: %v", err)
 	}
@@ -117,7 +117,7 @@ func falseBinary(t *testing.T) string {
 }
 
 func TestNewEngine_NilCache(t *testing.T) {
-	if _, err := NewEngine(nil, nil); err == nil {
+	if _, err := NewEngine(nil, nil, nil); err == nil {
 		t.Fatal("expected error for nil cache")
 	}
 }

@@ -54,6 +54,9 @@ type Service struct {
 	BaseURL string
 	// HC is the HTTP client; nil = http.DefaultClient.
 	HC *http.Client
+	// FS is where --document is read from and --out is written to; nil = the
+	// os package.
+	FS execution.FileSystem
 	// Out / Err override stdout / stderr; nil = the process streams.
 	Out io.Writer
 	Err io.Writer

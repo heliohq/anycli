@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -157,7 +158,7 @@ func (s *Service) initResumableUpload(ctx context.Context, token string, meta ma
 // putResumableBody streams the whole file to the session URL in one PUT and
 // returns the video resource body on 2xx.
 func (s *Service) putResumableBody(ctx context.Context, token, sessionURL, path string, size int64, ctype string) ([]byte, error) {
-	f, err := os.Open(path)
+	f, err := execution.Open(s.FS, path)
 	if err != nil {
 		return nil, &apiError{msg: fmt.Sprintf("youtube: open video file: %v", err), err: err}
 	}

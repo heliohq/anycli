@@ -18,7 +18,7 @@ func (s *Service) newSearchCmd(token string) *cobra.Command {
 		Args:        cobra.NoArgs,
 		Annotations: readOnly,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			payload, err := readData("data", data)
+			payload, err := readData(s.FS, "data", data)
 			if err != nil {
 				return err
 			}

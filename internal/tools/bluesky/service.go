@@ -51,8 +51,10 @@ type Service struct {
 	// value — tests point it at an httptest server.
 	APIBase string
 	HC      *http.Client
-	Out     io.Writer
-	Err     io.Writer
+	// FS is where a caller-named file is read or written; nil = the os package.
+	FS  execution.FileSystem
+	Out io.Writer
+	Err io.Writer
 }
 
 // Execute runs one Bluesky subcommand. Credentials are resolved by the host and

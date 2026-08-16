@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -75,7 +75,7 @@ func (s *Service) newDocumentSendCmd(token string) *cobra.Command {
 
 			var fileEntries []fileEntry
 			for _, path := range files {
-				entry, err := readFileEntry(path)
+				entry, err := readFileEntry(s.FS, path)
 				if err != nil {
 					return err
 				}
@@ -237,7 +237,7 @@ func (s *Service) newBinaryDownloadCmd(token, use, short, path string) *cobra.Co
 			if err != nil {
 				return err
 			}
-			if err := os.WriteFile(out, data, 0o644); err != nil {
+			if err := execution.WriteFile(s.FS, out, data, 0o644); err != nil {
 				return &usageError{msg: fmt.Sprintf("boldsign: write %s: %v", out, err)}
 			}
 			return s.emitValue(downloadReceipt{OK: true, Path: out, Bytes: len(data)})

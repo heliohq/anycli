@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -76,7 +77,7 @@ func (s *Service) download(cmd *cobra.Command, inv *invocation, path string, que
 		return 0, "", newAPIError(inv, resp.StatusCode, body)
 	}
 
-	f, path, err := createOutput(output)
+	f, path, err := createOutput(s.FS, output)
 	if err != nil {
 		return 0, "", err
 	}
@@ -91,16 +92,26 @@ func (s *Service) download(cmd *cobra.Command, inv *invocation, path string, que
 	return written, path, nil
 }
 
-// createOutput opens the requested output path, or a temp file when empty.
-func createOutput(output string) (*os.File, string, error) {
+// createOutput opens the requested output path, or a temp file when empty. A
+// host filesystem has no scratch directory to fall back to — it decides where
+// bytes land — so an omitted --output becomes a named archive there.
+func createOutput(fs execution.FileSystem, output string) (io.WriteCloser, string, error) {
 	if output != "" {
-		f, err := os.Create(output)
+		f, err := execution.Create(fs, output)
 		if err != nil {
 			return nil, "", &usageError{msg: fmt.Sprintf("cannot create --output %s: %v", output, err)}
 		}
 		return f, output, nil
 	}
-	f, err := os.CreateTemp("", "amplitude-export-*.zip")
+	if fs != nil {
+		const name = "amplitude-export.zip"
+		f, err := fs.Create(name)
+		if err != nil {
+			return nil, "", &apiError{msg: fmt.Sprintf("amplitude: create export file: %v", err), err: err}
+		}
+		return f, name, nil
+	}
+	f, err := os.CreateTemp("", "amplitude-export-*.zip") //anycli:oshost — no host filesystem is installed, so this is the caller's own machine
 	if err != nil {
 		return nil, "", &apiError{msg: fmt.Sprintf("amplitude: create temp export file: %v", err), err: err}
 	}

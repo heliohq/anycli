@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -148,7 +148,7 @@ func (s *Service) newSubmissionCreateCmd(token, apiBase string) *cobra.Command {
 		Short: "Create submission(s) on a form (body from --data or --file)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			raw, err := readBody(data, file)
+			raw, err := readBody(s.FS, data, file)
 			if err != nil {
 				return err
 			}
@@ -237,13 +237,13 @@ func (s *Service) newWebhookDeleteCmd(token, apiBase string) *cobra.Command {
 // readBody resolves the create-submission request body from exactly one of
 // --data (inline JSON) or --file (path), validating that it parses as JSON so
 // a malformed body fails as a usage error (exit 2) before any network call.
-func readBody(data, file string) ([]byte, error) {
+func readBody(fs execution.FileSystem, data, file string) ([]byte, error) {
 	if (data == "") == (file == "") {
 		return nil, &usageError{msg: "provide exactly one of --data or --file"}
 	}
 	raw := []byte(data)
 	if file != "" {
-		b, err := os.ReadFile(file)
+		b, err := execution.ReadFile(fs, file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --file: %v", err)}
 		}

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -130,7 +130,7 @@ func (s *Service) buildCreatePayload(cmd *cobra.Command, template, name, body, b
 	if hasBody {
 		raw := []byte(body)
 		if cmd.Flags().Changed("body-file") {
-			b, err := os.ReadFile(bodyFile)
+			b, err := execution.ReadFile(s.FS, bodyFile)
 			if err != nil {
 				return nil, &usageError{msg: fmt.Sprintf("document create: read --body-file %s: %v", bodyFile, err)}
 			}
@@ -349,7 +349,7 @@ func (s *Service) newDocumentDownloadCmd(authz string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := os.WriteFile(out, data, 0o644); err != nil {
+			if err := execution.WriteFile(s.FS, out, data, 0o644); err != nil {
 				return &apiError{msg: fmt.Sprintf("pandadoc: write %s: %v", out, err), err: err}
 			}
 			if jsonOut(cmd) {

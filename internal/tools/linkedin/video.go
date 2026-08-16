@@ -11,6 +11,7 @@
 package linkedin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -134,11 +136,14 @@ func (s *Service) uploadVideo(ctx context.Context, token, personURN, file string
 // uploadParts PUTs each server-defined byte range to its pre-signed URL, in
 // instruction order, and returns the collected part ids in the same order.
 func (s *Service) uploadParts(ctx context.Context, file string, instructions []uploadInstruction) ([]string, error) {
-	f, err := os.Open(file)
+	// The ranges are server-defined and arrive out of order, so the source has
+	// to be seekable. A host filesystem hands back a stream, not a file, so the
+	// video is buffered rather than assumed to sit on a disk.
+	data, err := execution.ReadFile(s.FS, file)
 	if err != nil {
 		return nil, fmt.Errorf("linkedin: open video file: %w", err)
 	}
-	defer f.Close()
+	f := bytes.NewReader(data)
 
 	etags := make([]string, 0, len(instructions))
 	for i, in := range instructions {

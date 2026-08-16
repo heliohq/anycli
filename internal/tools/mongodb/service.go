@@ -253,7 +253,7 @@ func (s *Service) runMongosh(ctx context.Context, script, dsn string, timeout ti
 	if err != nil {
 		return fmt.Errorf("create scoped mongosh home: %w", err)
 	}
-	defer os.RemoveAll(scopedHome)
+	defer os.RemoveAll(scopedHome) //anycli:oshost — a scoped HOME this function just made for mongosh, never a caller-named path
 
 	exitCode, stdout, stderrOut, runErr := run(ctx, mongoshArgs(script, readPref), childEnv(dsn, scopedHome))
 	inv.exitCode = exitCode

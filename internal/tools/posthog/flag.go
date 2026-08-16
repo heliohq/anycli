@@ -3,6 +3,7 @@ package posthog
 import (
 	"net/url"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +34,7 @@ func (s *Service) newFlagCreateCmd(token string) *cobra.Command {
 			if err := requireProject(project); err != nil {
 				return err
 			}
-			body, err := rawJSONBody(cmd, "data", data)
+			body, err := rawJSONBody(s.FS, cmd, "data", data)
 			if err != nil {
 				return err
 			}
@@ -63,7 +64,7 @@ func (s *Service) newFlagUpdateCmd(token string) *cobra.Command {
 			if err := requireFlag("id", id); err != nil {
 				return err
 			}
-			body, err := rawJSONBody(cmd, "data", data)
+			body, err := rawJSONBody(s.FS, cmd, "data", data)
 			if err != nil {
 				return err
 			}
@@ -115,11 +116,11 @@ func (s *Service) newFlagToggleCmd(token string) *cobra.Command {
 }
 
 // rawJSONBody reads a required JSON-object body from a file/stdin flag.
-func rawJSONBody(cmd *cobra.Command, name, path string) (any, error) {
+func rawJSONBody(fs execution.FileSystem, cmd *cobra.Command, name, path string) (any, error) {
 	if path == "" {
 		return nil, &usageError{msg: "--" + name + " is required"}
 	}
-	raw, err := readFileOrStdin(cmd, path)
+	raw, err := readFileOrStdin(fs, cmd, path)
 	if err != nil {
 		return nil, &usageError{msg: "read --" + name + ": " + err.Error()}
 	}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,7 @@ func (s *Service) newBodyCmd(st *runState, use, short, path string) *cobra.Comma
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			payload, err := readJSONBody(body, file)
+			payload, err := readJSONBody(s.FS, body, file)
 			if err != nil {
 				return err
 			}
@@ -104,7 +105,7 @@ func (s *Service) newUsageCmd(st *runState) *cobra.Command {
 // readJSONBody resolves the request body from --body or --file (mutually
 // exclusive) and validates it is well-formed JSON before any network call, so
 // a malformed body is a usage error (exit 2), not a burned API request.
-func readJSONBody(body, file string) ([]byte, error) {
+func readJSONBody(fs execution.FileSystem, body, file string) ([]byte, error) {
 	body = strings.TrimSpace(body)
 	if body != "" && file != "" {
 		return nil, &usageError{msg: "provide either --body or --file, not both"}
@@ -120,7 +121,7 @@ func readJSONBody(body, file string) ([]byte, error) {
 		}
 		raw = b
 	case file != "":
-		b, err := os.ReadFile(file)
+		b, err := execution.ReadFile(fs, file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read body file: %v", err)}
 		}

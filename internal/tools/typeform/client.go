@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
@@ -156,13 +155,13 @@ func (s *Service) emitOK(receipt map[string]any) error {
 // (e.g. --definition @form.json), then validates it parses. An empty value is a
 // fail-fast usage error (the flag is required where this is called). Invalid
 // JSON — inline or from file — is a usage error.
-func readJSONArg(flag, val string) (json.RawMessage, error) {
+func readJSONArg(fs execution.FileSystem, flag, val string) (json.RawMessage, error) {
 	v := strings.TrimSpace(val)
 	if v == "" {
 		return nil, &usageError{msg: fmt.Sprintf("--%s is required", flag)}
 	}
 	if strings.HasPrefix(v, "@") {
-		b, err := os.ReadFile(v[1:])
+		b, err := execution.ReadFile(fs, v[1:])
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --%s %s: %v", flag, v[1:], err)}
 		}

@@ -40,7 +40,7 @@ func (s *Service) newMessageCreateCmd(base, token string) *cobra.Command {
 	}
 	data, file := registerBodyFlags(cmd)
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		payload, err := readBody(*data, *file)
+		payload, err := readBody(s.FS, *data, *file)
 		if err != nil {
 			return err
 		}

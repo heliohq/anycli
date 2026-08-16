@@ -13,6 +13,7 @@ import (
 
 func (s *Service) newMessagesSendCmd(token string) *cobra.Command {
 	var o composeOptions
+	o.fs = s.FS
 	cmd := &cobra.Command{
 		Use:         "send",
 		Short:       "Send an email",
@@ -23,7 +24,7 @@ func (s *Service) newMessagesSendCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			raw, err := buildMIME(mimeMessage{
+			raw, err := buildMIME(s.FS, mimeMessage{
 				to: o.to, cc: o.cc, bcc: o.bcc,
 				subject: o.subject, body: body, html: o.html,
 				attachments: o.attachments,
@@ -41,6 +42,7 @@ func (s *Service) newMessagesSendCmd(token string) *cobra.Command {
 
 func (s *Service) newMessagesReplyCmd(token string) *cobra.Command {
 	var o composeOptions
+	o.fs = s.FS
 	var replyAll bool
 	cmd := &cobra.Command{
 		Use:         "reply <message-id>",
@@ -61,7 +63,7 @@ func (s *Service) newMessagesReplyCmd(token string) *cobra.Command {
 				return err
 			}
 			inReplyTo := orig.header("Message-ID")
-			raw, err := buildMIME(mimeMessage{
+			raw, err := buildMIME(s.FS, mimeMessage{
 				to:          to,
 				cc:          cc,
 				subject:     replySubject(orig.header("Subject")),
@@ -99,7 +101,7 @@ func (s *Service) newMessagesForwardCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			raw, err := buildMIME(mimeMessage{
+			raw, err := buildMIME(s.FS, mimeMessage{
 				to:      to,
 				subject: forwardSubject(orig.header("Subject")),
 				body:    body,

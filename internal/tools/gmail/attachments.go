@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +51,7 @@ func (s *Service) newMessagesAttachmentsCmd(token string) *cobra.Command {
 				fmt.Fprintln(s.stdout(), "no attachments")
 				return nil
 			}
-			if err := os.MkdirAll(saveDir, 0o755); err != nil {
+			if err := execution.MkdirAll(s.FS, saveDir, 0o755); err != nil {
 				return fmt.Errorf("gmail: create save dir: %w", err)
 			}
 			saved, err := s.downloadAttachments(cmd.Context(), token, messageID, inventory, saveDir)
@@ -130,7 +130,7 @@ func (s *Service) downloadAttachments(ctx context.Context, token, messageID stri
 		}
 		name := uniqueName(used, attachmentFilename(att))
 		path := filepath.Join(saveDir, name)
-		if err := os.WriteFile(path, data, 0o644); err != nil {
+		if err := execution.WriteFile(s.FS, path, data, 0o644); err != nil {
 			return nil, fmt.Errorf("gmail: write attachment %s: %w", name, err)
 		}
 		saved = append(saved, savedAttachment{

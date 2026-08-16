@@ -16,6 +16,8 @@ import (
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 const (
@@ -51,7 +53,7 @@ func (s *Service) downloadAssets(ctx context.Context, sources []assetSource, out
 	if outputDir == "" {
 		return assetManifest{}, fmt.Errorf("output directory is required")
 	}
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+	if err := execution.MkdirAll(s.FS, outputDir, 0o755); err != nil {
 		return assetManifest{}, fmt.Errorf("create asset output directory: %w", err)
 	}
 	sort.Slice(sources, func(left, right int) bool { return sources[left].ID < sources[right].ID })
@@ -117,14 +119,19 @@ func (s *Service) downloadAsset(ctx context.Context, source assetSource, outputD
 	}
 	targetName := source.BaseName + extension
 	targetPath := filepath.Join(outputDir, targetName)
-	tempFile, err := os.CreateTemp(outputDir, ".figma-asset-*")
+	// On a real disk the asset lands in a sibling temp file and is renamed, so a
+	// failed download never leaves a half-written asset behind. A host
+	// filesystem has no sibling to rename from — it commits on close — so there
+	// the asset is written straight to its name.
+	spool, tempPath, err := openAssetSpool(s.FS, outputDir, targetPath)
 	if err != nil {
-		return downloadedAsset{}, fmt.Errorf("create temporary asset: %w", err)
+		return downloadedAsset{}, err
 	}
-	tempPath := tempFile.Name()
-	defer os.Remove(tempPath)
-	written, copyErr := io.Copy(tempFile, io.LimitReader(response.Body, maxAssetBytes+1))
-	closeErr := tempFile.Close()
+	if tempPath != "" {
+		defer os.Remove(tempPath) //anycli:oshost — the spool opened just above
+	}
+	written, copyErr := io.Copy(spool, io.LimitReader(response.Body, maxAssetBytes+1))
+	closeErr := spool.Close()
 	if copyErr != nil {
 		return downloadedAsset{}, fmt.Errorf("write temporary asset: %w", copyErr)
 	}
@@ -134,13 +141,16 @@ func (s *Service) downloadAsset(ctx context.Context, source assetSource, outputD
 	if written > maxAssetBytes {
 		return downloadedAsset{}, fmt.Errorf("asset exceeds %d bytes", maxAssetBytes)
 	}
-	if err := os.Chmod(tempPath, 0o644); err != nil {
+	if tempPath == "" {
+		return downloadedAsset{ID: source.ID, File: targetName, Bytes: written, ContentType: contentType}, nil
+	}
+	if err := os.Chmod(tempPath, 0o644); err != nil { //anycli:oshost — the spool
 		return downloadedAsset{}, fmt.Errorf("set asset permissions: %w", err)
 	}
 	if overwrite {
-		err = os.Rename(tempPath, targetPath)
+		err = os.Rename(tempPath, targetPath) //anycli:oshost — the spool
 	} else {
-		err = os.Link(tempPath, targetPath)
+		err = os.Link(tempPath, targetPath) //anycli:oshost — the spool
 	}
 	if err != nil {
 		if !overwrite && os.IsExist(err) {
@@ -220,4 +230,22 @@ func extensionForContentType(contentType string) string {
 	default:
 		return ".bin"
 	}
+}
+
+// openAssetSpool opens where the asset bytes go. With a host filesystem that is
+// the asset's own name and there is nothing to clean up, so the returned temp
+// path is empty; without one it is a sibling temp file the caller renames.
+func openAssetSpool(fs execution.FileSystem, outputDir, targetPath string) (io.WriteCloser, string, error) {
+	if fs != nil {
+		spool, err := fs.Create(targetPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("create asset: %w", err)
+		}
+		return spool, "", nil
+	}
+	spool, err := os.CreateTemp(outputDir, ".figma-asset-*") //anycli:oshost — no host filesystem is installed
+	if err != nil {
+		return nil, "", fmt.Errorf("create temporary asset: %w", err)
+	}
+	return spool, spool.Name(), nil
 }

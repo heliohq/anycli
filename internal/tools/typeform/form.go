@@ -103,7 +103,7 @@ func (s *Service) newFormCreateCmd(token string) *cobra.Command {
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			payload, err := readJSONArg("definition", definition)
+			payload, err := readJSONArg(s.FS, "definition", definition)
 			if err != nil {
 				return err
 			}
@@ -129,7 +129,7 @@ func (s *Service) newFormUpdateCmd(token string) *cobra.Command {
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := readJSONArg("definition", definition)
+			payload, err := readJSONArg(s.FS, "definition", definition)
 			if err != nil {
 				return err
 			}
@@ -158,7 +158,7 @@ func (s *Service) newFormPatchCmd(token string) *cobra.Command {
 		Annotations: writeAction,
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := readJSONArg("patch", patch)
+			payload, err := readJSONArg(s.FS, "patch", patch)
 			if err != nil {
 				return err
 			}

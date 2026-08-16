@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"mime"
 	"net/http"
-	"os"
 	"path/filepath"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func (s *Service) newMediaUploadCmd(token string) *cobra.Command {
 		Annotations: writeAction,
 		Args:        cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			data, err := os.ReadFile(file)
+			data, err := execution.ReadFile(s.FS, file)
 			if err != nil {
 				return &usageError{msg: "cannot read --file: " + err.Error()}
 			}

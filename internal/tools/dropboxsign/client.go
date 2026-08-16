@@ -9,7 +9,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -107,7 +106,7 @@ func (s *Service) callMultipart(ctx context.Context, token, path string, parts [
 	mw := multipart.NewWriter(&body)
 	for _, p := range parts {
 		if p.filePath != "" {
-			if err := writeFilePart(mw, p.name, p.filePath); err != nil {
+			if err := writeFilePart(s.FS, mw, p.name, p.filePath); err != nil {
 				return nil, &usageError{msg: err.Error()}
 			}
 			continue
@@ -130,8 +129,8 @@ func (s *Service) callMultipart(ctx context.Context, token, path string, parts [
 // writeFilePart streams one on-disk file into the multipart writer as field
 // name. A missing/unreadable file is surfaced as an error the caller maps to a
 // usage error (a bad --file path is the operator's mistake, not the API's).
-func writeFilePart(mw *multipart.Writer, field, path string) error {
-	f, err := os.Open(path)
+func writeFilePart(fs execution.FileSystem, mw *multipart.Writer, field, path string) error {
+	f, err := execution.Open(fs, path)
 	if err != nil {
 		return fmt.Errorf("dropbox-sign: open --file %q: %w", path, err)
 	}

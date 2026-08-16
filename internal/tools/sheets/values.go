@@ -7,10 +7,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -113,7 +113,7 @@ func (s *Service) newValuesUpdateCmd(token string) *cobra.Command {
 			if rng == "" {
 				return fmt.Errorf("sheets: --range is required")
 			}
-			rows, err := loadValues(valuesJSON, csvFile)
+			rows, err := loadValues(s.FS, valuesJSON, csvFile)
 			if err != nil {
 				return err
 			}
@@ -159,7 +159,7 @@ func (s *Service) newValuesAppendCmd(token string) *cobra.Command {
 			if rng == "" {
 				return fmt.Errorf("sheets: --range is required")
 			}
-			rows, err := loadValues(valuesJSON, csvFile)
+			rows, err := loadValues(s.FS, valuesJSON, csvFile)
 			if err != nil {
 				return err
 			}
@@ -257,7 +257,7 @@ func addRangeValueFlags(cmd *cobra.Command, rng, valuesJSON, csvFile *string, ra
 
 // loadValues reads a row-major value grid from exactly one of --values-json or
 // --csv-file.
-func loadValues(valuesJSON, csvFile string) ([][]any, error) {
+func loadValues(fs execution.FileSystem, valuesJSON, csvFile string) ([][]any, error) {
 	switch {
 	case valuesJSON != "" && csvFile != "":
 		return nil, fmt.Errorf("sheets: pass only one of --values-json or --csv-file")
@@ -268,14 +268,14 @@ func loadValues(valuesJSON, csvFile string) ([][]any, error) {
 		}
 		return rows, nil
 	case csvFile != "":
-		return readCSVGrid(csvFile)
+		return readCSVGrid(fs, csvFile)
 	default:
 		return nil, fmt.Errorf("sheets: provide --values-json or --csv-file")
 	}
 }
 
-func readCSVGrid(path string) ([][]any, error) {
-	f, err := os.Open(path)
+func readCSVGrid(fs execution.FileSystem, path string) ([][]any, error) {
+	f, err := execution.Open(fs, path)
 	if err != nil {
 		return nil, fmt.Errorf("sheets: open csv file: %w", err)
 	}

@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // uploadSpec carries what the post-init call needs to complete a FILE_UPLOAD:
@@ -62,7 +64,7 @@ func (s *Service) uploadFile(ctx context.Context, data json.RawMessage, spec *up
 		return fmt.Errorf("tiktok: init response missing upload_url for file upload")
 	}
 
-	f, err := os.Open(spec.path)
+	f, err := execution.Open(s.FS, spec.path)
 	if err != nil {
 		return fmt.Errorf("tiktok: open video file: %w", err)
 	}

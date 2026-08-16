@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
@@ -42,7 +41,7 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 			}
 			var payload []byte
 			if cmd.Flags().Changed("body-file") {
-				payload, err = os.ReadFile(bodyFile)
+				payload, err = execution.ReadFile(s.FS, bodyFile)
 				if err != nil {
 					return &usageError{msg: fmt.Sprintf("mercury api: read --body-file %s: %v", bodyFile, err)}
 				}

@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +49,7 @@ func (s *Service) newAPIRequestCommand(token string) *cobra.Command {
 		// Sends an arbitrary --method request, incl. POST/PUT/PATCH/DELETE.
 		Annotations: map[string]string{sideEffectAnnotation: "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			method, query, payload, err := opts.request()
+			method, query, payload, err := opts.request(s.FS)
 			if err != nil {
 				return err
 			}
@@ -64,7 +64,7 @@ func (s *Service) newAPIRequestCommand(token string) *cobra.Command {
 	return cmd
 }
 
-func (o apiOptions) request() (string, url.Values, any, error) {
+func (o apiOptions) request(fs execution.FileSystem) (string, url.Values, any, error) {
 	method := strings.ToUpper(o.method)
 	if !allowedAPIMethod(method) {
 		return "", nil, nil, fmt.Errorf("--method must be one of GET, POST, PUT, PATCH, DELETE")
@@ -76,7 +76,7 @@ func (o apiOptions) request() (string, url.Values, any, error) {
 	if err != nil {
 		return "", nil, nil, err
 	}
-	payload, err := o.body.payload()
+	payload, err := o.body.payload(fs)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -131,7 +131,7 @@ func bindJSONBodyFlags(cmd *cobra.Command, opts *jsonBodyOptions) {
 	cmd.Flags().StringVar(&opts.bodyFile, "body-file", "", "path to a JSON request body (maximum 4 MiB)")
 }
 
-func (o jsonBodyOptions) payload() (any, error) {
+func (o jsonBodyOptions) payload(fs execution.FileSystem) (any, error) {
 	if o.bodyJSON == "" && o.bodyFile == "" {
 		return nil, nil
 	}
@@ -142,7 +142,7 @@ func (o jsonBodyOptions) payload() (any, error) {
 	flag := "--body-json"
 	if o.bodyFile != "" {
 		var err error
-		raw, err = readBoundedFile(o.bodyFile, maxRequestBodyBytes)
+		raw, err = readBoundedFile(fs, o.bodyFile, maxRequestBodyBytes)
 		if err != nil {
 			return nil, fmt.Errorf("--body-file: %w", err)
 		}
@@ -205,7 +205,7 @@ func (s *Service) newAPICallCommand(token string) *cobra.Command {
 		// mutations (postComment, postVariables, deleteWebhook, ...).
 		Annotations: map[string]string{sideEffectAnnotation: "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := bodyOptions.payload()
+			payload, err := bodyOptions.payload(s.FS)
 			if err != nil {
 				return err
 			}
@@ -229,8 +229,8 @@ func findOperation(id string) (operation, error) {
 	return result, nil
 }
 
-func readBoundedFile(path string, limit int64) ([]byte, error) {
-	file, err := os.Open(path)
+func readBoundedFile(fs execution.FileSystem, path string, limit int64) ([]byte, error) {
+	file, err := execution.Open(fs, path)
 	if err != nil {
 		return nil, err
 	}

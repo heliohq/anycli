@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
@@ -136,7 +135,7 @@ func (s *Service) readBody(file string, stdin bool) ([]byte, error) {
 	case file != "" && stdin:
 		return nil, &usageError{msg: "provide only one of --file or --stdin"}
 	case file != "":
-		raw, err = os.ReadFile(file)
+		raw, err = execution.ReadFile(s.FS, file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --file: %v", err)}
 		}

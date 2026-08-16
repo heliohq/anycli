@@ -19,6 +19,7 @@ import (
 
 	"github.com/heliohq/anycli/internal/credential"
 	"github.com/heliohq/anycli/internal/exec"
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // Tool identifies a tool by its definition name. It is a named type for
@@ -63,7 +64,18 @@ type Config struct {
 	// a host can interpose a RoundTripper — e.g. an e2e harness rewriting
 	// provider upstreams to a local fixture server.
 	HTTPClient *http.Client
+
+	// FS, when non-nil, is where every local file a tool reads or writes goes
+	// instead of the os package. nil keeps the ordinary behavior, which is the
+	// right one for a person running AnyCLI on their own machine: `--out
+	// ./contract.pdf` writes to their disk. A host running AnyCLI on shared
+	// infrastructure has a different machine underneath, and this is how it
+	// decides what "local" means there.
+	FS FileSystem
 }
+
+// FileSystem is the seam Config.FS is set to. See execution.FileSystem.
+type FileSystem = execution.FileSystem
 
 // NewMemoryCache returns an empty in-memory Cache — the default the engine
 // installs when Config.Cache is nil. Exposed so a consumer can construct one
@@ -88,7 +100,7 @@ func New(cfg Config) (*Engine, error) {
 	if cache == nil {
 		cache = credential.NewMemoryCache()
 	}
-	inner, err := exec.NewEngine(cache, cfg.HTTPClient)
+	inner, err := exec.NewEngine(cache, cfg.HTTPClient, cfg.FS)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@ import (
 
 func (s *Service) newMessagesSendCmd(token string) *cobra.Command {
 	var o composeOptions
+	o.fs = s.FS
 	cmd := &cobra.Command{
 		Use:         "send",
 		Short:       "Send an email (POST /me/sendMail)",
@@ -22,7 +23,7 @@ func (s *Service) newMessagesSendCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			msg, err := buildGraphMessage(&o, bodyText)
+			msg, err := buildGraphMessage(s.FS, &o, bodyText)
 			if err != nil {
 				return err
 			}
@@ -45,6 +46,7 @@ func (s *Service) newMessagesSendCmd(token string) *cobra.Command {
 
 func (s *Service) newMessagesReplyCmd(token string) *cobra.Command {
 	var o composeOptions
+	o.fs = s.FS
 	var replyAll bool
 	cmd := &cobra.Command{
 		Use:         "reply <message-id>",
@@ -127,7 +129,7 @@ func (s *Service) addDraftAttachments(ctx context.Context, token, draftID string
 	if len(paths) == 0 {
 		return nil
 	}
-	atts, err := fileAttachments(paths)
+	atts, err := fileAttachments(s.FS, paths)
 	if err != nil {
 		return err
 	}

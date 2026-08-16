@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 const (
@@ -29,15 +31,34 @@ const (
 	maxVideoBytes = 512 << 20
 )
 
+// mediaSize reports the upload size. A host filesystem hands back a stream with
+// no name on a disk to stat, so there the file is measured by reading it; on a
+// laptop the stat is kept, because a 512 MiB video should not be buffered to
+// learn how long it is.
+func (s *Service) mediaSize(file string) (int64, error) {
+	if s.FS == nil {
+		info, err := os.Stat(file) //anycli:oshost — no host filesystem is installed
+		if err != nil {
+			return 0, fmt.Errorf("read media file: %w", err)
+		}
+		return info.Size(), nil
+	}
+	data, err := s.FS.ReadFile(file)
+	if err != nil {
+		return 0, fmt.Errorf("read media file: %w", err)
+	}
+	return int64(len(data)), nil
+}
+
 // chunkedUpload runs initialize → appendSegments → finalize → waitMediaReady
 // and returns the final FINALIZE/STATUS response body once the media is ready
 // to attach.
 func (s *Service) chunkedUpload(ctx context.Context, token, file, category string) ([]byte, error) {
-	info, err := os.Stat(file)
+	size, err := s.mediaSize(file)
 	if err != nil {
-		return nil, fmt.Errorf("read media file: %w", err)
+		return nil, err
 	}
-	sniff, err := sniffMediaFile(file)
+	sniff, err := sniffMediaFile(s.FS, file)
 	if err != nil {
 		return nil, err
 	}
@@ -45,10 +66,10 @@ func (s *Service) chunkedUpload(ctx context.Context, token, file, category strin
 	if err != nil {
 		return nil, err
 	}
-	if mediaType == "image/gif" && info.Size() > maxGIFBytes {
+	if mediaType == "image/gif" && size > maxGIFBytes {
 		return nil, fmt.Errorf("GIF media file exceeds the 15 MB limit")
 	}
-	if strings.HasPrefix(mediaType, "video/") && info.Size() > maxVideoBytes {
+	if strings.HasPrefix(mediaType, "video/") && size > maxVideoBytes {
 		return nil, fmt.Errorf("video media file exceeds the 512 MB limit")
 	}
 
@@ -56,7 +77,7 @@ func (s *Service) chunkedUpload(ctx context.Context, token, file, category strin
 		MediaType     string `json:"media_type"`
 		TotalBytes    int64  `json:"total_bytes"`
 		MediaCategory string `json:"media_category"`
-	}{MediaType: mediaType, TotalBytes: info.Size(), MediaCategory: category}
+	}{MediaType: mediaType, TotalBytes: size, MediaCategory: category}
 	body, err := s.call(ctx, token, http.MethodPost, "/2/media/upload/initialize", nil, initPayload)
 	if err != nil {
 		return nil, err
@@ -73,12 +94,12 @@ func (s *Service) chunkedUpload(ctx context.Context, token, file, category strin
 		return nil, fmt.Errorf("x: initialize response missing media id")
 	}
 
-	f, err := os.Open(file)
+	f, err := execution.Open(s.FS, file)
 	if err != nil {
 		return nil, fmt.Errorf("open media file: %w", err)
 	}
 	defer f.Close()
-	if err := s.appendSegments(ctx, token, init.Data.ID, f, info.Size()); err != nil {
+	if err := s.appendSegments(ctx, token, init.Data.ID, f, size); err != nil {
 		return nil, err
 	}
 
@@ -92,7 +113,7 @@ func (s *Service) chunkedUpload(ctx context.Context, token, file, category strin
 // appendSegments posts the file as ordered base64 JSON segments with
 // segment_index starting at 0. JSON+base64 keeps client.go's single JSON
 // request path; a 4 MiB chunk is ~5.6 MB encoded, which is acceptable.
-func (s *Service) appendSegments(ctx context.Context, token, mediaID string, f *os.File, size int64) error {
+func (s *Service) appendSegments(ctx context.Context, token, mediaID string, f io.Reader, size int64) error {
 	total := (size + chunkBytes - 1) / chunkBytes
 	buf := make([]byte, chunkBytes)
 	for i, remaining := int64(0), size; remaining > 0; i++ {
@@ -205,8 +226,8 @@ func mediaTypeForUpload(sniff []byte, path string) (mediaType, defaultCategory s
 
 // sniffMediaFile reads the first 512 bytes of a file for content-type
 // detection.
-func sniffMediaFile(path string) ([]byte, error) {
-	f, err := os.Open(path)
+func sniffMediaFile(fs execution.FileSystem, path string) ([]byte, error) {
+	f, err := execution.Open(fs, path)
 	if err != nil {
 		return nil, fmt.Errorf("open media file: %w", err)
 	}

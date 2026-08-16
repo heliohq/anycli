@@ -4,12 +4,12 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -53,7 +53,7 @@ func (s *Service) newEnvelopeSendCmd(c *apiClient) *cobra.Command {
 			if templateID != "" {
 				payload = templateSendPayload(templateID, signerEmail, signerName, role, subject, status)
 			} else {
-				built, err := documentSendPayload(document, signerEmail, signerName, subject, anchor, status)
+				built, err := documentSendPayload(s.FS, document, signerEmail, signerName, subject, anchor, status)
 				if err != nil {
 					return err
 				}
@@ -113,8 +113,8 @@ func templateSendPayload(templateID, email, name, role, subject, status string) 
 
 // documentSendPayload builds a POST /envelopes body that sends a local document
 // to one signer, placing a signHere tab at the anchor string.
-func documentSendPayload(path, email, name, subject, anchor, status string) (map[string]any, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // operator-supplied path is intentional
+func documentSendPayload(fs execution.FileSystem, path, email, name, subject, anchor, status string) (map[string]any, error) {
+	data, err := execution.ReadFile(fs, path)
 	if err != nil {
 		return nil, &usageError{msg: "read --document: " + err.Error()}
 	}
@@ -315,7 +315,7 @@ func (s *Service) newEnvelopeDownloadCmd(c *apiClient) *cobra.Command {
 				_, werr := cmd.OutOrStdout().Write(body)
 				return werr
 			}
-			if err := os.WriteFile(outPath, body, 0o600); err != nil {
+			if err := execution.WriteFile(s.FS, outPath, body, 0o600); err != nil {
 				return &apiError{msg: "docusign: write --out: " + err.Error(), err: err}
 			}
 			if jsonMode(cmd) {

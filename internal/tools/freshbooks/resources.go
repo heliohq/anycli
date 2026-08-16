@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -183,7 +183,7 @@ func (s *Service) newCreateCmd(token string, spec resourceSpec) *cobra.Command {
 		Args:        cobra.NoArgs,
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			payload, err := resourcePayload(spec.singular, data, file)
+			payload, err := resourcePayload(s.FS, spec.singular, data, file)
 			if err != nil {
 				return err
 			}
@@ -215,7 +215,7 @@ func (s *Service) newUpdateCmd(token string, spec resourceSpec) *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		Annotations: sideEffect(true),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := resourcePayload(spec.singular, data, file)
+			payload, err := resourcePayload(s.FS, spec.singular, data, file)
 			if err != nil {
 				return err
 			}
@@ -303,13 +303,13 @@ func (s *Service) newSendCmd(token string, spec resourceSpec) *cobra.Command {
 // resourcePayload builds the {singular: {...fields}} wrapper FreshBooks expects
 // on create/update from either --data or --file. The two are mutually exclusive
 // and exactly one must be supplied; the value must be a JSON object.
-func resourcePayload(singular, data, file string) (map[string]any, error) {
+func resourcePayload(fs execution.FileSystem, singular, data, file string) (map[string]any, error) {
 	if data != "" && file != "" {
 		return nil, &usageError{msg: "--data and --file are mutually exclusive"}
 	}
 	raw := data
 	if file != "" {
-		b, err := os.ReadFile(file)
+		b, err := execution.ReadFile(fs, file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --file %s: %v", file, err)}
 		}
