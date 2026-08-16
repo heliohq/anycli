@@ -4,10 +4,10 @@ import (
 	"encoding/base64"
 	"mime"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +49,7 @@ func (f *commonSendFlags) register(cmd *cobra.Command) {
 // applyTo writes the shared fields into a Postmark request body map. It
 // validates required and enum fields, returning a usageError (exit 2) on bad
 // input.
-func (f *commonSendFlags) applyTo(body map[string]any) error {
+func (f *commonSendFlags) applyTo(fs execution.FileSystem, body map[string]any) error {
 	if strings.TrimSpace(f.from) == "" {
 		return usagef("postmark: --from is required")
 	}
@@ -88,7 +88,7 @@ func (f *commonSendFlags) applyTo(body map[string]any) error {
 		body["Headers"] = headers
 	}
 	if len(f.attachments) > 0 {
-		attachments, err := readAttachments(f.attachments)
+		attachments, err := readAttachments(fs, f.attachments)
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ func (s *Service) newEmailSendCmd(token string) *cobra.Command {
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			body := map[string]any{}
-			if err := common.applyTo(body); err != nil {
+			if err := common.applyTo(s.FS, body); err != nil {
 				return err
 			}
 			setIf(body, "Subject", subject)
@@ -151,7 +151,7 @@ func (s *Service) newEmailSendTemplateCmd(token string) *cobra.Command {
 				return usagef("postmark: provide exactly one of --template-id or --template-alias")
 			}
 			body := map[string]any{}
-			if err := common.applyTo(body); err != nil {
+			if err := common.applyTo(s.FS, body); err != nil {
 				return err
 			}
 			if hasID {
@@ -218,10 +218,10 @@ func parseHeaders(entries []string) ([]map[string]string, error) {
 // readAttachments reads each file path, base64-encodes its bytes, and builds
 // Postmark's [{"Name","Content","ContentType"}] attachment array. ContentType
 // is inferred from the file extension, defaulting to application/octet-stream.
-func readAttachments(paths []string) ([]map[string]string, error) {
+func readAttachments(fs execution.FileSystem, paths []string) ([]map[string]string, error) {
 	attachments := make([]map[string]string, 0, len(paths))
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			return nil, usagef("postmark: cannot read attachment %q: %v", path, err)
 		}

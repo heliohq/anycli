@@ -7,17 +7,18 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
 // draftPayload builds the drafts create/update request body from compose
 // options.
-func draftPayload(o *composeOptions) (map[string]any, error) {
+func draftPayload(fs execution.FileSystem, o *composeOptions) (map[string]any, error) {
 	body, err := o.resolveComposeBody()
 	if err != nil {
 		return nil, err
 	}
-	raw, err := buildMIME(mimeMessage{
+	raw, err := buildMIME(fs, mimeMessage{
 		to: o.to, cc: o.cc, bcc: o.bcc,
 		subject: o.subject, body: body, html: o.html,
 		attachments: o.attachments,
@@ -30,13 +31,14 @@ func draftPayload(o *composeOptions) (map[string]any, error) {
 
 func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 	var o composeOptions
+	o.fs = s.FS
 	cmd := &cobra.Command{
 		Use:         "create",
 		Short:       "Create a draft (same parameters as messages send)",
 		Args:        cobra.NoArgs,
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			payload, err := draftPayload(&o)
+			payload, err := draftPayload(s.FS, &o)
 			if err != nil {
 				return err
 			}
@@ -54,13 +56,14 @@ func (s *Service) newDraftsCreateCmd(token string) *cobra.Command {
 
 func (s *Service) newDraftsUpdateCmd(token string) *cobra.Command {
 	var o composeOptions
+	o.fs = s.FS
 	cmd := &cobra.Command{
 		Use:         "update <draft-id>",
 		Short:       "Replace a draft's content (same parameters as messages send)",
 		Args:        cobra.ExactArgs(1),
 		Annotations: map[string]string{"anycli.side_effect": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := draftPayload(&o)
+			payload, err := draftPayload(s.FS, &o)
 			if err != nil {
 				return err
 			}

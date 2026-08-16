@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -115,7 +116,7 @@ func TestSideEffectAnnotations(t *testing.T) {
 		}
 		seen[key] = got
 	}
-	root := (&Service{}).NewCommandTree()
+	root := (&Service{FS: execution.OS{}}).NewCommandTree()
 	walk(root, nil)
 
 	for key, wantVal := range want {
@@ -154,7 +155,7 @@ func TestOperationSideEffectDerivation(t *testing.T) {
 		}
 	}
 
-	stub := (&Service{}).newOperationCommand("", operationCommandSpec{Use: "broken", Short: "broken", OperationID: "noSuchOperation"})
+	stub := (&Service{FS: execution.OS{}}).newOperationCommand("", operationCommandSpec{Use: "broken", Short: "broken", OperationID: "noSuchOperation"})
 	if got := stub.Annotations["anycli.side_effect"]; got != "true" {
 		t.Errorf("catalog-miss stub anycli.side_effect = %q, want safe-side %q", got, "true")
 	}

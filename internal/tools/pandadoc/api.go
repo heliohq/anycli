@@ -3,7 +3,6 @@ package pandadoc
 import (
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -35,7 +34,7 @@ func (s *Service) newAPICmd(authz string) *cobra.Command {
 			}
 			var payload any
 			if cmd.Flags().Changed("body-file") {
-				raw, err := os.ReadFile(bodyFile)
+				raw, err := s.FS.ReadFile(bodyFile)
 				if err != nil {
 					return &usageError{msg: fmt.Sprintf("pandadoc api: read --body-file %s: %v", bodyFile, err)}
 				}

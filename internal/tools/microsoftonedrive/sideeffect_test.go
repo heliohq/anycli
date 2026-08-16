@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +31,7 @@ func TestSideEffectAnnotations(t *testing.T) {
 		"upload":       "true",  // PUT content / POST createUploadSession
 	}
 
-	svc := &Service{}
+	svc := &Service{FS: execution.OS{}}
 	root := svc.NewCommandTree()
 	seen := map[string]bool{}
 	walkCommands(root, func(cmd *cobra.Command) {

@@ -8,8 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -89,23 +87,17 @@ func (s *Service) download(ctx context.Context, token, path, output string) (int
 		return 0, newAPIError(resp.StatusCode, body, token)
 	}
 
-	dir := filepath.Dir(output)
-	temp, err := os.CreateTemp(dir, ".x-download-*")
+	// Create commits on Close, so an interrupted download leaves whatever was
+	// at output untouched rather than truncating it.
+	file, err := s.FS.Create(output)
 	if err != nil {
 		return 0, fmt.Errorf("x: create download file: %w", err)
 	}
-	tempName := temp.Name()
-	defer os.Remove(tempName)
-
-	written, copyErr := io.Copy(temp, resp.Body)
-	closeErr := temp.Close()
+	written, copyErr := io.Copy(file, resp.Body)
 	if copyErr != nil {
 		return 0, fmt.Errorf("x: write download: %w", copyErr)
 	}
-	if closeErr != nil {
-		return 0, fmt.Errorf("x: close download: %w", closeErr)
-	}
-	if err := os.Rename(tempName, output); err != nil {
+	if err := file.Close(); err != nil {
 		return 0, fmt.Errorf("x: finalize download: %w", err)
 	}
 	return written, nil

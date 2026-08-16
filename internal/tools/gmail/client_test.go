@@ -48,7 +48,7 @@ func newScripted(t *testing.T, steps ...seqStep) *scripted {
 func (sc *scripted) run(t *testing.T, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{
+	svc := &Service{FS: execution.OS{},
 		BaseURL: sc.srv.URL + "/gmail/v1",
 		HC:      sc.srv.Client(),
 		Out:     &out,

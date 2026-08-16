@@ -8,11 +8,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestExecuteRejectsMissingToken(t *testing.T) {
 	var stderr bytes.Buffer
-	service := &Service{Err: &stderr}
+	service := &Service{FS: execution.OS{}, Err: &stderr}
 	result, err := service.Execute(context.Background(), []string{"me"}, nil)
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)

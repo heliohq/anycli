@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -173,13 +172,17 @@ func (s *Service) downloadFile(ctx context.Context, rawURL, path string) (int64,
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return 0, &apiError{msg: fmt.Sprintf("customer-io: download returned HTTP %d", resp.StatusCode), status: resp.StatusCode}
 	}
-	f, err := os.Create(path)
+	f, err := s.FS.Create(path)
 	if err != nil {
 		return 0, &apiError{msg: fmt.Sprintf("customer-io: create %s: %v", path, err), err: err}
 	}
-	defer func() { _ = f.Close() }()
 	n, err := io.Copy(f, resp.Body)
 	if err != nil {
+		return 0, &apiError{msg: fmt.Sprintf("customer-io: write %s: %v", path, err), err: err}
+	}
+	// Close commits the file; discarding its error would report a download
+	// that never landed as a success.
+	if err := f.Close(); err != nil {
 		return 0, &apiError{msg: fmt.Sprintf("customer-io: write %s: %v", path, err), err: err}
 	}
 	return n, nil

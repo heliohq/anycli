@@ -21,6 +21,7 @@ import (
 	"github.com/heliohq/anycli/internal/registry"
 	"github.com/heliohq/anycli/internal/toolhelp"
 	"github.com/heliohq/anycli/internal/tools"
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // loadDefinition loads a tool definition by name. It is a package variable so
@@ -59,17 +60,25 @@ type Engine struct {
 	// engine makes (built-in service provider calls, lazy binary
 	// downloads). nil keeps each call site's production default.
 	httpClient *http.Client
+	// fs is where tools reach local files; never nil once New installs one.
+	fs execution.FileSystem
 }
 
 // NewEngine constructs an Engine with the given credential cache and optional
 // HTTP client. cache must be non-nil; the public constructor installs the
 // in-memory default when the consumer supplies none. A nil httpClient keeps
 // the default per-call-site HTTP behavior.
-func NewEngine(cache credential.Cache, httpClient *http.Client) (*Engine, error) {
+func NewEngine(cache credential.Cache, httpClient *http.Client, fs execution.FileSystem) (*Engine, error) {
+	if fs == nil {
+		// One place decides what "local" means when a host says nothing, so no
+		// caller — including a test — can end up with a service that has no
+		// filesystem at all.
+		fs = execution.OS{}
+	}
 	if cache == nil {
 		return nil, fmt.Errorf("credential cache must not be nil")
 	}
-	return &Engine{cache: cache, httpClient: httpClient}, nil
+	return &Engine{cache: cache, httpClient: httpClient, fs: fs}, nil
 }
 
 // Execute runs a tool through the full credential + middleware pipeline.
@@ -171,6 +180,7 @@ func (e *Engine) Execute(ctx context.Context, tool string, args []string, resolv
 			// HTTP client — the registry singleton is never mutated.
 			svc = tools.WithHTTPClient(svc, e.httpClient)
 		}
+		svc = tools.WithFS(svc, e.fs)
 		result, err := svc.Execute(ctx, mctx.Args, mctx.Env)
 		if result.CredentialRejected && hasCredentials {
 			e.markCredentialsStale(tool, account)

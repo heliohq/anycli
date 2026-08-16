@@ -89,7 +89,7 @@ func (s *Service) newCreateCmd(token, name, collectionPath string) *cobra.Comman
 		Args:        cobra.NoArgs,
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			payload, err := readData("data", data)
+			payload, err := readData(s.FS, "data", data)
 			if err != nil {
 				return err
 			}
@@ -112,7 +112,7 @@ func (s *Service) newUpdateCmd(token, name, collectionPath string) *cobra.Comman
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := readData("data", data)
+			payload, err := readData(s.FS, "data", data)
 			if err != nil {
 				return err
 			}

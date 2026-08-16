@@ -40,7 +40,7 @@ func TestRegionSelectsHost(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rt := &capturingRT{status: http.StatusOK, body: `{"data":[]}`}
-			svc := &Service{HC: &http.Client{Transport: rt}}
+			svc := &Service{FS: execution.OS{}, HC: &http.Client{Transport: rt}}
 			res, err := svc.Execute(context.Background(), tc.args, map[string]string{EnvCredentials: testCreds})
 			if err != nil {
 				t.Fatalf("Execute error: %v", err)
@@ -72,7 +72,7 @@ func TestMalformedCredentialsExit2(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var out, errBuf strings.Builder
-			svc := &Service{Out: &out, Err: &errBuf}
+			svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 			res, err := svc.Execute(context.Background(), []string{"events", "list"}, map[string]string{EnvCredentials: tc.creds})
 			if err != nil {
 				t.Fatalf("Execute error: %v", err)
@@ -184,7 +184,7 @@ func TestJSONErrorEnvelope(t *testing.T) {
 // A bad --region value is a usage error (exit 2).
 func TestBadRegionExit2(t *testing.T) {
 	var out, errBuf strings.Builder
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	res, err := svc.Execute(context.Background(), []string{"events", "list", "--region", "apac"}, map[string]string{EnvCredentials: testCreds})
 	if err != nil {
 		t.Fatalf("Execute error: %v", err)

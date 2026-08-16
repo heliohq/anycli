@@ -11,16 +11,17 @@
 package linkedin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -90,7 +91,7 @@ func (s *Service) newVideoGetCmd(token string) *cobra.Command {
 // finalizeUpload → waitVideoAvailable. The returned body is the final GET
 // video object (id + status AVAILABLE), emitted verbatim.
 func (s *Service) uploadVideo(ctx context.Context, token, personURN, file string) ([]byte, error) {
-	size, err := checkVideoFile(file)
+	size, err := checkVideoFile(s.FS, file)
 	if err != nil {
 		return nil, err
 	}
@@ -134,11 +135,16 @@ func (s *Service) uploadVideo(ctx context.Context, token, personURN, file string
 // uploadParts PUTs each server-defined byte range to its pre-signed URL, in
 // instruction order, and returns the collected part ids in the same order.
 func (s *Service) uploadParts(ctx context.Context, file string, instructions []uploadInstruction) ([]string, error) {
-	f, err := os.Open(file)
+	// The ranges are server-defined, so the source has to be seekable. On a
+	// disk that is the file itself; a host filesystem hands back a stream with
+	// nothing to seek, and only there is the video buffered. A video is large
+	// enough that reading one into memory when a file would do is not a cost
+	// to pay for uniformity.
+	f, closeSource, err := seekableSource(s.FS, file)
 	if err != nil {
-		return nil, fmt.Errorf("linkedin: open video file: %w", err)
+		return nil, err
 	}
-	defer f.Close()
+	defer closeSource()
 
 	etags := make([]string, 0, len(instructions))
 	for i, in := range instructions {
@@ -230,11 +236,11 @@ func encodeVideoURN(urn string) string {
 // non-directory, non-empty, size cap) and returns the file size. Everything
 // else (duration, codec, resolution) is the platform's call — its error is
 // surfaced verbatim.
-func checkVideoFile(file string) (int64, error) {
+func checkVideoFile(fs execution.FileSystem, file string) (int64, error) {
 	if ext := strings.ToLower(filepath.Ext(file)); ext != ".mp4" {
 		return 0, fmt.Errorf("linkedin: only MP4 video is supported (got %s)", ext)
 	}
-	info, err := os.Stat(file)
+	info, err := fs.Stat(file)
 	if err != nil {
 		return 0, fmt.Errorf("linkedin: read video file: %w", err)
 	}
@@ -248,4 +254,25 @@ func checkVideoFile(file string) (int64, error) {
 		return 0, fmt.Errorf("linkedin: --file %q exceeds the 500MB limit", file)
 	}
 	return info.Size(), nil
+}
+
+// seekableSource opens file for the ranged upload. Open may hand back
+// something that already supports random access — a file on a disk does — and
+// only when it does not is the video buffered. A video is large enough that
+// reading one into memory when a handle would do is not a cost to pay for
+// uniformity.
+func seekableSource(fs execution.FileSystem, file string) (io.ReaderAt, func(), error) {
+	source, err := fs.Open(file)
+	if err != nil {
+		return nil, nil, fmt.Errorf("linkedin: open video file: %w", err)
+	}
+	if at, ok := source.(io.ReaderAt); ok {
+		return at, func() { _ = source.Close() }, nil
+	}
+	defer source.Close()
+	data, err := io.ReadAll(source)
+	if err != nil {
+		return nil, nil, fmt.Errorf("linkedin: read video file: %w", err)
+	}
+	return bytes.NewReader(data), func() {}, nil
 }

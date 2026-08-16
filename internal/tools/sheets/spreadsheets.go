@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -103,7 +103,7 @@ func (s *Service) newSpreadsheetsBatchUpdateCmd(token string) *cobra.Command {
 			if requestFile == "" {
 				return fmt.Errorf("sheets: --request-file is required")
 			}
-			payload, err := loadBatchUpdatePayload(requestFile)
+			payload, err := loadBatchUpdatePayload(s.FS, requestFile)
 			if err != nil {
 				return err
 			}
@@ -132,8 +132,8 @@ func (s *Service) newSpreadsheetsBatchUpdateCmd(token string) *cobra.Command {
 // loadBatchUpdatePayload reads the raw batchUpdate request file. It accepts
 // either a full request object (passed through verbatim) or a bare array of
 // requests (wrapped into {"requests": [...]}).
-func loadBatchUpdatePayload(path string) (any, error) {
-	raw, err := os.ReadFile(path)
+func loadBatchUpdatePayload(fs execution.FileSystem, path string) (any, error) {
+	raw, err := fs.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("sheets: read request file: %w", err)
 	}

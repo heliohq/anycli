@@ -4,10 +4,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"mime"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // parsedParty is a name+email pair parsed from a "Name <email>" spec, shared by
@@ -85,8 +86,8 @@ type fileEntry struct {
 // readFileEntry reads a local file and encodes it as the data-URI object form
 // BoldSign's JSON Files array expects. The MIME type is derived from the
 // extension, defaulting to application/pdf (BoldSign's preferred format).
-func readFileEntry(path string) (fileEntry, error) {
-	data, err := os.ReadFile(path)
+func readFileEntry(fs execution.FileSystem, path string) (fileEntry, error) {
+	data, err := fs.ReadFile(path)
 	if err != nil {
 		return fileEntry{}, &usageError{msg: fmt.Sprintf("boldsign: read %s: %v", path, err)}
 	}

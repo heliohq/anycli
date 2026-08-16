@@ -8,7 +8,6 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -43,7 +42,7 @@ func (s *Service) newVideosUploadCmd(token string) *cobra.Command {
 			if !validPrivacy[privacy] {
 				return &usageError{msg: fmt.Sprintf("--privacy must be public|unlisted|private, got %q", privacy)}
 			}
-			info, err := os.Stat(file)
+			info, err := s.FS.Stat(file)
 			if err != nil {
 				return &usageError{msg: fmt.Sprintf("read video file: %v", err)}
 			}
@@ -157,7 +156,7 @@ func (s *Service) initResumableUpload(ctx context.Context, token string, meta ma
 // putResumableBody streams the whole file to the session URL in one PUT and
 // returns the video resource body on 2xx.
 func (s *Service) putResumableBody(ctx context.Context, token, sessionURL, path string, size int64, ctype string) ([]byte, error) {
-	f, err := os.Open(path)
+	f, err := s.FS.Open(path)
 	if err != nil {
 		return nil, &apiError{msg: fmt.Sprintf("youtube: open video file: %v", err), err: err}
 	}

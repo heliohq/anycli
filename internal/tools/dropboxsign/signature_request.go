@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -350,7 +350,7 @@ func (s *Service) downloadFiles(ctx context.Context, token, id string, q url.Val
 		_, werr := s.stdout().Write(body)
 		return werr
 	}
-	if werr := writeFile(out, body); werr != nil {
+	if werr := writeFile(s.FS, out, body); werr != nil {
 		return &apiError{msg: fmt.Sprintf("dropbox-sign: write --out %q: %v", out, werr), err: werr}
 	}
 	return s.emitValue(map[string]any{
@@ -362,6 +362,6 @@ func (s *Service) downloadFiles(ctx context.Context, token, id string, q url.Val
 
 // writeFile writes b to path with owner-only permissions (signed documents may
 // be confidential).
-func writeFile(path string, b []byte) error {
-	return os.WriteFile(path, b, 0o600)
+func writeFile(fs execution.FileSystem, path string, b []byte) error {
+	return fs.WriteFile(path, b, 0o600)
 }

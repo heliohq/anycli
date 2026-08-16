@@ -105,7 +105,7 @@ func TestSend_MultipartWithAttachment(t *testing.T) {
 }
 
 func TestBuildMIME_RejectsOversizeMessage(t *testing.T) {
-	_, err := buildMIME(mimeMessage{
+	_, err := buildMIME(nil, mimeMessage{
 		to:      []string{"a@b.c"},
 		subject: "big",
 		body:    strings.Repeat("a", maxMessageBytes+1),

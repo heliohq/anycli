@@ -3,6 +3,7 @@ package posthog
 import (
 	"encoding/json"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,7 @@ func (s *Service) newQueryRunCmd(token string) *cobra.Command {
 			if err := requireProject(project); err != nil {
 				return err
 			}
-			node, err := queryNode(cmd, hogql, queryJSON)
+			node, err := queryNode(s.FS, cmd, hogql, queryJSON)
 			if err != nil {
 				return err
 			}
@@ -46,14 +47,14 @@ func (s *Service) newQueryRunCmd(token string) *cobra.Command {
 }
 
 // queryNode resolves the query node from exactly one of --hogql / --query-json.
-func queryNode(cmd *cobra.Command, hogql, queryJSON string) (any, error) {
+func queryNode(fs execution.FileSystem, cmd *cobra.Command, hogql, queryJSON string) (any, error) {
 	switch {
 	case hogql != "" && queryJSON != "":
 		return nil, &usageError{msg: "pass only one of --hogql or --query-json"}
 	case hogql != "":
 		return map[string]any{"kind": "HogQLQuery", "query": hogql}, nil
 	case queryJSON != "":
-		raw, err := readFileOrStdin(cmd, queryJSON)
+		raw, err := readFileOrStdin(fs, cmd, queryJSON)
 		if err != nil {
 			return nil, &usageError{msg: "read --query-json: " + err.Error()}
 		}

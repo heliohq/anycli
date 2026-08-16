@@ -73,7 +73,7 @@ func (s *Service) newWebhookSetCmd(token string) *cobra.Command {
 				payload["secret"] = secret
 			}
 			if eventTypes != "" {
-				et, err := readJSONArg("event-types", eventTypes)
+				et, err := readJSONArg(s.FS, "event-types", eventTypes)
 				if err != nil {
 					return err
 				}

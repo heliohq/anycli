@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -215,7 +214,7 @@ func (s *Service) decodeJSONBody(inline, file string, stdin io.Reader) (any, err
 		}
 		rawJSON = b
 	case file != "":
-		b, err := os.ReadFile(file)
+		b, err := s.FS.ReadFile(file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read body from file: %v", err)}
 		}

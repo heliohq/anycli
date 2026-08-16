@@ -53,7 +53,7 @@ func newServer(t *testing.T, status int, response string, got *capturedRequest) 
 func runWith(t *testing.T, srv *httptest.Server, creds string, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), args, map[string]string{EnvCredentials: creds})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)

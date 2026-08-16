@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 const testToken = "phx_test_token"
@@ -79,7 +81,7 @@ func singleRouteServer(t *testing.T, status int, response string, got *capturedR
 // disabled), with the standard test token in env.
 func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdout, stderr string) {
 	t.Helper()
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &bytes.Buffer{}, Err: &bytes.Buffer{}}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &bytes.Buffer{}, Err: &bytes.Buffer{}}
 	return runService(t, svc, map[string]string{EnvAccessToken: testToken}, args...)
 }
 

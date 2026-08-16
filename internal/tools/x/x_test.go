@@ -49,7 +49,7 @@ func run(t *testing.T, server *httptest.Server, env map[string]string, args ...s
 func runResult(t *testing.T, server *httptest.Server, env map[string]string, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	svc := &Service{
+	svc := &Service{FS: execution.OS{},
 		APIBase: server.URL,
 		HC:      server.Client(),
 		Out:     &stdout,

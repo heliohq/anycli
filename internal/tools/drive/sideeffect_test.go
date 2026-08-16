@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +36,7 @@ func TestSideEffectAnnotations(t *testing.T) {
 		"permissions delete": "true",  // DELETE /files/{id}/permissions/{pid}
 	}
 
-	svc := &Service{}
+	svc := &Service{FS: execution.OS{}}
 	root := svc.NewCommandTree()
 	seen := map[string]bool{}
 	walkCommands(root, func(cmd *cobra.Command) {

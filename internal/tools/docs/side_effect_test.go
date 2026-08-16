@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,7 @@ func TestSideEffectAnnotations(t *testing.T) {
 		"documents batch-update": "true",  // POST /documents/{id}:batchUpdate (raw escape hatch)
 	}
 
-	s := &Service{}
+	s := &Service{FS: execution.OS{}}
 	root := s.NewCommandTree()
 	seen := map[string]bool{}
 	walkCommands(root, func(cmd *cobra.Command) {

@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestExecuteRequiresAccessToken(t *testing.T) {
 	var stderr bytes.Buffer
-	svc := &Service{Err: &stderr}
+	svc := &Service{FS: execution.OS{}, Err: &stderr}
 	result, err := svc.Execute(context.Background(), []string{"me"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)

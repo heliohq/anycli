@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -127,7 +126,7 @@ func (s *Service) attachEmbed(ctx context.Context, sess *session, record map[str
 func (se *session) uploadImages(ctx context.Context, paths, alts []string) ([]map[string]any, error) {
 	out := make([]map[string]any, 0, len(paths))
 	for i, path := range paths {
-		data, err := os.ReadFile(path)
+		data, err := se.svc.FS.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("bluesky: read image %q: %w", path, err)
 		}

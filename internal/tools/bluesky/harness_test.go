@@ -138,7 +138,7 @@ func runStub(t *testing.T, s *stub, env map[string]string, args ...string) (exec
 	t.Cleanup(server.Close)
 
 	var stdout, stderr bytes.Buffer
-	svc := &Service{APIBase: server.URL, HC: server.Client(), Out: &stdout, Err: &stderr}
+	svc := &Service{FS: execution.OS{}, APIBase: server.URL, HC: server.Client(), Out: &stdout, Err: &stderr}
 	result, err := svc.Execute(context.Background(), args, env)
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)

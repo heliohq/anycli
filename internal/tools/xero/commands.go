@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -148,7 +148,7 @@ func (rc *resourceCtx) writeCmd(use, short, method, resource string) *cobra.Comm
 	cmd.Flags().StringVar(&data, "data", "", "request body as a Xero JSON envelope (mutually exclusive with --file)")
 	cmd.Flags().StringVar(&file, "file", "", "read the request body from a JSON file")
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
-		payload, err := readBody(data, file)
+		payload, err := readBody(rc.svc.FS, data, file)
 		if err != nil {
 			return err
 		}
@@ -295,13 +295,13 @@ func (rc *resourceCtx) orgGetCmd() *cobra.Command {
 // readBody resolves a write body from --data or --file (mutually exclusive) and
 // validates it is JSON, so a malformed payload fails fast as a usage error
 // (exit 2) instead of reaching Xero.
-func readBody(data, file string) (json.RawMessage, error) {
+func readBody(fs execution.FileSystem, data, file string) (json.RawMessage, error) {
 	if data != "" && file != "" {
 		return nil, &usageError{msg: "--data and --file are mutually exclusive"}
 	}
 	raw := data
 	if file != "" {
-		b, err := os.ReadFile(file)
+		b, err := fs.ReadFile(file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --file %s: %v", file, err)}
 		}

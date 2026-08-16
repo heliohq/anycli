@@ -11,7 +11,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -153,7 +152,7 @@ func idempotencyKey(req statusCreateRequest) string {
 // case the id is usable for attachment but we poll GET /api/v1/media/:id until
 // the URL is ready (bounded) so the status create does not race processing.
 func (rt *runContext) uploadMedia(ctx context.Context, path, description string) (string, error) {
-	file, err := os.Open(path)
+	file, err := rt.svc.FS.Open(path)
 	if err != nil {
 		return "", &usageError{msg: fmt.Sprintf("open image %q: %v", path, err)}
 	}

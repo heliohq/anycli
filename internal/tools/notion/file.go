@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -28,7 +27,7 @@ func (s *Service) newFileUploadCmd(token string) *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := args[0]
-			data, err := os.ReadFile(path)
+			data, err := s.FS.ReadFile(path)
 			if err != nil {
 				return &usageError{msg: fmt.Sprintf("file upload: read %s: %v", path, err)}
 			}

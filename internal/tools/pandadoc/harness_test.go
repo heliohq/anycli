@@ -94,7 +94,7 @@ func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdo
 func runEnv(t *testing.T, srv *httptest.Server, env map[string]string, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	if srv != nil {
 		// The real base carries the /public/v1 prefix; mirror it so recorded
 		// request paths match the production path structure.

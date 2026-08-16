@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // harness spins up an httptest server and runs one mastodon invocation through
@@ -66,7 +68,7 @@ func (h *harness) run(args ...string) (stdout, stderr string, exit int) {
 func (h *harness) runWithToken(token string, args ...string) (stdout, stderr string, exit int) {
 	h.t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf, HC: h.server.Client()}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf, HC: h.server.Client()}
 	env := map[string]string{EnvAccessToken: h.server.URL + " " + token}
 	res, err := svc.Execute(context.Background(), args, env)
 	if err != nil {
@@ -102,7 +104,7 @@ func TestWhoamiInjectsBearerAndDerivesBaseURL(t *testing.T) {
 
 func TestCredentialWithoutSpaceIsUsageFailure(t *testing.T) {
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	res, err := svc.Execute(context.Background(), []string{"whoami"}, map[string]string{EnvAccessToken: "https://mastodon.social"})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -117,7 +119,7 @@ func TestCredentialWithoutSpaceIsUsageFailure(t *testing.T) {
 
 func TestMissingCredentialJSONError(t *testing.T) {
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	res, _ := svc.Execute(context.Background(), []string{"whoami", "--json"}, map[string]string{})
 	if res.ExitCode != 1 {
 		t.Fatalf("exit = %d, want 1", res.ExitCode)
@@ -412,7 +414,7 @@ func TestUnauthorizedRejectsCredential(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":"The access token is invalid"}`))
 	}
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf, HC: h.server.Client()}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf, HC: h.server.Client()}
 	env := map[string]string{EnvAccessToken: h.server.URL + " badtoken"}
 	res, _ := svc.Execute(context.Background(), []string{"whoami"}, env)
 	if res.ExitCode != 1 {
@@ -430,7 +432,7 @@ func TestForbiddenDoesNotRejectCredential(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":"This action is not allowed"}`))
 	}
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf, HC: h.server.Client()}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf, HC: h.server.Client()}
 	env := map[string]string{EnvAccessToken: h.server.URL + " tok"}
 	res, _ := svc.Execute(context.Background(), []string{"favourite", "--id", "1"}, env)
 	if res.ExitCode != 1 {

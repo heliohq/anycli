@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // capturedRequest records one request the fake DocuSign server received.
@@ -68,7 +70,7 @@ func newServer(t *testing.T, reqs *[]capturedRequest, routes map[string]stub) *h
 func run(t *testing.T, srv *httptest.Server, args ...string) (string, string, int) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	env := map[string]string{
 		EnvAccessToken: "tok-abc",
 		EnvAccountID:   "acc-1",
@@ -420,7 +422,7 @@ func TestUnauthorizedRejectsCredential(t *testing.T) {
 	})
 	defer srv.Close()
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	res, err := svc.Execute(context.Background(), []string{"envelope", "get", "e1"},
 		map[string]string{EnvAccessToken: "bad", EnvAccountID: "acc-1"})
 	if err != nil {
@@ -433,7 +435,7 @@ func TestUnauthorizedRejectsCredential(t *testing.T) {
 
 func TestMissingCredentialFailsFast(t *testing.T) {
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	res, _ := svc.Execute(context.Background(), []string{"envelope", "list"},
 		map[string]string{EnvAccessToken: "tok"}) // no base_uri, no account_id
 	if res.ExitCode != 1 {

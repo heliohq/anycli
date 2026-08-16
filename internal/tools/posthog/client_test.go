@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // forbiddenServer fails the test if it is ever hit — used to prove a probe was
@@ -24,7 +26,7 @@ func TestRegionProbeFallsThroughUSToEU(t *testing.T) {
 	eu := singleRouteServer(t, http.StatusOK, `{"email":"ada@eu.example"}`, &euHits)
 	defer eu.Close()
 
-	svc := &Service{usHost: us.URL, euHost: eu.URL}
+	svc := &Service{FS: execution.OS{}, usHost: us.URL, euHost: eu.URL}
 	exit, stdout, stderr := runService(t, svc, map[string]string{EnvAccessToken: testToken}, "whoami")
 	if exit != 0 {
 		t.Fatalf("exit = %d, want 0 (stderr=%q)", exit, stderr)
@@ -54,7 +56,7 @@ func TestRegionProbeCachesResolvedHost(t *testing.T) {
 	}))
 	defer eu.Close()
 
-	svc := &Service{usHost: us.URL, euHost: eu.URL, HC: http.DefaultClient}
+	svc := &Service{FS: execution.OS{}, usHost: us.URL, euHost: eu.URL, HC: http.DefaultClient}
 	// First call resolves EU; second call must reuse the cached host and NOT
 	// re-probe US (the US server would 401 and break correctness if it did).
 	if _, _, _ = runService(t, svc, map[string]string{EnvAccessToken: testToken}, "whoami"); svc.region != eu.URL {
@@ -75,7 +77,7 @@ func TestRegionProbeBothUnauthorizedRejectsCredential(t *testing.T) {
 	eu := singleRouteServer(t, http.StatusUnauthorized, `{"detail":"nope"}`, &capturedRequest{})
 	defer eu.Close()
 
-	svc := &Service{usHost: us.URL, euHost: eu.URL}
+	svc := &Service{FS: execution.OS{}, usHost: us.URL, euHost: eu.URL}
 	assertCredentialRejected(t, svc, map[string]string{EnvAccessToken: testToken}, "whoami")
 }
 
@@ -86,7 +88,7 @@ func TestAPIHostOverrideSkipsProbe(t *testing.T) {
 	forbidden := forbiddenServer(t)
 	defer forbidden.Close()
 
-	svc := &Service{usHost: forbidden.URL, euHost: forbidden.URL}
+	svc := &Service{FS: execution.OS{}, usHost: forbidden.URL, euHost: forbidden.URL}
 	env := map[string]string{EnvAccessToken: testToken, EnvAPIHost: host.URL}
 	exit, stdout, _ := runService(t, svc, env, "whoami")
 	if exit != 0 {
@@ -107,7 +109,7 @@ func TestBaseURLDisablesProbe(t *testing.T) {
 	forbidden := forbiddenServer(t)
 	defer forbidden.Close()
 
-	svc := &Service{BaseURL: base.URL, usHost: forbidden.URL, euHost: forbidden.URL, HC: base.Client()}
+	svc := &Service{FS: execution.OS{}, BaseURL: base.URL, usHost: forbidden.URL, euHost: forbidden.URL, HC: base.Client()}
 	exit, _, stderr := runService(t, svc, map[string]string{EnvAccessToken: testToken}, "project", "list")
 	if exit != 0 {
 		t.Fatalf("exit = %d, want 0 (stderr=%q)", exit, stderr)
@@ -120,7 +122,7 @@ func TestBaseURLDisablesProbe(t *testing.T) {
 func TestUnauthorizedOnRealCallRejectsCredential(t *testing.T) {
 	srv := singleRouteServer(t, http.StatusUnauthorized, `{"type":"authentication_error","detail":"Invalid personal API key."}`, &capturedRequest{})
 	defer srv.Close()
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client()}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client()}
 	assertCredentialRejected(t, svc, map[string]string{EnvAccessToken: testToken}, "project", "list")
 }
 

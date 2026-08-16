@@ -7,10 +7,10 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/textproto"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +19,8 @@ const maxMessageBytes = 25 << 20
 
 // composeOptions carries the shared send / reply / drafts flag values.
 type composeOptions struct {
+	// fs is the host filesystem seam for --body-file and --attach.
+	fs          execution.FileSystem
 	to          []string
 	cc          []string
 	bcc         []string
@@ -55,7 +57,7 @@ func (o *composeOptions) resolveComposeBody() (string, error) {
 	if o.bodyFile == "" {
 		return o.body, nil
 	}
-	data, err := os.ReadFile(o.bodyFile)
+	data, err := o.fs.ReadFile(o.bodyFile)
 	if err != nil {
 		return "", fmt.Errorf("gmail: read body file: %w", err)
 	}
@@ -78,7 +80,7 @@ type mimeMessage struct {
 // buildMIME assembles the RFC 822 message Gmail's send/draft APIs expect in
 // the raw field: single-part for a bare body, multipart/mixed with base64
 // attachment parts otherwise. Messages over 25MB are rejected.
-func buildMIME(m mimeMessage) ([]byte, error) {
+func buildMIME(fs execution.FileSystem, m mimeMessage) ([]byte, error) {
 	var buf bytes.Buffer
 	writeHeader := func(name, value string) {
 		if value != "" {
@@ -100,7 +102,7 @@ func buildMIME(m mimeMessage) ([]byte, error) {
 	if len(m.attachments) == 0 {
 		fmt.Fprintf(&buf, "Content-Type: %s; charset=\"UTF-8\"\r\n\r\n", textType)
 		buf.WriteString(m.body)
-	} else if err := writeMultipart(&buf, textType, m.body, m.attachments); err != nil {
+	} else if err := writeMultipart(fs, &buf, textType, m.body, m.attachments); err != nil {
 		return nil, err
 	}
 	if buf.Len() > maxMessageBytes {
@@ -109,7 +111,7 @@ func buildMIME(m mimeMessage) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func writeMultipart(buf *bytes.Buffer, textType, body string, attachments []string) error {
+func writeMultipart(fs execution.FileSystem, buf *bytes.Buffer, textType, body string, attachments []string) error {
 	w := multipart.NewWriter(buf)
 	fmt.Fprintf(buf, "Content-Type: multipart/mixed; boundary=%q\r\n\r\n", w.Boundary())
 
@@ -124,7 +126,7 @@ func writeMultipart(buf *bytes.Buffer, textType, body string, attachments []stri
 	}
 
 	for _, path := range attachments {
-		if err := writeAttachmentPart(w, path); err != nil {
+		if err := writeAttachmentPart(fs, w, path); err != nil {
 			return err
 		}
 	}
@@ -134,8 +136,8 @@ func writeMultipart(buf *bytes.Buffer, textType, body string, attachments []stri
 	return nil
 }
 
-func writeAttachmentPart(w *multipart.Writer, path string) error {
-	data, err := os.ReadFile(path)
+func writeAttachmentPart(fs execution.FileSystem, w *multipart.Writer, path string) error {
+	data, err := fs.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("gmail: read attachment %s: %w", path, err)
 	}

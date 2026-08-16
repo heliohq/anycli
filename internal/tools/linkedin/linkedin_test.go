@@ -49,7 +49,7 @@ func run(t *testing.T, srv *httptest.Server, env map[string]string, args ...stri
 func runResult(t *testing.T, srv *httptest.Server, env map[string]string, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{APIBase: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, APIBase: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), args, env)
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)
@@ -66,7 +66,7 @@ func fullEnv() map[string]string {
 
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
-	svc := &Service{Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"me"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

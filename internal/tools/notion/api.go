@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
-	"os"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -46,7 +46,7 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 				return &usageError{msg: "notion api: --body and --body-file are mutually exclusive"}
 			}
 			if hasForm {
-				payload, contentType, err := buildMultipartPayload(forms, formFiles)
+				payload, contentType, err := buildMultipartPayload(s.FS, forms, formFiles)
 				if err != nil {
 					return err
 				}
@@ -59,7 +59,7 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 			}
 			var payload []byte
 			if cmd.Flags().Changed("body-file") {
-				payload, err = os.ReadFile(bodyFile)
+				payload, err = s.FS.ReadFile(bodyFile)
 				if err != nil {
 					return &usageError{msg: fmt.Sprintf("notion api: read --body-file %s: %v", bodyFile, err)}
 				}
@@ -130,7 +130,7 @@ func parseAPIHeaders(vals []string) (map[string]string, error) {
 	return out, nil
 }
 
-func buildMultipartPayload(forms, formFiles []string) ([]byte, string, error) {
+func buildMultipartPayload(fs execution.FileSystem, forms, formFiles []string) ([]byte, string, error) {
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	for _, f := range forms {
@@ -150,7 +150,7 @@ func buildMultipartPayload(forms, formFiles []string) ([]byte, string, error) {
 			_ = mw.Close()
 			return nil, "", &usageError{msg: fmt.Sprintf("notion api: --form-file must be name=path, got %q", f)}
 		}
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			_ = mw.Close()
 			return nil, "", &usageError{msg: fmt.Sprintf("notion api: read --form-file %s: %v", path, err)}

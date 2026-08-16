@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -238,7 +239,7 @@ func (s *Service) newPageUpdateCmd(token string) *cobra.Command {
 			pos = at
 		}
 		file, _ := cmd.Flags().GetString("file")
-		u, err := buildPageUpdate(id, command, newStr, content, contentUpdates, pos, properties, icon, cover, file)
+		u, err := buildPageUpdate(s.FS, id, command, newStr, content, contentUpdates, pos, properties, icon, cover, file)
 		if err != nil {
 			return err
 		}
@@ -250,11 +251,11 @@ func (s *Service) newPageUpdateCmd(token string) *cobra.Command {
 
 // buildPageUpdate resolves content (inline or --file) and pre-wires icon/cover
 // so scalar-sugar errors fail before any request.
-func buildPageUpdate(id, command, newStr, content string, contentUpdates json.RawMessage, position string, properties json.RawMessage, icon, cover, file string) (pageUpdate, error) {
+func buildPageUpdate(fs execution.FileSystem, id, command, newStr, content string, contentUpdates json.RawMessage, position string, properties json.RawMessage, icon, cover, file string) (pageUpdate, error) {
 	u := pageUpdate{id: id, command: command, contentUpdates: contentUpdates, position: position, properties: properties}
 	switch command {
 	case "replace_content":
-		c, err := readContent(newStr, file, "new-str")
+		c, err := readContent(fs, newStr, file, "new-str")
 		if err != nil {
 			return u, err
 		}
@@ -263,7 +264,7 @@ func buildPageUpdate(id, command, newStr, content string, contentUpdates json.Ra
 		if position != "" && position != "start" && position != "end" {
 			return u, &usageError{msg: "--position must be start or end"}
 		}
-		c, err := readContent(content, file, "content")
+		c, err := readContent(fs, content, file, "content")
 		if err != nil {
 			return u, err
 		}
@@ -503,7 +504,7 @@ func (s *Service) newPageReplaceCmd(token string) *cobra.Command {
 			return &usageError{msg: "page replace requires --new-str or --file"}
 		}
 		file, _ := cmd.Flags().GetString("file")
-		c, err := readContent(newStr, file, "new-str")
+		c, err := readContent(s.FS, newStr, file, "new-str")
 		if err != nil {
 			return err
 		}
@@ -585,7 +586,7 @@ func (s *Service) newPageInsertCmd(token string) *cobra.Command {
 			return &usageError{msg: "--at must be start or end"}
 		}
 		file, _ := cmd.Flags().GetString("file")
-		c, err := readContent(content, file, "content")
+		c, err := readContent(s.FS, content, file, "content")
 		if err != nil {
 			return err
 		}
@@ -621,7 +622,7 @@ func (s *Service) newPageAppendCmd(token string) *cobra.Command {
 			return &usageError{msg: "--allow-deleting-content is not allowed with page append (insert_content does not accept it)"}
 		}
 		file, _ := cmd.Flags().GetString("file")
-		c, err := readContent(content, file, "content")
+		c, err := readContent(s.FS, content, file, "content")
 		if err != nil {
 			return err
 		}

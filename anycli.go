@@ -19,6 +19,7 @@ import (
 
 	"github.com/heliohq/anycli/internal/credential"
 	"github.com/heliohq/anycli/internal/exec"
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // Tool identifies a tool by its definition name. It is a named type for
@@ -63,7 +64,25 @@ type Config struct {
 	// a host can interpose a RoundTripper — e.g. an e2e harness rewriting
 	// provider upstreams to a local fixture server.
 	HTTPClient *http.Client
+
+	// FS is where every local file a tool reads or writes goes. Optional: a nil
+	// FS installs the machine the process runs on (see execution.OS), which is
+	// the right implementation for a person at a terminal. A host running
+	// AnyCLI on shared infrastructure has a different machine underneath, and
+	// this is how it decides what "local" means there.
+	//
+	// The seam governs the files a tool opens itself. A tool that hands a path
+	// to a subprocess — mongodb, and the passthrough CLI tools — is outside it
+	// by construction; a host that cares about isolation declines to run those
+	// rather than assume this covers them.
+	FS FileSystem
 }
+
+// FileSystem is the seam Config.FS is set to; see execution.FileSystem for the
+// contract. Every other type in its method set comes from io/fs or io, so a
+// host outside this module can name all of them without anything being
+// re-exported here.
+type FileSystem = execution.FileSystem
 
 // NewMemoryCache returns an empty in-memory Cache — the default the engine
 // installs when Config.Cache is nil. Exposed so a consumer can construct one
@@ -73,7 +92,8 @@ func NewMemoryCache() Cache {
 }
 
 // Engine is the embeddable AnyCLI core. Construct it with New, then call
-// Execute. It is safe for concurrent use to the extent its Cache is.
+// Execute. It is safe for concurrent use to the extent its Cache and its
+// FileSystem are.
 type Engine struct {
 	inner *exec.Engine
 }
@@ -88,7 +108,7 @@ func New(cfg Config) (*Engine, error) {
 	if cache == nil {
 		cache = credential.NewMemoryCache()
 	}
-	inner, err := exec.NewEngine(cache, cfg.HTTPClient)
+	inner, err := exec.NewEngine(cache, cfg.HTTPClient, cfg.FS)
 	if err != nil {
 		return nil, err
 	}

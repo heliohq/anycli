@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestDBCreate_WrapsProperties(t *testing.T) {
@@ -478,7 +480,7 @@ func TestUserGet_List_Paginates(t *testing.T) {
 	defer srv.Close()
 
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"user", "get"}, map[string]string{EnvToken: "t"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

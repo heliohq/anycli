@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
@@ -41,7 +40,7 @@ func (s *Service) newAPICmd(token string) *cobra.Command {
 			}
 			var payload []byte
 			if cmd.Flags().Changed("body-file") {
-				payload, err = os.ReadFile(bodyFile)
+				payload, err = s.FS.ReadFile(bodyFile)
 				if err != nil {
 					return &usageError{msg: fmt.Sprintf("square api: read --body-file %s: %v", bodyFile, err)}
 				}

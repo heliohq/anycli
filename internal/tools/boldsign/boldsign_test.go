@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestExecute_MissingTokenFailsExit1(t *testing.T) {
-	svc := &Service{}
+	svc := &Service{FS: execution.OS{}}
 	result, err := svc.Execute(context.Background(), []string{"document", "list"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -87,7 +89,7 @@ func TestExecute_JSONErrorEnvelope(t *testing.T) {
 
 func TestExecute_MissingTokenJSONEnvelope(t *testing.T) {
 	var out, errBuf strings.Builder
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	_, err := svc.Execute(context.Background(), []string{"document", "list", "--json"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

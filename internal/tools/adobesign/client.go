@@ -10,7 +10,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -154,17 +153,24 @@ func (s *Service) download(ctx context.Context, token, baseURI, path, outPath st
 		body, _ := io.ReadAll(resp.Body)
 		return s.apiFailure(resp.StatusCode, body)
 	}
-	var out io.Writer = s.stdout()
-	if strings.TrimSpace(outPath) != "" {
-		f, err := os.Create(outPath)
-		if err != nil {
-			return &usageError{msg: fmt.Sprintf("adobe-sign: create %s: %v", outPath, err)}
+	if strings.TrimSpace(outPath) == "" {
+		if _, err := io.Copy(s.stdout(), resp.Body); err != nil {
+			return &apiError{msg: fmt.Sprintf("adobe-sign: write document: %v", err), err: err}
 		}
-		defer f.Close()
-		out = f
+		return nil
 	}
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	f, err := s.FS.Create(outPath)
+	if err != nil {
+		return &usageError{msg: fmt.Sprintf("adobe-sign: create %s: %v", outPath, err)}
+	}
+	if _, err := io.Copy(f, resp.Body); err != nil {
 		return &apiError{msg: fmt.Sprintf("adobe-sign: write document: %v", err), err: err}
+	}
+	// Close is where the write is committed, so its error is the difference
+	// between a document that landed and one that did not. A deferred close
+	// would report success for the second.
+	if err := f.Close(); err != nil {
+		return &apiError{msg: fmt.Sprintf("adobe-sign: write %s: %v", outPath, err), err: err}
 	}
 	return nil
 }

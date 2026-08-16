@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +59,7 @@ func TestFirstClassResourceCommands(t *testing.T) {
 }
 
 func TestFirstClassCommandsCoverEveryPATOperation(t *testing.T) {
-	service := &Service{}
+	service := &Service{FS: execution.OS{}}
 	root := service.newRoot("token")
 	covered := map[string]struct{}{}
 	collectOperationAnnotations(root, covered)

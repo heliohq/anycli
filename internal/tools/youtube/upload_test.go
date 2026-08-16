@@ -87,7 +87,7 @@ func newUploadFixture(t *testing.T) *uploadFixture {
 func (f *uploadFixture) run(t *testing.T, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{
+	svc := &Service{FS: execution.OS{},
 		BaseURL:       f.srv.URL + "/youtube/v3",
 		UploadBaseURL: f.srv.URL + "/upload/youtube/v3",
 		HC:            f.srv.Client(),

@@ -83,31 +83,28 @@ func TestExportFileReceipt(t *testing.T) {
 	}
 }
 
-// export without --output writes to a temp file and reports its path.
-func TestExportDefaultTempFile(t *testing.T) {
-	zip := "PK\x03\x04tmp"
+// export without --output is a usage error. It used to pick a temporary name
+// for the caller, which only reads as a convenience while "temporary" means a
+// scratch directory on their own disk; it is not a name a filesystem can be
+// asked to invent, and any fixed one would have successive exports overwrite
+// each other.
+func TestExportRequiresAnOutputPath(t *testing.T) {
 	var got capturedRequest
-	srv := newServer(t, http.StatusOK, zip, &got)
+	srv := newServer(t, http.StatusOK, "PK\x03\x04tmp", &got)
 	defer srv.Close()
 
-	res, stdout, _ := run(t, srv, "export", "--start", "20220101T00", "--end", "20220101T00")
-	if res.ExitCode != 0 {
-		t.Fatalf("exit = %d", res.ExitCode)
+	res, _, stderr := run(t, srv, "export", "--start", "20220101T00", "--end", "20220101T00")
+	if res.ExitCode != 2 {
+		t.Fatalf("exit = %d, want 2 (usage)", res.ExitCode)
 	}
-	var rc exportReceipt
-	if err := json.Unmarshal([]byte(strings.TrimSpace(stdout)), &rc); err != nil {
-		t.Fatalf("stdout not a JSON receipt: %v", err)
+	if !strings.Contains(stderr, "--output") {
+		t.Fatalf("stderr does not name the missing flag: %q", stderr)
 	}
-	if rc.Saved == "" {
-		t.Fatal("receipt has no saved path")
-	}
-	defer os.Remove(rc.Saved)
-	data, err := os.ReadFile(rc.Saved)
-	if err != nil {
-		t.Fatalf("read temp export: %v", err)
-	}
-	if string(data) != zip {
-		t.Errorf("temp file content = %q", data)
+	// And before the request goes out. Amplitude can spend minutes preparing a
+	// multi-gigabyte archive; a forgotten flag should not cost that wait, or
+	// the export, to be told about it afterwards.
+	if got.Method != "" || got.Path != "" {
+		t.Fatalf("the export request was sent before the flag was checked: %+v", got)
 	}
 }
 

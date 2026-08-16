@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -193,7 +192,7 @@ func (s *Service) newDocumentUploadCmd(token string) *cobra.Command {
 			if strings.TrimSpace(file) == "" {
 				return &usageError{msg: "document upload requires --file"}
 			}
-			data, err := os.ReadFile(file)
+			data, err := s.FS.ReadFile(file)
 			if err != nil {
 				return &usageError{msg: fmt.Sprintf("document upload: read %s: %v", file, err)}
 			}
@@ -264,7 +263,7 @@ func (s *Service) newDocumentDownloadCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := os.WriteFile(out, data, 0o644); err != nil {
+			if err := s.FS.WriteFile(out, data, 0o644); err != nil {
 				return &apiError{msg: fmt.Sprintf("document download: write %s: %v", out, err), err: err}
 			}
 			return s.emitJSON(map[string]any{"saved_to": out, "bytes": len(data)})

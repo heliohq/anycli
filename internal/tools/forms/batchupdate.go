@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +27,7 @@ func (s *Service) newBatchUpdateCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			raw, err := readRequests(requests, requestsFile)
+			raw, err := readRequests(s.FS, requests, requestsFile)
 			if err != nil {
 				return err
 			}
@@ -56,14 +56,14 @@ func (s *Service) newBatchUpdateCmd(token string) *cobra.Command {
 
 // readRequests returns the requests JSON from the inline flag or a file. Exactly
 // one source must be provided.
-func readRequests(inline, file string) ([]byte, error) {
+func readRequests(fs execution.FileSystem, inline, file string) ([]byte, error) {
 	switch {
 	case inline != "" && file != "":
 		return nil, fmt.Errorf("forms: pass only one of --requests or --requests-file")
 	case inline != "":
 		return []byte(inline), nil
 	case file != "":
-		b, err := os.ReadFile(file)
+		b, err := fs.ReadFile(file)
 		if err != nil {
 			return nil, fmt.Errorf("forms: read --requests-file: %w", err)
 		}

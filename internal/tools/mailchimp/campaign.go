@@ -3,7 +3,6 @@ package mailchimp
 import (
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -136,7 +135,7 @@ func (s *Service) newCampaignSetContentCmd(r *requester) *cobra.Command {
 			payload := map[string]any{}
 			switch {
 			case htmlFile != "":
-				b, err := os.ReadFile(htmlFile)
+				b, err := s.FS.ReadFile(htmlFile)
 				if err != nil {
 					return &usageError{msg: "cannot read --html-file: " + err.Error()}
 				}

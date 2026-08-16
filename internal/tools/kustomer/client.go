@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 
@@ -142,13 +141,13 @@ func apiMessage(body []byte) string {
 // two are mutually exclusive; a missing/empty body is a usage error for a write
 // command; invalid JSON is a usage error. It returns the parsed value ready to
 // re-marshal so the request carries canonical JSON.
-func readBody(data, file string) (any, error) {
+func readBody(fs execution.FileSystem, data, file string) (any, error) {
 	if data != "" && file != "" {
 		return nil, &usageError{msg: "--data and --file are mutually exclusive"}
 	}
 	raw := data
 	if file != "" {
-		b, err := os.ReadFile(file)
+		b, err := fs.ReadFile(file)
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("read --file %s: %v", file, err)}
 		}

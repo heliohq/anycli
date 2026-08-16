@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestAssetsDownloadRendersNodesWithoutLeakingPAT(t *testing.T) {
@@ -117,7 +119,7 @@ func TestAssetsDownloadRefusesOverwriteByDefault(t *testing.T) {
 }
 
 func TestDownloadAssetRejectsPlaintextURL(t *testing.T) {
-	service := &Service{}
+	service := &Service{FS: execution.OS{}}
 	_, err := service.downloadAsset(t.Context(), assetSource{
 		ID:       "1:2",
 		URL:      "http://example.com/asset.png",
@@ -139,7 +141,7 @@ func TestDownloadAssetRejectsHTTPSDowngradeRedirect(t *testing.T) {
 	}))
 	defer source.Close()
 
-	service := &Service{HC: source.Client()}
+	service := &Service{FS: execution.OS{}, HC: source.Client()}
 	_, err := service.downloadAsset(t.Context(), assetSource{
 		ID:       "1:2",
 		URL:      source.URL + "/signed.png",

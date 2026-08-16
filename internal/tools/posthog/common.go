@@ -3,9 +3,9 @@ package posthog
 import (
 	"io"
 	"net/url"
-	"os"
 	"strconv"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -64,11 +64,11 @@ func (p listParams) values(withSearch bool) url.Values {
 }
 
 // readFileOrStdin reads a flag value that names a file, or stdin when "-".
-func readFileOrStdin(cmd *cobra.Command, path string) ([]byte, error) {
+func readFileOrStdin(fs execution.FileSystem, cmd *cobra.Command, path string) ([]byte, error) {
 	if path == "-" {
 		return io.ReadAll(cmd.InOrStdin())
 	}
-	return os.ReadFile(path)
+	return fs.ReadFile(path)
 }
 
 // newProjectListCmd builds a project-scoped list command keyed on a path

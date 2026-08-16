@@ -5,8 +5,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -34,6 +34,12 @@ func (s *Service) newExportCmd(authHeader string) *cobra.Command {
 			if start == "" || end == "" {
 				return &usageError{msg: "--start and --end are required (YYYYMMDDTHH hour range)"}
 			}
+			// Before resolving credentials or asking Amplitude for anything: a
+			// missing flag should not cost the wait while a multi-gigabyte
+			// archive is prepared, only to be refused on arrival.
+			if output == "" {
+				return &usageError{msg: "export requires --output: the path to write the archive to"}
+			}
 			inv, err := s.resolve(cmd, authHeader)
 			if err != nil {
 				return err
@@ -52,7 +58,7 @@ func (s *Service) newExportCmd(authHeader string) *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&start, "start", "", "first hour YYYYMMDDTHH (required)")
 	f.StringVar(&end, "end", "", "last hour YYYYMMDDTHH (required)")
-	f.StringVar(&output, "output", "", "file path for the zip archive (default: a temp file)")
+	f.StringVar(&output, "output", "", "file path to write the zip archive to (required)")
 	return cmd
 }
 
@@ -76,11 +82,13 @@ func (s *Service) download(cmd *cobra.Command, inv *invocation, path string, que
 		return 0, "", newAPIError(inv, resp.StatusCode, body)
 	}
 
-	f, path, err := createOutput(output)
+	f, path, err := createOutput(s.FS, output)
 	if err != nil {
 		return 0, "", err
 	}
-	defer f.Close()
+	// Abandoning the writer on an error path is what discards a partial
+	// archive; Close is the commit, and calling it twice is not something an
+	// io.Closer has to tolerate.
 	written, err := io.Copy(f, resp.Body)
 	if err != nil {
 		return 0, "", &apiError{msg: fmt.Sprintf("amplitude: write export archive: %v", err), err: err}
@@ -91,18 +99,16 @@ func (s *Service) download(cmd *cobra.Command, inv *invocation, path string, que
 	return written, path, nil
 }
 
-// createOutput opens the requested output path, or a temp file when empty.
-func createOutput(output string) (*os.File, string, error) {
-	if output != "" {
-		f, err := os.Create(output)
-		if err != nil {
-			return nil, "", &usageError{msg: fmt.Sprintf("cannot create --output %s: %v", output, err)}
-		}
-		return f, output, nil
-	}
-	f, err := os.CreateTemp("", "amplitude-export-*.zip")
+// createOutput opens the archive the export is written to. --output is required
+// and the command checks it before any network call; the previous fallback
+// picked a temporary name for the caller, which only reads as a convenience
+// while "temporary" means a scratch directory on the caller's own disk. It is
+// not a name a filesystem can be asked to invent, and any fixed one would have
+// successive exports overwrite each other.
+func createOutput(fs execution.FileSystem, output string) (io.WriteCloser, string, error) {
+	f, err := fs.Create(output)
 	if err != nil {
-		return nil, "", &apiError{msg: fmt.Sprintf("amplitude: create temp export file: %v", err), err: err}
+		return nil, "", &usageError{msg: fmt.Sprintf("cannot create --output %s: %v", output, err)}
 	}
-	return f, f.Name(), nil
+	return f, output, nil
 }

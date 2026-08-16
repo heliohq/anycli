@@ -31,12 +31,12 @@ func (s *Service) emitJSON(value any) error {
 }
 
 func (s *Service) emitStream(reader io.Reader) error {
-	temporary, err := os.CreateTemp("", ".anycli-figma-response-*")
+	temporary, err := os.CreateTemp("", ".anycli-figma-response-*") //anycli:scratch — the response is validated then re-read, so it is spooled; no flag names this path
 	if err != nil {
 		return fmt.Errorf("figma: create response spool: %w", err)
 	}
 	path := temporary.Name()
-	defer os.Remove(path)
+	defer os.Remove(path) //anycli:scratch — the spool above
 	defer temporary.Close()
 
 	written, err := io.Copy(temporary, io.LimitReader(reader, maxStreamedResponseBytes+1))

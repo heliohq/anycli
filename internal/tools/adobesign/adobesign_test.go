@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // capturedRequest records one request the fake shard host saw.
@@ -62,7 +64,7 @@ func newServer(t *testing.T, reqs *[]capturedRequest, routes map[string]route) *
 func run(t *testing.T, srv *httptest.Server, args ...string) (string, string, int) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	res, err := svc.Execute(context.Background(), args, map[string]string{EnvToken: "tok-123"})
 	if err != nil {
 		t.Fatalf("Execute returned Go error: %v", err)
@@ -416,7 +418,7 @@ func TestUnauthorizedRejectsCredential(t *testing.T) {
 	})
 	defer srv.Close()
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	res, err := svc.Execute(context.Background(), []string{"agreement", "list"}, map[string]string{EnvToken: "tok"})
 	if err != nil {
 		t.Fatalf("Execute Go error: %v", err)
@@ -428,7 +430,7 @@ func TestUnauthorizedRejectsCredential(t *testing.T) {
 
 func TestMissingBaseURIFailsFast(t *testing.T) {
 	var out, errBuf bytes.Buffer
-	svc := &Service{Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Out: &out, Err: &errBuf}
 	res, _ := svc.Execute(context.Background(), []string{"agreement", "list"}, map[string]string{EnvToken: "tok"})
 	if res.ExitCode != 1 {
 		t.Errorf("exit=%d, want 1 when %s unset", res.ExitCode, EnvBaseURI)
@@ -447,7 +449,7 @@ func TestBaseURITrailingSlashTolerated(t *testing.T) {
 	var out, errBuf bytes.Buffer
 	// Service.BaseURL already has no trailing slash; assert base() composes the
 	// v6 path correctly whether or not a trailing slash is present.
-	svc := &Service{BaseURL: srv.URL + "/", HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL + "/", HC: srv.Client(), Out: &out, Err: &errBuf}
 	res, err := svc.Execute(context.Background(), []string{"agreement", "list"}, map[string]string{EnvToken: "tok"})
 	if err != nil || res.ExitCode != 0 {
 		t.Fatalf("exit=%d err=%v stderr=%s", res.ExitCode, err, errBuf.String())

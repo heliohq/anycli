@@ -54,7 +54,7 @@ func run(t *testing.T, srv *httptest.Server, args ...string) (exitCode int, stdo
 func runResult(t *testing.T, srv *httptest.Server, args ...string) (execution.Result, string, string) {
 	t.Helper()
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), args, map[string]string{EnvToken: "secret-notion-token"})
 	if err != nil {
 		t.Fatalf("Execute returned unexpected error: %v", err)
@@ -74,7 +74,7 @@ func assertAuth(t *testing.T, got capturedRequest, wantVersion string) {
 
 func TestExecute_MissingToken(t *testing.T) {
 	var errBuf bytes.Buffer
-	svc := &Service{Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"search", "--query", "x"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -91,7 +91,7 @@ func TestExecute_MissingToken_JSON(t *testing.T) {
 	// The missing-token check runs before cobra parses flags, but --json in the
 	// raw args must still yield the structured error envelope on stderr.
 	var errBuf bytes.Buffer
-	svc := &Service{Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"search", "--query", "x", "--json"}, map[string]string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -204,7 +204,7 @@ func TestSearch_All_Paginates(t *testing.T) {
 	defer srv.Close()
 
 	var out, errBuf bytes.Buffer
-	svc := &Service{BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, BaseURL: srv.URL, HC: srv.Client(), Out: &out, Err: &errBuf}
 	result, err := svc.Execute(context.Background(), []string{"search", "--query", "x", "--all"}, map[string]string{EnvToken: "t"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

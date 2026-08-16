@@ -127,7 +127,7 @@ func (s *Service) newActivityCreateCmd(token string) *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		Annotations: writeAction,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload, err := readData("data", data)
+			payload, err := readData(s.FS, "data", data)
 			if err != nil {
 				return err
 			}

@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 
+	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
 )
 
@@ -71,12 +71,12 @@ func hasNonASCII(v string) bool {
 // readContent resolves single-segment markdown content from either an inline
 // flag or --file. The two are mutually exclusive (fail-fast usage error); a
 // file read error is also a usage error (bad path is a caller mistake).
-func readContent(inline, file, inlineFlag string) (string, error) {
+func readContent(fs execution.FileSystem, inline, file, inlineFlag string) (string, error) {
 	if file != "" && inline != "" {
 		return "", &usageError{msg: fmt.Sprintf("--file and --%s are mutually exclusive", inlineFlag)}
 	}
 	if file != "" {
-		b, err := os.ReadFile(file)
+		b, err := fs.ReadFile(file)
 		if err != nil {
 			return "", &usageError{msg: fmt.Sprintf("read --file %s: %v", file, err)}
 		}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 func TestEmbeddedOperationCatalogMatchesPinnedFigmaSpec(t *testing.T) {
@@ -95,7 +97,7 @@ func TestOperationResolveRejectsInvalidParameters(t *testing.T) {
 }
 
 func TestMissingNamedOperationReturnsErrorWithoutPanicking(t *testing.T) {
-	service := &Service{}
+	service := &Service{FS: execution.OS{}}
 	command := service.newOperationCommand("figd_test_token", operationCommandSpec{
 		Use:         "missing",
 		Short:       "Missing catalog operation",

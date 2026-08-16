@@ -4,18 +4,21 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 const (
@@ -51,7 +54,7 @@ func (s *Service) downloadAssets(ctx context.Context, sources []assetSource, out
 	if outputDir == "" {
 		return assetManifest{}, fmt.Errorf("output directory is required")
 	}
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+	if err := execution.MkdirAll(s.FS, outputDir, 0o755); err != nil {
 		return assetManifest{}, fmt.Errorf("create asset output directory: %w", err)
 	}
 	sort.Slice(sources, func(left, right int) bool { return sources[left].ID < sources[right].ID })
@@ -117,35 +120,40 @@ func (s *Service) downloadAsset(ctx context.Context, source assetSource, outputD
 	}
 	targetName := source.BaseName + extension
 	targetPath := filepath.Join(outputDir, targetName)
-	tempFile, err := os.CreateTemp(outputDir, ".figma-asset-*")
+	// --overwrite is figma's own semantic, so figma is what expresses it rather
+	// than every caller of the filesystem seam having to.
+	//
+	// The check is not atomic. It was, once: the asset used to be installed
+	// with os.Link, which fails if the name is taken. What is still guaranteed
+	// is that a run does not clobber assets that were already there; what is
+	// not is two runs downloading the same asset at the same moment, where both
+	// can find nothing and the later Close wins. Expressing that would need
+	// exclusive creation in the seam, which is a decision about the interface,
+	// not about figma.
+	if !overwrite {
+		if _, statErr := s.FS.Stat(targetPath); statErr == nil {
+			return downloadedAsset{}, fmt.Errorf("%s already exists; pass --overwrite to replace it", targetName)
+		} else if !errors.Is(statErr, fs.ErrNotExist) {
+			return downloadedAsset{}, fmt.Errorf("install asset %s: %w", targetName, statErr)
+		}
+	}
+	// A failed copy leaves a partial asset under this name, the same as any
+	// download tool writing where it was told to. The alternative — staging
+	// every write and swapping it in — is a transaction, and it would have to
+	// be honored by every filesystem this runs on, including one that is
+	// relaying the bytes to another machine.
+	asset, err := s.FS.Create(targetPath)
 	if err != nil {
-		return downloadedAsset{}, fmt.Errorf("create temporary asset: %w", err)
+		return downloadedAsset{}, fmt.Errorf("create asset: %w", err)
 	}
-	tempPath := tempFile.Name()
-	defer os.Remove(tempPath)
-	written, copyErr := io.Copy(tempFile, io.LimitReader(response.Body, maxAssetBytes+1))
-	closeErr := tempFile.Close()
+	written, copyErr := io.Copy(asset, io.LimitReader(response.Body, maxAssetBytes+1))
 	if copyErr != nil {
-		return downloadedAsset{}, fmt.Errorf("write temporary asset: %w", copyErr)
-	}
-	if closeErr != nil {
-		return downloadedAsset{}, fmt.Errorf("close temporary asset: %w", closeErr)
+		return downloadedAsset{}, fmt.Errorf("write asset: %w", copyErr)
 	}
 	if written > maxAssetBytes {
 		return downloadedAsset{}, fmt.Errorf("asset exceeds %d bytes", maxAssetBytes)
 	}
-	if err := os.Chmod(tempPath, 0o644); err != nil {
-		return downloadedAsset{}, fmt.Errorf("set asset permissions: %w", err)
-	}
-	if overwrite {
-		err = os.Rename(tempPath, targetPath)
-	} else {
-		err = os.Link(tempPath, targetPath)
-	}
-	if err != nil {
-		if !overwrite && os.IsExist(err) {
-			return downloadedAsset{}, fmt.Errorf("%s already exists; pass --overwrite to replace it", targetName)
-		}
+	if err := asset.Close(); err != nil {
 		return downloadedAsset{}, fmt.Errorf("install asset %s: %w", targetName, err)
 	}
 	return downloadedAsset{ID: source.ID, File: targetName, Bytes: written, ContentType: contentType}, nil

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -93,7 +92,7 @@ func (s *Service) newDocumentsCreateCmd(token string) *cobra.Command {
 			if bodyFile == "" {
 				return s.reportCreated(cmd, body, created)
 			}
-			md, err := os.ReadFile(bodyFile)
+			md, err := s.FS.ReadFile(bodyFile)
 			if err != nil {
 				return fmt.Errorf("docs: read body file: %w", err)
 			}
@@ -173,7 +172,7 @@ func (s *Service) appendText(cmd *cobra.Command, token, id, text, tab string) er
 // the body's end index (the tool computes the index; the caller never does),
 // then inserts a fresh line plus the rendered content.
 func (s *Service) appendMarkdown(cmd *cobra.Command, token, id, bodyFile, tab string) error {
-	md, err := os.ReadFile(bodyFile)
+	md, err := s.FS.ReadFile(bodyFile)
 	if err != nil {
 		return fmt.Errorf("docs: read body file: %w", err)
 	}
@@ -296,7 +295,7 @@ func (s *Service) newDocumentsBatchUpdateCmd(token string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			raw, err := os.ReadFile(requestsFile)
+			raw, err := s.FS.ReadFile(requestsFile)
 			if err != nil {
 				return fmt.Errorf("docs: read requests file: %w", err)
 			}

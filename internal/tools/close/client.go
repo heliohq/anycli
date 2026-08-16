@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
@@ -127,13 +126,13 @@ func apiMessage(body []byte) string {
 // readData resolves a --data flag value into a decoded JSON body. The value is
 // either a JSON literal or "@path" to read the JSON from a file. An invalid or
 // missing value is a usage error (exit 2), never an API call.
-func readData(flag, raw string) (any, error) {
+func readData(fs execution.FileSystem, flag, raw string) (any, error) {
 	if strings.TrimSpace(raw) == "" {
 		return nil, &usageError{msg: fmt.Sprintf("close: --%s is required (JSON object or @file.json)", flag)}
 	}
 	src := []byte(raw)
 	if strings.HasPrefix(raw, "@") {
-		b, err := os.ReadFile(raw[1:])
+		b, err := fs.ReadFile(raw[1:])
 		if err != nil {
 			return nil, &usageError{msg: fmt.Sprintf("close: --%s: read file: %v", flag, err)}
 		}

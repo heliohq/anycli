@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/heliohq/anycli/internal/tools/execution"
 )
 
 // testVideoURN is the raw (unencoded) URN the fake init endpoint hands out.
@@ -301,7 +303,7 @@ func TestVideoUpload_ProcessingFailed(t *testing.T) {
 func TestVideoUpload_PollTimeout(t *testing.T) {
 	vs := newVideoServer(t, nil, []string{`{"id":"urn:li:video:987","status":"PROCESSING"}`})
 	var out, errBuf bytes.Buffer
-	svc := &Service{APIBase: vs.srv.URL, HC: vs.srv.Client(), Out: &out, Err: &errBuf}
+	svc := &Service{FS: execution.OS{}, APIBase: vs.srv.URL, HC: vs.srv.Client(), Out: &out, Err: &errBuf}
 
 	_, err := svc.waitVideoAvailable(context.Background(), "li-token", testVideoURN, 0)
 	if err == nil {

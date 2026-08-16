@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/heliohq/anycli/internal/tools/execution"
 	"github.com/spf13/cobra"
@@ -280,7 +279,7 @@ func (s *Service) newQRImageCmd(token string) *cobra.Command {
 				return err
 			}
 			if output != "" {
-				if err := os.WriteFile(output, data, 0o644); err != nil {
+				if err := s.FS.WriteFile(output, data, 0o644); err != nil {
 					return fmt.Errorf("bitly: write image: %w", err)
 				}
 				return s.emitValue(qrImageReceipt{QRCodeID: qr, Format: format, Bytes: len(data), Path: output})

@@ -2,7 +2,6 @@ package segment
 
 import (
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -39,7 +38,7 @@ func (s *Service) newRequestCmd(token string) *cobra.Command {
 			}
 			var payload []byte
 			if cmd.Flags().Changed("body-file") {
-				payload, err = os.ReadFile(bodyFile)
+				payload, err = s.FS.ReadFile(bodyFile)
 				if err != nil {
 					return &usageError{msg: "read --body-file " + bodyFile + ": " + err.Error()}
 				}
