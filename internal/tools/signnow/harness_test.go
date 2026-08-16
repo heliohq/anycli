@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 )
 
@@ -32,8 +33,14 @@ type stub struct {
 // unmatched route returns 404 with a current-dialect error body.
 func newMux(t *testing.T, reqs *[]capturedRequest, routes map[string]stub) *httptest.Server {
 	t.Helper()
+	// document list fans its two legs out concurrently, so the handler runs on
+	// several goroutines and the recording has to be serialized. Without this
+	// an append can be lost and the test reports a leg that was in fact
+	// queried.
+	var mu sync.Mutex
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
 		*reqs = append(*reqs, capturedRequest{
 			Method:      r.Method,
 			Path:        r.URL.Path,
@@ -42,6 +49,7 @@ func newMux(t *testing.T, reqs *[]capturedRequest, routes map[string]stub) *http
 			Query:       r.URL.Query(),
 			Body:        body,
 		})
+		mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		if s, ok := routes[r.Method+" "+r.URL.Path]; ok {
 			w.WriteHeader(s.status)
