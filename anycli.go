@@ -78,8 +78,18 @@ type Config struct {
 	FS FileSystem
 }
 
-// FileSystem is the seam Config.FS is set to. See execution.FileSystem.
-type FileSystem = execution.FileSystem
+// FileSystem is the seam Config.FS is set to; see execution.FileSystem for the
+// contract. FileInfo is exported beside it because a host implements this
+// interface from outside the module, where the defining package is not
+// importable — without a name for every type in the method set, Config.FS
+// could be set to nothing at all.
+type (
+	FileSystem = execution.FileSystem
+	FileInfo   = execution.FileInfo
+)
+
+// ErrNotExist is what a FileSystem reports for a name that is not there.
+var ErrNotExist = execution.ErrNotExist
 
 // NewMemoryCache returns an empty in-memory Cache — the default the engine
 // installs when Config.Cache is nil. Exposed so a consumer can construct one
@@ -89,7 +99,8 @@ func NewMemoryCache() Cache {
 }
 
 // Engine is the embeddable AnyCLI core. Construct it with New, then call
-// Execute. It is safe for concurrent use to the extent its Cache is.
+// Execute. It is safe for concurrent use to the extent its Cache and its
+// FileSystem are.
 type Engine struct {
 	inner *exec.Engine
 }

@@ -2,7 +2,9 @@ package execution
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 )
@@ -48,9 +50,12 @@ type FileSystem interface {
 	Open(name string) (io.ReadCloser, error)
 
 	// Create returns a writer for name. It is atomic: the contents become
-	// visible under name only after Close returns nil, and a writer that is
-	// never closed leaves nothing behind. A tool can therefore abandon a
+	// visible under name only after Close returns nil, so a tool can abandon a
 	// half-written download without destroying whatever was there before.
+	//
+	// A tool that gives up must say so by calling Abandon on the writer, which
+	// is how the partial write is released. Close and Abandon are each safe to
+	// call once; whichever comes first decides the outcome.
 	//
 	// Create replaces an existing name. A tool that must not replace one
 	// checks with Stat first; that is its own semantic (figma's --overwrite),
@@ -106,12 +111,26 @@ func (OS) Stat(name string) (FileInfo, error) {
 // Create writes through a sibling temporary file and renames it into place on
 // Close, which is what makes an interrupted download leave the previous file
 // alone. Every tool used to spell this out for itself; it belongs here, once.
+//
+// The temporary file is opened 0666, so the process umask decides the mode the
+// caller ends up with — the same mode os.Create would have produced, and the
+// reason this does not chmod afterwards. A tool that needs a tighter one says
+// so with WriteFile.
 func (OS) Create(name string) (io.WriteCloser, error) {
-	temporary, err := os.CreateTemp(filepath.Dir(name), "."+filepath.Base(name)+".*")
-	if err != nil {
-		return nil, err
+	directory, base := filepath.Dir(name), filepath.Base(name)
+	for attempt := 0; ; attempt++ {
+		candidate := filepath.Join(directory, fmt.Sprintf(".%s.%d.tmp", base, rand.Uint64()))
+		file, err := os.OpenFile(candidate, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o666)
+		if err == nil {
+			return &atomicFile{file: file, target: name}, nil
+		}
+		// O_EXCL means an existing name is the one error worth retrying, and
+		// only so many times: a directory that is not writable fails the same
+		// way forever.
+		if !errors.Is(err, os.ErrExist) || attempt >= 10 {
+			return nil, err
+		}
 	}
-	return &atomicFile{file: temporary, target: name}, nil
 }
 
 type atomicFile struct {
@@ -131,12 +150,6 @@ func (a *atomicFile) Close() error {
 		_ = os.Remove(a.file.Name())
 		return err
 	}
-	// The temporary file is created 0600; the visible file keeps the mode a
-	// caller expects from a tool that wrote it directly.
-	if err := os.Chmod(a.file.Name(), 0o644); err != nil {
-		_ = os.Remove(a.file.Name())
-		return err
-	}
 	if err := os.Rename(a.file.Name(), a.target); err != nil {
 		_ = os.Remove(a.file.Name())
 		return err
@@ -144,9 +157,7 @@ func (a *atomicFile) Close() error {
 	return nil
 }
 
-// Abandon discards a partial write. Tools do not call it — leaving a writer
-// unclosed is enough — but it lets the temporary file go on an error path that
-// returns early.
+// Abandon discards a partial write.
 func (a *atomicFile) Abandon() {
 	if a.closed {
 		return
@@ -154,4 +165,18 @@ func (a *atomicFile) Abandon() {
 	a.closed = true
 	_ = a.file.Close()
 	_ = os.Remove(a.file.Name())
+}
+
+// Abandon releases a writer a tool is giving up on. A writer that does not know
+// how to be abandoned is closed instead, which is the most any io.WriteCloser
+// promises; the atomic one produced by OS discards its partial file.
+func Abandon(w io.WriteCloser) {
+	if w == nil {
+		return
+	}
+	if a, ok := w.(interface{ Abandon() }); ok {
+		a.Abandon()
+		return
+	}
+	_ = w.Close()
 }

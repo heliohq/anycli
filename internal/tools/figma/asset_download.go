@@ -119,10 +119,16 @@ func (s *Service) downloadAsset(ctx context.Context, source assetSource, outputD
 	}
 	targetName := source.BaseName + extension
 	targetPath := filepath.Join(outputDir, targetName)
-	// --overwrite is figma's own semantic, so figma is what expresses it. The
-	// check is not atomic against another writer, which is fine here: the four
-	// download workers are given distinct names, and the race that remains is
-	// with something outside this process entirely.
+	// --overwrite is figma's own semantic, so figma is what expresses it rather
+	// than every caller of the filesystem seam having to.
+	//
+	// The check is not atomic. It was, once: the asset used to be installed
+	// with os.Link, which fails if the name is taken. What is still guaranteed
+	// is that a run does not clobber assets that were already there; what is
+	// not is two runs downloading the same asset at the same moment, where both
+	// can find nothing and the later Close wins. Expressing that would need
+	// exclusive creation in the seam, which is a decision about the interface,
+	// not about figma.
 	if !overwrite {
 		if _, statErr := s.FS.Stat(targetPath); statErr == nil {
 			return downloadedAsset{}, fmt.Errorf("%s already exists; pass --overwrite to replace it", targetName)
@@ -138,9 +144,11 @@ func (s *Service) downloadAsset(ctx context.Context, source assetSource, outputD
 	}
 	written, copyErr := io.Copy(asset, io.LimitReader(response.Body, maxAssetBytes+1))
 	if copyErr != nil {
+		execution.Abandon(asset)
 		return downloadedAsset{}, fmt.Errorf("write asset: %w", copyErr)
 	}
 	if written > maxAssetBytes {
+		execution.Abandon(asset)
 		return downloadedAsset{}, fmt.Errorf("asset exceeds %d bytes", maxAssetBytes)
 	}
 	if err := asset.Close(); err != nil {

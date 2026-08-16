@@ -52,7 +52,7 @@ func (s *Service) newExportCmd(authHeader string) *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&start, "start", "", "first hour YYYYMMDDTHH (required)")
 	f.StringVar(&end, "end", "", "last hour YYYYMMDDTHH (required)")
-	f.StringVar(&output, "output", "", "file path for the zip archive (default: a temp file)")
+	f.StringVar(&output, "output", "", "file path to write the zip archive to (required)")
 	return cmd
 }
 
@@ -85,6 +85,7 @@ func (s *Service) download(cmd *cobra.Command, inv *invocation, path string, que
 	// io.Closer has to tolerate.
 	written, err := io.Copy(f, resp.Body)
 	if err != nil {
+		execution.Abandon(f)
 		return 0, "", &apiError{msg: fmt.Sprintf("amplitude: write export archive: %v", err), err: err}
 	}
 	if err := f.Close(); err != nil {

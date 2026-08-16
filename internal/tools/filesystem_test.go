@@ -104,11 +104,18 @@ func scanOSFileCalls(t *testing.T, directory string) ([]string, int) {
 			t.Fatalf("read %s: %v", path, err)
 		}
 		for number, line := range strings.Split(string(data), "\n") {
+			marked := strings.Contains(line, scratchMarker)
+			// A comment naming one of these is prose, not a call. Strip it
+			// before matching so a line explaining why os.Link was dropped does
+			// not read as a use of it.
+			if comment := strings.Index(line, "//"); comment >= 0 {
+				line = line[:comment]
+			}
 			match := osFileCalls.FindString(line)
 			if match == "" {
 				continue
 			}
-			if strings.Contains(line, scratchMarker) {
+			if marked {
 				exempt++
 				continue
 			}
