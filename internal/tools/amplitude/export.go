@@ -34,6 +34,12 @@ func (s *Service) newExportCmd(authHeader string) *cobra.Command {
 			if start == "" || end == "" {
 				return &usageError{msg: "--start and --end are required (YYYYMMDDTHH hour range)"}
 			}
+			// Before resolving credentials or asking Amplitude for anything: a
+			// missing flag should not cost the wait while a multi-gigabyte
+			// archive is prepared, only to be refused on arrival.
+			if output == "" {
+				return &usageError{msg: "export requires --output: the path to write the archive to"}
+			}
 			inv, err := s.resolve(cmd, authHeader)
 			if err != nil {
 				return err
@@ -94,15 +100,13 @@ func (s *Service) download(cmd *cobra.Command, inv *invocation, path string, que
 	return written, path, nil
 }
 
-// createOutput opens the archive the export is written to. --output is
-// required: the previous fallback picked a temporary name for the caller, which
-// only reads as a convenience while "temporary" means a scratch directory on
-// the caller's own disk. It is not a name a filesystem can be asked to invent,
-// and any fixed one would have successive exports overwrite each other.
+// createOutput opens the archive the export is written to. --output is required
+// and the command checks it before any network call; the previous fallback
+// picked a temporary name for the caller, which only reads as a convenience
+// while "temporary" means a scratch directory on the caller's own disk. It is
+// not a name a filesystem can be asked to invent, and any fixed one would have
+// successive exports overwrite each other.
 func createOutput(fs execution.FileSystem, output string) (io.WriteCloser, string, error) {
-	if output == "" {
-		return nil, "", &usageError{msg: "export requires --output: the path to write the archive to"}
-	}
 	f, err := fs.Create(output)
 	if err != nil {
 		return nil, "", &usageError{msg: fmt.Sprintf("cannot create --output %s: %v", output, err)}

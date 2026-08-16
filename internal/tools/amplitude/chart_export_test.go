@@ -100,6 +100,12 @@ func TestExportRequiresAnOutputPath(t *testing.T) {
 	if !strings.Contains(stderr, "--output") {
 		t.Fatalf("stderr does not name the missing flag: %q", stderr)
 	}
+	// And before the request goes out. Amplitude can spend minutes preparing a
+	// multi-gigabyte archive; a forgotten flag should not cost that wait, or
+	// the export, to be told about it afterwards.
+	if got.Method != "" || got.Path != "" {
+		t.Fatalf("the export request was sent before the flag was checked: %+v", got)
+	}
 }
 
 // A non-2xx export (e.g. the 4GB / 365-day limit) surfaces as a typed apiError,
