@@ -186,19 +186,38 @@ func TestLoadBundled_LarkCliShape(t *testing.T) {
 			t.Errorf("binding %d inject = %+v, want env %s", i, binding.Inject, want[i].envVar)
 		}
 	}
-	// Dual identity is deliberate: the CLI defaults to the injected bot
-	// (tenant) identity, and the agent may run `lark-cli auth login`
-	// (OAuth device flow) to add a user identity for `--as user` reads.
-	// Strict mode would lock out that user leg — pin its ABSENCE so a
-	// bot-only lock can't silently return.
+	// Dual identity is deliberate: bot by default, with `--as user` available
+	// whenever a user token is present. Two before-rules hold that shape, and
+	// each is pinned from the side it can fail on.
+	//
+	// DEFAULT_AS must be PRESENT. lark-cli does NOT default to the bot on its
+	// own: its env credential source infers the default from which tokens are
+	// injected, and a user access token alone flips every un-flagged command
+	// (`im message send` included) to the user. Since this definition is what
+	// injects LARKSUITE_CLI_USER_ACCESS_TOKEN, it is what owes the floor.
+	//
+	// STRICT_MODE must be ABSENT. lark-cli derives the usable identities from
+	// the tokens it was given, so a bot-only lock would take `--as user` away
+	// from a host that legitimately injected a user token.
+	var sawDefaultAs bool
 	for _, r := range def.Before {
 		if r.Rule != "set_env" {
 			continue
 		}
 		envVar, _ := r.Config["env_var"].(string)
-		if envVar == "LARKSUITE_CLI_STRICT_MODE" {
-			t.Errorf("before rules set LARKSUITE_CLI_STRICT_MODE — dual identity (bot default + device-flow user login) must stay open")
+		value, _ := r.Config["value"].(string)
+		switch envVar {
+		case "LARKSUITE_CLI_DEFAULT_AS":
+			sawDefaultAs = true
+			if value != "bot" {
+				t.Errorf("LARKSUITE_CLI_DEFAULT_AS = %q, want bot — an injected user token must not silently change what un-flagged commands act as", value)
+			}
+		case "LARKSUITE_CLI_STRICT_MODE":
+			t.Errorf("before rules set LARKSUITE_CLI_STRICT_MODE — dual identity (bot default + user token) must stay open")
 		}
+	}
+	if !sawDefaultAs {
+		t.Error("no before rule pins LARKSUITE_CLI_DEFAULT_AS; without it an injected user token makes every un-flagged command act as that person")
 	}
 }
 

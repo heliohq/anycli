@@ -40,6 +40,11 @@
       "name": "no skills notifier",
       "rule": "set_env",
       "config": {"env_var": "LARKSUITE_CLI_NO_SKILLS_NOTIFIER", "value": "1"}
+    },
+    {
+      "name": "bot identity floor",
+      "rule": "set_env",
+      "config": {"env_var": "LARKSUITE_CLI_DEFAULT_AS", "value": "bot"}
     }
   ]
 }
