@@ -1,0 +1,35 @@
+{
+  "name": "supabase",
+  "type": "service",
+  "title": "Supabase",
+  "category": "Developer",
+  "description": "Selected Supabase operations via the official Supabase CLI",
+  "binary": "supabase",
+  "source": {
+    "type": "direct",
+    "url_template": "https://github.com/supabase/cli/releases/download/v{version}/supabase_{version}_{os}_{arch}{ext}",
+    "binary_path": "supabase{exe}",
+    "version": "2.115.0",
+    "ext_map": {
+      "darwin": ".tar.gz",
+      "linux": ".tar.gz",
+      "windows": ".tar.gz"
+    },
+    "sha256": {
+      "darwin-arm64": "5b25574efd0a67905073085783da3659737d237e5137e3adfe1a9858e94f40dc",
+      "darwin-amd64": "0ef10f633c72ea14be92ccd2905af1a92472dfc1e7518e04e887bfca0b45b851",
+      "linux-arm64": "02d2dfddf41fb6d03d2f1baf6e0c63b32ecc8c4dfddcbe63f9b11aecd2a9111c",
+      "linux-amd64": "ff099608ce758b625532ef03a61f4c9520b995e94ff6cd5480dc0428cad64cb3",
+      "windows-arm64": "8e5cb7932e8e8241bcaa6b548a953599932ae30b05e6fa8edc40dde73cfa9f3a",
+      "windows-amd64": "2cf6ab2750a3a2e91347221212a5cb556db805470e1981bea580d73d4dc8df36"
+    }
+  },
+  "auth": {
+    "credentials": [
+      {
+        "source": {"field": "access_token"},
+        "inject": {"type": "env", "env_var": "SUPABASE_ACCESS_TOKEN"}
+      }
+    ]
+  }
+}

@@ -83,9 +83,9 @@ tools, err := anycli.ListTools()
 
 `Tool` is `type Tool string`; pass a raw `anycli.Tool("…")` whose name matches
 an embedded definition. The built-in service tools are `slack`, `notion`,
-`gmail`, `discord`, `linkedin`, `x`, `figma`, and `mongodb`; `github` wraps
-the `gh` binary. An unknown tool is an error from `Execute`, not a compile
-error.
+`gmail`, `discord`, `linkedin`, `x`, `figma`, `mongodb`, and `supabase`;
+`github` wraps the `gh` binary. An unknown tool is an error from `Execute`, not
+a compile error.
 
 The Figma service uses personal access tokens and exposes every PAT-compatible
 operation in the pinned official OpenAPI catalog: 47 operations across files,
@@ -147,6 +147,22 @@ thrown error as a JSON error object on stdout; a `codeName` of
 while permission errors (`Unauthorized` / "not authorized") and transport
 failures do not. Output redacts the connection string and its password as a
 guard against accidental echo (not deliberate exfiltration by the script).
+
+The `supabase` service wraps the official Supabase CLI 2.115.0 with a fixed,
+inspectable command tree and injects the resolved OAuth token as
+`SUPABASE_ACCESS_TOKEN`. It covers token-authenticated organization/project
+discovery, preview branches, Edge Functions, selected project and database
+configuration, SSO reads, SQL snippets, schema type generation, read-only
+Storage operations, and `db query`. Database queries retain the official
+`--linked`, `--local`, `--db-url`, `--project-ref`, `--file`, and `--workdir`
+semantics and are always classified as side effects for host approval. The
+service intentionally excludes `login`, local stack lifecycle, migration
+commands, arbitrary CLI passthrough, secret-value reads/writes, and Storage
+uploads/deletes. Function download/deploy always uses the official server-side
+API bundler (`--use-api`), so the wrapper never starts Docker. The first
+invocation lazily installs the pinned official archive with sha256
+verification; commands use JSON output, an isolated CLI home, disabled
+telemetry, and a 15-minute default timeout.
 
 ## Dev harness
 
