@@ -135,3 +135,67 @@ func TestE2ERealGhLazyInstall(t *testing.T) {
 		t.Errorf("second resolve emitted install notice %q; want cache hit", notice2.String())
 	}
 }
+
+// TestE2ERealLarkCliLazyInstall exercises the REAL lark-cli lazy-install path
+// end to end: the bundled lark definition's official release URL, the real
+// sha256 pin, extraction of the flat archive's single binary into the versions/
+// layout, and execution of the installed binary. Guarded by
+// ANYCLI_E2E_DOWNLOAD=1 because it downloads ~14MB from github.com — CI unit
+// runs stay offline.
+//
+// This is the only check that can catch a sha256 left behind by a version bump:
+// the offline tests can see that a digest is PRESENT, never that it is the
+// digest of the artifact the pinned version actually publishes.
+func TestE2ERealLarkCliLazyInstall(t *testing.T) {
+	if os.Getenv("ANYCLI_E2E_DOWNLOAD") != "1" {
+		t.Skip("set ANYCLI_E2E_DOWNLOAD=1 to run the real-download e2e")
+	}
+	def, err := definitions.LoadBundled("lark")
+	if err != nil {
+		t.Fatalf("load bundled lark: %v", err)
+	}
+	root := t.TempDir()
+	t.Setenv("HELIO_BIN_DIR", root)
+	// Strip PATH so level ② misses and lazy install is the only route. A host
+	// that ships lark-cli in its image would otherwise hide a broken pin.
+	t.Setenv("PATH", filepath.Join(root, "empty-path"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	var notice bytes.Buffer
+	installed, err := binresolve.Resolve(ctx, def.Name, def.Binary, def.Source, binresolve.Options{Notice: &notice})
+	if err != nil {
+		t.Fatalf("lazy install resolve: %v", err)
+	}
+	wantPrefix := filepath.Join(root, "versions", "lark", def.Source.Version)
+	if !strings.HasPrefix(installed, wantPrefix) {
+		t.Fatalf("installed path %q not under pin layout %q", installed, wantPrefix)
+	}
+	if !strings.Contains(notice.String(), "installing") {
+		t.Errorf("first-call notice missing install progress line; got %q", notice.String())
+	}
+
+	versionCmd := exec.CommandContext(ctx, installed, "--version")
+	versionCmd.Env = append(os.Environ(), "LARKSUITE_CLI_NO_UPDATE_NOTIFIER=1")
+	out, err := versionCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("exec installed lark-cli --version: %v (out=%s)", err, out)
+	}
+	if !strings.Contains(string(out), def.Source.Version) {
+		t.Fatalf("--version output %q does not contain pinned %q", out, def.Source.Version)
+	}
+
+	// Second resolve must hit the pinned path without re-downloading.
+	var notice2 bytes.Buffer
+	again, err := binresolve.Resolve(ctx, def.Name, def.Binary, def.Source, binresolve.Options{Notice: &notice2})
+	if err != nil {
+		t.Fatalf("second resolve: %v", err)
+	}
+	if again != installed {
+		t.Fatalf("second resolve %q != first %q", again, installed)
+	}
+	if notice2.Len() != 0 {
+		t.Errorf("second resolve emitted install notice %q; want cache hit", notice2.String())
+	}
+}

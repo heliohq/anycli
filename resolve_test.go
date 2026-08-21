@@ -13,18 +13,25 @@ import (
 // WarmEligibleTools + ResolveToolBinary through a plain go.mod bump
 // — no internal packages, no re-derivation of eligibility on the host side).
 
-func TestWarmEligibleToolsIsExactlyGithub(t *testing.T) {
+func TestWarmEligibleToolsIsGithubAndLark(t *testing.T) {
 	tools, err := WarmEligibleTools()
 	if err != nil {
 		t.Fatalf("WarmEligibleTools: %v", err)
 	}
-	// Exactly github today: mongodb also ships a full sha256 table but is a
-	// service tool (single consumer, in-process resolution only), and lark is
-	// cli-type without a direct-download source. A new entry appearing here is
-	// a deliberate contract change — hosts symlink every listed binary onto
-	// the engine PATH.
-	if len(tools) != 1 || tools[0].Name != Tool("github") || tools[0].Binary != "gh" {
-		t.Fatalf("warm-eligible set = %+v; want exactly [{github gh}]", tools)
+	// github and lark: both cli-type with a direct source and a full sha256
+	// table. mongodb ships one too but is a service tool (single consumer,
+	// in-process resolution only), so it stays out. A new entry appearing here
+	// is a deliberate contract change — hosts symlink every listed binary onto
+	// the engine PATH, and a host that used to provision one itself must drop
+	// that provisioning in the same change or keep shadowing the pin.
+	want := []WarmTool{{Name: Tool("github"), Binary: "gh"}, {Name: Tool("lark"), Binary: "lark-cli"}}
+	if len(tools) != len(want) {
+		t.Fatalf("warm-eligible set = %+v; want %+v", tools, want)
+	}
+	for i, w := range want {
+		if tools[i] != w {
+			t.Errorf("warm-eligible[%d] = %+v, want %+v", i, tools[i], w)
+		}
 	}
 }
 

@@ -5,12 +5,19 @@
   "description": "Feishu / Lark via the official lark-cli (bot identity by default; `lark-cli auth login` device-flow grants user identity for `--as user`)",
   "binary": "lark-cli",
   "source": {
-    "type": "github-release",
-    "repo": "larksuite/cli",
-    "asset_pattern": "lark-cli-{version}-{os}-{arch}{ext}",
-    "binary_path": "lark-cli",
-    "version": "1.0.71",
-    "ext_map": {"darwin": ".tar.gz", "linux": ".tar.gz", "windows": ".zip"}
+    "type": "direct",
+    "url_template": "https://github.com/larksuite/cli/releases/download/v{version}/lark-cli-{version}-{os}-{arch}{ext}",
+    "binary_path": "lark-cli{exe}",
+    "version": "1.0.88",
+    "ext_map": {"darwin": ".tar.gz", "linux": ".tar.gz", "windows": ".zip"},
+    "sha256": {
+      "darwin-amd64": "88b216bf2b9fab548f3b8fb0e396dd163028ea6cf850a2268b69d6d58b8b2a38",
+      "darwin-arm64": "f1f40fb3fbae05c0786ffd515ee3719cdee3804766e4fa93e952596163cde7ac",
+      "linux-amd64": "497de20939acdd2aae4c898fea7a0ca71d5a459ed543202e762a8bcb3228effe",
+      "linux-arm64": "96a3cac444947456ce9971c912946323f20d14416434da7e274bd9d77d7ac28b",
+      "windows-amd64": "01d85ff0a5b19a8718570c27437d9088faea27263d5039b651885b1864123678",
+      "windows-arm64": "1a8da60d9d3124d2a3ba6ea66e6219f5d5590ada2f61a2871fb2f867038a3bc1"
+    }
   },
   "auth": {
     "credentials": [
