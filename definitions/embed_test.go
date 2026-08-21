@@ -217,8 +217,8 @@ func TestLoadBundled_LarkCliShape(t *testing.T) {
 	if def.Binary != "lark-cli" {
 		t.Errorf("Binary = %q, want lark-cli", def.Binary)
 	}
-	if def.Source == nil || def.Source.Type != "github-release" || def.Source.Repo != "larksuite/cli" {
-		t.Errorf("Source = %+v, want github-release larksuite/cli", def.Source)
+	if def.Source == nil || def.Source.Type != "direct" {
+		t.Errorf("Source = %+v, want a direct source (TestLoadBundled_LarkInstallsItself owns the rest)", def.Source)
 	}
 	want := []struct {
 		field  string
@@ -276,6 +276,44 @@ func TestLoadBundled_LarkCliShape(t *testing.T) {
 	}
 	if !sawDefaultAs {
 		t.Error("no before rule pins LARKSUITE_CLI_DEFAULT_AS; without it an injected user token makes every un-flagged command act as that person")
+	}
+}
+
+// TestLoadBundled_LarkInstallsItself pins that the lark definition carries its
+// own install contract: a direct source, a pinned version, and a sha256 for
+// every platform it serves. That contract is what makes this definition the
+// authority on which lark-cli runs — a source the resolver cannot install from
+// leaves it with the PATH alone, so whatever the host image happens to ship
+// decides the version instead, and nothing here can tell.
+//
+// A missing digest is what this catches. A digest that is merely STALE — left
+// over from a previous version — still passes; only
+// TestE2ERealLarkCliLazyInstall can see that, and it downloads.
+func TestLoadBundled_LarkInstallsItself(t *testing.T) {
+	def, err := LoadBundled("lark")
+	if err != nil {
+		t.Fatalf("LoadBundled(lark) failed: %v", err)
+	}
+	src := def.Source
+	if src == nil || src.Type != "direct" {
+		t.Fatalf("Source = %+v, want a direct source", src)
+	}
+	if src.URLTemplate == "" || src.Version == "" {
+		t.Fatalf("Source = %+v, want both url_template and version", src)
+	}
+	// Every published archive is flat with the binary at its root, so one path
+	// serves all platforms; {exe} is what keeps the Windows member name right.
+	if src.BinaryPath != "lark-cli{exe}" {
+		t.Errorf("BinaryPath = %q, want lark-cli{exe}", src.BinaryPath)
+	}
+	for _, platform := range []string{
+		"darwin-amd64", "darwin-arm64",
+		"linux-amd64", "linux-arm64",
+		"windows-amd64", "windows-arm64",
+	} {
+		if src.SHA256[platform] == "" {
+			t.Errorf("no sha256 pinned for %s; that platform silently falls back to PATH-only resolution", platform)
+		}
 	}
 }
 

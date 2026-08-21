@@ -36,8 +36,10 @@ func mongoshSource(sha map[string]string) *registry.SourceConfig {
 	}
 }
 
-// declarativeSource mirrors a github-release definition (e.g. lark.json):
-// declarative provisioning metadata only, no direct-download support.
+// declarativeSource is a github-release definition: declarative provisioning
+// metadata only, no direct-download support. No bundled definition carries this
+// shape today, so the fixture is synthetic — the behavior still has to hold for
+// any tool whose binary the host provisions onto the PATH.
 func declarativeSource() *registry.SourceConfig {
 	return &registry.SourceConfig{
 		Type:         "github-release",
