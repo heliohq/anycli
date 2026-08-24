@@ -131,6 +131,7 @@ import (
 	"github.com/heliohq/anycli/internal/tools/sproutsocial"
 	"github.com/heliohq/anycli/internal/tools/square"
 	"github.com/heliohq/anycli/internal/tools/stripe"
+	"github.com/heliohq/anycli/internal/tools/supabase"
 	"github.com/heliohq/anycli/internal/tools/surveymonkey"
 	"github.com/heliohq/anycli/internal/tools/tally"
 	"github.com/heliohq/anycli/internal/tools/tasks"
@@ -222,6 +223,7 @@ func init() {
 	RegisterService("microsoft-onedrive", &microsoftonedrive.Service{})
 	RegisterService("missive", &missive.Service{})
 	RegisterService("mongodb", &mongodb.Service{})
+	RegisterService("supabase", &supabase.Service{})
 	RegisterService("chargebee", &chargebee.Service{})
 	RegisterService("expensify", &expensify.Service{})
 	RegisterService("freshbooks", &freshbooks.Service{})

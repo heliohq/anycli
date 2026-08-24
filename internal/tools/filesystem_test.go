@@ -33,8 +33,10 @@ const scratchMarker = "//anycli:scratch"
 //     validated and then re-read, in a directory no flag names;
 //   - mongodb's scoped HOME, which exists to be handed to mongosh. That one is
 //     a subprocess: it reads with its own system calls, so no Go interface
-//     could cover it, and a host that cares declines to run mongodb at all.
-const expectedScratchSites = 4
+//     could cover it, and a host that cares declines to run mongodb at all;
+//   - supabase's scoped HOME, which prevents the official CLI subprocess from
+//     reading ambient credentials or persisting profile and telemetry state.
+const expectedScratchSites = 6
 
 func TestServiceFileAccessGoesThroughTheSeam(t *testing.T) {
 	names := ServiceNames()

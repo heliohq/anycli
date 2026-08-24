@@ -419,6 +419,60 @@ func TestLoadBundled_MongoDBShape(t *testing.T) {
 	}
 }
 
+// TestLoadBundled_SupabaseShape pins the Supabase definition's CLI-wrapper
+// shape: a service tool with an explicit command tree, backed by a pinned
+// official Supabase CLI archive and an OAuth access token injected through the
+// CLI's documented environment variable.
+func TestLoadBundled_SupabaseShape(t *testing.T) {
+	def, err := LoadBundled("supabase")
+	if err != nil {
+		t.Fatalf("LoadBundled(supabase) failed: %v", err)
+	}
+	if def.Type != "service" {
+		t.Errorf("Type = %q, want service", def.Type)
+	}
+	if def.Binary != "supabase" {
+		t.Errorf("Binary = %q, want supabase", def.Binary)
+	}
+	src := def.Source
+	if src == nil {
+		t.Fatal("Source missing — the Supabase CLI lazy-install source must be declared")
+	}
+	if src.Type != "direct" {
+		t.Errorf("Source.Type = %q, want direct", src.Type)
+	}
+	if src.Version != "2.115.0" {
+		t.Errorf("Source.Version = %q, want pinned 2.115.0", src.Version)
+	}
+	if src.URLTemplate == "" || src.BinaryPath == "" {
+		t.Errorf("Source url_template/binary_path missing: %+v", src)
+	}
+	for _, platform := range []string{
+		"darwin-arm64", "darwin-amd64",
+		"linux-arm64", "linux-amd64",
+		"windows-arm64", "windows-amd64",
+	} {
+		digest, ok := src.SHA256[platform]
+		if !ok {
+			t.Errorf("sha256 missing for platform %s", platform)
+			continue
+		}
+		if len(digest) != 64 {
+			t.Errorf("sha256[%s] = %q, want a 64-hex digest", platform, digest)
+		}
+	}
+	if def.Auth == nil || len(def.Auth.Credentials) != 1 {
+		t.Fatalf("credentials = %+v, want one binding", def.Auth)
+	}
+	binding := def.Auth.Credentials[0]
+	if binding.Source.Field != "access_token" {
+		t.Errorf("field = %q, want access_token", binding.Source.Field)
+	}
+	if binding.Inject.Type != "env" || binding.Inject.EnvVar != "SUPABASE_ACCESS_TOKEN" {
+		t.Errorf("inject = %+v, want env SUPABASE_ACCESS_TOKEN", binding.Inject)
+	}
+}
+
 // TestLoadBundled_DirectSourcesAreComplete validates every direct-download
 // source shipped in the definitions: lazy install requires a url template, a
 // pinned version, an archive binary path, and a non-empty sha256 table.
