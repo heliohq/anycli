@@ -131,6 +131,7 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 		{"functions", "deploy", "hello", "--project-ref", "abcdefghijklmnopqrst", "--local"},
 		{"gen", "types", "--local"},
 		{"branches", "get", "preview", "--project-ref", "abcdefghijklmnopqrst"},
+		{"projects", "api-keys", "--project-ref", "abcdefghijklmnopqrst"},
 		{"start"},
 	} {
 		fake := &fakeRun{}
@@ -142,6 +143,61 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 			t.Errorf("args %v: runner called for rejected command", args)
 		}
 	}
+}
+
+// TestProviderFlagValidationIsDelegated proves exposed flag combinations reach
+// the official CLI, which remains the source of truth for provider semantics.
+func TestProviderFlagValidationIsDelegated(t *testing.T) {
+	t.Run("conflicting database targets", func(t *testing.T) {
+		fake := &fakeRun{exitCode: 1, stderr: "official validation error"}
+		result, _, _ := execute(t, fake, testAccessToken,
+			"db", "query", "select 1", "--linked", "--local",
+		)
+		if result.ExitCode != 1 {
+			t.Errorf("result = %+v, want official CLI exit 1", result)
+		}
+		if !fake.called {
+			t.Fatal("official CLI was not called")
+		}
+		for _, want := range []string{"--linked=true", "--local=true"} {
+			if !slices.Contains(fake.args, want) {
+				t.Errorf("argv = %#v, missing %q", fake.args, want)
+			}
+		}
+	})
+
+	t.Run("conflicting SSL choices", func(t *testing.T) {
+		fake := &fakeRun{exitCode: 1, stderr: "official validation error"}
+		result, _, _ := execute(t, fake, testAccessToken,
+			"ssl-enforcement", "update",
+			"--project-ref", "abcdefghijklmnopqrst",
+			"--enable-db-ssl-enforcement", "--disable-db-ssl-enforcement",
+		)
+		if result.ExitCode != 1 {
+			t.Errorf("result = %+v, want official CLI exit 1", result)
+		}
+		if !fake.called {
+			t.Fatal("official CLI was not called")
+		}
+		for _, want := range []string{"--enable-db-ssl-enforcement=true", "--disable-db-ssl-enforcement=true"} {
+			if !slices.Contains(fake.args, want) {
+				t.Errorf("argv = %#v, missing %q", fake.args, want)
+			}
+		}
+	})
+
+	t.Run("missing SSL choice", func(t *testing.T) {
+		fake := &fakeRun{exitCode: 1, stderr: "official validation error"}
+		result, _, _ := execute(t, fake, testAccessToken,
+			"ssl-enforcement", "update", "--project-ref", "abcdefghijklmnopqrst",
+		)
+		if result.ExitCode != 1 {
+			t.Errorf("result = %+v, want official CLI exit 1", result)
+		}
+		if !fake.called {
+			t.Fatal("official CLI was not called")
+		}
+	})
 }
 
 // TestFunctionDeployForcesRemoteAPIBundling proves the wrapper cannot fall
@@ -350,46 +406,54 @@ func TestRunnerFailuresRemainRuntimeErrors(t *testing.T) {
 	}
 }
 
+// TestRootHelpKeepsTheFlattenedFaceLean prevents provider prose from pushing
+// the exhaustive runnable-command list down in the generated root help.
+func TestRootHelpKeepsTheFlattenedFaceLean(t *testing.T) {
+	root := (&Service{}).NewCommandTree()
+	if root.Long != "" {
+		t.Errorf("root Long = %q, want empty", root.Long)
+	}
+}
+
 // TestCommandSurfaceAndSideEffects pins the complete public face. Any command
 // not listed here is intentionally unavailable in this token-only wrapper.
 func TestCommandSurfaceAndSideEffects(t *testing.T) {
 	want := map[string]string{
-		"backups list":                "false",
-		"branches create":             "true",
-		"branches delete":             "true",
-		"branches list":               "false",
-		"branches pause":              "true",
-		"branches unpause":            "true",
-		"branches update":             "true",
-		"db query":                    "true",
-		"domains get":                 "false",
-		"functions delete":            "true",
-		"functions deploy":            "true",
-		"functions download":          "false",
-		"functions list":              "false",
-		"gen types":                   "false",
-		"network-bans get":            "false",
-		"network-bans remove":         "true",
-		"network-restrictions get":    "false",
-		"network-restrictions update": "true",
-		"orgs list":                   "false",
-		"postgres-config delete":      "true",
-		"postgres-config get":         "false",
-		"postgres-config update":      "true",
-		"projects api-keys":           "false",
-		"projects delete":             "true",
-		"projects list":               "false",
-		"secrets list":                "false",
-		"snippets download":           "false",
-		"snippets list":               "false",
-		"ssl-enforcement get":         "false",
-		"ssl-enforcement update":      "true",
-		"sso info":                    "false",
-		"sso list":                    "false",
-		"sso show":                    "false",
-		"storage download":            "false",
-		"storage ls":                  "false",
-		"vanity-subdomains get":       "false",
+		"backups list":                "false", // GET /v1/projects/{ref}/database/backups
+		"branches create":             "true",  // POST /v1/projects/{ref}/branches
+		"branches delete":             "true",  // DELETE /v1/branches/{branch-id-or-ref}
+		"branches list":               "false", // GET /v1/projects/{ref}/branches
+		"branches pause":              "true",  // POST /v1/projects/{branch-ref}/pause
+		"branches unpause":            "true",  // POST /v1/projects/{branch-ref}/restore
+		"branches update":             "true",  // PATCH /v1/branches/{branch-id-or-ref}
+		"db query":                    "true",  // Arbitrary SQL via Management API or a direct/local Postgres connection
+		"domains get":                 "false", // GET /v1/projects/{ref}/custom-hostname
+		"functions delete":            "true",  // DELETE /v1/projects/{ref}/functions/{slug}
+		"functions deploy":            "true",  // POST/PATCH/DELETE /v1/projects/{ref}/functions endpoints
+		"functions download":          "false", // GET function metadata and bundle endpoints
+		"functions list":              "false", // GET /v1/projects/{ref}/functions
+		"gen types":                   "false", // GET /v1/projects/{ref}/types/{language}
+		"network-bans get":            "false", // POST /v1/projects/{ref}/network-bans/retrieve (read-only operation)
+		"network-bans remove":         "true",  // DELETE /v1/projects/{ref}/network-bans
+		"network-restrictions get":    "false", // GET /v1/projects/{ref}/network-restrictions
+		"network-restrictions update": "true",  // POST apply or PATCH /v1/projects/{ref}/network-restrictions
+		"orgs list":                   "false", // GET /v1/organizations
+		"postgres-config delete":      "true",  // GET then PUT /v1/projects/{ref}/config/database/postgres
+		"postgres-config get":         "false", // GET /v1/projects/{ref}/config/database/postgres
+		"postgres-config update":      "true",  // PUT /v1/projects/{ref}/config/database/postgres
+		"projects delete":             "true",  // DELETE /v1/projects/{ref}
+		"projects list":               "false", // GET /v1/projects
+		"secrets list":                "false", // GET /v1/projects/{ref}/secrets
+		"snippets download":           "false", // GET /v1/snippets/{snippet-id}
+		"snippets list":               "false", // GET /v1/snippets?project_ref={ref}
+		"ssl-enforcement get":         "false", // GET /v1/projects/{ref}/ssl-enforcement
+		"ssl-enforcement update":      "true",  // PUT /v1/projects/{ref}/ssl-enforcement
+		"sso info":                    "false", // Derives service-provider values locally from the project ref
+		"sso list":                    "false", // GET /v1/projects/{ref}/config/auth/sso/providers
+		"sso show":                    "false", // GET /v1/projects/{ref}/config/auth/sso/providers/{provider-id}
+		"storage download":            "false", // GET /storage/v1/object/{bucket}/{path}; local file writes only
+		"storage ls":                  "false", // GET buckets or POST /storage/v1/object/list/{bucket} (read-only operation)
+		"vanity-subdomains get":       "false", // GET /v1/projects/{ref}/vanity-subdomain
 	}
 
 	root := (&Service{}).NewCommandTree()

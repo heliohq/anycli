@@ -78,17 +78,15 @@ type flagSpec struct {
 
 // commandSpec declares one runnable leaf and its fixed official CLI mapping.
 type commandSpec struct {
-	Group             string
-	Use               string
-	Short             string
-	Long              string
-	Args              cobra.PositionalArgs
-	SideEffect        bool
-	Flags             []flagSpec
-	BinaryPath        []string
-	FixedArgs         []string
-	OneRequired       []string
-	MutuallyExclusive []string
+	Group      string
+	Use        string
+	Short      string
+	Long       string
+	Args       cobra.PositionalArgs
+	SideEffect bool
+	Flags      []flagSpec
+	BinaryPath []string
+	FixedArgs  []string
 }
 
 // groupSpec supplies help for a non-runnable command group.
@@ -283,11 +281,6 @@ var commandSpecs = []commandSpec{
 		Args: cobra.NoArgs,
 	},
 	{
-		Group: "projects", Use: "api-keys", Short: "List project API keys without revealing secret keys",
-		Long: "The official CLI's --reveal flag is intentionally unavailable.",
-		Args: cobra.NoArgs, Flags: []flagSpec{projectRefFlag()},
-	},
-	{
 		Group: "projects", Use: "delete <project-ref>", Short: "Delete a project",
 		Args: cobra.ExactArgs(1), SideEffect: true,
 	},
@@ -314,8 +307,6 @@ var commandSpecs = []commandSpec{
 			projectRefFlag(), boolFlag("enable-db-ssl-enforcement", "Enable SSL enforcement"),
 			boolFlag("disable-db-ssl-enforcement", "Disable SSL enforcement"),
 		},
-		OneRequired:       []string{"enable-db-ssl-enforcement", "disable-db-ssl-enforcement"},
-		MutuallyExclusive: []string{"enable-db-ssl-enforcement", "disable-db-ssl-enforcement"},
 	},
 	{
 		Group: "sso", Use: "list", Short: "List SAML SSO identity providers",
@@ -423,18 +414,8 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 func (s *Service) newRoot(token string, inv *invocation) *cobra.Command {
 	pin := pinnedSupabaseVersion()
 	root := &cobra.Command{
-		Use:   "supabase",
-		Short: fmt.Sprintf("Selected Supabase operations via official CLI %s", pin),
-		Long: fmt.Sprintf(`Selected Supabase operations via official CLI %[1]s.
-
-The first invocation downloads the official CLI %[1]s release from GitHub and
-verifies its sha256. Commands run non-interactively with JSON output and an
-isolated CLI home.
-
-Management operations use SUPABASE_ACCESS_TOKEN. The db query command preserves
-the official CLI's linked, local, and direct database URL modes. This wrapper
-does not expose login, local stack lifecycle, migrations, arbitrary CLI
-passthrough, or Docker-backed Function operations.`, pin),
+		Use:           "supabase",
+		Short:         fmt.Sprintf("Selected Supabase operations via official CLI %s", pin),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -487,12 +468,6 @@ func (s *Service) newLeaf(spec commandSpec, token string, timeout *time.Duration
 		if flag.Required {
 			_ = command.MarkFlagRequired(flag.Name)
 		}
-	}
-	if len(spec.OneRequired) > 0 {
-		command.MarkFlagsOneRequired(spec.OneRequired...)
-	}
-	if len(spec.MutuallyExclusive) > 0 {
-		command.MarkFlagsMutuallyExclusive(spec.MutuallyExclusive...)
 	}
 	return command
 }
