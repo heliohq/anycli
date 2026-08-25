@@ -175,6 +175,17 @@ func TestAllowedCommandPassesOfficialFlagsVerbatim(t *testing.T) {
 // TestProviderFlagValidationIsDelegated proves provider-owned flag
 // combinations reach the official CLI, which remains their source of truth.
 func TestProviderFlagValidationIsDelegated(t *testing.T) {
+	t.Run("official error envelope preserves provider exit", func(t *testing.T) {
+		fake := &fakeRun{
+			exitCode: 1,
+			stderr:   `{"_tag":"Error","error":{"code":"UnrecognizedOption","message":"Unknown option --future"}}`,
+		}
+		result, _, _ := execute(t, fake, testAccessToken, "projects", "list", "--future")
+		if result.ExitCode != 1 {
+			t.Errorf("result = %+v, want official CLI exit 1", result)
+		}
+	})
+
 	t.Run("conflicting database targets", func(t *testing.T) {
 		fake := &fakeRun{exitCode: 1, stderr: "official validation error"}
 		result, _, _ := execute(t, fake, testAccessToken,
@@ -300,6 +311,22 @@ func TestOfficialGlobalFlagsAreOptIn(t *testing.T) {
 	})
 }
 
+// TestOfficialOptInFlagsAppearInHelp keeps caller-controlled gates
+// discoverable without making them wrapper validation rules.
+func TestOfficialOptInFlagsAppearInHelp(t *testing.T) {
+	var stdout bytes.Buffer
+	root := (&Service{Out: &stdout}).NewCommandTree()
+	root.SetArgs([]string{"projects", "delete", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("projects delete --help: %v", err)
+	}
+	for _, flag := range []string{"--experimental", "--yes"} {
+		if !strings.Contains(stdout.String(), flag) {
+			t.Errorf("help = %q, missing %s", stdout.String(), flag)
+		}
+	}
+}
+
 // TestGenTypesDelegatesProjectIDValidation verifies AnyCLI forwards generation
 // arguments and leaves required-input validation to the official CLI.
 func TestGenTypesDelegatesProjectIDValidation(t *testing.T) {
@@ -377,6 +404,15 @@ func TestDBQueryForwardsOfficialInputs(t *testing.T) {
 			wantArgs: []string{
 				"db", "query", "select 1",
 				"--output", "json", "--output-format", "json", "--agent", "yes",
+			},
+		},
+		{
+			name: "argument terminator before SQL comment",
+			args: []string{"db", "query", "--", "-- comment\nselect 1"},
+			wantArgs: []string{
+				"db", "query",
+				"--output", "json", "--output-format", "json", "--agent", "yes",
+				"--", "-- comment\nselect 1",
 			},
 		},
 	}

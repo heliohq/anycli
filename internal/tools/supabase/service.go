@@ -458,22 +458,34 @@ func (s *Service) newLeaf(spec commandSpec, token string, inv *invocation, execu
 			_ = command.MarkFlagRequired(flag.Name)
 		}
 	}
+	if !execute {
+		// The dry-run tree documents caller-controlled global gates while the
+		// execution tree continues to forward all provider arguments verbatim.
+		command.Flags().Bool("experimental", false, "Enable official experimental features")
+		command.Flags().Bool("yes", false, "Answer yes to official CLI confirmation prompts")
+	}
 	return command
 }
 
 // officialArgs preserves the provider-owned argv after an allowed command
-// path, then appends the wrapper's machine-output controls.
+// path and keeps wrapper controls before an explicit argument terminator.
 func officialArgs(command *cobra.Command, spec commandSpec, providerArgs []string) []string {
 	path := spec.BinaryPath
 	if len(path) == 0 {
 		path = []string{spec.Group, command.Name()}
 	}
-	args := append(slices.Clone(path), providerArgs...)
-	return append(args,
+	controls := []string{
 		"--output", "json",
 		"--output-format", "json",
 		"--agent", "yes",
-	)
+	}
+	if terminator := slices.Index(providerArgs, "--"); terminator >= 0 {
+		args := append(slices.Clone(path), providerArgs[:terminator]...)
+		args = append(args, controls...)
+		return append(args, providerArgs[terminator:]...)
+	}
+	args := append(slices.Clone(path), providerArgs...)
+	return append(args, controls...)
 }
 
 // runSupabase resolves the official binary, isolates its credential state,
