@@ -214,11 +214,14 @@ var commandSpecs = []commandSpec{
 		Args: cobra.ExactArgs(1), SideEffect: true, Flags: []flagSpec{projectRefFlag()},
 	},
 	{
-		Group: "gen", Use: "types", Short: "Generate schema types through the Management API",
-		Long: "Requires --project-id; local, linked, and direct database modes are unavailable.",
+		Group: "gen", Use: "types", Short: "Generate types from a Postgres schema",
+		Long: "Generate types from a local, linked, project-id, or direct database target.",
 		Args: cobra.NoArgs,
 		Flags: []flagSpec{
-			stringFlag("project-id", "Project ref used by the Management API", true),
+			boolFlag("local", "Generate types from the local dev database"),
+			boolFlag("linked", "Generate types from the linked project"),
+			stringFlag("db-url", "Generate types from a Postgres connection string", false),
+			stringFlag("project-id", "Project ref used by the Management API", false),
 			stringFlag("lang", "Output language: typescript, go, swift, or python", false),
 			stringFlag("schema", "Comma-separated schemas to include", false),
 			stringFlag("swift-access-control", "Swift access control: internal or public", false),

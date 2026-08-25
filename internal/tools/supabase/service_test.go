@@ -327,6 +327,26 @@ func TestOfficialOptInFlagsAppearInHelp(t *testing.T) {
 	}
 }
 
+// TestGenTypesHelpDocumentsOfficialTargets keeps every forwarded generation
+// target discoverable without claiming that AnyCLI restricts provider modes.
+func TestGenTypesHelpDocumentsOfficialTargets(t *testing.T) {
+	var stdout bytes.Buffer
+	root := (&Service{Out: &stdout}).NewCommandTree()
+	root.SetArgs([]string{"gen", "types", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("gen types --help: %v", err)
+	}
+	help := stdout.String()
+	for _, flag := range []string{"--local", "--linked", "--project-id", "--db-url"} {
+		if !strings.Contains(help, flag) {
+			t.Errorf("help = %q, missing %s", help, flag)
+		}
+	}
+	if strings.Contains(help, "unavailable") {
+		t.Errorf("help = %q, unexpectedly restricts official generation targets", help)
+	}
+}
+
 // TestGenTypesDelegatesProjectIDValidation verifies AnyCLI forwards generation
 // arguments and leaves required-input validation to the official CLI.
 func TestGenTypesDelegatesProjectIDValidation(t *testing.T) {
