@@ -60,7 +60,7 @@ func envValue(env []string, key string) (string, int) {
 	return value, count
 }
 
-// TestExecuteProjectsList pins JSON output, non-interactive execution, secret
+// TestExecuteProjectsList pins JSON output, credential isolation, secret
 // redaction, and the isolated Supabase CLI home/environment boundary.
 func TestExecuteProjectsList(t *testing.T) {
 	t.Setenv("SUPABASE_ACCESS_TOKEN", "ambient-token")
@@ -77,7 +77,6 @@ func TestExecuteProjectsList(t *testing.T) {
 		"--output", "json",
 		"--output-format", "json",
 		"--agent", "yes",
-		"--yes",
 	}
 	if !slices.Equal(fake.args, wantArgs) {
 		t.Errorf("argv = %#v, want %#v", fake.args, wantArgs)
@@ -124,12 +123,11 @@ func TestMissingAccessTokenFailsBeforeSpawn(t *testing.T) {
 	}
 }
 
-// TestUsageErrorsExitTwo verifies that AnyCLI rejects unexposed official CLI
-// flags before spawning the binary.
-func TestUsageErrorsExitTwo(t *testing.T) {
+// TestUnknownCommandsExitTwo keeps the capability envelope at the command
+// boundary while leaving official flag validation to Supabase.
+func TestUnknownCommandsExitTwo(t *testing.T) {
 	for _, args := range [][]string{
-		{"functions", "deploy", "hello", "--project-ref", "abcdefghijklmnopqrst", "--local"},
-		{"gen", "types", "--local"},
+		{"--experimental", "projects", "list"},
 		{"branches", "get", "preview", "--project-ref", "abcdefghijklmnopqrst"},
 		{"projects", "api-keys", "--project-ref", "abcdefghijklmnopqrst"},
 		{"start"},
@@ -145,9 +143,49 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 	}
 }
 
-// TestProviderFlagValidationIsDelegated proves exposed flag combinations reach
-// the official CLI, which remains the source of truth for provider semantics.
+// TestAllowedCommandPassesOfficialFlagsVerbatim catches wrappers that reject,
+// normalize, reorder, or otherwise reinterpret flags owned by Supabase CLI.
+func TestAllowedCommandPassesOfficialFlagsVerbatim(t *testing.T) {
+	fake := &fakeRun{}
+	result, _, _ := execute(t, fake, testAccessToken,
+		"projects", "list",
+		"--future-filter", "active",
+		"--future-bool",
+		"--experimental",
+		"--timeout", "30s",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("result = %+v, want success", result)
+	}
+	wantArgs := []string{
+		"projects", "list",
+		"--future-filter", "active",
+		"--future-bool",
+		"--experimental",
+		"--timeout", "30s",
+		"--output", "json",
+		"--output-format", "json",
+		"--agent", "yes",
+	}
+	if !slices.Equal(fake.args, wantArgs) {
+		t.Errorf("argv = %#v, want verbatim official args %#v", fake.args, wantArgs)
+	}
+}
+
+// TestProviderFlagValidationIsDelegated proves provider-owned flag
+// combinations reach the official CLI, which remains their source of truth.
 func TestProviderFlagValidationIsDelegated(t *testing.T) {
+	t.Run("official error envelope preserves provider exit", func(t *testing.T) {
+		fake := &fakeRun{
+			exitCode: 1,
+			stderr:   `{"_tag":"Error","error":{"code":"UnrecognizedOption","message":"Unknown option --future"}}`,
+		}
+		result, _, _ := execute(t, fake, testAccessToken, "projects", "list", "--future")
+		if result.ExitCode != 1 {
+			t.Errorf("result = %+v, want official CLI exit 1", result)
+		}
+	})
+
 	t.Run("conflicting database targets", func(t *testing.T) {
 		fake := &fakeRun{exitCode: 1, stderr: "official validation error"}
 		result, _, _ := execute(t, fake, testAccessToken,
@@ -159,7 +197,7 @@ func TestProviderFlagValidationIsDelegated(t *testing.T) {
 		if !fake.called {
 			t.Fatal("official CLI was not called")
 		}
-		for _, want := range []string{"--linked=true", "--local=true"} {
+		for _, want := range []string{"--linked", "--local"} {
 			if !slices.Contains(fake.args, want) {
 				t.Errorf("argv = %#v, missing %q", fake.args, want)
 			}
@@ -179,7 +217,7 @@ func TestProviderFlagValidationIsDelegated(t *testing.T) {
 		if !fake.called {
 			t.Fatal("official CLI was not called")
 		}
-		for _, want := range []string{"--enable-db-ssl-enforcement=true", "--disable-db-ssl-enforcement=true"} {
+		for _, want := range []string{"--enable-db-ssl-enforcement", "--disable-db-ssl-enforcement"} {
 			if !slices.Contains(fake.args, want) {
 				t.Errorf("argv = %#v, missing %q", fake.args, want)
 			}
@@ -200,42 +238,118 @@ func TestProviderFlagValidationIsDelegated(t *testing.T) {
 	})
 }
 
-// TestFunctionDeployForcesRemoteAPIBundling proves the wrapper cannot fall
-// back to Docker while preserving the exposed remote deployment options.
-func TestFunctionDeployForcesRemoteAPIBundling(t *testing.T) {
-	fake := &fakeRun{}
-	result, _, _ := execute(t, fake, testAccessToken,
-		"functions", "deploy", "hello", "goodbye",
-		"--project-ref", "abcdefghijklmnopqrst",
-		"--workdir", "/workspace/app",
-		"--prune",
-		"--jobs", "3",
-	)
-	if result.ExitCode != 0 {
-		t.Fatalf("result = %+v, want success", result)
-	}
-	for _, want := range []string{
-		"functions", "deploy", "hello", "goodbye",
-		"--project-ref=abcdefghijklmnopqrst",
-		"--workdir=/workspace/app",
-		"--prune=true",
-		"--jobs=3",
-		"--use-api",
-	} {
-		if !slices.Contains(fake.args, want) {
-			t.Errorf("argv = %#v, missing %q", fake.args, want)
+// TestFunctionBundlerSelectionIsExplicit keeps the official Docker/API choice
+// unchanged unless the caller opts into server-side bundling.
+func TestFunctionBundlerSelectionIsExplicit(t *testing.T) {
+	t.Run("official default", func(t *testing.T) {
+		fake := &fakeRun{}
+		result, _, _ := execute(t, fake, testAccessToken,
+			"functions", "deploy", "hello", "goodbye",
+			"--project-ref", "abcdefghijklmnopqrst",
+			"--workdir", "/workspace/app",
+			"--prune",
+		)
+		if result.ExitCode != 0 {
+			t.Fatalf("result = %+v, want success", result)
 		}
+		for _, unwanted := range []string{"--use-api", "--use-api=true"} {
+			if slices.Contains(fake.args, unwanted) {
+				t.Errorf("argv = %#v, unexpectedly contains %q", fake.args, unwanted)
+			}
+		}
+	})
+
+	t.Run("server-side API opt in", func(t *testing.T) {
+		fake := &fakeRun{}
+		result, _, _ := execute(t, fake, testAccessToken,
+			"functions", "deploy", "hello",
+			"--project-ref", "abcdefghijklmnopqrst",
+			"--use-api",
+			"--jobs", "3",
+		)
+		if result.ExitCode != 0 {
+			t.Fatalf("result = %+v, want success", result)
+		}
+		for _, want := range []string{"--use-api", "--jobs", "3"} {
+			if !slices.Contains(fake.args, want) {
+				t.Errorf("argv = %#v, missing %q", fake.args, want)
+			}
+		}
+	})
+}
+
+// TestOfficialGlobalFlagsAreOptIn verifies that confirmation and experimental
+// gates are controlled by the caller rather than silently enabled.
+func TestOfficialGlobalFlagsAreOptIn(t *testing.T) {
+	t.Run("omitted", func(t *testing.T) {
+		fake := &fakeRun{}
+		result, _, _ := execute(t, fake, testAccessToken, "projects", "list")
+		if result.ExitCode != 0 {
+			t.Fatalf("result = %+v, want success", result)
+		}
+		for _, unwanted := range []string{"--experimental", "--experimental=true", "--yes", "--yes=true"} {
+			if slices.Contains(fake.args, unwanted) {
+				t.Errorf("argv = %#v, unexpectedly contains %q", fake.args, unwanted)
+			}
+		}
+	})
+
+	t.Run("explicit values", func(t *testing.T) {
+		fake := &fakeRun{}
+		result, _, _ := execute(t, fake, testAccessToken,
+			"projects", "delete", "aaaaaaaaaaaaaaaaaaaa",
+			"--experimental", "--yes",
+		)
+		if result.ExitCode != 0 {
+			t.Fatalf("result = %+v, want success", result)
+		}
+		for _, want := range []string{"--experimental", "--yes"} {
+			if !slices.Contains(fake.args, want) {
+				t.Errorf("argv = %#v, missing %q", fake.args, want)
+			}
+		}
+	})
+}
+
+// TestOfficialOptInFlagsAppearInHelp keeps caller-controlled gates
+// discoverable without making them wrapper validation rules.
+func TestOfficialOptInFlagsAppearInHelp(t *testing.T) {
+	var stdout bytes.Buffer
+	root := (&Service{Out: &stdout}).NewCommandTree()
+	root.SetArgs([]string{"projects", "delete", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("projects delete --help: %v", err)
 	}
-	for _, forbidden := range []string{"--local", "--linked", "--db-url"} {
-		if slices.Contains(fake.args, forbidden) {
-			t.Errorf("argv = %#v, contains forbidden %q", fake.args, forbidden)
+	for _, flag := range []string{"--experimental", "--yes"} {
+		if !strings.Contains(stdout.String(), flag) {
+			t.Errorf("help = %q, missing %s", stdout.String(), flag)
 		}
 	}
 }
 
-// TestGenTypesRequiresProjectID keeps generation on the token-authenticated
-// Management API path instead of local, linked, or direct-database modes.
-func TestGenTypesRequiresProjectID(t *testing.T) {
+// TestGenTypesHelpDocumentsOfficialTargets keeps every forwarded generation
+// target discoverable without claiming that AnyCLI restricts provider modes.
+func TestGenTypesHelpDocumentsOfficialTargets(t *testing.T) {
+	var stdout bytes.Buffer
+	root := (&Service{Out: &stdout}).NewCommandTree()
+	root.SetArgs([]string{"gen", "types", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("gen types --help: %v", err)
+	}
+	help := stdout.String()
+	for _, flag := range []string{"--local", "--linked", "--project-id", "--db-url"} {
+		if !strings.Contains(help, flag) {
+			t.Errorf("help = %q, missing %s", help, flag)
+		}
+	}
+	if strings.Contains(help, "unavailable") {
+		t.Errorf("help = %q, unexpectedly restricts official generation targets", help)
+	}
+}
+
+// TestGenTypesDelegatesProjectIDValidation verifies AnyCLI forwards generation
+// arguments and leaves required-input validation to the official CLI.
+func TestGenTypesDelegatesProjectIDValidation(t *testing.T) {
 	fake := &fakeRun{}
 	result, _, _ := execute(t, fake, testAccessToken,
 		"gen", "types",
@@ -247,19 +361,19 @@ func TestGenTypesRequiresProjectID(t *testing.T) {
 		t.Fatalf("result = %+v, want success", result)
 	}
 	for _, want := range []string{
-		"--project-id=abcdefghijklmnopqrst",
-		"--lang=go",
-		"--schema=public,auth",
+		"--project-id", "abcdefghijklmnopqrst",
+		"--lang", "go",
+		"--schema", "public,auth",
 	} {
 		if !slices.Contains(fake.args, want) {
 			t.Errorf("argv = %#v, missing %q", fake.args, want)
 		}
 	}
 
-	missing := &fakeRun{}
+	missing := &fakeRun{exitCode: 1, stderr: "official validation error"}
 	missingResult, _, _ := execute(t, missing, testAccessToken, "gen", "types")
-	if missingResult.ExitCode != 2 || missing.called {
-		t.Errorf("missing project id: result=%+v called=%v, want usage exit before spawn", missingResult, missing.called)
+	if missingResult.ExitCode != 1 || !missing.called {
+		t.Errorf("missing project id: result=%+v called=%v, want official validation", missingResult, missing.called)
 	}
 }
 
@@ -279,8 +393,8 @@ func TestDBQueryForwardsOfficialInputs(t *testing.T) {
 			},
 			wantArgs: []string{
 				"db", "query", "select id from public.accounts",
-				"--linked=true", "--project-ref=abcdefghijklmnopqrst",
-				"--output", "json", "--output-format", "json", "--agent", "yes", "--yes",
+				"--linked", "--project-ref", "abcdefghijklmnopqrst",
+				"--output", "json", "--output-format", "json", "--agent", "yes",
 			},
 		},
 		{
@@ -291,17 +405,17 @@ func TestDBQueryForwardsOfficialInputs(t *testing.T) {
 			},
 			wantArgs: []string{
 				"db", "query",
-				"--db-url=postgresql://user:password@example.test:5432/postgres",
-				"--file=queries/report.sql", "--workdir=/workspace/app",
-				"--output", "json", "--output-format", "json", "--agent", "yes", "--yes",
+				"--db-url", "postgresql://user:password@example.test:5432/postgres",
+				"--file", "queries/report.sql", "--workdir", "/workspace/app",
+				"--output", "json", "--output-format", "json", "--agent", "yes",
 			},
 		},
 		{
 			name: "explicit local target",
 			args: []string{"db", "query", "select 1", "--local"},
 			wantArgs: []string{
-				"db", "query", "select 1", "--local=true",
-				"--output", "json", "--output-format", "json", "--agent", "yes", "--yes",
+				"db", "query", "select 1", "--local",
+				"--output", "json", "--output-format", "json", "--agent", "yes",
 			},
 		},
 		{
@@ -309,7 +423,16 @@ func TestDBQueryForwardsOfficialInputs(t *testing.T) {
 			args: []string{"db", "query", "select 1"},
 			wantArgs: []string{
 				"db", "query", "select 1",
-				"--output", "json", "--output-format", "json", "--agent", "yes", "--yes",
+				"--output", "json", "--output-format", "json", "--agent", "yes",
+			},
+		},
+		{
+			name: "argument terminator before SQL comment",
+			args: []string{"db", "query", "--", "-- comment\nselect 1"},
+			wantArgs: []string{
+				"db", "query",
+				"--output", "json", "--output-format", "json", "--agent", "yes",
+				"--", "-- comment\nselect 1",
 			},
 		},
 	}
@@ -328,32 +451,34 @@ func TestDBQueryForwardsOfficialInputs(t *testing.T) {
 	}
 }
 
-// TestStorageDownloadOnlyAllowsRemoteToLocal prevents the official cp command
-// from becoming an upload or remote-to-remote mutation through positional
-// arguments.
-func TestStorageDownloadOnlyAllowsRemoteToLocal(t *testing.T) {
-	fake := &fakeRun{}
-	result, _, _ := execute(t, fake, testAccessToken,
-		"storage", "download", "ss:///assets/docs", "./docs",
-		"--project-ref", "abcdefghijklmnopqrst",
-		"--recursive",
-	)
-	if result.ExitCode != 0 {
-		t.Fatalf("result = %+v, want success", result)
-	}
-	wantPrefix := []string{"storage", "cp", "ss:///assets/docs", "./docs"}
-	if len(fake.args) < len(wantPrefix) || !slices.Equal(fake.args[:len(wantPrefix)], wantPrefix) {
-		t.Errorf("argv prefix = %#v, want %#v", fake.args, wantPrefix)
-	}
-
-	for _, args := range [][]string{
-		{"storage", "download", "./local", "ss:///assets/file", "--project-ref", "abcdefghijklmnopqrst"},
-		{"storage", "download", "ss:///assets/file", "ss:///other/file", "--project-ref", "abcdefghijklmnopqrst"},
+// TestStorageCopyUsesTheOfficialCommand ensures both copy directions share one
+// side-effectful command and leave their policy decision to the embedding host.
+func TestStorageCopyUsesTheOfficialCommand(t *testing.T) {
+	for _, paths := range [][]string{
+		{"ss:///assets/docs", "./docs"},
+		{"./local", "ss:///assets/file"},
 	} {
-		rejected := &fakeRun{}
-		rejectedResult, _, _ := execute(t, rejected, testAccessToken, args...)
-		if rejectedResult.ExitCode != 2 || rejected.called {
-			t.Errorf("args %v: result=%+v called=%v, want usage exit before spawn", args, rejectedResult, rejected.called)
+		fake := &fakeRun{}
+		result, _, _ := execute(t, fake, testAccessToken,
+			"storage", "cp", paths[0], paths[1],
+			"--project-ref", "abcdefghijklmnopqrst",
+			"--recursive",
+			"--experimental",
+		)
+		if result.ExitCode != 0 {
+			t.Fatalf("paths %v: result = %+v, want success", paths, result)
+		}
+		wantArgs := []string{
+			"storage", "cp", paths[0], paths[1],
+			"--project-ref", "abcdefghijklmnopqrst",
+			"--recursive",
+			"--experimental",
+			"--output", "json",
+			"--output-format", "json",
+			"--agent", "yes",
+		}
+		if !slices.Equal(fake.args, wantArgs) {
+			t.Errorf("paths %v: argv = %#v, want %#v", paths, fake.args, wantArgs)
 		}
 	}
 }
@@ -451,7 +576,7 @@ func TestCommandSurfaceAndSideEffects(t *testing.T) {
 		"sso info":                    "false", // Derives service-provider values locally from the project ref
 		"sso list":                    "false", // GET /v1/projects/{ref}/config/auth/sso/providers
 		"sso show":                    "false", // GET /v1/projects/{ref}/config/auth/sso/providers/{provider-id}
-		"storage download":            "false", // GET /storage/v1/object/{bucket}/{path}; local file writes only
+		"storage cp":                  "true",  // Copies in either direction and may mutate remote Storage
 		"storage ls":                  "false", // GET buckets or POST /storage/v1/object/list/{bucket} (read-only operation)
 		"vanity-subdomains get":       "false", // GET /v1/projects/{ref}/vanity-subdomain
 	}
