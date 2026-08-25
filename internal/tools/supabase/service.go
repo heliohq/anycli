@@ -58,7 +58,7 @@ type invocation struct {
 	exitCode int
 }
 
-// flagKind selects the Cobra parser used for one exposed official CLI flag.
+// flagKind selects the Cobra parser used to document one known official flag.
 type flagKind string
 
 const (
@@ -67,8 +67,8 @@ const (
 	flagInt    flagKind = "int"
 )
 
-// flagSpec declares one allowed official CLI flag. Flags absent from these
-// specs cannot reach the subprocess.
+// flagSpec documents a known official CLI flag for local help. Execution
+// forwards unknown flags too, so this list is not an allowlist.
 type flagSpec struct {
 	Name     string
 	Kind     flagKind
@@ -76,7 +76,7 @@ type flagSpec struct {
 	Required bool
 }
 
-// commandSpec declares one runnable leaf and its fixed official CLI mapping.
+// commandSpec declares one runnable leaf and its official CLI mapping.
 type commandSpec struct {
 	Group      string
 	Use        string
@@ -86,7 +86,6 @@ type commandSpec struct {
 	SideEffect bool
 	Flags      []flagSpec
 	BinaryPath []string
-	FixedArgs  []string
 }
 
 // groupSpec supplies help for a non-runnable command group.
@@ -119,7 +118,7 @@ var groupSpecs = []groupSpec{
 	{Name: "snippets", Short: "Inspect SQL snippets"},
 	{Name: "ssl-enforcement", Short: "Inspect and update database SSL enforcement"},
 	{Name: "sso", Short: "Inspect project SAML SSO configuration"},
-	{Name: "storage", Short: "Read Storage objects"},
+	{Name: "storage", Short: "Manage Storage objects"},
 	{Name: "vanity-subdomains", Short: "Inspect vanity subdomains"},
 }
 
@@ -189,26 +188,26 @@ var commandSpecs = []commandSpec{
 		Args: cobra.NoArgs, Flags: []flagSpec{projectRefFlag()},
 	},
 	{
-		Group: "functions", Use: "download [name]", Short: "Download one or all Edge Functions without Docker",
-		Long: "Downloads through Supabase's server-side API bundler; Docker is never used.",
+		Group: "functions", Use: "download [name]", Short: "Download one or all Edge Functions",
+		Long: "Preserves the official CLI's Docker/API selection; use --use-api to avoid Docker.",
 		Args: cobra.MaximumNArgs(1),
 		Flags: []flagSpec{
 			projectRefFlag(), stringFlag("workdir", "Supabase project directory receiving the files", false),
+			boolFlag("use-api", "Unbundle functions server-side without using Docker"),
 		},
-		FixedArgs: []string{"--use-api"},
 	},
 	{
-		Group: "functions", Use: "deploy [name...]", Short: "Deploy Edge Functions without Docker",
-		Long: "Bundles through Supabase's server-side API; Docker is never used.",
+		Group: "functions", Use: "deploy [name...]", Short: "Deploy Edge Functions",
+		Long: "Preserves the official CLI's Docker/API selection; use --use-api to avoid Docker.",
 		Args: cobra.ArbitraryArgs, SideEffect: true,
 		Flags: []flagSpec{
 			projectRefFlag(), stringFlag("workdir", "Supabase project directory containing the functions", false),
+			boolFlag("use-api", "Bundle functions server-side without using Docker"),
 			boolFlag("no-verify-jwt", "Disable JWT verification for the deployed functions"),
 			stringFlag("import-map", "Path to an import map", false),
 			boolFlag("prune", "Delete remote functions that are absent locally"),
 			intFlag("jobs", "Maximum parallel deployment jobs"),
 		},
-		FixedArgs: []string{"--use-api"},
 	},
 	{
 		Group: "functions", Use: "delete <name>", Short: "Delete a deployed Edge Function",
@@ -323,20 +322,18 @@ var commandSpecs = []commandSpec{
 	},
 	{
 		Group: "storage", Use: "ls [ss:///bucket/prefix]", Short: "List Storage objects",
-		Long:      "Uses the official experimental Storage command against an explicit remote project.",
-		Args:      cobra.MaximumNArgs(1),
-		Flags:     []flagSpec{projectRefFlag(), boolFlag("recursive", "List objects recursively")},
-		FixedArgs: []string{"--experimental"},
+		Long:  "The official Storage command requires --experimental.",
+		Args:  cobra.MaximumNArgs(1),
+		Flags: []flagSpec{projectRefFlag(), boolFlag("recursive", "List objects recursively")},
 	},
 	{
-		Group: "storage", Use: "download <ss:///source> <local-destination>", Short: "Download Storage objects",
-		Long: "Maps to official `storage cp` with remote-to-local arguments only; upload and remote mutation are unavailable.",
-		Args: remoteToLocalArgs,
+		Group: "storage", Use: "cp <source> <destination>", Short: "Copy Storage objects",
+		Long: "Preserves the official CLI's local and remote copy directions. The command is always classified as side-effectful so embedding hosts can require approval.",
+		Args: cobra.ExactArgs(2), SideEffect: true,
 		Flags: []flagSpec{
-			projectRefFlag(), boolFlag("recursive", "Download a directory recursively"),
-			intFlag("jobs", "Maximum parallel download jobs"),
+			projectRefFlag(), boolFlag("recursive", "Copy a directory recursively"),
+			intFlag("jobs", "Maximum parallel copy jobs"),
 		},
-		BinaryPath: []string{"storage", "cp"}, FixedArgs: []string{"--experimental"},
 	},
 	{
 		Group: "vanity-subdomains", Use: "get", Short: "Get vanity subdomain configuration",
@@ -365,21 +362,6 @@ func intFlag(name, usage string) flagSpec {
 	return flagSpec{Name: name, Kind: flagInt, Usage: usage}
 }
 
-// remoteToLocalArgs validates the constrained Storage copy direction before
-// any subprocess can run.
-func remoteToLocalArgs(_ *cobra.Command, args []string) error {
-	if err := cobra.ExactArgs(2)(nil, args); err != nil {
-		return err
-	}
-	if !strings.HasPrefix(args[0], "ss:///") {
-		return errors.New("source must be a remote Supabase Storage path starting with ss:///")
-	}
-	if strings.HasPrefix(args[1], "ss://") {
-		return errors.New("destination must be a local path")
-	}
-	return nil
-}
-
 // Execute parses and runs one allowed Supabase command with the resolved OAuth
 // token injected only into the child environment.
 func (s *Service) Execute(ctx context.Context, args []string, env map[string]string) (execution.Result, error) {
@@ -390,7 +372,7 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 	}
 
 	inv := &invocation{}
-	root := s.newRoot(token, inv)
+	root := s.newRoot(token, inv, true)
 	root.SetArgs(args)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(s.stderr(), redactSecret(err.Error(), token))
@@ -410,8 +392,10 @@ func (s *Service) Execute(ctx context.Context, args []string, env map[string]str
 }
 
 // newRoot builds the explicit command tree shared by execution, help,
-// inspection, and side-effect policy traversal.
-func (s *Service) newRoot(token string, inv *invocation) *cobra.Command {
+// inspection, and side-effect policy traversal. Execution keeps each allowed
+// leaf's provider arguments opaque; inspection parses known flags and ignores
+// unknown ones so upstream additions do not break approval classification.
+func (s *Service) newRoot(token string, inv *invocation, execute bool) *cobra.Command {
 	pin := pinnedSupabaseVersion()
 	root := &cobra.Command{
 		Use:           "supabase",
@@ -421,7 +405,6 @@ func (s *Service) newRoot(token string, inv *invocation) *cobra.Command {
 	}
 	root.SetOut(s.stdout())
 	root.SetErr(s.stderr())
-	timeout := root.PersistentFlags().Duration("timeout", defaultTimeout, "official CLI execution timeout")
 
 	groups := make(map[string]*cobra.Command, len(groupSpecs))
 	for _, spec := range groupSpecs {
@@ -435,14 +418,14 @@ func (s *Service) newRoot(token string, inv *invocation) *cobra.Command {
 	}
 	for i := range commandSpecs {
 		spec := commandSpecs[i]
-		groups[spec.Group].AddCommand(s.newLeaf(spec, token, timeout, inv))
+		groups[spec.Group].AddCommand(s.newLeaf(spec, token, inv, execute))
 	}
 	return root
 }
 
 // newLeaf converts one declarative command specification into a Cobra leaf
-// and a fixed official CLI argv mapping.
-func (s *Service) newLeaf(spec commandSpec, token string, timeout *time.Duration, inv *invocation) *cobra.Command {
+// and its official CLI argv mapping.
+func (s *Service) newLeaf(spec commandSpec, token string, inv *invocation, execute bool) *cobra.Command {
 	command := &cobra.Command{
 		Use:   spec.Use,
 		Short: spec.Short,
@@ -451,10 +434,16 @@ func (s *Service) newLeaf(spec commandSpec, token string, timeout *time.Duration
 		Annotations: map[string]string{
 			sideEffectKey: fmt.Sprintf("%t", spec.SideEffect),
 		},
-		RunE: func(cmd *cobra.Command, positional []string) error {
+		RunE: func(cmd *cobra.Command, providerArgs []string) error {
 			inv.started = true
-			return s.runSupabase(cmd.Context(), officialArgs(cmd, spec, positional), token, *timeout, inv)
+			return s.runSupabase(cmd.Context(), officialArgs(cmd, spec, providerArgs), token, defaultTimeout, inv)
 		},
+	}
+	if execute {
+		command.DisableFlagParsing = true
+		command.Args = cobra.ArbitraryArgs
+	} else {
+		command.FParseErrWhitelist.UnknownFlags = true
 	}
 	for _, flag := range spec.Flags {
 		switch flag.Kind {
@@ -472,27 +461,18 @@ func (s *Service) newLeaf(spec commandSpec, token string, timeout *time.Duration
 	return command
 }
 
-// officialArgs assembles the complete execve argv from a leaf's fixed path,
-// positional arguments, explicitly exposed flags, and non-interactive output
-// controls.
-func officialArgs(command *cobra.Command, spec commandSpec, positional []string) []string {
+// officialArgs preserves the provider-owned argv after an allowed command
+// path, then appends the wrapper's machine-output controls.
+func officialArgs(command *cobra.Command, spec commandSpec, providerArgs []string) []string {
 	path := spec.BinaryPath
 	if len(path) == 0 {
 		path = []string{spec.Group, command.Name()}
 	}
-	args := append(slices.Clone(path), positional...)
-	for _, exposed := range spec.Flags {
-		flag := command.Flags().Lookup(exposed.Name)
-		if flag != nil && flag.Changed {
-			args = append(args, "--"+exposed.Name+"="+flag.Value.String())
-		}
-	}
-	args = append(args, spec.FixedArgs...)
+	args := append(slices.Clone(path), providerArgs...)
 	return append(args,
 		"--output", "json",
 		"--output-format", "json",
 		"--agent", "yes",
-		"--yes",
 	)
 }
 
@@ -529,7 +509,7 @@ func (s *Service) runSupabase(ctx context.Context, args []string, token string, 
 		_, _ = s.stderr().Write([]byte(redactSecret(string(stderr), token)))
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return fmt.Errorf("Supabase CLI timed out after %s; adjust with --timeout", timeout)
+		return fmt.Errorf("Supabase CLI timed out after %s", timeout)
 	}
 	if runErr != nil {
 		return classifyFailure(runErr, stdout, stderr)
@@ -641,7 +621,7 @@ func redactSecret(value, token string) string {
 // NewCommandTree returns the full dry-run tree used by help, inspection, lint,
 // and approval policy without resolving credentials or the binary.
 func (s *Service) NewCommandTree() *cobra.Command {
-	return s.newRoot("", &invocation{})
+	return s.newRoot("", &invocation{}, false)
 }
 
 // stdout returns the configured service output stream.

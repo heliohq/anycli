@@ -205,6 +205,20 @@ func TestInspect_NoNetwork(t *testing.T) {
 	}
 }
 
+// TestInspectSupabaseAllowsUnknownOfficialFlags protects approval
+// classification from upstream Supabase CLI flag additions.
+func TestInspectSupabaseAllowsUnknownOfficialFlags(t *testing.T) {
+	inv, err := Inspect("supabase", []string{
+		"db", "query", "select 1", "--future-official-flag", "value",
+	})
+	if err != nil {
+		t.Fatalf("Inspect: %v", err)
+	}
+	if inv.Action != "supabase.db_query" || !inv.SideEffect || !inv.Runnable || !inv.Parsed {
+		t.Fatalf("invocation = %+v, want parsed side-effectful db query", inv)
+	}
+}
+
 func TestServiceTools(t *testing.T) {
 	names := ServiceTools()
 	if !slices.Contains(names, "gmail") {

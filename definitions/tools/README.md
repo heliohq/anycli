@@ -18,8 +18,10 @@ lazily installed from downloads.mongodb.com on first use (see
 
 The `supabase` definition is also a binary-backed service. It injects an OAuth
 access token as `SUPABASE_ACCESS_TOKEN` and wraps a pinned official Supabase
-CLI release with an explicit command tree. The `db query` leaf preserves the
-official linked, local, direct URL, positional SQL, and file input modes and is
-always classified as side-effectful. The service omits local stack lifecycle,
-migration, login, and arbitrary passthrough commands; Function operations force
-the server-side API path so they never start Docker.
+CLI release with an explicit command tree. Allowed command paths keep their
+side-effect classifications, while all following arguments and flags are
+forwarded verbatim for the official CLI to validate. The `db query` and
+`storage cp` leaves are always classified as side-effectful. The service omits
+local stack lifecycle, migration, login, and arbitrary command paths; callers
+choose official experimental, confirmation, and Function Docker/API behavior
+with the corresponding upstream flags.
